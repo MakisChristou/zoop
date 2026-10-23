@@ -1,7 +1,7 @@
 # Local development. `just up` then `just run`.
 
 [server]
-bind = "0.0.0.0:8080"
+bind = "0.0.0.0:8471"
 # Bearer token the iOS app sends on every request. DEV ONLY value; validation WARNs.
 ingest_token = "dev-token-change-me"
 
