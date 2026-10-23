@@ -1,0 +1,5 @@
+/target
+/refs/
+/captures/
+*.toml.local
+.DS_Store

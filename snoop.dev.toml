@@ -1,0 +1,14 @@
+# Local development. `just up` then `just run`.
+
+[server]
+bind = "0.0.0.0:8080"
+# Bearer token the iOS app sends on every request. DEV ONLY value; validation WARNs.
+ingest_token = "dev-token-change-me"
+
+[storage]
+postgres_url = "postgres://snoop:snoop@localhost:5432/snoop"
+
+[worker]
+# How often the decode loop looks for pending raw frames when idle.
+poll_interval_ms = 5000
+batch_size = 500
