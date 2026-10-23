@@ -9,7 +9,7 @@ mod sample_store;
 pub use error::{StorageError, StorageResult};
 pub use frame_store::{NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;
-pub use sample_store::{NewEcgStrip, NewSample, SampleRow};
+pub use sample_store::{NewEcgStrip, NewEvent, NewSample, SampleRow};
 
 use sqlx::{PgPool, postgres::PgPoolOptions};
 

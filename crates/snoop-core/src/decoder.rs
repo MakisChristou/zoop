@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use snoop_proto::{Decoded, PROTO_VERSION, Record, decode_frame};
-use snoop_storage::{NewEcgStrip, NewSample, PendingFrame, PostgresStore};
+use snoop_proto::{ActivityClass, BandState, Decoded, EventPayload, PROTO_VERSION, decode_frame};
+use snoop_storage::{NewEcgStrip, NewEvent, NewSample, PendingFrame, PostgresStore};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
@@ -13,6 +13,7 @@ use crate::CoreResult;
 pub struct DecodePass {
     pub frames: usize,
     pub samples: usize,
+    pub events: usize,
     pub ecg_strips: usize,
     pub undecodable: usize,
 }
@@ -81,55 +82,98 @@ impl Decoder {
                 return Ok(());
             }
         };
-        let Decoded::Record { record, .. } = decoded else {
-            return Ok(());
-        };
 
-        match record {
-            Record::Biometric(biometric) => {
-                let ts = DateTime::<Utc>::from_timestamp(i64::from(biometric.unix_seconds), 0)
-                    .unwrap_or(frame.received_at);
-                let rr_ms = biometric
-                    .heart_rate
-                    .rr_ms
-                    .iter()
-                    .map(|&rr| i32::try_from(rr).unwrap_or(i32::MAX))
-                    .collect();
+        match decoded {
+            Decoded::Biometric(b) => {
+                let rr_ms = b.rr_ms.iter().map(|&rr| i32::from(rr)).collect();
                 self.store
                     .upsert_sample(&NewSample {
                         device_id: &frame.device_id,
-                        ts,
-                        hr: Some(i16::from(biometric.heart_rate.bpm)),
+                        ts: strap_time(b.header.unix_s, frame.received_at),
+                        hr: Some(i16::from(b.heart_rate)),
                         rr_ms,
-                        skin_temp_c: biometric.skin_temp_c,
-                        steps: biometric.steps.map(i32::from),
-                        accel_dyn_g: biometric.dynamic_accel_g,
-                        activity: biometric.activity.map(i16::from),
-                        quality: biometric.quality_flags.map(i16::from),
+                        skin_temp_c: b.skin_temp_c,
+                        steps: Some(i32::from(b.steps)),
+                        accel_dyn_g: b.dynamic_accel_g,
+                        activity: activity_code(b.activity),
+                        band_state: band_state_code(b.band_state),
+                        spo2_pct: b.spo2_percent.map(i16::from),
                         raw_frame_id: frame.id,
                     })
                     .await?;
                 pass.samples += 1;
             }
-            Record::Ecg(ecg) => {
-                // The ECG record's own clock word is not yet mapped to wall time;
-                // the phone's receipt time is the best anchor available.
+            Decoded::Event(event) => {
+                let payload = match event.payload {
+                    EventPayload::Raw { bytes } => bytes,
+                    EventPayload::BatteryLevel(level) => {
+                        let mut bytes = vec![level.revision];
+                        bytes.extend_from_slice(&level.soc_tenths.to_le_bytes());
+                        bytes.extend_from_slice(&[0, 0]);
+                        bytes.extend_from_slice(&level.millivolts.to_le_bytes());
+                        bytes
+                    }
+                };
+                self.store
+                    .insert_event(&NewEvent {
+                        device_id: &frame.device_id,
+                        ts: strap_time(event.unix_s, frame.received_at),
+                        event_code: i16::from(event.code),
+                        payload,
+                        raw_frame_id: frame.id,
+                    })
+                    .await?;
+                pass.events += 1;
+            }
+            Decoded::Ecg(ecg) => {
                 self.store
                     .insert_ecg_strip(&NewEcgStrip {
                         device_id: &frame.device_id,
-                        ts: frame.received_at,
-                        layout: i16::from(ecg.layout),
+                        ts: strap_time(ecg.header.unix_s, frame.received_at),
+                        layout: i16::from(ecg.header.layout.as_byte()),
                         quality: Some(i16::from(ecg.quality)),
-                        samples: ecg.samples.clone(),
+                        samples: ecg.samples,
                         raw_frame_id: frame.id,
                     })
                     .await?;
                 pass.ecg_strips += 1;
             }
-            // R20/R21/R26 and unknown layouts stay raw until their decoders are
-            // promoted; nothing is lost.
-            _ => {}
+            // Undecoded layouts, live HR, metadata and command responses stay raw;
+            // nothing is lost and they are re-read when the decoder learns them.
+            Decoded::UnknownRecord(_)
+            | Decoded::RealtimeHr(_)
+            | Decoded::Metadata(_)
+            | Decoded::CommandResponse(_)
+            | Decoded::Other { .. } => {}
         }
         Ok(())
+    }
+}
+
+/// The strap clock, unless it is unset (an `RTC_LOST` strap reports epoch-ish values).
+fn strap_time(unix_s: u32, fallback: DateTime<Utc>) -> DateTime<Utc> {
+    const PLAUSIBLE_AFTER: i64 = 1_600_000_000; // 2020-09-13
+    let seconds = i64::from(unix_s);
+    if seconds < PLAUSIBLE_AFTER {
+        return fallback;
+    }
+    DateTime::<Utc>::from_timestamp(seconds, 0).unwrap_or(fallback)
+}
+
+const fn activity_code(activity: ActivityClass) -> Option<i16> {
+    match activity {
+        ActivityClass::Still => Some(0),
+        ActivityClass::Walk => Some(1),
+        ActivityClass::Run => Some(2),
+        ActivityClass::Other(_) => None,
+    }
+}
+
+const fn band_state_code(state: BandState) -> i16 {
+    match state {
+        BandState::Wake => 0,
+        BandState::Still => 1,
+        BandState::Sleep => 2,
+        BandState::Up => 3,
     }
 }

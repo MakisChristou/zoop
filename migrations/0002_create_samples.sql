@@ -7,13 +7,15 @@ CREATE TABLE samples (
     skin_temp_c   REAL,
     steps         INTEGER,
     accel_dyn_g   REAL,
-    activity      SMALLINT,
-    quality       SMALLINT,
+    activity      SMALLINT,                      -- 0 still, 1 walk, 2 run; NULL = other
+    band_state    SMALLINT NOT NULL,             -- strap's own flag: 0 wake, 1 still, 2 sleep, 3 up
+    spo2_pct      SMALLINT,                      -- valid only inside the strap's SpO2 windows
     raw_frame_id  BIGINT NOT NULL REFERENCES raw_frames (id),
     PRIMARY KEY (device_id, ts)
 );
 
 CREATE INDEX samples_ts_brin ON samples USING BRIN (ts);
+CREATE INDEX samples_sleep_idx ON samples (device_id, ts) WHERE band_state = 2;
 
 -- Strap events: wear on/off, charge, double tap, sleep envelope markers.
 CREATE TABLE events (
