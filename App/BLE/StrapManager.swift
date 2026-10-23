@@ -1,0 +1,246 @@
+import Combine
+import CoreBluetooth
+import Foundation
+import SnoopProtocol
+
+/// Owns the Bluetooth link to the strap.
+///
+/// The official WHOOP app bonds the strap to the phone at the OS level; this manager
+/// rides that bond: it looks for an already-connected or known peripheral exposing the
+/// `fd4b` service, subscribes to the four notification channels, sends the client hello,
+/// and from then on turns every notification into complete frames. Every frame is
+/// handed to `onFrame` (for the queue) and decoded for the live view and the offload
+/// loop.
+final class StrapManager: NSObject, ObservableObject {
+    enum State: Equatable {
+        case bluetoothOff, scanning, connecting, connected, ready
+        case failed(String)
+    }
+
+    @Published private(set) var state: State = .scanning
+    @Published private(set) var serial = ""
+    @Published private(set) var model = ""
+    @Published private(set) var firmware: String?
+    @Published private(set) var liveHeartRate: UInt8?
+    @Published private(set) var liveRR: [UInt16] = []
+    @Published private(set) var lastBiometric: Biometric?
+    @Published private(set) var batteryPercent: Double?
+    @Published private(set) var framesReceived = 0
+    @Published private(set) var offloadChunks = 0
+    @Published private(set) var lastDataRange: DataRange?
+
+    /// Called with every complete frame and the notify channel it arrived on (3,4,5,7).
+    var onFrame: ((_ bytes: [UInt8], _ channel: Int) -> Void)?
+
+    static let restoreIdentifier = "snoop.strap"
+    static let offloadInterval: TimeInterval = 600
+
+    private var central: CBCentralManager!
+    private var peripheral: CBPeripheral?
+    private var commandCharacteristic: CBCharacteristic?
+    private var reassemblers: [CBUUID: Reassembler] = [:]
+    private var sequence: UInt8 = 1
+    private var offloadTimer: Timer?
+
+    private let serviceUUID = CBUUID(string: GATT.service)
+    private let commandUUID = CBUUID(string: GATT.commandWrite)
+    private let notifyUUIDs = GATT.notifyCharacteristics.map(CBUUID.init(string:))
+    private let channelByUUID: [CBUUID: Int] = [
+        CBUUID(string: GATT.notifyCommandResponse): 3,
+        CBUUID(string: GATT.notifyEvents): 4,
+        CBUUID(string: GATT.notifyData): 5,
+        CBUUID(string: GATT.notifyDiagnostics): 7,
+    ]
+
+    override init() {
+        super.init()
+        central = CBCentralManager(delegate: self, queue: nil, options: [
+            CBCentralManagerOptionRestoreIdentifierKey: Self.restoreIdentifier,
+            CBCentralManagerOptionShowPowerAlertKey: true,
+        ])
+    }
+
+    // MARK: - Connection
+
+    func connect() {
+        guard central.state == .poweredOn else { return }
+        // Prefer a strap the system already has connected (the official app's bond).
+        if let known = central.retrieveConnectedPeripherals(withServices: [serviceUUID]).first {
+            attach(known)
+            return
+        }
+        state = .scanning
+        central.scanForPeripherals(withServices: [serviceUUID], options: nil)
+    }
+
+    private func attach(_ p: CBPeripheral) {
+        central.stopScan()
+        peripheral = p
+        p.delegate = self
+        state = .connecting
+        central.connect(p, options: [
+            CBConnectPeripheralOptionNotifyOnConnectionKey: true,
+            CBConnectPeripheralOptionNotifyOnDisconnectionKey: true,
+        ])
+    }
+
+    /// Starts a history offload round, the way the official app does every ~10 minutes.
+    func requestOffload() {
+        send(Command.sendHistoricalData(sequence: nextSequence()))
+        send(Command.getDataRange(sequence: nextSequence()))
+        send(Command.sendHistoricalData(sequence: nextSequence()))
+    }
+
+    private func send(_ frame: [UInt8]) {
+        guard let peripheral, let commandCharacteristic else { return }
+        peripheral.writeValue(Data(frame), for: commandCharacteristic, type: .withResponse)
+    }
+
+    private func nextSequence() -> UInt8 {
+        sequence &+= 1
+        if sequence == 0 { sequence = 1 }
+        return sequence
+    }
+
+    // MARK: - Frame handling
+
+    private func handle(frame: [UInt8], channel: Int) {
+        framesReceived += 1
+        onFrame?(frame, channel)
+        guard let decoded = try? FrameDecoder.decode(frame) else { return }
+        switch decoded {
+        case let .realtimeHeartRate(hr):
+            liveHeartRate = hr.heartRate
+            liveRR = hr.rrMilliseconds
+        case let .biometric(b):
+            lastBiometric = b
+            if liveHeartRate == nil { liveHeartRate = b.heartRate }
+        case let .event(event):
+            if case let .batteryLevel(level) = event.payload {
+                batteryPercent = Double(level.stateOfChargeTenths) / 10
+            }
+        case let .metadata(meta):
+            if let token = meta.historyEndToken, let ack = try? Command.historyAck(sequence: nextSequence(), token: token) {
+                offloadChunks += 1
+                send(ack)
+            } else if meta.kind == .historyComplete {
+                send(Command.abortHistoricalTransmits(sequence: nextSequence()))
+            }
+        case let .commandResponse(response):
+            if let range = response.dataRange { lastDataRange = range }
+            if response.command == Command.getHello.code { state = .ready }
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - CBCentralManagerDelegate
+
+extension StrapManager: CBCentralManagerDelegate {
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        switch central.state {
+        case .poweredOn: connect()
+        case .poweredOff: state = .bluetoothOff
+        case .unauthorized: state = .failed("Bluetooth permission denied")
+        default: break
+        }
+    }
+
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        if let restored = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first {
+            peripheral = restored
+            restored.delegate = self
+        }
+    }
+
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
+        attach(peripheral)
+    }
+
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        state = .connected
+        reassemblers = [:]
+        peripheral.discoverServices([serviceUUID, CBUUID(string: GATT.deviceInformationService)])
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        state = .failed(error?.localizedDescription ?? "connect failed")
+        scheduleReconnect()
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        state = .connecting
+        offloadTimer?.invalidate()
+        central.connect(peripheral, options: nil) // iOS retries this until the strap is in range again
+    }
+
+    private func scheduleReconnect() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.connect() }
+    }
+}
+
+// MARK: - CBPeripheralDelegate
+
+extension StrapManager: CBPeripheralDelegate {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        for service in peripheral.services ?? [] {
+            peripheral.discoverCharacteristics(nil, for: service)
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        for characteristic in service.characteristics ?? [] {
+            switch characteristic.uuid {
+            case commandUUID:
+                commandCharacteristic = characteristic
+            case let uuid where notifyUUIDs.contains(uuid):
+                reassemblers[uuid] = Reassembler()
+                peripheral.setNotifyValue(true, for: characteristic)
+            case CBUUID(string: GATT.serialNumberString), CBUUID(string: GATT.modelNumberString):
+                peripheral.readValue(for: characteristic)
+            default:
+                break
+            }
+        }
+        if service.uuid == serviceUUID, commandCharacteristic != nil {
+            // Subscriptions are requested above; the hello goes out once they confirm.
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        if let error {
+            state = .failed("subscribe \(characteristic.uuid): \(error.localizedDescription)")
+            return
+        }
+        let subscribed = notifyUUIDs.filter { uuid in
+            peripheral.services?.flatMap { $0.characteristics ?? [] }.first { $0.uuid == uuid }?.isNotifying == true
+        }
+        if subscribed.count == notifyUUIDs.count {
+            send(Command.clientHello)
+            send(Command.getAdvertisingName(sequence: nextSequence()))
+            requestOffload()
+            offloadTimer?.invalidate()
+            offloadTimer = Timer.scheduledTimer(withTimeInterval: Self.offloadInterval, repeats: true) { [weak self] _ in
+                self?.requestOffload()
+            }
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        guard let data = characteristic.value else { return }
+        switch characteristic.uuid {
+        case CBUUID(string: GATT.serialNumberString):
+            serial = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)
+            if model.isEmpty { model = serial.hasPrefix(GATT.serialPrefixMG) ? "MG" : "5.0" }
+        case CBUUID(string: GATT.modelNumberString):
+            let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)
+            if !text.isEmpty { model = text }
+        default:
+            guard let channel = channelByUUID[characteristic.uuid] else { return }
+            for frame in reassemblers[characteristic.uuid, default: Reassembler()].feed([UInt8](data)) {
+                handle(frame: frame, channel: channel)
+            }
+        }
+    }
+}

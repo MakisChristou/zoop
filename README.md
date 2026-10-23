@@ -8,8 +8,10 @@ server. No WHOOP account, no WHOOP cloud, no subscription.
 
 Pure Swift. The strap protocol is implemented in the app itself.
 
-> **Status: early development.** The app is a shell today. Live heart rate is the first
-> milestone; see [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
+> **Status: early development.** The app builds and implements the full pipeline
+> (connect, hello, decode, queue, upload, offload acknowledgements) but has not yet been
+> run against a strap. First hardware test is the next milestone; see
+> [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
 
 ## How it works
 
@@ -37,19 +39,26 @@ xcodegen generate
 open Snoop.xcodeproj
 ```
 
+Protocol unit tests run without Xcode:
+
+```sh
+cd Packages/SnoopProtocol && swift test
+```
+
 In the app's settings, enter your snoop-api URL and bearer token.
 
 ## Repository layout
 
 ```
-App/            SwiftUI app
-  BLE/          CoreBluetooth: discovery, connection, reconnection, state restoration
-  Protocol/     format-1 framing, CRCs, record decoding, commands
-  Queue/        local frame queue
-  Upload/       batching and authentication
-  UI/           views and view models
-Config/         signing settings (example committed, local copy ignored)
-project.yml     XcodeGen spec
+Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
+App/
+  BLE/                   CoreBluetooth: discovery, connection, reconnection, state restoration, offload loop
+  Queue/                 durable SQLite frame queue
+  Upload/                batching, authentication, retry
+  UI/                    SwiftUI views
+  Settings/              server URL and token (entered in the app)
+Config/                  signing settings (example committed, local copy ignored)
+project.yml              XcodeGen spec
 ```
 
 Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).

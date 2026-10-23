@@ -11,18 +11,25 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+packages:
+  SnoopProtocol:
+    path: Packages/SnoopProtocol
 targets:
   Snoop:
     type: application
     platform: iOS
     sources:
       - App
+    dependencies:
+      - package: SnoopProtocol
     info:
       path: App/Info.plist
       properties:
         UILaunchScreen: {}
         NSBluetoothAlwaysUsageDescription: "Connects to your WHOOP strap to read heart-rate and sensor data."
         UIBackgroundModes: [bluetooth-central]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.snoop

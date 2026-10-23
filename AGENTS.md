@@ -16,7 +16,7 @@ Analysis happens on the server; the app shows live values and sync status.
   the protocol, then write our own Swift. Never add them as dependencies, vendor their
   code, or copy their fixtures.
 - **Pure Swift.** No Rust bridge, no third-party protocol libraries. The protocol layer
-  (`App/Protocol`) mirrors the byte layouts documented in snoop-api's
+  (`Packages/SnoopProtocol`) mirrors the byte layouts documented in snoop-api's
   `docs/PROTOCOL.md`; when the two disagree, fix the document first.
 - **Never drop frames.** Every complete frame goes to the local queue before anything
   else. Uploads are batched, retried, and removed from the queue only on a 2xx.
@@ -43,7 +43,9 @@ Analysis happens on the server; the app shows live values and sync status.
 ## Workflow
 
 ```sh
-xcodegen generate      # after editing project.yml
+xcodegen generate                          # after editing project.yml
+cd Packages/SnoopProtocol && swift test    # protocol tests, no device needed
+xcodebuild -scheme Snoop -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
 Build and run on a physical iPhone that is already paired with the strap through the
