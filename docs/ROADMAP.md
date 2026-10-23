@@ -46,10 +46,14 @@ in the first 15 minutes, deep weighted to the first third of the night. Methods:
 Cole–Kripke / Webster actigraphy, van Hees z-angle immobility, Walch et al. 2019
 HR-based staging, Task Force 1996 HRV. Each module cites its source.
 
-**Validation.** Export sleep data from the official app for the same nights and compare
-onset, offset, stage totals and performance. Store comparisons so each algorithm version
-has a scorecard. The target is agreement within a few minutes on boundaries and within
-the published inter-device error on stage totals.
+**Validation.** The strap keeps a single history stream: whichever app drains it owns
+that data, and the other app sees a gap. The official app therefore cannot score a
+night that snoop has already pulled, and vice versa. Validation alternates nights:
+on reference nights the official app syncs and its sleep export is kept; on snoop
+nights we compute ours. Compare the two populations (onset and wake relative to the
+strap's own sleep flag, stage totals, efficiency) and keep a scorecard per algorithm
+version. The target is agreement within a few minutes on boundaries and within the
+published inter-device error on stage totals.
 
 ## Non-goals for now
 
