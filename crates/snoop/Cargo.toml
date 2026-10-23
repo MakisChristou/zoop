@@ -1,0 +1,25 @@
+[package]
+name = "snoop"
+description = "snoop service binary: load TOML config, run API + decode worker, migrate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+snoop-api = { workspace = true }
+snoop-config = { workspace = true }
+snoop-core = { workspace = true }
+snoop-storage = { workspace = true }
+axum = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+secrecy = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[lints]
+workspace = true
