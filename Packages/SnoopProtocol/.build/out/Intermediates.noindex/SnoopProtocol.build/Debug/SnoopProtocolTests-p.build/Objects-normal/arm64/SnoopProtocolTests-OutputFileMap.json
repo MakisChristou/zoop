@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SnoopProtocolTests-primary.dia",
+    "emit-module-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SnoopProtocolTests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SnoopProtocolTests-primary-emit-module.dia",
+    "pch" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SnoopProtocolTests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SnoopProtocolTests-primary.swiftdeps"
+  },
+  "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/DerivedSources/test_entry_point.swift" : {
+    "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.swiftconstvalues",
+    "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.d",
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.dia",
+    "index-unit-output-path" : "/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "llvm-bc" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.bc",
+    "object" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.swiftdeps",
+    "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point~partial.swiftmodule"
+  },
+  "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Tests/SnoopProtocolTests/ProtocolTests.swift" : {
+    "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.swiftconstvalues",
+    "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.d",
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.dia",
+    "index-unit-output-path" : "/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.o",
+    "llvm-bc" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.bc",
+    "object" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.o",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.swiftdeps",
+    "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests~partial.swiftmodule"
+  },
+  "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Tests/SnoopProtocolTests/SyntheticFrames.swift" : {
+    "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.swiftconstvalues",
+    "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.d",
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.dia",
+    "index-unit-output-path" : "/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.o",
+    "llvm-bc" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.bc",
+    "object" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.o",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames.swiftdeps",
+    "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/SyntheticFrames~partial.swiftmodule"
+  }
+}

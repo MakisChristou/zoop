@@ -1,0 +1,4 @@
+module SnoopProtocol {
+header "SnoopProtocol-Swift.h"
+export *
+}

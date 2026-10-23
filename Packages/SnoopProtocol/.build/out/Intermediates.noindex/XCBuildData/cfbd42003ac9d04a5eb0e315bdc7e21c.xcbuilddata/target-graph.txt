@@ -1,0 +1,11 @@
+Target dependency graph (4 targets)
+Target 'AllIncludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'SnoopProtocolTests-product' in project 'SnoopProtocol'
+➜ Dependency on target 'SnoopProtocolTests-product' in project 'SnoopProtocol' via transitive dependency through 'SnoopProtocolTests-test-runner'
+➜ Explicit dependency on target 'SnoopProtocol-product' in project 'SnoopProtocol'
+➜ Explicit dependency on target 'SnoopProtocol' in project 'SnoopProtocol'
+Target 'SnoopProtocol-product' in project 'SnoopProtocol'
+➜ Explicit dependency on target 'SnoopProtocol' in project 'SnoopProtocol'
+Target 'SnoopProtocolTests-product' in project 'SnoopProtocol'
+➜ Explicit dependency on target 'SnoopProtocol' in project 'SnoopProtocol'
+Target 'SnoopProtocol' in project 'SnoopProtocol' (no dependencies)
