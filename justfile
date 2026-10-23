@@ -11,8 +11,8 @@ default:
 pg-start:
     [ -d "$PGDATA" ] || initdb --username=postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
     pg_ctl status >/dev/null 2>&1 || pg_ctl -o "-p $PGPORT -k /tmp -c listen_addresses=localhost" -l .pgdata/postgres.log start
-    psql -U postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_roles WHERE rolname='snoop'" | grep -q 1 || psql -U postgres -h localhost -p $PGPORT -c "CREATE ROLE snoop LOGIN PASSWORD 'snoop'"
-    psql -U postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_database WHERE datname='snoop'" | grep -q 1 || psql -U postgres -h localhost -p $PGPORT -c "CREATE DATABASE snoop OWNER snoop"
+    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_roles WHERE rolname='snoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE ROLE snoop LOGIN PASSWORD 'snoop'"
+    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_database WHERE datname='snoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE DATABASE snoop OWNER snoop"
     just migrate
 
 # Stop the repo-local Postgres.
