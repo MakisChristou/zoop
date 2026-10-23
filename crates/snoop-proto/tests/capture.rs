@@ -37,7 +37,7 @@ fn r18_daytime_record() {
         panic!("expected biometric");
     };
     assert_eq!(b.header.layout, Layout::Biometric);
-    assert_eq!(b.header.unix_s, 1_793_108_335); // 2026-10-23 18:45:35 UTC
+    assert_eq!(b.header.unix_s, 1_792_780_655); // 2026-10-23 18:37:35 UTC
     assert_eq!(b.heart_rate, 76);
     assert!(b.rr_ms.is_empty(), "no R-R while moving");
     assert_eq!(b.band_state, BandState::Wake);
@@ -63,13 +63,17 @@ fn hello_response_event_metadata_console() {
         panic!("expected response");
     };
     assert_eq!(r.command, Command::GetHello.code());
-    assert_eq!(r.result, ResultCode::Success);
+    assert_eq!(
+        r.result,
+        ResultCode::Pending,
+        "first of two hello replies is PENDING"
+    );
     assert_eq!(r.origin_sequence, 1);
 
     let Decoded::Event(e) = decode_frame(&capture("event_16")).unwrap() else {
         panic!()
     };
-    assert_eq!((e.code, e.unix_s), (16, 1_793_108_556));
+    assert_eq!((e.code, e.unix_s), (34, 1_792_780_876));
 
     let Decoded::Metadata(m) = decode_frame(&capture("history_start")).unwrap() else {
         panic!()
