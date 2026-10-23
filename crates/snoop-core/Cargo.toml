@@ -1,0 +1,20 @@
+[package]
+name = "snoop-core"
+description = "Decode worker: turns pending raw frames into samples, events and ECG strips"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+snoop-proto = { workspace = true }
+snoop-storage = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
