@@ -1,0 +1,20 @@
+# Builds the shared decoder from snoop-api into a static library for iOS.
+# `rev` pins a snoop-api commit; bump deliberately and note it in the commit message.
+[package]
+name = "snoop-ios-ffi"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+name = "snoop_ios_ffi"
+path = "src/lib.rs"
+
+[dependencies]
+snoop-ffi = { git = "https://github.com/MakisChristou/snoop-api", rev = "36ca74b7825d8691f906c6f45e82d9db4ff819c7" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"
