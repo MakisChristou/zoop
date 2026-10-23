@@ -5,10 +5,8 @@ build/
 *.ipa
 *.dSYM.zip
 .swiftpm/
-# Generated from Rust; rebuilt by scripts/build-xcframework.sh
-rust/target/
-Generated/
-*.xcframework
 # XcodeGen output is regenerated from project.yml
 Snoop.xcodeproj/
+# Personal signing settings
+Config/Local.xcconfig
 .DS_Store

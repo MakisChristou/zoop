@@ -1,53 +1,55 @@
-# AGENTS.md — snoop (iOS)
+# AGENTS.md
 
-Guidance for AI agents and humans working in this repo. Read before changing anything.
+Conventions for contributors and coding agents working in snoop. Read before changing
+anything.
 
 ## What this is
 
-SwiftUI iPhone app for a WHOOP MG. It owns the Bluetooth link to the strap and uploads raw
-frames to the self-hosted backend (`MakisChristou/snoop-api`). Decoding and analytics live
-in Rust in that repo and reach Swift through UniFFI; this repo does not reimplement them.
+A SwiftUI iPhone app for WHOOP 5.0 / MG straps. It owns the Bluetooth link, decodes
+enough of the protocol to drive the strap, and uploads raw frames to a snoop-api server.
+Analysis happens on the server; the app shows live values and sync status.
 
 ## Hard rules
 
-- **Swift for the app, Rust only through `snoop-ffi`.** Protocol or analytics logic belongs
-  in snoop-api. If Swift needs a new capability, add it to `crates/snoop-ffi` there, bump
-  the `rev` in `rust/Cargo.toml` here, and rebuild the xcframework.
-- **Never drop frames.** Every complete frame goes to the local queue before anything else;
-  uploads are batched, retried, and deleted only on a 2xx.
-- **Respect the single bond.** The app rides the OS bond the official WHOOP app created.
-  Never call `forget`/unpair APIs, never attempt pairing dances.
-- **Conventional Commits**, always: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`,
-  `build:`, `ci:`. Scopes: `ble`, `queue`, `upload`, `ui`, `ffi`. Imperative mood, lower
-  case, no trailing period.
-- **Use the developer's default git identity.** Never override author/committer.
-- **No secrets in the repo.** Backend URL and bearer token come from the app's settings
-  screen or an untracked `Config.local.xcconfig`.
+- **Greenfield, independently implemented.** Other projects (NOOP, OpenStrap,
+  wearable5.0, whoop-rs, Goose) are *reference material only*. Read them to understand
+  the protocol, then write our own Swift. Never add them as dependencies, vendor their
+  code, or copy their fixtures.
+- **Pure Swift.** No Rust bridge, no third-party protocol libraries. The protocol layer
+  (`App/Protocol`) mirrors the byte layouts documented in snoop-api's
+  `docs/PROTOCOL.md`; when the two disagree, fix the document first.
+- **Never drop frames.** Every complete frame goes to the local queue before anything
+  else. Uploads are batched, retried, and removed from the queue only on a 2xx.
+- **Respect the single bond.** The app uses the OS bond the official WHOOP app created.
+  Never unpair, never attempt pairing.
+- **Public project.** No personal names, team IDs, bundle-id prefixes, hosts or tokens in
+  the repo. Signing lives in `Config/Local.xcconfig` (gitignored); server URL and token
+  are entered in the app.
+- **Conventional Commits**: `feat`, `fix`, `refactor`, `docs`, `chore`, `build`, `ci`;
+  scopes `ble`, `protocol`, `queue`, `upload`, `ui`. Imperative mood, lower case, no
+  trailing period. Never override the git identity.
 
 ## Code style
 
-- Swift 5.10+, SwiftUI, Swift concurrency (`async`/`await`, actors) over callbacks where
-  CoreBluetooth allows. One type per file, files named after the type.
-- Layers: `App/BLE` (CoreBluetooth, reconnection, state restoration), `App/Queue` (SQLite
-  frame queue), `App/Upload` (batching, auth), `App/UI` (views, view models), `App/FFI`
-  (thin Swift wrappers over the generated bindings).
-- Background mode `bluetooth-central` with state restoration is mandatory; test on a real
-  device, the simulator has no Bluetooth.
-- `Generated/` and `SnoopFFI.xcframework` are build outputs, never edited by hand.
-- Prefer named constants for UUIDs and timing; they live next to the BLE layer and mirror
-  `snoop_proto::gatt`.
+- Swift 5.10+, SwiftUI, Swift concurrency (`async`/`await`, actors) wherever
+  CoreBluetooth's delegate API can be wrapped.
+- One type per file, named after the type. Folders match the layers in the README.
+- Protocol code is pure functions over `[UInt8]`/`Data`, unit-tested against frames
+  built by our own encoder, exactly like snoop-api's tests.
+- Named constants for UUIDs, offsets and timings; no magic numbers in logic.
+- Background mode `bluetooth-central` with state restoration is mandatory. Test on a
+  real device.
 
 ## Workflow
 
 ```sh
-./scripts/build-xcframework.sh   # after bumping the snoop-api rev
-xcodegen generate                # after editing project.yml
+xcodegen generate      # after editing project.yml
 ```
 
 Build and run on a physical iPhone that is already paired with the strap through the
-official WHOOP app. Quit the official app before testing; only one app can hold the
-connection at a time.
+official WHOOP app. Quit the official app before testing.
 
 ## When unsure
 
-Check `docs/PLAN.md` in snoop-api for decisions already made; this repo follows them.
+snoop-api's `docs/ARCHITECTURE.md`, `docs/PROTOCOL.md` and `docs/ROADMAP.md` are the
+shared source of truth; this repo follows them.

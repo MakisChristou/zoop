@@ -1,36 +1,64 @@
 # snoop
 
-iPhone companion for a WHOOP MG. Holds the Bluetooth connection to the strap, pulls live
-and stored data, and uploads raw frames to the self-hosted backend
-[`snoop-api`](https://github.com/MakisChristou/snoop-api).
+**An open companion app for WHOOP 5.0 and WHOOP MG straps.**
 
-## Layout
+snoop connects to your strap over Bluetooth, pulls live and stored sensor data, and
+uploads the raw frames to your own [snoop-api](https://github.com/MakisChristou/snoop-api)
+server. No WHOOP account, no WHOOP cloud, no subscription.
 
-- `rust/` — Cargo crate that depends on `snoop-ffi` from snoop-api (pinned by commit) and
-  builds it as a static library.
-- `scripts/build-xcframework.sh` — produces `SnoopFFI.xcframework` and Swift bindings in `Generated/`.
-- `App/` — SwiftUI app: CoreBluetooth, local upload queue, live HR view.
-- `project.yml` — XcodeGen spec; `xcodegen generate` writes `Snoop.xcodeproj`.
+Pure Swift. The strap protocol is implemented in the app itself.
 
-## Responsibilities, in order
+> **Status: early development.** The app is a shell today. Live heart rate is the first
+> milestone; see [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
 
-1. Find the already-bonded strap (the official WHOOP app created the OS bond), connect,
-   subscribe to fd4b0003/4/5/7.
-2. Write `clientHello()` to fd4b0002 with response.
-3. Feed every notification through `FrameReassembler`; persist complete frames to a local
-   SQLite queue with a monotonic `client_seq`.
-4. Drive history offload: GET_DATA_RANGE, SEND_HISTORICAL, echo cursors with `historyAck()`.
-5. Upload the queue in batches to `POST /v1/ingest` with the bearer token, over Tailscale;
-   delete on 2xx.
-6. Show live HR and RMSSD using `decodeFrameJson()` and `rmssdMs()`.
+## How it works
+
+The official WHOOP app bonds the strap to your iPhone at the OS level. snoop uses that
+same bond, so there is no pairing dance. Quit the official app before using snoop: the
+strap talks to one app at a time.
+
+1. Discover the bonded strap and subscribe to the four `fd4b` notification channels.
+2. Send the client hello.
+3. Reassemble notifications into frames, verify both CRCs, and queue every frame locally.
+4. Drive the history offload: data range, send historical, acknowledge each chunk with
+   its token.
+5. Upload the queue in batches to `POST /v1/ingest`; delete only on success.
+6. Show live heart rate and R-R derived HRV.
 
 ## Build
 
+Requirements: Xcode 16+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), a physical
+iPhone already paired with the strap through the official app (the simulator has no
+Bluetooth).
+
 ```sh
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim
-./scripts/build-xcframework.sh
-brew install xcodegen && xcodegen generate
+cp Config/Local.xcconfig.example Config/Local.xcconfig   # set your team and bundle id
+xcodegen generate
 open Snoop.xcodeproj
 ```
 
-Unofficial, independent project. Not affiliated with WHOOP, Inc.
+In the app's settings, enter your snoop-api URL and bearer token.
+
+## Repository layout
+
+```
+App/            SwiftUI app
+  BLE/          CoreBluetooth: discovery, connection, reconnection, state restoration
+  Protocol/     format-1 framing, CRCs, record decoding, commands
+  Queue/        local frame queue
+  Upload/       batching and authentication
+  UI/           views and view models
+Config/         signing settings (example committed, local copy ignored)
+project.yml     XcodeGen spec
+```
+
+Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
+
+## Acknowledgements
+
+The wire protocol was understood from public interoperability research, notably the
+NOOP, wearable5.0, Goose and whoop-rs projects. snoop contains no code from any of them.
+
+## License
+
+MIT. snoop is an independent project, not affiliated with or endorsed by WHOOP, Inc.
