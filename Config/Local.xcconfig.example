@@ -1,3 +1,4 @@
 // Copy to Config/Local.xcconfig (gitignored) and fill in your own values.
-DEVELOPMENT_TEAM = ABCDE12345
-PRODUCT_BUNDLE_IDENTIFIER = com.example.snoop
+// Team ID: developer.apple.com/account, Membership details.
+SNOOP_TEAM_ID = ABCDE12345
+SNOOP_BUNDLE_ID = com.example.snoop

@@ -1,16 +1,18 @@
 name: Snoop
 options:
-  bundleIdPrefix: com.example
   deploymentTarget:
     iOS: "17.0"
 # Signing is personal: copy Config/Local.xcconfig.example to Config/Local.xcconfig
-# (gitignored) and set DEVELOPMENT_TEAM and PRODUCT_BUNDLE_IDENTIFIER there.
+# (gitignored) and set SNOOP_TEAM_ID and SNOOP_BUNDLE_ID there.
 configFiles:
   Debug: Config/Local.xcconfig
   Release: Config/Local.xcconfig
 settings:
   base:
     SWIFT_VERSION: "5.10"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: $(SNOOP_TEAM_ID)
+    PRODUCT_BUNDLE_IDENTIFIER: $(SNOOP_BUNDLE_ID)
 packages:
   SnoopProtocol:
     path: Packages/SnoopProtocol
@@ -30,6 +32,3 @@ targets:
         UIBackgroundModes: [bluetooth-central]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.snoop
