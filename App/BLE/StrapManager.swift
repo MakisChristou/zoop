@@ -216,7 +216,7 @@ extension StrapManager: CBPeripheralDelegate {
             case let uuid where notifyUUIDs.contains(uuid):
                 reassemblers[uuid] = Reassembler()
                 peripheral.setNotifyValue(true, for: characteristic)
-            case CBUUID(string: GATT.serialNumberString), CBUUID(string: GATT.modelNumberString):
+            case CBUUID(string: GATT.serialNumberString), CBUUID(string: GATT.modelNumberString), CBUUID(string: GATT.firmwareRevisionString):
                 peripheral.readValue(for: characteristic)
             default:
                 break
@@ -263,6 +263,9 @@ extension StrapManager: CBPeripheralDelegate {
         case CBUUID(string: GATT.modelNumberString):
             let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)
             if !text.isEmpty { model = text }
+        case CBUUID(string: GATT.firmwareRevisionString):
+            let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)
+            if !text.isEmpty { firmware = text }
         default:
             guard let channel = channelByUUID[characteristic.uuid] else { return }
             for frame in reassemblers[characteristic.uuid, default: Reassembler()].feed([UInt8](data)) {

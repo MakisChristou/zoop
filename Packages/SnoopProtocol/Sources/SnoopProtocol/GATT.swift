@@ -17,6 +17,7 @@ public enum GATT {
     public static let deviceInformationService = "180A"
     public static let modelNumberString = "2A24"
     public static let serialNumberString = "2A25"
+    public static let firmwareRevisionString = "2A26"
     public static let heartRateService = "180D"
     public static let heartRateMeasurement = "2A37"
 

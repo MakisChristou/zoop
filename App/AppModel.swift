@@ -8,6 +8,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var queued = 0
     @Published private(set) var uploadStats = Uploader.Stats()
     @Published private(set) var queueError: String?
+    @Published private(set) var isUploading = false
+    /// Frames accepted by the most recent successful upload, for the status line.
+    @Published private(set) var lastBatchAccepted = 0
 
     let strap = StrapManager()
     private let queue: FrameQueue?
@@ -51,8 +54,19 @@ final class AppModel: ObservableObject {
     }
 
     func flush() async {
-        guard let uploader, let queue, Settings.isConfigured, !strap.serial.isEmpty else { return }
+        guard let uploader, let queue, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
+        isUploading = true
+        defer { isUploading = false }
+        let before = uploadStats.accepted
         uploadStats = await uploader.flush(deviceId: strap.serial, model: strap.model, firmware: strap.firmware)
+        lastBatchAccepted = uploadStats.accepted - before
         queued = (try? queue.count()) ?? queued
+    }
+
+    /// Why an upload cannot start right now, or nil when it can.
+    var uploadBlocker: String? {
+        if !Settings.isConfigured { return "Set the server URL and token in Settings." }
+        if strap.serial.isEmpty { return "Waiting for the strap's serial number." }
+        return nil
     }
 }

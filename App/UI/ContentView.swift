@@ -8,7 +8,14 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section("Strap") {
-                    LabeledContent("Status", value: statusText)
+                    HStack {
+                        Circle().fill(statusColor).frame(width: 10, height: 10)
+                        Text(statusText)
+                        Spacer()
+                        if model.strap.framesReceived > 0, model.strap.state == .ready {
+                            Text("receiving").foregroundStyle(.secondary)
+                        }
+                    }
                     if !model.strap.serial.isEmpty {
                         LabeledContent("Serial", value: model.strap.serial)
                         LabeledContent("Model", value: model.strap.model)
@@ -40,21 +47,43 @@ struct ContentView: View {
                     }
                 }
 
-                Section("Sync") {
-                    LabeledContent("Frames received", value: "\(model.strap.framesReceived)")
-                    LabeledContent("Offload chunks", value: "\(model.strap.offloadChunks)")
-                    if let range = model.strap.lastDataRange, let behind = range.pagesBehind {
-                        LabeledContent("Pages behind", value: "\(behind)")
+                Section("Server") {
+                    HStack {
+                        Circle().fill(uploadColor).frame(width: 10, height: 10)
+                        Text(uploadText)
+                        Spacer()
+                        if model.isUploading { ProgressView() }
                     }
-                    LabeledContent("Queued", value: "\(model.queued)")
-                    LabeledContent("Uploaded", value: "\(model.uploadStats.accepted)")
+                    LabeledContent("Waiting to upload", value: "\(model.queued) frames")
+                    LabeledContent("Accepted by server", value: "\(model.uploadStats.accepted)")
+                    if model.uploadStats.duplicates > 0 || model.uploadStats.rejected > 0 {
+                        LabeledContent("Duplicates / rejected", value: "\(model.uploadStats.duplicates) / \(model.uploadStats.rejected)")
+                    }
                     if let error = model.uploadStats.lastError ?? model.queueError {
                         Text(error).font(.footnote).foregroundStyle(.red)
+                    } else if let blocker = model.uploadBlocker {
+                        Text(blocker).font(.footnote).foregroundStyle(.secondary)
                     }
-                    Button("Upload now") { Task { await model.flush() } }
-                        .disabled(!Settings.isConfigured)
-                    Button("Request offload") { model.strap.requestOffload() }
-                        .disabled(model.strap.state != .ready)
+                    Button {
+                        Task { await model.flush() }
+                    } label: {
+                        Label(model.isUploading ? "Uploading…" : "Upload now", systemImage: "icloud.and.arrow.up")
+                    }
+                    .disabled(model.uploadBlocker != nil || model.isUploading)
+                }
+
+                Section("Strap sync") {
+                    LabeledContent("Frames received", value: "\(model.strap.framesReceived)")
+                    LabeledContent("History chunks acknowledged", value: "\(model.strap.offloadChunks)")
+                    if let range = model.strap.lastDataRange, let behind = range.pagesBehind {
+                        LabeledContent("Pages still on strap", value: "\(behind)")
+                    }
+                    Button {
+                        model.strap.requestOffload()
+                    } label: {
+                        Label("Fetch history now", systemImage: "arrow.down.circle")
+                    }
+                    .disabled(model.strap.state != .ready)
                 }
             }
             .navigationTitle("snoop")
@@ -63,6 +92,31 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
         }
+    }
+
+    private var statusColor: Color {
+        switch model.strap.state {
+        case .ready: .green
+        case .connected, .connecting, .scanning: .orange
+        case .bluetoothOff, .failed: .red
+        }
+    }
+
+    private var uploadColor: Color {
+        if model.uploadStats.lastError != nil { return .red }
+        if model.uploadStats.lastSuccess != nil { return .green }
+        return .gray
+    }
+
+    private var uploadText: String {
+        if model.isUploading { return "Uploading…" }
+        if let error = model.uploadStats.lastError { return "Upload failed: \(error)" }
+        if let at = model.uploadStats.lastSuccess {
+            let age = Int(Date().timeIntervalSince(at))
+            let when = age < 60 ? "\(age) s ago" : "\(age / 60) min ago"
+            return "Last upload \(when): \(model.lastBatchAccepted) frames accepted"
+        }
+        return Settings.isConfigured ? "No upload yet" : "Not configured"
     }
 
     private var statusText: String {

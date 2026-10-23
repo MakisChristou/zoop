@@ -16,6 +16,16 @@
     "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point.swiftdeps",
     "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/test_entry_point~partial.swiftmodule"
   },
+  "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Tests/SnoopProtocolTests/CaptureTests.swift" : {
+    "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.swiftconstvalues",
+    "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.d",
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.dia",
+    "index-unit-output-path" : "/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.o",
+    "llvm-bc" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.bc",
+    "object" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.o",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests.swiftdeps",
+    "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/CaptureTests~partial.swiftmodule"
+  },
   "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Tests/SnoopProtocolTests/ProtocolTests.swift" : {
     "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.swiftconstvalues",
     "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocolTests-p.build/Objects-normal/arm64/ProtocolTests.d",

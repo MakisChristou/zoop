@@ -5,11 +5,11 @@
       "name" : "SnoopProtocol",
       "path" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol",
       "projects" : [
-        "0c2a6a6da5f0bbe0f0a0eb8ecae6ff8eb552817978670cdafc2ad628bd8e69c8",
+        "bb307fafbdd7326a57fb220814177434f15ef23feede0a5b9abcc734d179376b",
         "0311f505bb2c785d861314f259b29b759cace122df0c907a08036870ab1d104a"
       ]
     },
-    "signature" : "6a5c83ca6a0881eb3c08623cee15df70aa87bb01e982d51dfb96fea342dfcf20",
+    "signature" : "73137a1cda88e2499a28b3fb452b5a055d2a8827d3fe4f4a45f4f4fcad76b94e",
     "type" : "workspace"
   },
   {
@@ -207,6 +207,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_0",
+                "name" : "CaptureTests.swift",
+                "path" : "CaptureTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_1",
                 "name" : "ProtocolTests.swift",
                 "path" : "ProtocolTests.swift",
                 "sourceTree" : "<group>",
@@ -214,7 +222,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_1",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_2",
                 "name" : "SyntheticFrames.swift",
                 "path" : "SyntheticFrames.swift",
                 "sourceTree" : "<group>",
@@ -434,7 +442,7 @@
       "projectIsPackage" : "true",
       "projectName" : "SnoopProtocol",
       "targets" : [
-        "e88b9df4d95c87d800a1d651cee3d76113a2af14e15ca232081c596036f3c420",
+        "705e42640988db6d2a19e6e6eb51f6c32b19a7828a8a84240599270d5cac1b38",
         "f63a123950c0eeaa5c7f6ed56cc7cb1815c875d66c9a8b76ee9741663ea97233",
         "012bafa5e02c5fa27ba803a2c27d5c38e85c399faa240da85cff6f35caa31f79",
         "c62ff5bad13ee899b38af577fb3b37afdda56119396015c37a0aee8acd15ae61",
@@ -442,7 +450,7 @@
         "8016e4a0ab1b478cf7f9c3e4cf19733e769164ea50a3b04db8ffb1fddfe800f3"
       ]
     },
-    "signature" : "0c2a6a6da5f0bbe0f0a0eb8ecae6ff8eb552817978670cdafc2ad628bd8e69c8",
+    "signature" : "bb307fafbdd7326a57fb220814177434f15ef23feede0a5b9abcc734d179376b",
     "type" : "project"
   },
   {
@@ -634,6 +642,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_2",
+              "guid" : "PACKAGE-PRODUCT:snoopprotocol_SnoopProtocolTests.SnoopProtocolTests::BUILDPHASE_0::2",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-PRODUCT:snoopprotocol_SnoopProtocolTests.SnoopProtocolTests::BUILDPHASE_0",
@@ -677,7 +694,7 @@
       "productTypeIdentifier" : "com.apple.product-type.bundle.unit-test",
       "type" : "standard"
     },
-    "signature" : "e88b9df4d95c87d800a1d651cee3d76113a2af14e15ca232081c596036f3c420",
+    "signature" : "705e42640988db6d2a19e6e6eb51f6c32b19a7828a8a84240599270d5cac1b38",
     "type" : "target"
   },
   {
