@@ -1,86 +1,81 @@
-# AGENTS.md — snoop-api
+# AGENTS.md
 
-Guidance for AI agents and humans working in this repo. Read before changing anything.
+Conventions for contributors and coding agents working in snoop-api. Read before
+changing anything.
 
 ## What this is
 
-Self-hosted backend for a WHOOP MG strap. The iOS app (`MakisChristou/snoop`) holds the
-Bluetooth connection and uploads raw frames; this service stores them, decodes them and
-serves read endpoints. Personal, non-commercial, privacy-first: no WHOOP account, no cloud.
+A self-hosted backend for WHOOP 5.0 / MG straps. The companion iOS app holds the
+Bluetooth connection and uploads raw frames; this service stores, decodes and analyses
+them. The primary goal is sleep tracking that matches the official app; strain,
+recovery and the rest follow.
 
 ## Hard rules
 
-- **Pure Rust + Postgres.** No other languages or datastores in this repo. Postgres via
-  `sqlx` (runtime queries, `query`/`query_as`, embedded `migrate!`). No ORMs, no Redis, no
-  Timescale.
+- **Greenfield, independently implemented.** Other projects (NOOP, OpenStrap,
+  wearable5.0, whoop-rs, Goose, Gadgetbridge forks) are *reference material only*. Read
+  them to understand the protocol or an algorithm, then write our own implementation.
+  Never add one of them as a dependency, vendor their code, or copy their test fixtures.
+  A local `refs/` directory for reading them is gitignored.
+- **Pure Rust + Postgres.** No other languages or datastores. Postgres through `sqlx`
+  runtime queries and embedded `migrate!`. No ORM, no Redis, no extensions.
 - **Raw frames are the source of truth.** Never delete or rewrite `raw_frames`. Derived
-  tables are rebuilt from them; bump `snoop_proto::PROTO_VERSION` or
-  `snoop_analytics::ALGO_VERSION` instead of mutating rows in place.
-- **Conventional Commits**, always: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`,
-  `test:`, `build:`, `ci:`. Optional scope is the crate name without the prefix:
-  `feat(storage): ...`, `fix(proto): ...`. Imperative mood, lower case, no trailing period.
-- **Use the developer's default git identity.** Never pass `-c user.name` / `-c user.email`
-  or otherwise override author/committer.
-- **Licensing.** Reuse only MIT / Apache-2.0 code. Reference material under `refs/`
-  (gitignored) includes NOOP (PolyForm Noncommercial), OpenStrap (AGPL-3.0) and Goose
-  (unlicensed): read them, never copy from them. Attribute copied test vectors in an
-  `ATTRIBUTION.md` next to the fixture.
-- **No WHOOP formulas.** Analytics implement published, cited methods; each module's doc
-  comment names the paper.
+  tables are rebuilt from them: bump `snoop_proto::PROTO_VERSION` or
+  `snoop_analytics::ALGO_VERSION` instead of editing rows in place.
+- **Published methods only.** Analytics implement cited, peer-reviewed methods. Each
+  module's doc comment names the paper. No WHOOP formulas are reproduced.
+- **Public project.** No personal names, host names, network details or credentials in
+  code, docs, examples or commit messages. Everything deployment-specific is
+  configuration.
+- **Conventional Commits**: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `build`,
+  `ci`, with the crate name (minus prefix) as optional scope: `feat(proto): …`.
+  Imperative mood, lower case, no trailing period. Never override the git identity.
 
 ## Code style
 
-- Edition 2024, `resolver = "3"`, workspace-level `[workspace.dependencies]` with a short
-  comment per dependency group, `[lints] workspace = true` in every crate.
-- `rustfmt.toml` is law; run `cargo fmt --all`. Clippy must pass with `-D warnings`.
-- `unsafe_code = "deny"`. Every public type derives `Debug`.
-- One crate per concern under `crates/`: `snoop-proto`, `snoop-analytics`, `snoop-config`,
-  `snoop-storage`, `snoop-core`, `snoop-api`, `snoop-ffi`, `snoop` (binary). New
-  functionality goes in the crate that owns the concern; add a crate rather than bloating one.
-- `lib.rs` declares private modules and re-exports the public surface with `pub use`; it
-  holds no logic beyond trivial wiring.
-- Errors: per-crate `thiserror` enum plus a `XxxResult<T>` alias in `error.rs`. Storage
-  errors carry a `StoreOperation` naming what was being attempted. The binary uses
-  `anyhow` with `.context(...)`. No `unwrap`/`expect` outside tests except on poisoned
-  mutexes with a recovery path.
-- Tests live in a sibling `tests.rs` (`#[cfg(test)] mod tests;`) or a `tests/` dir, not
-  inline, except for very small private helpers.
-- Doc comments on every public item; `# Errors` sections on fallible public functions.
-  Module-level `//!` docs explain *why* the module exists.
-- Named constants over magic numbers (`const RR_MAX_WORDS: usize = 4;`).
-- Config is TOML loaded with `figment`; secrets are `secrecy::SecretString`; `SNOOP_*` env
-  vars override keys. `snoop validate` must pass before `snoop run` starts.
-- Long-running tasks take a `CancellationToken` and exit cleanly on shutdown.
+- Edition 2024, `resolver = "3"`, dependencies declared once in
+  `[workspace.dependencies]`, `[lints] workspace = true` in every crate.
+- `cargo fmt --all` before every commit; clippy must pass with `-D warnings`;
+  `unsafe_code = "deny"`; every public type derives `Debug`.
+- One crate per concern under `crates/`. Add a crate rather than bloating one.
+- `lib.rs` declares private modules and re-exports the public surface; no logic.
+- Errors: per-crate `thiserror` enum and `XxxResult<T>` alias in `error.rs`. Storage
+  errors name the `StoreOperation` that failed. The binary alone uses `anyhow` with
+  `.context(…)`. No `unwrap`/`expect` outside tests.
+- Tests in a sibling `tests.rs` or the crate's `tests/` directory. Protocol decoders are
+  tested against frames built by our own encoder; real captures become fixtures only
+  when they come from our own hardware.
+- Doc comments on every public item, `# Errors` on fallible functions, module-level
+  `//!` explaining why the module exists. Named constants over magic numbers.
+- Configuration is TOML via `figment`; secrets are `secrecy::SecretString`; `SNOOP_*`
+  env vars override keys. `snoop validate` must pass before `snoop run` proceeds.
+- Long-running tasks take a `CancellationToken` and shut down cleanly.
 
 ## Workflow
 
-Everything runs inside the Nix dev shell (`nix develop`, or `direnv allow` once). Nothing
-is installed globally on the host; the dev Postgres lives in `./.pgdata`.
-
 ```sh
-just pg-start    # repo-local Postgres on :5433 + migrations (or `just up` for Docker)
-just run         # API + decode worker (snoop.dev.toml)
-just ci          # fmt-check, clippy -D warnings, tests — run before every commit
+nix develop        # or direnv allow; provides rust, postgres, just
+just pg-start      # repo-local Postgres + migrations (or `just up` for Docker)
+just run           # API + decode worker using snoop.dev.toml
+just ci            # fmt-check, clippy -D warnings, tests — before every commit
 ```
 
-Deployment target is a NixOS host; the service will be declared in the user's nix
-config repo once stable. Keep the binary config-file driven so that is a small module.
-
-CI (`.github/workflows/ci.yml`) runs the same three jobs. Do not merge red.
+CI runs the same three jobs. Do not merge red. The service is config-file driven so it
+can be packaged as a systemd or NixOS service without code changes.
 
 ## Protocol facts that bite
 
-- WHOOP 5/MG service `fd4b0001-…`; command write `…0002`, notify `…0003/4/5/7`.
-- Envelope `AA 01 [len u16] [dst] [src] [crc16-modbus] inner… [crc32]`; inner
-  `[type][seq][cmd][b3][payload]`, zero-padded to 4 bytes.
-- History offload stalls after one chunk unless the 8-byte cursor at inner offset 13 is
-  echoed back as command `0x17`.
-- R-R intervals are **milliseconds** on the wire. The upstream `poop` crate converts them
-  as 1/1024 s ticks; `snoop-proto` overrides that. Do not "fix" it back.
-- The strap keeps one encrypted bond. On iPhone an app rides the OS bond the official app
-  made; macOS cannot bond with the strap at all.
+See `docs/PROTOCOL.md`. The short list:
+
+- R-R intervals are **milliseconds** on the wire, not 1/1024 s ticks.
+- The history offload stalls after one chunk unless the 8-byte HISTORY_END token is
+  echoed back in a HISTORICAL_DATA_RESULT command.
+- The first argument byte after the command code differs per command; a wrong value is
+  silently ignored by the strap.
+- The strap keeps one encrypted bond. On iOS an app rides the bond the official app
+  created; macOS cannot bond with the strap at all.
 
 ## When unsure
 
-Check `docs/PLAN.md` for decisions already made. Don't relitigate them silently; propose a
-change in a `docs:` commit or ask.
+`docs/ARCHITECTURE.md` and `docs/ROADMAP.md` record decisions already made. Propose
+changes in a `docs:` commit rather than drifting from them silently.
