@@ -6,8 +6,15 @@ struct SnoopApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(model)
+            Group {
+                if model.isOnboarded {
+                    RootView()
+                } else {
+                    OnboardingView()
+                }
+            }
+            .environmentObject(model)
+            .preferredColorScheme(.dark)
         }
     }
 }

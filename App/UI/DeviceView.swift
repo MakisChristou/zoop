@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ContentView: View {
+struct DeviceView: View {
     @EnvironmentObject private var model: AppModel
     @State private var showSettings = false
 
@@ -16,6 +16,9 @@ struct ContentView: View {
                             Text("receiving").foregroundStyle(.secondary)
                         }
                     }
+                    if let firmware = model.strap.firmware {
+                        LabeledContent("Firmware", value: firmware)
+                    }
                     if !model.strap.serial.isEmpty {
                         LabeledContent("Serial", value: model.strap.serial)
                         LabeledContent("Model", value: model.strap.model)
@@ -25,17 +28,10 @@ struct ContentView: View {
                     }
                 }
 
-                Section("Live") {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(model.strap.liveHeartRate.map(String.init) ?? "—")
-                            .font(.system(size: 56, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                        Text("bpm").foregroundStyle(.secondary)
-                    }
-                    if let rmssd = rmssd(model.strap.liveRR) {
-                        LabeledContent("RMSSD", value: rmssd.formatted(.number.precision(.fractionLength(0))) + " ms")
-                    }
+                Section("Latest record") {
                     if let b = model.strap.lastBiometric {
+                        LabeledContent("Heart rate", value: "\(b.heartRate) bpm")
+                        LabeledContent("R-R intervals", value: b.rrMilliseconds.isEmpty ? "none" : b.rrMilliseconds.map(String.init).joined(separator: ", ") + " ms")
                         LabeledContent("Band state", value: "\(b.bandState)")
                         if let skin = b.skinTemperatureC {
                             LabeledContent("Skin temp", value: skin.formatted(.number.precision(.fractionLength(2))) + " °C")
@@ -44,6 +40,9 @@ struct ContentView: View {
                         if let spo2 = b.spo2Percent {
                             LabeledContent("SpO₂", value: "\(spo2) %")
                         }
+                        LabeledContent("Recorded", value: Date(timeIntervalSince1970: TimeInterval(b.header.unixSeconds)).formatted(date: .omitted, time: .standard))
+                    } else {
+                        Text("No records yet.").foregroundStyle(.secondary)
                     }
                 }
 
@@ -86,7 +85,7 @@ struct ContentView: View {
                     .disabled(model.strap.state != .ready)
                 }
             }
-            .navigationTitle("snoop")
+            .navigationTitle("Device")
             .toolbar {
                 Button { showSettings = true } label: { Image(systemName: "gearshape") }
             }
@@ -130,10 +129,4 @@ struct ContentView: View {
         }
     }
 
-    /// Root mean square of successive differences over the latest live R-R window.
-    private func rmssd(_ rr: [UInt16]) -> Double? {
-        guard rr.count >= 2 else { return nil }
-        let diffs = zip(rr.dropFirst(), rr).map { Double($0) - Double($1) }
-        return (diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)).squareRoot()
-    }
 }

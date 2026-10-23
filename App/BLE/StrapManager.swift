@@ -24,6 +24,12 @@ final class StrapManager: NSObject, ObservableObject {
     @Published private(set) var firmware: String?
     @Published private(set) var liveHeartRate: UInt8?
     @Published private(set) var liveRR: [UInt16] = []
+    /// When the live heart rate was last updated, for "x s ago" and smoothing.
+    @Published private(set) var liveUpdatedAt: Date?
+    /// Recent live samples (time, bpm) for a stable displayed value.
+    @Published private(set) var recentHeartRates: [(Date, UInt8)] = []
+    @Published private(set) var realtimeStreaming = false
+    @Published private(set) var started = false
     @Published private(set) var lastBiometric: Biometric?
     @Published private(set) var batteryPercent: Double?
     @Published private(set) var framesReceived = 0
@@ -56,16 +62,39 @@ final class StrapManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
+    }
+
+    /// Creates the central manager, which triggers the system Bluetooth permission
+    /// prompt. Called after onboarding has explained why, or at launch once onboarded.
+    func start() {
+        guard !started else { return }
+        started = true
         central = CBCentralManager(delegate: self, queue: nil, options: [
             CBCentralManagerOptionRestoreIdentifierKey: Self.restoreIdentifier,
             CBCentralManagerOptionShowPowerAlertKey: true,
         ])
     }
 
+    /// Turns the beat-by-beat stream on or off. On while the Today screen is visible.
+    func setRealtimeHeartRate(_ on: Bool) {
+        guard state == .ready, realtimeStreaming != on else { return }
+        realtimeStreaming = on
+        send(Command.toggleRealtimeHeartRate(on, sequence: nextSequence()))
+    }
+
+    /// Median of the live readings from the last ten seconds, so the hero number does
+    /// not flicker with every beat.
+    var smoothedHeartRate: UInt8? {
+        let cutoff = Date().addingTimeInterval(-10)
+        let recent = recentHeartRates.filter { $0.0 >= cutoff }.map(\.1).sorted()
+        guard !recent.isEmpty else { return liveHeartRate }
+        return recent[recent.count / 2]
+    }
+
     // MARK: - Connection
 
     func connect() {
-        guard central.state == .poweredOn else { return }
+        guard let central, central.state == .poweredOn else { return }
         // Prefer a strap the system already has connected (the official app's bond).
         if let known = central.retrieveConnectedPeripherals(withServices: [serviceUUID]).first {
             log.info("found system-connected strap \(known.identifier)")
@@ -125,11 +154,10 @@ final class StrapManager: NSObject, ObservableObject {
         }
         switch decoded {
         case let .realtimeHeartRate(hr):
-            liveHeartRate = hr.heartRate
-            liveRR = hr.rrMilliseconds
+            recordLive(hr.heartRate, rr: hr.rrMilliseconds)
         case let .biometric(b):
             lastBiometric = b
-            if liveHeartRate == nil { liveHeartRate = b.heartRate }
+            if !realtimeStreaming { recordLive(b.heartRate, rr: b.rrMilliseconds) }
         case let .event(event):
             if case let .batteryLevel(level) = event.payload {
                 batteryPercent = Double(level.stateOfChargeTenths) / 10
@@ -186,9 +214,19 @@ extension StrapManager: CBCentralManagerDelegate {
         scheduleReconnect()
     }
 
+    private func recordLive(_ bpm: UInt8, rr: [UInt16]) {
+        guard bpm > 0 else { return }
+        liveHeartRate = bpm
+        liveUpdatedAt = Date()
+        if !rr.isEmpty { liveRR = rr }
+        recentHeartRates.append((Date(), bpm))
+        if recentHeartRates.count > 60 { recentHeartRates.removeFirst(recentHeartRates.count - 60) }
+    }
+
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         log.warning("disconnected: \(error?.localizedDescription ?? "clean")")
         state = .connecting
+        realtimeStreaming = false
         offloadTimer?.invalidate()
         central.connect(peripheral, options: nil) // iOS retries this until the strap is in range again
     }

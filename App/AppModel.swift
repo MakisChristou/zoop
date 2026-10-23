@@ -19,6 +19,12 @@ final class AppModel: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
 
     static let flushInterval: TimeInterval = 60
+    static let onboardedKey = "onboarded"
+
+    var isOnboarded: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.onboardedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.onboardedKey); objectWillChange.send() }
+    }
 
     init() {
         do {
@@ -40,6 +46,8 @@ final class AppModel: ObservableObject {
         flushTimer = Timer.scheduledTimer(withTimeInterval: Self.flushInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.flush() }
         }
+
+        if isOnboarded { strap.start() }
     }
 
     private func enqueue(_ bytes: [UInt8], channel: Int) {

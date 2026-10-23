@@ -36,6 +36,13 @@ final class FrameTests: XCTestCase {
         XCTAssertEqual(Command.build(.getHello, sequence: 1, args: [0x01]), Command.clientHello)
     }
 
+    func testRealtimeToggleArgumentByte() throws {
+        let on = try Frame(parsing: Command.toggleRealtimeHeartRate(true, sequence: 4))
+        XCTAssertEqual(Array(on.inner), [35, 4, 3, 1])
+        let off = try Frame(parsing: Command.toggleRealtimeHeartRate(false, sequence: 5))
+        XCTAssertEqual(Array(off.inner), [35, 5, 3, 0])
+    }
+
     func testReassemblerJoinsFragmentsAndSkipsNoise() {
         let a = Synthetic.envelope([PacketType.eventByte, 1, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8])
         let b = Synthetic.envelope([PacketType.commandResponseByte, 2, 0x91, 1, 1, 0, 0, 0])

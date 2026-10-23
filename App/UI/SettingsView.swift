@@ -32,6 +32,12 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Section("Setup") {
+                    Button("Show the welcome guide again") {
+                        UserDefaults.standard.set(false, forKey: AppModel.onboardedKey)
+                        dismiss()
+                    }
+                }
             }
             .navigationTitle("Settings")
             .toolbar { Button("Done") { dismiss() } }

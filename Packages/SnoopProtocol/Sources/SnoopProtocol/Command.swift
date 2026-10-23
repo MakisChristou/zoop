@@ -42,6 +42,12 @@ public enum Command: Equatable {
                      destination: requestDestination, source: requestSource)
     }
 
+    /// Switches the beat-by-beat live stream (packet type 40) on or off. Toggles on this
+    /// strap take a single 1/0 argument byte.
+    public static func toggleRealtimeHeartRate(_ on: Bool, sequence: UInt8) -> [UInt8] {
+        build(.toggleRealtimeHeartRate, sequence: sequence, args: [on ? 0x01 : 0x00])
+    }
+
     public static func getAdvertisingName(sequence: UInt8) -> [UInt8] {
         build(.getAdvertisingName, sequence: sequence, args: [0x01])
     }
