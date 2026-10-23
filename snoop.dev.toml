@@ -6,7 +6,7 @@ bind = "0.0.0.0:8080"
 ingest_token = "dev-token-change-me"
 
 [storage]
-postgres_url = "postgres://snoop:snoop@localhost:5432/snoop"
+postgres_url = "postgres://snoop:snoop@localhost:5433/snoop"
 
 [worker]
 # How often the decode loop looks for pending raw frames when idle.

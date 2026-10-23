@@ -3,3 +3,5 @@
 /captures/
 *.toml.local
 .DS_Store
+/.pgdata/
+/.direnv/

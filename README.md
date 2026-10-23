@@ -24,7 +24,8 @@ crates/
 ## Run locally
 
 ```sh
-just up                 # Postgres in Docker + migrations
+nix develop             # or `direnv allow`; provides rust, postgres, just
+just pg-start           # repo-local Postgres on :5433 + migrations (`just up` for Docker instead)
 just run                # API on :8080 using snoop.dev.toml
 curl localhost:8080/health
 ```

@@ -4,10 +4,30 @@
 default:
     @just --list
 
-# --- Dev services (Postgres) ---
+# --- Dev Postgres, repo-local (Nix shell; no global install) ---
 
-# Start Postgres, wait for health, and apply migrations through the snoop binary
-# (idempotent — the embedded migrator skips applied versions).
+# Initialise and start a Postgres cluster under ./.pgdata on $PGPORT, create the
+# snoop role and database, and apply migrations. Idempotent.
+pg-start:
+    [ -d "$PGDATA" ] || initdb --username=postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
+    pg_ctl status >/dev/null 2>&1 || pg_ctl -o "-p $PGPORT -k /tmp -c listen_addresses=localhost" -l .pgdata/postgres.log start
+    psql -U postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_roles WHERE rolname='snoop'" | grep -q 1 || psql -U postgres -h localhost -p $PGPORT -c "CREATE ROLE snoop LOGIN PASSWORD 'snoop'"
+    psql -U postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_database WHERE datname='snoop'" | grep -q 1 || psql -U postgres -h localhost -p $PGPORT -c "CREATE DATABASE snoop OWNER snoop"
+    just migrate
+
+# Stop the repo-local Postgres.
+pg-stop:
+    pg_ctl stop -m fast
+
+# Stop and wipe the repo-local Postgres.
+pg-reset:
+    -pg_ctl stop -m fast
+    rm -rf "$PGDATA"
+    just pg-start
+
+# --- Dev Postgres, Docker (alternative to pg-start) ---
+
+# Start Postgres in Docker, wait for health, and apply migrations.
 up:
     docker compose up -d --wait
     just migrate
@@ -27,9 +47,9 @@ reset:
 logs:
     docker compose logs -f
 
-# Open a psql shell on the dev database.
+# Open a psql shell on the dev database (works for both pg-start and docker).
 psql:
-    docker compose exec postgres psql -U snoop -d snoop
+    psql postgres://snoop:snoop@localhost:${PGPORT:-5433}/snoop
 
 # --- Database migrations ---
 

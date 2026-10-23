@@ -54,11 +54,17 @@ serves read endpoints. Personal, non-commercial, privacy-first: no WHOOP account
 
 ## Workflow
 
+Everything runs inside the Nix dev shell (`nix develop`, or `direnv allow` once). Nothing
+is installed globally on the host; the dev Postgres lives in `./.pgdata`.
+
 ```sh
-just up          # Postgres + migrations
+just pg-start    # repo-local Postgres on :5433 + migrations (or `just up` for Docker)
 just run         # API + decode worker (snoop.dev.toml)
 just ci          # fmt-check, clippy -D warnings, tests — run before every commit
 ```
+
+Deployment target is a NixOS host; the service will be declared in the user's nix
+config repo once stable. Keep the binary config-file driven so that is a small module.
 
 CI (`.github/workflows/ci.yml`) runs the same three jobs. Do not merge red.
 
