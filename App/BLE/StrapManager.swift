@@ -1,6 +1,7 @@
 import Combine
 import CoreBluetooth
 import Foundation
+import OSLog
 import SnoopProtocol
 
 /// Owns the Bluetooth link to the strap.
@@ -33,6 +34,7 @@ final class StrapManager: NSObject, ObservableObject {
     var onFrame: ((_ bytes: [UInt8], _ channel: Int) -> Void)?
 
     static let restoreIdentifier = "snoop.strap"
+    private let log = Logger(subsystem: "snoop", category: "ble")
     static let offloadInterval: TimeInterval = 600
 
     private var central: CBCentralManager!
@@ -66,9 +68,11 @@ final class StrapManager: NSObject, ObservableObject {
         guard central.state == .poweredOn else { return }
         // Prefer a strap the system already has connected (the official app's bond).
         if let known = central.retrieveConnectedPeripherals(withServices: [serviceUUID]).first {
+            log.info("found system-connected strap \(known.identifier)")
             attach(known)
             return
         }
+        log.info("no connected strap; scanning for fd4b service")
         state = .scanning
         central.scanForPeripherals(withServices: [serviceUUID], options: nil)
     }
@@ -92,7 +96,11 @@ final class StrapManager: NSObject, ObservableObject {
     }
 
     private func send(_ frame: [UInt8]) {
-        guard let peripheral, let commandCharacteristic else { return }
+        guard let peripheral, let commandCharacteristic else {
+            log.error("send skipped: no command characteristic")
+            return
+        }
+        log.debug("write \(frame.count) bytes, cmd \(frame.count > 10 ? frame[10] : 0)")
         peripheral.writeValue(Data(frame), for: commandCharacteristic, type: .withResponse)
     }
 
@@ -107,7 +115,14 @@ final class StrapManager: NSObject, ObservableObject {
     private func handle(frame: [UInt8], channel: Int) {
         framesReceived += 1
         onFrame?(frame, channel)
-        guard let decoded = try? FrameDecoder.decode(frame) else { return }
+        let decoded: Decoded
+        do { decoded = try FrameDecoder.decode(frame) } catch {
+            log.error("frame on channel \(channel) failed to decode: \(String(describing: error))")
+            return
+        }
+        if framesReceived <= 20 || framesReceived % 500 == 0 {
+            log.info("frame #\(self.framesReceived) ch\(channel) type \(frame[8]) len \(frame.count)")
+        }
         switch decoded {
         case let .realtimeHeartRate(hr):
             liveHeartRate = hr.heartRate
@@ -140,8 +155,8 @@ final class StrapManager: NSObject, ObservableObject {
 extension StrapManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
-        case .poweredOn: connect()
-        case .poweredOff: state = .bluetoothOff
+        case .poweredOn: log.info("bluetooth on"); connect()
+        case .poweredOff: log.warning("bluetooth off"); state = .bluetoothOff
         case .unauthorized: state = .failed("Bluetooth permission denied")
         default: break
         }
@@ -159,17 +174,20 @@ extension StrapManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        log.info("connected to \(peripheral.name ?? "strap")")
         state = .connected
         reassemblers = [:]
         peripheral.discoverServices([serviceUUID, CBUUID(string: GATT.deviceInformationService)])
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        log.error("connect failed: \(error?.localizedDescription ?? "unknown")")
         state = .failed(error?.localizedDescription ?? "connect failed")
         scheduleReconnect()
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        log.warning("disconnected: \(error?.localizedDescription ?? "clean")")
         state = .connecting
         offloadTimer?.invalidate()
         central.connect(peripheral, options: nil) // iOS retries this until the strap is in range again
@@ -190,6 +208,7 @@ extension StrapManager: CBPeripheralDelegate {
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        log.info("service \(service.uuid): \((service.characteristics ?? []).map { $0.uuid.uuidString }.joined(separator: ","))")
         for characteristic in service.characteristics ?? [] {
             switch characteristic.uuid {
             case commandUUID:
@@ -210,13 +229,16 @@ extension StrapManager: CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         if let error {
+            log.error("subscribe \(characteristic.uuid) failed: \(error.localizedDescription)")
             state = .failed("subscribe \(characteristic.uuid): \(error.localizedDescription)")
             return
         }
+        log.info("subscribed \(characteristic.uuid)")
         let subscribed = notifyUUIDs.filter { uuid in
             peripheral.services?.flatMap { $0.characteristics ?? [] }.first { $0.uuid == uuid }?.isNotifying == true
         }
         if subscribed.count == notifyUUIDs.count {
+            log.info("all channels subscribed; sending hello")
             send(Command.clientHello)
             send(Command.getAdvertisingName(sequence: nextSequence()))
             requestOffload()
@@ -227,7 +249,12 @@ extension StrapManager: CBPeripheralDelegate {
         }
     }
 
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let error { log.error("write failed: \(error.localizedDescription)") }
+    }
+
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let error { log.error("read \(characteristic.uuid) failed: \(error.localizedDescription)") }
         guard let data = characteristic.value else { return }
         switch characteristic.uuid {
         case CBUUID(string: GATT.serialNumberString):
