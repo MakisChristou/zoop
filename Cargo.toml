@@ -18,9 +18,6 @@ snoop-storage = { path = "crates/snoop-storage" }
 snoop-core = { path = "crates/snoop-core" }
 snoop-api = { path = "crates/snoop-api" }
 
-# WHOOP 4/5/MG BLE protocol core (eugenehp/whoop-rs, Apache-2.0). Pinned; bump deliberately.
-poop = { git = "https://github.com/eugenehp/whoop-rs", rev = "36e5be95e67e4f9eb78a1af062ee3fa26bdd8221", default-features = false }
-
 # Errors / async
 anyhow = "1.0"
 thiserror = "2.0"
@@ -54,11 +51,10 @@ sqlx = { version = "0.8", default-features = false, features = [
     "json",
 ] }
 
-# CLI / logging / FFI
+# CLI / logging
 clap = { version = "4.5", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uniffi = { version = "0.29", features = ["cli"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

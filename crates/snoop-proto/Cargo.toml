@@ -1,6 +1,6 @@
 [package]
 name = "snoop-proto"
-description = "WHOOP 5.0 / MG frame verification and decoding, shared by the iOS app and the backend"
+description = "WHOOP 5.0 / MG Bluetooth protocol: format-1 framing, record decoding and command building"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-poop = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
