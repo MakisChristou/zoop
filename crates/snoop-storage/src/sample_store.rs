@@ -50,6 +50,22 @@ pub struct SampleRow {
     pub band_state: Option<i16>,
 }
 
+/// One minute of a day, for timelines.
+#[derive(Debug, Clone, FromRow, serde::Serialize)]
+pub struct MinuteRow {
+    pub ts: DateTime<Utc>,
+    pub hr: Option<i16>,
+    pub hr_min: Option<i16>,
+    pub hr_max: Option<i16>,
+    pub skin_temp_c: Option<f32>,
+    pub steps: Option<i32>,
+    /// Most common strap state in the minute: 0 wake, 1 still, 2 sleep, 3 up.
+    pub band_state: Option<i16>,
+    /// Most common activity label: 0 still, 1 walk, 2 run.
+    pub activity: Option<i16>,
+    pub spo2_pct: Option<i16>,
+}
+
 impl PostgresStore {
     pub async fn upsert_sample(&self, sample: &NewSample<'_>) -> StorageResult<()> {
         sqlx::query(
@@ -133,6 +149,37 @@ impl PostgresStore {
         .fetch_optional(self.pool())
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::LatestSample, source))
+    }
+
+    /// Minute buckets for one local calendar day in IANA zone `tz`.
+    pub async fn minutes_for_local_day(
+        &self,
+        device_id: &str,
+        day: chrono::NaiveDate,
+        tz: &str,
+    ) -> StorageResult<Vec<MinuteRow>> {
+        sqlx::query_as(
+            "SELECT date_trunc('minute', ts) AS ts,
+                    avg(hr) FILTER (WHERE hr > 0)::smallint AS hr,
+                    min(hr) FILTER (WHERE hr > 0) AS hr_min,
+                    max(hr) AS hr_max,
+                    avg(skin_temp_c)::real AS skin_temp_c,
+                    max(steps) AS steps,
+                    mode() WITHIN GROUP (ORDER BY band_state)::smallint AS band_state,
+                    mode() WITHIN GROUP (ORDER BY activity)::smallint AS activity,
+                    avg(spo2_pct)::smallint AS spo2_pct
+             FROM samples
+             WHERE device_id = $1
+               AND ts >= ($2::date::timestamp AT TIME ZONE $3)
+               AND ts < (($2::date + 1)::timestamp AT TIME ZONE $3)
+             GROUP BY 1 ORDER BY 1",
+        )
+        .bind(device_id)
+        .bind(day)
+        .bind(tz)
+        .fetch_all(self.pool())
+        .await
+        .map_err(|source| StorageError::unavailable(StoreOperation::SamplesInRange, source))
     }
 
     /// Minute-averaged samples in `[start, end)`.
