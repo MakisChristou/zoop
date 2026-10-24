@@ -8,8 +8,9 @@ use crate::{PostgresStore, StorageError, StorageResult, StoreOperation};
 #[derive(Debug, Clone, FromRow, serde::Serialize)]
 pub struct DayRow {
     pub day: NaiveDate,
-    /// The strap's raw step counter; it resets around local midnight, so the day's last
-    /// reading is the total. Inflated by arm movement while not walking.
+    /// Sum of the strap counter's positive increments over the day. The counter resets
+    /// whenever the strap is taken off or charged, so a sum is the only robust total.
+    /// Inflated by arm movement while not walking; see `steps_walking`.
     pub steps: Option<i32>,
     /// Counter increments that happened in seconds the strap labelled walking or
     /// running: its own activity classifier used as a false-step filter.
@@ -45,7 +46,7 @@ impl PostgresStore {
              )
              SELECT day, steps, steps_walking, walking_s, hr_min, hr_avg, hr_max, skin_temp_avg, asleep_s, samples FROM (
                SELECT day,
-                      (array_agg(steps ORDER BY ts DESC) FILTER (WHERE steps IS NOT NULL))[1] AS steps,
+                      sum(inc) FILTER (WHERE inc BETWEEN 0 AND $4)::int AS steps,
                       sum(inc) FILTER (WHERE inc BETWEEN 0 AND $4 AND activity IN (1, 2))::bigint AS steps_walking,
                       count(*) FILTER (WHERE activity IN (1, 2))::bigint AS walking_s,
                       min(hr) FILTER (WHERE hr > 0) AS hr_min,
