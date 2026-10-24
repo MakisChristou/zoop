@@ -7,9 +7,10 @@
 #     openFirewall = true;
 #   };
 #
-# Runs the service as a dedicated user against a local Postgres database created by
-# this module, applies migrations before start, and reads the ingest token from a
-# file so it never enters the Nix store.
+# Runs the service as a dedicated user against the host's local Postgres (a database
+# and role are created on whatever instance and port services.postgresql runs),
+# applies migrations before start, and reads the ingest token from a file so it never
+# enters the Nix store.
 flake:
 {
   config,
@@ -25,7 +26,7 @@ let
     ingest_token = "placeholder-replaced-at-start"
 
     [storage]
-    postgres_url = "postgres:///${cfg.database}?host=/run/postgresql"
+    postgres_url = "postgres:///${cfg.database}?host=/run/postgresql&port=${toString config.services.postgresql.settings.port}"
 
     [worker]
     poll_interval_ms = ${toString cfg.pollIntervalMs}
@@ -39,7 +40,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = flake.packages.${pkgs.system}.snoop;
+      default = flake.packages.${pkgs.stdenv.hostPlatform.system}.snoop;
       description = "The snoop package to run.";
     };
 
