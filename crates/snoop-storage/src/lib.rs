@@ -1,12 +1,14 @@
 //! Postgres persistence. Raw frames are the durable source of truth; decoded tables
 //! are rebuilt from them whenever the protocol version advances.
 
+mod day_store;
 mod error;
 mod frame_store;
 mod operation;
 mod sample_store;
 mod sleep_store;
 
+pub use day_store::DayRow;
 pub use error::{StorageError, StorageResult};
 pub use frame_store::{NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;

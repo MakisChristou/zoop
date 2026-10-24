@@ -18,6 +18,7 @@ pub enum StoreOperation {
     ListDevices,
     UpsertSleep,
     ListSleeps,
+    ListDays,
 }
 
 impl fmt::Display for StoreOperation {
@@ -38,6 +39,7 @@ impl fmt::Display for StoreOperation {
             Self::ListDevices => "list devices",
             Self::UpsertSleep => "upsert sleep",
             Self::ListSleeps => "list sleeps",
+            Self::ListDays => "list days",
         };
         f.write_str(name)
     }
