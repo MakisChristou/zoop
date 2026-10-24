@@ -62,6 +62,18 @@ enum SnoopAPI {
         var id: String { "\(nightOf)-\(algoVersion)" }
     }
 
+    struct Day: Decodable, Identifiable {
+        let day: String
+        let steps: Int?
+        let hrMin: Int?
+        let hrAvg: Double?
+        let hrMax: Int?
+        let skinTempAvg: Double?
+        let asleepS: Int?
+        let samples: Int
+        var id: String { day }
+    }
+
     enum Failure: Error, LocalizedError {
         case notConfigured
         case http(Int)
@@ -72,6 +84,25 @@ enum SnoopAPI {
             case let .http(code): "HTTP \(code)"
             }
         }
+    }
+
+    static func days(deviceId: String, limit: Int = 14) async throws -> [Day] {
+        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
+        var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/days"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "tz", value: TimeZone.current.identifier),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([Day].self, from: data)
     }
 
     static func nights(deviceId: String, limit: Int = 14) async throws -> [Night] {

@@ -4,6 +4,8 @@ import SwiftUI
 struct TodayView: View {
     @EnvironmentObject private var model: AppModel
     @State private var now = Date()
+    @State private var days: [SnoopAPI.Day] = []
+    @State private var nights: [SnoopAPI.Night] = []
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -25,6 +27,8 @@ struct TodayView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .onReceive(clock) { now = $0 }
+        .task { await loadHistory() }
+        .refreshable { await loadHistory() }
         .onAppear { model.strap.setRealtimeHeartRate(true) }
         .onDisappear { model.strap.setRealtimeHeartRate(false) }
         .onChange(of: model.strap.state) { _, state in
@@ -57,13 +61,34 @@ struct TodayView: View {
 
     private var tiles: some View {
         let b = model.strap.lastBiometric
+        let lastNight = nights.first
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            Tile(title: "HRV", value: rmssdText, unit: "ms", caption: "RMSSD, last 10 s")
-            Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C", caption: "latest record")
-            Tile(title: "Steps", value: b.map { "\($0.steps)" } ?? "—", unit: "", caption: "today, from the strap")
-            Tile(title: "Strap says", value: b.map { bandStateText($0.bandState) } ?? "—", unit: "", caption: "its own rest flag")
+            Tile(title: "Sleep", value: lastNight.map { hours($0.metrics.window.asleepS) } ?? "—", unit: "h",
+                 caption: lastNight.map { "last night · \(Int(($0.metrics.window.efficiency * 100).rounded())) % efficient" } ?? "no night yet",
+                 history: nights.reversed().map { Double($0.metrics.window.asleepS) / 3600 })
+            Tile(title: "Resting HR", value: lastNight?.metrics.physiology.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm",
+                 caption: "lowest 5 min of sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr })
+            Tile(title: "HRV", value: lastNight?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? rmssdText, unit: "ms",
+                 caption: lastNight == nil ? "RMSSD, last 10 s live" : "RMSSD, last night", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs })
+            Tile(title: "Steps", value: b.map { "\($0.steps)" } ?? days.last?.steps.map(String.init) ?? "—", unit: "",
+                 caption: "today, strap counter", history: days.compactMap { $0.steps.map(Double.init) })
+            Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
+                 caption: "now", history: days.compactMap { $0.skinTempAvg })
+            Tile(title: "Strap says", value: b.map { bandStateText($0.bandState) } ?? "—", unit: "", caption: "its own rest flag", history: [])
         }
         .padding(.horizontal)
+    }
+
+    private func hours(_ seconds: Int) -> String {
+        String(format: "%.1f", Double(seconds) / 3600)
+    }
+
+    private func loadHistory() async {
+        guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
+        async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 14)
+        async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: 14)
+        if let d = try? await d { days = d }
+        if let n = try? await n { nights = n }
     }
 
     private var freshness: String {
@@ -105,6 +130,7 @@ private struct Tile: View {
     let value: String
     let unit: String
     let caption: String
+    let history: [Double]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -114,9 +140,36 @@ private struct Tile: View {
                 if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(.secondary) }
             }
             Text(caption).font(.caption2).foregroundStyle(.tertiary)
+            Sparkline(values: history)
+                .frame(height: 22)
+                .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+
+/// Fourteen-day context under a tile. Draws nothing until there are two points.
+private struct Sparkline: View {
+    let values: [Double]
+
+    var body: some View {
+        GeometryReader { geo in
+            if values.count >= 2, let lo = values.min(), let hi = values.max() {
+                let span = max(hi - lo, 0.0001)
+                Path { path in
+                    for (i, v) in values.enumerated() {
+                        let x = geo.size.width * CGFloat(i) / CGFloat(values.count - 1)
+                        let y = geo.size.height * (1 - CGFloat((v - lo) / span))
+                        if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+                    }
+                }
+                .stroke(.secondary.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            } else {
+                Text(values.isEmpty ? " " : "1 day").font(.caption2).foregroundStyle(.quaternary)
+            }
+        }
     }
 }

@@ -28,12 +28,11 @@ struct SleepView: View {
             .navigationTitle("Sleep")
             .toolbar {
                 if nights.count > 1 {
-                    Menu {
-                        ForEach(nights) { night in
-                            Button(nightLabel(night)) { selected = night }
-                        }
-                    } label: {
-                        Image(systemName: "calendar")
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button { step(1) } label: { Image(systemName: "chevron.left") }
+                            .disabled(!canStep(1))
+                        Button { step(-1) } label: { Image(systemName: "chevron.right") }
+                            .disabled(!canStep(-1))
                     }
                 }
             }
@@ -104,6 +103,30 @@ struct SleepView: View {
                     Stat("Coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "data present")
                 }
 
+                let awakenings = night.stages.filter { $0.stage == .wake && $0.start > w.onset && $0.end < w.offset }
+                if !awakenings.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Awake during the night").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        ForEach(Array(awakenings.enumerated()), id: \.offset) { _, seg in
+                            HStack {
+                                Text(seg.start.formatted(date: .omitted, time: .shortened))
+                                Text("·").foregroundStyle(.tertiary)
+                                Text(duration(Int(seg.end.timeIntervalSince(seg.start))))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                }
+
+                if w.coverageS < w.timeInBedS - 120 {
+                    Label("\(duration(w.timeInBedS - w.coverageS)) of this night has no data, for example while the strap was off or charging. Those minutes are not counted as sleep.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
                 if !night.metrics.naps.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Other sleep").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
@@ -122,6 +145,21 @@ struct SleepView: View {
             }
             .padding()
         }
+    }
+
+    /// Nights are newest first; +1 steps back in time.
+    private func currentIndex() -> Int {
+        nights.firstIndex { $0.id == (selected ?? nights.first)?.id } ?? 0
+    }
+
+    private func canStep(_ delta: Int) -> Bool {
+        let i = currentIndex() + delta
+        return i >= 0 && i < nights.count
+    }
+
+    private func step(_ delta: Int) {
+        guard canStep(delta) else { return }
+        selected = nights[currentIndex() + delta]
     }
 
     private func load() async {
