@@ -32,6 +32,7 @@ final class StrapManager: NSObject, ObservableObject {
     @Published private(set) var started = false
     @Published private(set) var lastBiometric: Biometric?
     @Published private(set) var batteryPercent: Double?
+    @Published private(set) var batteryUpdatedAt: Date?
     @Published private(set) var framesReceived = 0
     @Published private(set) var offloadChunks = 0
     @Published private(set) var lastDataRange: DataRange?
@@ -160,7 +161,12 @@ final class StrapManager: NSObject, ObservableObject {
             if !realtimeStreaming { recordLive(b.heartRate, rr: b.rrMilliseconds) }
         case let .event(event):
             if case let .batteryLevel(level) = event.payload {
-                batteryPercent = Double(level.stateOfChargeTenths) / 10
+                let at = Date(timeIntervalSince1970: TimeInterval(event.unixSeconds))
+                // Stored events replay in offload order; keep the newest reading.
+                if batteryUpdatedAt.map({ at >= $0 }) ?? true {
+                    batteryPercent = Double(level.stateOfChargeTenths) / 10
+                    batteryUpdatedAt = at
+                }
             }
         case let .metadata(meta):
             if let token = meta.historyEndToken, let ack = try? Command.historyAck(sequence: nextSequence(), token: token) {

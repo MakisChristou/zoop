@@ -32,7 +32,7 @@ struct ConnectionPill: View {
             Text(text).font(.footnote.weight(.medium))
             if let battery = model.strap.batteryPercent, model.strap.state == .ready {
                 Text("·").foregroundStyle(.secondary)
-                Label(battery.formatted(.number.precision(.fractionLength(0))) + " %", systemImage: batteryIcon(battery))
+                Label(battery.formatted(.number.precision(.fractionLength(0))) + " %" + batteryAge, systemImage: batteryIcon(battery))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -59,6 +59,12 @@ struct ConnectionPill: View {
         case .bluetoothOff: "Bluetooth off"
         case .failed: "Disconnected"
         }
+    }
+
+    private var batteryAge: String {
+        guard let at = model.strap.batteryUpdatedAt else { return "" }
+        let minutes = Int(Date().timeIntervalSince(at) / 60)
+        return minutes < 2 ? "" : " (\(minutes) min ago)"
     }
 
     private func batteryIcon(_ percent: Double) -> String {
