@@ -8,7 +8,7 @@ use crate::{PostgresStore, StorageError, StorageResult, StoreOperation};
 #[derive(Debug, Clone, FromRow, serde::Serialize)]
 pub struct DayRow {
     pub day: NaiveDate,
-    /// The strap's step counter resets at local midnight; the day's maximum is the total.
+    /// The strap's step counter resets around local midnight; the day's last reading is the total.
     pub steps: Option<i32>,
     pub hr_min: Option<i16>,
     pub hr_avg: Option<f32>,
@@ -31,7 +31,7 @@ impl PostgresStore {
         sqlx::query_as(
             "SELECT day, steps, hr_min, hr_avg, hr_max, skin_temp_avg, asleep_s, samples FROM (
                SELECT (ts AT TIME ZONE $2)::date AS day,
-                      max(steps) AS steps,
+                      (array_agg(steps ORDER BY ts DESC) FILTER (WHERE steps IS NOT NULL))[1] AS steps,
                       min(hr) FILTER (WHERE hr > 0) AS hr_min,
                       avg(hr) FILTER (WHERE hr > 0)::real AS hr_avg,
                       max(hr) AS hr_max,
