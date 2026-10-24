@@ -129,6 +129,10 @@ fn to_sample(row: &SampleFull) -> Sample {
             .filter_map(|&rr| u32::try_from(rr).ok())
             .collect(),
         motion_g: row.accel_dyn_g,
+        gravity_g: match (row.gravity_x, row.gravity_y, row.gravity_z) {
+            (Some(x), Some(y), Some(z)) => Some([x, y, z]),
+            _ => None,
+        },
         skin_temp_c: row.skin_temp_c,
         band_state: u8::try_from(row.band_state).unwrap_or(0),
         spo2_pct: row.spo2_pct.and_then(|v| u8::try_from(v).ok()),

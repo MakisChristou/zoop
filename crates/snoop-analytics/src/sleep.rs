@@ -25,6 +25,8 @@ pub struct Sample {
     pub rr_ms: Vec<u32>,
     /// Dynamic acceleration in g, when the record carried one.
     pub motion_g: Option<f32>,
+    /// Gravity vector in g, for posture-angle methods.
+    pub gravity_g: Option<[f32; 3]>,
     pub skin_temp_c: Option<f32>,
     /// 0 wake, 1 still, 2 sleep, 3 up.
     pub band_state: u8,

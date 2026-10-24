@@ -7,7 +7,7 @@ use crate::{
 
 /// Bump whenever decoding output changes shape or meaning. Stored next to every
 /// decoded row so stored raw frames can be re-decoded after a protocol fix.
-pub const PROTO_VERSION: i32 = 2;
+pub const PROTO_VERSION: i32 = 3;
 
 /// One complete, CRC-valid frame, decoded as far as the protocol is understood.
 #[derive(Debug, Clone, PartialEq, Serialize)]

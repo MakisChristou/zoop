@@ -19,6 +19,7 @@ fn night(asleep_from: i64, asleep_to: i64, total: i64, awake_gaps: &[(i64, i64)]
                     vec![]
                 },
                 motion_g: Some(if asleep { 0.01 } else { 0.3 }),
+                gravity_g: Some([0.0, 0.0, 1.0]),
                 skin_temp_c: Some(if asleep { 34.0 } else { 32.5 }),
                 band_state: if asleep { Sample::BAND_SLEEP } else { 0 },
                 spo2_pct: if asleep && i % 1200 < 30 {

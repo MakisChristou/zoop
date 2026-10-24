@@ -95,6 +95,7 @@ impl Decoder {
                         skin_temp_c: b.skin_temp_c,
                         steps: Some(i32::from(b.steps)),
                         accel_dyn_g: b.dynamic_accel_g,
+                        gravity_g: b.gravity_g,
                         activity: activity_code(b.activity),
                         band_state: band_state_code(b.band_state),
                         spo2_pct: b.spo2_percent.map(i16::from),

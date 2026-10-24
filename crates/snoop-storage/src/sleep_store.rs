@@ -12,6 +12,9 @@ pub struct SampleFull {
     pub hr: Option<i16>,
     pub rr_ms: Option<Vec<i32>>,
     pub accel_dyn_g: Option<f32>,
+    pub gravity_x: Option<f32>,
+    pub gravity_y: Option<f32>,
+    pub gravity_z: Option<f32>,
     pub skin_temp_c: Option<f32>,
     pub band_state: i16,
     pub spo2_pct: Option<i16>,
@@ -54,7 +57,7 @@ impl PostgresStore {
         to: DateTime<Utc>,
     ) -> StorageResult<Vec<SampleFull>> {
         sqlx::query_as(
-            "SELECT ts, hr, rr_ms, accel_dyn_g, skin_temp_c, band_state, spo2_pct
+            "SELECT ts, hr, rr_ms, accel_dyn_g, gravity_x, gravity_y, gravity_z, skin_temp_c, band_state, spo2_pct
              FROM samples WHERE device_id = $1 AND ts >= $2 AND ts < $3 ORDER BY ts",
         )
         .bind(device_id)

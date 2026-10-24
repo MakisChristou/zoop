@@ -15,6 +15,7 @@ pub struct NewSample<'a> {
     pub skin_temp_c: Option<f32>,
     pub steps: Option<i32>,
     pub accel_dyn_g: Option<f32>,
+    pub gravity_g: Option<[f32; 3]>,
     pub activity: Option<i16>,
     pub band_state: i16,
     pub spo2_pct: Option<i16>,
@@ -53,14 +54,18 @@ impl PostgresStore {
     pub async fn upsert_sample(&self, sample: &NewSample<'_>) -> StorageResult<()> {
         sqlx::query(
             "INSERT INTO samples
-               (device_id, ts, hr, rr_ms, skin_temp_c, steps, accel_dyn_g, activity, band_state, spo2_pct, raw_frame_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               (device_id, ts, hr, rr_ms, skin_temp_c, steps, accel_dyn_g, gravity_x, gravity_y, gravity_z,
+                activity, band_state, spo2_pct, raw_frame_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              ON CONFLICT (device_id, ts) DO UPDATE SET
                hr = EXCLUDED.hr,
                rr_ms = EXCLUDED.rr_ms,
                skin_temp_c = EXCLUDED.skin_temp_c,
                steps = EXCLUDED.steps,
                accel_dyn_g = EXCLUDED.accel_dyn_g,
+               gravity_x = EXCLUDED.gravity_x,
+               gravity_y = EXCLUDED.gravity_y,
+               gravity_z = EXCLUDED.gravity_z,
                activity = EXCLUDED.activity,
                band_state = EXCLUDED.band_state,
                spo2_pct = EXCLUDED.spo2_pct,
@@ -73,6 +78,9 @@ impl PostgresStore {
         .bind(sample.skin_temp_c)
         .bind(sample.steps)
         .bind(sample.accel_dyn_g)
+        .bind(sample.gravity_g.map(|g| g[0]))
+        .bind(sample.gravity_g.map(|g| g[1]))
+        .bind(sample.gravity_g.map(|g| g[2]))
         .bind(sample.activity)
         .bind(sample.band_state)
         .bind(sample.spo2_pct)
