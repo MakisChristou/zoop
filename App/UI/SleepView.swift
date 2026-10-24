@@ -55,13 +55,43 @@ struct SleepView: View {
                     }
                     Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened)) · \(duration(w.timeInBedS)) in bed")
                         .font(.footnote).foregroundStyle(.secondary)
-                    SleepBar(asleep: w.asleepS, awake: w.wasoS)
-                        .frame(height: 14)
-                        .padding(.top, 4)
+                    if night.stages.isEmpty {
+                        SleepBar(asleep: w.asleepS, awake: w.wasoS)
+                            .frame(height: 14)
+                            .padding(.top, 4)
+                    } else {
+                        Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
+                            .frame(height: 96)
+                            .padding(.top, 8)
+                        HStack {
+                            Text(w.onset.formatted(date: .omitted, time: .shortened))
+                            Spacer()
+                            Text(w.offset.formatted(date: .omitted, time: .shortened))
+                        }
+                        .font(.caption2).foregroundStyle(.tertiary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+
+                if let st = night.metrics.stages, !night.stages.isEmpty {
+                    let scored = max(st.lightS + st.deepS + st.remS, 1)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored))
+                        StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored))
+                        StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored))
+                        StageRow(name: "Awake", color: Hypnogram.color(.wake), seconds: st.wakeS, share: nil)
+                        if let rem = st.remLatencyS {
+                            Text("First REM after \(duration(rem)). Deep-sleep minutes are the least certain of these figures.")
+                                .font(.caption2).foregroundStyle(.tertiary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                }
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     Stat("Efficiency", pct(w.efficiency), "asleep ÷ in bed")
@@ -87,7 +117,7 @@ struct SleepView: View {
                     .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
                 }
 
-                Text("Sleep window from the strap's own rest flag with heart-rate confirmation. Stages are not computed yet. Algorithm v\(night.algoVersion).")
+                Text("Sleep window from the strap's own rest flag with heart-rate confirmation. Stages from motion, heart rate, HRV and breathing, using published wrist-device methods; about 70 % epoch agreement is the state of the art without EEG. Algorithm v\(night.algoVersion).")
                     .font(.caption2).foregroundStyle(.tertiary)
             }
             .padding()
@@ -130,6 +160,75 @@ struct SleepView: View {
 
     private func pct(_ value: Double) -> String {
         "\(Int((value * 100).rounded())) %"
+    }
+}
+
+private struct Hypnogram: View {
+    let segments: [SnoopAPI.Night.Segment]
+    let onset: Date
+    let offset: Date
+
+    static func color(_ stage: SnoopAPI.Night.Stage) -> Color {
+        switch stage {
+        case .wake: .orange
+        case .light: .indigo.opacity(0.55)
+        case .deep: .indigo
+        case .rem: .teal
+        }
+    }
+
+    private static func level(_ stage: SnoopAPI.Night.Stage) -> CGFloat {
+        switch stage {
+        case .wake: 0
+        case .rem: 1
+        case .light: 2
+        case .deep: 3
+        }
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let total = max(offset.timeIntervalSince(onset), 1)
+            let rowHeight = geo.size.height / 4
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
+                    let x = CGFloat(seg.start.timeIntervalSince(onset) / total) * geo.size.width
+                    let w = max(CGFloat(seg.end.timeIntervalSince(seg.start) / total) * geo.size.width, 1)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Self.color(seg.stage))
+                        .frame(width: w, height: rowHeight - 3)
+                        .offset(x: x, y: Self.level(seg.stage) * rowHeight)
+                }
+            }
+        }
+    }
+}
+
+private struct StageRow: View {
+    let name: String
+    let color: Color
+    let seconds: Int
+    let share: Double?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(name).frame(width: 52, alignment: .leading)
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(color)
+                    .frame(width: geo.size.width * CGFloat(min(share ?? 0, 1)), height: 8)
+                    .frame(maxHeight: .infinity, alignment: .center)
+            }
+            Text(hm(seconds)).monospacedDigit().frame(width: 62, alignment: .trailing)
+            Text(share.map { "\(Int(($0 * 100).rounded())) %" } ?? "").foregroundStyle(.secondary).frame(width: 40, alignment: .trailing)
+        }
+        .font(.subheadline)
+    }
+
+    private func hm(_ s: Int) -> String {
+        let h = s / 3600, m = (s % 3600) / 60
+        return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
     }
 }
 

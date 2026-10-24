@@ -24,16 +24,39 @@ enum SnoopAPI {
             let spo2Windows: Int
         }
 
+        struct StageSummary: Decodable {
+            let wakeS: Int
+            let lightS: Int
+            let deepS: Int
+            let remS: Int
+            let sleepLatencyS: Int
+            let remLatencyS: Int?
+            let epochs: Int
+            let epochsWithCardiac: Int
+        }
+
         struct Metrics: Decodable {
             let window: Window
             let physiology: Physiology
+            let stages: StageSummary?
             let naps: [Window]
+        }
+
+        enum Stage: String, Decodable {
+            case wake, light, deep, rem
+        }
+
+        struct Segment: Decodable {
+            let stage: Stage
+            let start: Date
+            let end: Date
         }
 
         let nightOf: String
         let algoVersion: Int
         let startTs: Date
         let endTs: Date
+        let stages: [Segment]
         let metrics: Metrics
 
         var id: String { "\(nightOf)-\(algoVersion)" }
