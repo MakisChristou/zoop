@@ -6,3 +6,4 @@
 /.pgdata/
 /.direnv/
 /snoop.toml
+/result

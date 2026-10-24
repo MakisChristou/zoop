@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(name = "snoop", about = "Self-hosted WHOOP MG backend")]
+#[command(
+    name = "snoop",
+    about = "Self-hosted backend for WHOOP 5.0 / MG straps"
+)]
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub(crate) command: Option<Command>,

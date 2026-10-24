@@ -10,8 +10,8 @@ cloud, no subscription.
 
 Written in Rust. Postgres is the only dependency.
 
-> **Status: early development.** Ingest, storage and R18 biometric decoding work end to
-> end against synthetic frames. Sleep analysis is the current focus. Nothing here is
+> **Status: early development.** Ingest, decoding, nightly sleep windows, physiology
+> and a first four-class staging run end to end on real strap data. Nothing is
 > validated against the official app yet. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
@@ -38,12 +38,18 @@ the decoders or the analytics improve.
 - **Idempotent ingest API** protected by a bearer token; duplicates from retries are
   counted, not stored twice.
 - **Decode worker** with versioned backfill.
+- **Nightly sleep analysis**: sleep windows anchored on the strap's own rest flag with
+  heart-rate confirmation; time in bed, asleep, awakenings, efficiency; resting HR,
+  HRV, breathing rate, skin temperature and SpO₂; a first four-class staging
+  (wake / light / deep / REM) from motion, heart rate, HRV and breathing, with the
+  published accuracy limits of wrist devices stated plainly.
 - **HRV primitives** (RMSSD, SDNN, ln-RMSSD) and winsorised rolling baselines.
 
 ## Quick start
 
-Requirements: Rust 1.97+, Postgres 18, [`just`](https://just.systems). A `flake.nix`
-provides all of them (`nix develop`, or `direnv allow`).
+Requirements: Rust 1.97+, Postgres 18, [`just`](https://just.systems). The `flake.nix`
+provides all of them (`nix develop`, or `direnv allow`), and also packages the service
+for NixOS (see Deploying).
 
 ```sh
 cp snoop.dev.toml snoop.toml      # then set server.ingest_token
@@ -75,7 +81,8 @@ batch_size = 500
 ```
 
 `snoop validate --config snoop.toml` checks the file; `snoop migrate` applies schema
-migrations; `snoop run` starts the service.
+migrations; `snoop run` starts the service; `snoop analyze --device <serial> --night
+YYYY-MM-DD` scores one night and prints the result.
 
 ## API
 
@@ -85,6 +92,7 @@ migrations; `snoop run` starts the service.
 | `POST` | `/v1/ingest` | batch of base64 frames; idempotent on `(device_id, client_seq)` |
 | `GET` | `/v1/devices/{deviceId}/latest` | most recent decoded sample |
 | `GET` | `/v1/devices/{deviceId}/days/{date}` | minute-averaged samples for a UTC day |
+| `GET` | `/v1/devices/{deviceId}/sleeps?limit=14` | analysed nights with stage segments, newest first |
 
 All `/v1` routes require `Authorization: Bearer <server.ingest_token>`.
 
@@ -102,6 +110,39 @@ crates/
 migrations/        schema, applied by `snoop migrate`
 docs/              architecture, protocol notes, roadmap
 ```
+
+## Deploying on NixOS
+
+The flake exports a package and a NixOS module. In your system flake:
+
+```nix
+{
+  inputs.snoop-api.url = "github:MakisChristou/snoop-api";
+
+  outputs = { nixpkgs, snoop-api, ... }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      modules = [
+        snoop-api.nixosModules.default
+        {
+          services.snoop = {
+            enable = true;
+            port = 8471;
+            tokenFile = "/run/secrets/snoop-token";  # the bearer token, nothing else
+            openFirewall = true;
+          };
+        }
+      ];
+    };
+  };
+}
+```
+
+The module provisions a local Postgres database and role, runs migrations before
+start, reads the token through a systemd credential so it never enters the Nix store,
+and restarts the service on failure. Put a reverse proxy or a private overlay network
+in front of it if the host is reachable from outside your LAN.
+
+`nix build .#snoop` builds the binary on its own.
 
 ## Development
 
