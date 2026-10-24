@@ -51,9 +51,12 @@ struct SettingsView: View {
         defer { testing = false }
         guard let base = URL(string: serverURL) else { testResult = "Invalid URL"; return }
         do {
-            let (_, health) = try await URLSession.shared.data(from: base.appendingPathComponent("health"))
+            var healthRequest = URLRequest(url: base.appendingPathComponent("health"))
+            healthRequest.timeoutInterval = 15
+            let (_, health) = try await URLSession.shared.data(for: healthRequest)
             guard (health as? HTTPURLResponse)?.statusCode == 200 else { testResult = "Server not reachable"; return }
             var request = URLRequest(url: base.appendingPathComponent("v1/devices/_/latest"))
+            request.timeoutInterval = 15
             request.setValue("Bearer \(ingestToken)", forHTTPHeaderField: "Authorization")
             let (_, response) = try await URLSession.shared.data(for: request)
             switch (response as? HTTPURLResponse)?.statusCode {

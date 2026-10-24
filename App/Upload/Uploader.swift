@@ -39,6 +39,8 @@ actor Uploader {
     }
 
     static let batchSize = 200
+    /// A dead or unreachable server must fail fast so the status line recovers.
+    static let requestTimeout: TimeInterval = 20
 
     private let queue: FrameQueue
     private let session: URLSession
@@ -71,6 +73,7 @@ actor Uploader {
                 frames: rows.map { FrameUpload(clientSeq: $0.clientSeq, channel: $0.channel, receivedAt: $0.receivedAt, bytes: Data($0.bytes).base64EncodedString()) })
 
             var request = URLRequest(url: baseURL.appendingPathComponent("v1/ingest"))
+            request.timeoutInterval = Self.requestTimeout
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")

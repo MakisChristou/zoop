@@ -79,6 +79,7 @@ enum SnoopAPI {
         var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/sleeps"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "limit", value: String(limit))]
         var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 20
         request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
