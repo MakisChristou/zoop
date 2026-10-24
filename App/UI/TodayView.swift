@@ -4,6 +4,7 @@ import SwiftUI
 struct TodayView: View {
     @EnvironmentObject private var model: AppModel
     @State private var now = Date()
+    @State private var minutes: [SnoopAPI.Minute] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -13,6 +14,9 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     heartRateHero
+                    if !minutes.isEmpty {
+                        DayTimeline(minutes: minutes, now: now).padding(.horizontal)
+                    }
                     tiles
                     if model.strap.state != .ready {
                         Text(hint)
@@ -28,6 +32,12 @@ struct TodayView: View {
         }
         .onReceive(clock) { now = $0 }
         .task { await loadHistory() }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(300))
+                await loadHistory()
+            }
+        }
         .refreshable { await loadHistory() }
         .onAppear { model.strap.setRealtimeHeartRate(true) }
         .onDisappear { model.strap.setRealtimeHeartRate(false) }
@@ -96,8 +106,10 @@ struct TodayView: View {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
         async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 14)
         async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: 14)
+        async let m = SnoopAPI.minutes(deviceId: model.strap.serial, day: Date())
         if let d = try? await d { days = d }
         if let n = try? await n { nights = n }
+        if let m = try? await m { minutes = m }
     }
 
     private var freshness: String {

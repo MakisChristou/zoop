@@ -76,6 +76,19 @@ enum SnoopAPI {
         var id: String { day }
     }
 
+    struct Minute: Decodable, Identifiable {
+        let ts: Date
+        let hr: Int?
+        let hrMin: Int?
+        let hrMax: Int?
+        let skinTempC: Double?
+        let steps: Int?
+        let bandState: Int?
+        let activity: Int?
+        let spo2Pct: Int?
+        var id: Date { ts }
+    }
+
     enum Failure: Error, LocalizedError {
         case notConfigured
         case http(Int)
@@ -86,6 +99,42 @@ enum SnoopAPI {
             case let .http(code): "HTTP \(code)"
             }
         }
+    }
+
+    /// Minute buckets for one local calendar day.
+    static func minutes(deviceId: String, day: Date) async throws -> [Minute] {
+        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/days/\(formatter.string(from: day))"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "tz", value: TimeZone.current.identifier)]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        return try decoder().decode([Minute].self, from: data)
+    }
+
+    private static func decoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let text = try decoder.singleValueContainer().decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: text) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            guard let date = formatter.date(from: text) else {
+                throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "bad date \(text)")
+            }
+            return date
+        }
+        return decoder
     }
 
     static func days(deviceId: String, limit: Int = 14) async throws -> [Day] {
