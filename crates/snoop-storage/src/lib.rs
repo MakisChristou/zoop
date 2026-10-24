@@ -5,11 +5,13 @@ mod error;
 mod frame_store;
 mod operation;
 mod sample_store;
+mod sleep_store;
 
 pub use error::{StorageError, StorageResult};
 pub use frame_store::{NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;
 pub use sample_store::{NewEcgStrip, NewEvent, NewSample, SampleRow};
+pub use sleep_store::{NewSleep, SampleFull, SleepRow};
 
 use sqlx::{PgPool, postgres::PgPoolOptions};
 

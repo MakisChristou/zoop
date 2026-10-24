@@ -15,6 +15,9 @@ pub enum StoreOperation {
     InsertEcgStrip,
     LatestSample,
     SamplesInRange,
+    ListDevices,
+    UpsertSleep,
+    ListSleeps,
 }
 
 impl fmt::Display for StoreOperation {
@@ -32,6 +35,9 @@ impl fmt::Display for StoreOperation {
             Self::InsertEcgStrip => "insert ECG strip",
             Self::LatestSample => "read latest sample",
             Self::SamplesInRange => "read samples in range",
+            Self::ListDevices => "list devices",
+            Self::UpsertSleep => "upsert sleep",
+            Self::ListSleeps => "list sleeps",
         };
         f.write_str(name)
     }

@@ -25,5 +25,8 @@ async fn main() -> anyhow::Result<()> {
         Command::Run => service::run(config).await,
         Command::Validate => commands::validate(&config),
         Command::Migrate => commands::migrate(&config.storage_config).await,
+        Command::Analyze { device, night } => {
+            commands::analyze(&config.storage_config, &device, night).await
+        }
     }
 }

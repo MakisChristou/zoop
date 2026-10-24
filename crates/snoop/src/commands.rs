@@ -1,4 +1,5 @@
-use anyhow::bail;
+use anyhow::{Context, bail};
+use chrono::{NaiveDate, Utc};
 use secrecy::ExposeSecret;
 use snoop_config::{Config, IssueLevel, StorageConfig};
 use snoop_storage::PostgresStore;
@@ -8,6 +9,22 @@ pub(crate) async fn migrate(config: &StorageConfig) -> anyhow::Result<()> {
     info!("applying Postgres migrations");
     PostgresStore::migrate(config.postgres_url.expose_secret()).await?;
     info!("Postgres migrations applied");
+    Ok(())
+}
+
+pub(crate) async fn analyze(
+    config: &StorageConfig,
+    device: &str,
+    night: Option<NaiveDate>,
+) -> anyhow::Result<()> {
+    let store = PostgresStore::connect(config.postgres_url.expose_secret())
+        .await
+        .context("connecting to Postgres")?;
+    let night = night.unwrap_or_else(|| Utc::now().date_naive());
+    match snoop_core::analyze_night(&store, device, night).await? {
+        Some(result) => println!("{}", serde_json::to_string_pretty(&result)?),
+        None => println!("{{\"night_of\": \"{night}\", \"sleep\": null}}"),
+    }
     Ok(())
 }
 

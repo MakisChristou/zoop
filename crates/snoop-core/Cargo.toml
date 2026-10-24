@@ -10,6 +10,9 @@ repository.workspace = true
 [dependencies]
 snoop-proto = { workspace = true }
 snoop-storage = { workspace = true }
+snoop-analytics = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

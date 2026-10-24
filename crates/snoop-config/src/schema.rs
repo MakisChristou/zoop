@@ -32,6 +32,9 @@ pub struct WorkerConfig {
     /// Raw frames decoded per pass.
     #[serde(default = "default_batch_size")]
     pub batch_size: i64,
+    /// How often the trailing nights are re-analysed, in seconds.
+    #[serde(default = "default_analysis_interval_s")]
+    pub analysis_interval_s: u64,
 }
 
 impl Default for WorkerConfig {
@@ -39,6 +42,7 @@ impl Default for WorkerConfig {
         Self {
             poll_interval_ms: default_poll_interval_ms(),
             batch_size: default_batch_size(),
+            analysis_interval_s: default_analysis_interval_s(),
         }
     }
 }
@@ -49,4 +53,8 @@ const fn default_poll_interval_ms() -> u64 {
 
 const fn default_batch_size() -> i64 {
     500
+}
+
+const fn default_analysis_interval_s() -> u64 {
+    900
 }

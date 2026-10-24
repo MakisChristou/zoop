@@ -20,4 +20,13 @@ pub(crate) enum Command {
     Validate,
     /// Apply any pending Postgres schema migrations and exit.
     Migrate,
+    /// Analyse one night for one device and print the result as JSON.
+    Analyze {
+        /// Strap serial.
+        #[arg(long)]
+        device: String,
+        /// Night as the morning's date, YYYY-MM-DD. Defaults to today (UTC).
+        #[arg(long)]
+        night: Option<chrono::NaiveDate>,
+    },
 }

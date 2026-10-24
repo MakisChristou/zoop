@@ -1591,8 +1591,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "clap",
  "secrecy",
+ "serde_json",
  "snoop-api",
  "snoop-config",
  "snoop-core",
@@ -1607,6 +1609,7 @@ dependencies = [
 name = "snoop-analytics"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "serde",
 ]
 
@@ -1619,6 +1622,7 @@ dependencies = [
  "chrono",
  "secrecy",
  "serde",
+ "snoop-analytics",
  "snoop-proto",
  "snoop-storage",
  "tower-http",
@@ -1641,6 +1645,9 @@ name = "snoop-core"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "serde",
+ "serde_json",
+ "snoop-analytics",
  "snoop-proto",
  "snoop-storage",
  "thiserror",
@@ -1665,6 +1672,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "serde",
+ "serde_json",
  "sqlx",
  "thiserror",
 ]

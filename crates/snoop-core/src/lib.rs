@@ -3,6 +3,8 @@
 
 mod decoder;
 mod error;
+mod night;
 
 pub use decoder::{DecodePass, Decoder};
 pub use error::{CoreError, CoreResult};
+pub use night::{NightAnalyzer, NightResult, analyze_night};

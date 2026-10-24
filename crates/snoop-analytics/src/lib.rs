@@ -4,6 +4,8 @@
 
 pub mod baseline;
 pub mod hrv;
+pub mod respiration;
+pub mod sleep;
 
 /// Bump on any change that alters computed numbers.
 pub const ALGO_VERSION: i32 = 1;

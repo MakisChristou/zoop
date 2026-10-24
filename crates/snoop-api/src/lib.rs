@@ -4,6 +4,7 @@ mod auth;
 mod devices;
 mod error;
 mod ingest;
+mod sleeps;
 mod state;
 
 pub use state::AppState;
@@ -18,6 +19,7 @@ use crate::{
     auth::require_bearer,
     devices::{day, latest},
     ingest::ingest,
+    sleeps::sleeps,
 };
 
 pub fn build_router(state: AppState) -> Router {
@@ -25,6 +27,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/ingest", post(ingest))
         .route("/v1/devices/{deviceId}/latest", get(latest))
         .route("/v1/devices/{deviceId}/days/{date}", get(day))
+        .route("/v1/devices/{deviceId}/sleeps", get(sleeps))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             require_bearer,
