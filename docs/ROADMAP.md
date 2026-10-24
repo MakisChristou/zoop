@@ -15,7 +15,7 @@ Everything else is secondary and comes after.
    background Bluetooth. Full nights land in `samples`.
 4. **Sleep v1** — see below. Nightly sleep windows, efficiency, resting HR, HRV,
    respiratory rate.
-5. **Sleep v2** — four-class staging (wake / light / deep / REM), sleep need and
+5. **Sleep v2** — four-class staging (wake / light / deep / REM) — first version done; sleep need and
    sleep debt, comparison tooling against official-app exports.
 6. **Recovery and strain**, workouts, journal, dashboard.
 

@@ -14,6 +14,7 @@ use snoop_analytics::ALGO_VERSION;
 use snoop_analytics::sleep::{
     NightMetrics, Sample, SleepParams, SleepWindow, detect_sleep, night_metrics,
 };
+use snoop_analytics::stages::{StageSegment, StageSummary, stage_window};
 use snoop_storage::{NewSleep, PostgresStore, SampleFull};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
@@ -30,6 +31,7 @@ const TRAILING_NIGHTS: i64 = 3;
 pub struct NightResult {
     pub window: SleepWindow,
     pub physiology: NightMetrics,
+    pub stages: StageSummary,
     pub naps: Vec<SleepWindow>,
     pub params: SleepParams,
     pub samples: usize,
@@ -85,8 +87,11 @@ pub async fn analyze_night(
             .await?;
         return Ok(None);
     };
+    let (segments, stage_summary): (Vec<StageSegment>, StageSummary) =
+        stage_window(&samples, &main);
     let result = NightResult {
         physiology: night_metrics(&samples, &main),
+        stages: stage_summary,
         naps: windows[1..].to_vec(),
         window: main,
         params,
@@ -99,7 +104,7 @@ pub async fn analyze_night(
             algo_version: ALGO_VERSION,
             start_ts: result.window.onset,
             end_ts: result.window.offset,
-            stages: serde_json::Value::Array(Vec::new()),
+            stages: serde_json::to_value(&segments).expect("segments serialise"),
             metrics: serde_json::to_value(&result).expect("result serialises"),
         })
         .await?;
