@@ -65,6 +65,8 @@ enum SnoopAPI {
     struct Day: Decodable, Identifiable {
         let day: String
         let steps: Int?
+        let stepsWalking: Int?
+        let walkingS: Int?
         let hrMin: Int?
         let hrAvg: Double?
         let hrMax: Int?

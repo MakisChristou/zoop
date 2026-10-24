@@ -70,13 +70,22 @@ struct TodayView: View {
                  caption: "lowest 5 min of sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr })
             Tile(title: "HRV", value: lastNight?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? rmssdText, unit: "ms",
                  caption: lastNight == nil ? "RMSSD, last 10 s live" : "RMSSD, last night", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs })
-            Tile(title: "Steps", value: b.map { "\($0.steps)" } ?? days.last?.steps.map(String.init) ?? "—", unit: "",
-                 caption: "today, strap counter", history: days.compactMap { $0.steps.map(Double.init) })
+            Tile(title: "Steps", value: days.last?.stepsWalking.map(String.init) ?? b.map { "\($0.steps)" } ?? "—", unit: "",
+                 caption: stepsCaption, history: days.compactMap { $0.stepsWalking.map(Double.init) })
             Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
                  caption: "now", history: days.compactMap { $0.skinTempAvg })
             Tile(title: "Strap says", value: b.map { bandStateText($0.bandState) } ?? "—", unit: "", caption: "its own rest flag", history: [])
         }
         .padding(.horizontal)
+    }
+
+    /// Walking-filtered count as the headline, raw counter and walking time as context.
+    private var stepsCaption: String {
+        guard let today = days.last, let walking = today.stepsWalking else { return "today, strap counter" }
+        var parts = ["while walking"]
+        if let s = today.walkingS { parts.append("\(s / 60) min on foot") }
+        if let raw = today.steps, raw > walking { parts.append("\(raw) raw") }
+        return parts.joined(separator: " · ")
     }
 
     private func hours(_ seconds: Int) -> String {
