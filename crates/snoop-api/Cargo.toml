@@ -11,6 +11,7 @@ repository.workspace = true
 snoop-proto = { workspace = true }
 snoop-storage = { workspace = true }
 snoop-analytics = { workspace = true }
+snoop-core = { workspace = true }
 axum = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }

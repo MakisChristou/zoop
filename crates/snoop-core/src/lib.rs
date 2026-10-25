@@ -7,4 +7,4 @@ mod night;
 
 pub use decoder::{DecodePass, Decoder};
 pub use error::{CoreError, CoreResult};
-pub use night::{NightAnalyzer, NightResult, analyze_night};
+pub use night::{NightAnalyzer, NightResult, analyze_night, night_epochs};

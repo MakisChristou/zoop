@@ -3,6 +3,7 @@
 mod auth;
 mod days;
 mod devices;
+mod epochs;
 mod error;
 mod ingest;
 mod sleeps;
@@ -20,6 +21,7 @@ use crate::{
     auth::require_bearer,
     days::days,
     devices::{day, latest},
+    epochs::epochs,
     ingest::ingest,
     sleeps::sleeps,
 };
@@ -31,6 +33,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/devices/{deviceId}/days/{date}", get(day))
         .route("/v1/devices/{deviceId}/sleeps", get(sleeps))
         .route("/v1/devices/{deviceId}/days", get(days))
+        .route(
+            "/v1/devices/{deviceId}/sleeps/{nightOf}/epochs",
+            get(epochs),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             require_bearer,

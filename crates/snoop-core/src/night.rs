@@ -14,7 +14,9 @@ use snoop_analytics::ALGO_VERSION;
 use snoop_analytics::sleep::{
     NightMetrics, Sample, SleepParams, SleepWindow, detect_sleep, night_metrics,
 };
-use snoop_analytics::stages::{StageSegment, StageSummary, stage_window};
+use snoop_analytics::stages::{
+    EpochFeatures, StageSegment, StageSummary, features_for_window, stage_window,
+};
 use snoop_storage::{NewSleep, PostgresStore, SampleFull};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
@@ -111,6 +113,30 @@ pub async fn analyze_night(
     info!(device_id, %night_of, onset = %result.window.onset, offset = %result.window.offset,
           tib_min = result.window.time_in_bed_s / 60, "night stored");
     Ok(Some(result))
+}
+
+/// Per-epoch features over an analysed window, recomputed from samples on demand.
+pub async fn night_epochs(
+    store: &PostgresStore,
+    device_id: &str,
+    onset: DateTime<Utc>,
+    offset: DateTime<Utc>,
+) -> CoreResult<Vec<EpochFeatures>> {
+    let rows = store
+        .fetch_samples(device_id, onset, offset + ChronoDuration::seconds(1))
+        .await?;
+    let samples: Vec<Sample> = rows.iter().map(to_sample).collect();
+    let window = SleepWindow {
+        onset,
+        offset,
+        time_in_bed_s: (offset - onset).num_seconds() + 1,
+        asleep_s: 0,
+        waso_s: 0,
+        efficiency: 0.0,
+        coverage_s: samples.len() as i64,
+        disturbances: 0,
+    };
+    Ok(features_for_window(&samples, &window))
 }
 
 fn night_bounds(night_of: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {

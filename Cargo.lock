@@ -1623,6 +1623,7 @@ dependencies = [
  "secrecy",
  "serde",
  "snoop-analytics",
+ "snoop-core",
  "snoop-proto",
  "snoop-storage",
  "tower-http",

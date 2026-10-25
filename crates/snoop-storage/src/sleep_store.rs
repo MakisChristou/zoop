@@ -116,6 +116,24 @@ impl PostgresStore {
         Ok(())
     }
 
+    pub async fn get_sleep(
+        &self,
+        device_id: &str,
+        night_of: NaiveDate,
+        algo_version: i32,
+    ) -> StorageResult<Option<SleepRow>> {
+        sqlx::query_as(
+            "SELECT night_of, algo_version, start_ts, end_ts, stages, metrics FROM sleeps
+             WHERE device_id = $1 AND night_of = $2 AND algo_version = $3",
+        )
+        .bind(device_id)
+        .bind(night_of)
+        .bind(algo_version)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(|source| StorageError::unavailable(StoreOperation::ListSleeps, source))
+    }
+
     /// Latest nights first, current algorithm version only.
     pub async fn list_sleeps(
         &self,

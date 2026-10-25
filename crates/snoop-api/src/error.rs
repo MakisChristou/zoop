@@ -31,6 +31,14 @@ impl From<StorageError> for ApiError {
     }
 }
 
+impl From<snoop_core::CoreError> for ApiError {
+    fn from(error: snoop_core::CoreError) -> Self {
+        match error {
+            snoop_core::CoreError::Storage(source) => Self::Storage(source),
+        }
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {

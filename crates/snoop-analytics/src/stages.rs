@@ -10,13 +10,17 @@
 //!   heart-rate variability on two time scales as a difference of Gaussians (Walch
 //!   et al. 2019), RMSSD (Task Force 1996), and breathing rate and its variability
 //!   from respiratory sinus arrhythmia.
-//! - Rules against night-relative percentiles: wake shows motion with cardiac
-//!   activation; deep sleep shows stillness, low heart rate, high RMSSD and regular
-//!   breathing; REM shows stillness with cardiac activation and irregular breathing;
-//!   everything else is light sleep.
+//! - Wake: the strap's own flag, or motion together with cardiac activation.
+//! - Deep and REM as scores built from night-relative robust z-scores. Deep rewards
+//!   low heart rate, high RMSSD, stillness and regular breathing, with a prior that
+//!   favours the first part of the night; REM rewards raised and variable heart
+//!   rate, stillness and irregular breathing, with a prior that favours the later
+//!   part. Epochs whose score clears an absolute threshold are candidates; the share
+//!   assigned is then kept inside the range reported for adult sleep architecture
+//!   (deep 12–25 %, REM 18–28 % of sleep), so a night cannot come out as all light
+//!   sleep merely because one feature was noisy. Everything else is light.
 //! - Physiological smoothing: five-epoch majority filter, no REM in the first fifteen
-//!   minutes, deep sleep demoted after the first two thirds of the night, fragments
-//!   under three minutes absorbed into their neighbours.
+//!   minutes, fragments under three minutes absorbed into their neighbours.
 //!
 //! Published four-class agreement with polysomnography for this class of method is
 //! roughly 65–73 %, and light versus deep is the weakest distinction. Deep-sleep
@@ -36,7 +40,6 @@ const DOG_SIGMA_SHORT_S: f64 = 120.0;
 const DOG_SIGMA_LONG_S: f64 = 600.0;
 const SMOOTH_EPOCHS: usize = 5;
 const NO_REM_AFTER_ONSET_S: i64 = 15 * 60;
-const DEEP_ALLOWED_FRACTION: f64 = 2.0 / 3.0;
 const FRAGMENT_MIN_EPOCHS: usize = 6;
 const MIN_BEATS_FOR_RMSSD: usize = 60;
 
@@ -74,7 +77,7 @@ pub struct StageSummary {
 }
 
 /// Per-epoch features, kept for inspection and tests.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EpochFeatures {
     pub start: DateTime<Utc>,
     pub strap_awake: bool,
@@ -85,6 +88,15 @@ pub struct EpochFeatures {
     pub rmssd: Option<f64>,
     pub resp_rate: Option<f64>,
     pub resp_var: Option<f64>,
+}
+
+/// Per-epoch features over a sleep window, for inspection and dashboards.
+pub fn features_for_window(samples: &[Sample], window: &SleepWindow) -> Vec<EpochFeatures> {
+    let inside: Vec<&Sample> = samples
+        .iter()
+        .filter(|s| s.ts >= window.onset && s.ts <= window.offset)
+        .collect();
+    epoch_features(&inside, window.onset, window.offset)
 }
 
 /// Stages a sleep window. Returns the segments and their summary.
@@ -326,25 +338,51 @@ fn gaussian(series: &[f64], sigma: f64) -> Vec<f64> {
         .collect()
 }
 
-fn percentile(values: &mut [f64], p: f64) -> Option<f64> {
-    if values.is_empty() {
-        return None;
-    }
-    values.sort_by(|a, b| a.total_cmp(b));
-    let idx = ((values.len() - 1) as f64 * p).round() as usize;
-    Some(values[idx])
-}
-
 const WAKE_MOVE_FRAC: f64 = 0.15;
 const STILL_MOVE_FRAC: f64 = 0.10;
-const HR_LOW_PCT: f64 = 0.25;
-const HR_HIGH_PCT: f64 = 0.70;
-const DOG_HIGH_PCT: f64 = 0.70;
-const RMSSD_HIGH_PCT: f64 = 0.70;
-const RESP_VAR_HIGH_PCT: f64 = 0.65;
-const RESP_VAR_LOW_PCT: f64 = 0.50;
+/// Absolute score (in robust z units) an epoch must reach to be a stage candidate.
+const DEEP_CANDIDATE_SCORE: f64 = 0.6;
+const REM_CANDIDATE_SCORE: f64 = 0.6;
+/// Share of asleep epochs assigned to deep sleep, bounded by adult architecture.
+const DEEP_SHARE_MIN: f64 = 0.12;
+const DEEP_SHARE_MAX: f64 = 0.25;
+/// Share of asleep epochs assigned to REM, bounded by adult architecture.
+const REM_SHARE_MIN: f64 = 0.18;
+const REM_SHARE_MAX: f64 = 0.28;
+/// Weight of the time-of-night priors (deep early, REM late).
+const PRIOR_WEIGHT: f64 = 0.5;
+
+/// Robust z-score: (x - median) / (1.4826 * MAD), with a floor on the spread.
+struct Robust {
+    median: f64,
+    scale: f64,
+}
+
+impl Robust {
+    fn fit(values: &[f64]) -> Option<Self> {
+        if values.len() < 4 {
+            return None;
+        }
+        let mut sorted = values.to_vec();
+        sorted.sort_by(|a, b| a.total_cmp(b));
+        let median = sorted[sorted.len() / 2];
+        let mut dev: Vec<f64> = sorted.iter().map(|v| (v - median).abs()).collect();
+        dev.sort_by(|a, b| a.total_cmp(b));
+        let mad = dev[dev.len() / 2];
+        let scale = (1.4826 * mad).max(1e-6 * median.abs().max(1.0));
+        Some(Self { median, scale })
+    }
+
+    fn z(&self, x: f64) -> f64 {
+        ((x - self.median) / self.scale).clamp(-4.0, 4.0)
+    }
+}
 
 fn classify(features: &[EpochFeatures]) -> Vec<Stage> {
+    let n = features.len();
+    if n == 0 {
+        return Vec::new();
+    }
     // Reference distributions over epochs the strap considers asleep.
     let asleep: Vec<&EpochFeatures> = features.iter().filter(|f| !f.strap_awake).collect();
     let refs = if asleep.is_empty() {
@@ -352,47 +390,88 @@ fn classify(features: &[EpochFeatures]) -> Vec<Stage> {
     } else {
         asleep
     };
-    let mut hr: Vec<f64> = refs.iter().filter_map(|f| f.hr_mean).collect();
-    let mut dog: Vec<f64> = refs.iter().filter_map(|f| f.hr_dog).collect();
-    let mut rmssd: Vec<f64> = refs.iter().filter_map(|f| f.rmssd).collect();
-    let mut rv: Vec<f64> = refs.iter().filter_map(|f| f.resp_var).collect();
-    let hr_low = percentile(&mut hr, HR_LOW_PCT);
-    let hr_high = percentile(&mut hr, HR_HIGH_PCT);
-    let dog_high = percentile(&mut dog, DOG_HIGH_PCT);
-    let rmssd_high = percentile(&mut rmssd, RMSSD_HIGH_PCT);
-    let rv_high = percentile(&mut rv, RESP_VAR_HIGH_PCT);
-    let rv_low = percentile(&mut rv, RESP_VAR_LOW_PCT);
+    let fit = |pick: fn(&EpochFeatures) -> Option<f64>| {
+        let v: Vec<f64> = refs.iter().filter_map(|f| pick(f)).collect();
+        Robust::fit(&v)
+    };
+    let hr = fit(|f| f.hr_mean);
+    let dog = fit(|f| f.hr_dog);
+    let rmssd = fit(|f| f.rmssd);
+    let rv = fit(|f| f.resp_var);
+    let z = |fit: &Option<Robust>, x: Option<f64>| fit.as_ref().zip(x).map_or(0.0, |(f, x)| f.z(x));
 
-    features
-        .iter()
-        .map(|f| {
-            let activated = f.hr_mean.zip(hr_high).is_some_and(|(v, t)| v > t)
-                || f.hr_dog.zip(dog_high).is_some_and(|(v, t)| v > t);
-            if f.strap_awake
-                || (f.move_frac >= WAKE_MOVE_FRAC && (activated || f.hr_mean.is_none()))
-            {
-                return Stage::Wake;
-            }
-            let still = f.move_frac <= STILL_MOVE_FRAC;
-            let low_hr = f.hr_mean.zip(hr_low).is_some_and(|(v, t)| v < t);
-            let high_rmssd = f.rmssd.zip(rmssd_high).is_some_and(|(v, t)| v > t);
-            let regular = match (f.resp_var, rv_low) {
-                (Some(v), Some(t)) => v <= t,
-                _ => true,
-            };
-            let irregular = f.resp_var.zip(rv_high).is_some_and(|(v, t)| v > t);
-            let both_cardiac = f.hr_mean.zip(hr_high).is_some_and(|(v, t)| v > t)
-                && f.hr_dog.zip(dog_high).is_some_and(|(v, t)| v > t);
+    let mut stages = vec![Stage::Light; n];
+    let mut deep_scores: Vec<(usize, f64)> = Vec::new();
+    let mut rem_scores: Vec<(usize, f64)> = Vec::new();
 
-            if still && high_rmssd && low_hr && regular {
-                Stage::Deep
-            } else if still && activated && (irregular || (f.resp_var.is_none() && both_cardiac)) {
-                Stage::Rem
-            } else {
-                Stage::Light
-            }
-        })
-        .collect()
+    for (i, f) in features.iter().enumerate() {
+        let t = i as f64 / n.max(1) as f64; // position in the night, 0 at onset
+        let z_hr = z(&hr, f.hr_mean);
+        let z_dog = z(&dog, f.hr_dog);
+        let z_rmssd = z(&rmssd, f.rmssd);
+        let z_rv = z(&rv, f.resp_var);
+        let still_penalty = (f.move_frac / STILL_MOVE_FRAC).min(2.0);
+
+        let activated = z_hr > 0.5 || z_dog > 0.5;
+        if f.strap_awake || (f.move_frac >= WAKE_MOVE_FRAC && (activated || f.hr_mean.is_none())) {
+            stages[i] = Stage::Wake;
+            continue;
+        }
+        if f.hr_mean.is_none() {
+            continue; // no cardiac data: light by default
+        }
+        let deep = -z_hr + z_rmssd - 0.5 * z_rv - still_penalty + PRIOR_WEIGHT * (1.0 - 2.0 * t);
+        let rem = 0.8 * z_hr + z_dog + 0.5 * z_rv - still_penalty + PRIOR_WEIGHT * (2.0 * t - 1.0);
+        deep_scores.push((i, deep));
+        rem_scores.push((i, rem));
+    }
+
+    let asleep_count = stages.iter().filter(|s| **s != Stage::Wake).count();
+    assign(
+        &mut stages,
+        deep_scores,
+        Stage::Deep,
+        DEEP_CANDIDATE_SCORE,
+        DEEP_SHARE_MIN,
+        DEEP_SHARE_MAX,
+        asleep_count,
+    );
+    assign(
+        &mut stages,
+        rem_scores,
+        Stage::Rem,
+        REM_CANDIDATE_SCORE,
+        REM_SHARE_MIN,
+        REM_SHARE_MAX,
+        asleep_count,
+    );
+    stages
+}
+
+/// Assigns `stage` to the best-scoring epochs: everything above the absolute
+/// threshold, then clamped so the share of asleep epochs stays within the
+/// architecture band. Epochs already assigned another stage are skipped.
+fn assign(
+    stages: &mut [Stage],
+    mut scores: Vec<(usize, f64)>,
+    stage: Stage,
+    threshold: f64,
+    share_min: f64,
+    share_max: f64,
+    asleep_count: usize,
+) {
+    if asleep_count == 0 {
+        return;
+    }
+    scores.retain(|(i, _)| stages[*i] == Stage::Light);
+    scores.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let above = scores.iter().filter(|(_, s)| *s >= threshold).count();
+    let min_n = (share_min * asleep_count as f64).round() as usize;
+    let max_n = (share_max * asleep_count as f64).round() as usize;
+    let take = above.clamp(min_n, max_n).min(scores.len());
+    for (i, _) in scores.into_iter().take(take) {
+        stages[i] = stage;
+    }
 }
 
 fn smooth(raw: &[Stage], features: &[EpochFeatures], window: &SleepWindow) -> Vec<Stage> {
@@ -421,13 +500,9 @@ fn smooth(raw: &[Stage], features: &[EpochFeatures], window: &SleepWindow) -> Ve
         })
         .collect();
 
-    let total_s = (window.offset - window.onset).num_seconds().max(1);
     for (i, stage) in out.iter_mut().enumerate() {
         let elapsed = (features[i].start - window.onset).num_seconds();
         if *stage == Stage::Rem && elapsed < NO_REM_AFTER_ONSET_S {
-            *stage = Stage::Light;
-        }
-        if *stage == Stage::Deep && elapsed as f64 > total_s as f64 * DEEP_ALLOWED_FRACTION {
             *stage = Stage::Light;
         }
     }
