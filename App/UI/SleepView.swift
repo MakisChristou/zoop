@@ -59,9 +59,21 @@ struct SleepView: View {
                             .frame(height: 14)
                             .padding(.top, 4)
                     } else {
-                        Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
-                            .frame(height: 96)
+                        NavigationLink {
+                            SleepDetailView(night: night)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
+                                    .frame(height: 96)
+                                HStack {
+                                    Spacer()
+                                    Label("Inspect night", systemImage: "chevron.right")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
                             .padding(.top, 8)
+                        }
+                        .buttonStyle(.plain)
                         HStack {
                             Text(w.onset.formatted(date: .omitted, time: .shortened))
                             Spacer()
@@ -201,7 +213,7 @@ struct SleepView: View {
     }
 }
 
-private struct Hypnogram: View {
+struct Hypnogram: View {
     let segments: [SnoopAPI.Night.Segment]
     let onset: Date
     let offset: Date

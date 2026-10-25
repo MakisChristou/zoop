@@ -89,6 +89,17 @@ enum SnoopAPI {
         var id: Date { ts }
     }
 
+    struct Epoch: Decodable, Identifiable {
+        let start: Date
+        let hr: Double?
+        let hrVariability: Double?
+        let rmssd: Double?
+        let respRate: Double?
+        let moveFrac: Double
+        let strapAwake: Bool
+        var id: Date { start }
+    }
+
     enum Failure: Error, LocalizedError {
         case notConfigured
         case http(Int)
@@ -99,6 +110,19 @@ enum SnoopAPI {
             case let .http(code): "HTTP \(code)"
             }
         }
+    }
+
+    /// Thirty-second epochs of an analysed night, aligned with its stages.
+    static func epochs(deviceId: String, nightOf: String) async throws -> [Epoch] {
+        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
+        var request = URLRequest(url: base.appendingPathComponent("v1/devices/\(deviceId)/sleeps/\(nightOf)/epochs"))
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        return try decoder().decode([Epoch].self, from: data)
     }
 
     /// Minute buckets for one local calendar day.
