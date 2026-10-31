@@ -12,6 +12,8 @@ final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenter
     @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
     @Published private(set) var notificationError: String?
     @Published var openBattery = false
+    /// Set from a tapped session notification; the Activity tab clears it once shown.
+    @Published var openWorkout: Int64?
 
     private let defaults: UserDefaults
     private let center: UNUserNotificationCenter
@@ -235,7 +237,12 @@ final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenter
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         Task { @MainActor in
-            if response.notification.request.content.userInfo["destination"] as? String == "battery" { openBattery = true }
+            let info = response.notification.request.content.userInfo
+            switch info["destination"] as? String {
+            case "battery": openBattery = true
+            case "workout": openWorkout = (info["id"] as? NSNumber)?.int64Value
+            default: break
+            }
             completionHandler()
         }
     }

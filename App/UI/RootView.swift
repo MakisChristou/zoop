@@ -10,22 +10,28 @@ struct RootView: View {
             TodayView()
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
                 .tag(0)
+            ActivityView()
+                .tabItem { Label("Activity", systemImage: "figure.run") }
+                .tag(1)
             SleepView()
                 .tabItem { Label("Sleep", systemImage: "moon.fill") }
-                .tag(1)
+                .tag(2)
             TrendsView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
-                .tag(2)
+                .tag(3)
             BatteryView()
                 .tabItem { Label("Battery", systemImage: "battery.100percent") }
-                .tag(3)
+                .tag(4)
             DeviceView()
                 .tabItem { Label("Device", systemImage: "sensor.tag.radiowaves.forward") }
-                .tag(4)
+                .tag(5)
         }
         .task { await model.battery.requestNotificationsIfNeeded() }
         .onChange(of: model.battery.openBattery, initial: true) { _, open in
-            if open { selection = 3; model.battery.openBattery = false }
+            if open { selection = 4; model.battery.openBattery = false }
+        }
+        .onChange(of: model.battery.openWorkout, initial: true) { _, id in
+            if id != nil { selection = 1 }
         }
         .overlay(alignment: .top) {
             ConnectionPill()

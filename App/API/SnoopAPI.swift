@@ -1,6 +1,7 @@
 import Foundation
 
-/// Read side of the snoop-api server, used by the Sleep and Trends tabs.
+/// Read side of the snoop-api server: nights, days, minutes, sessions, steps and the
+/// body profile. Every call is one request helper plus a decodable type.
 enum SnoopAPI {
     struct Night: Decodable, Identifiable {
         struct Window: Decodable {
@@ -73,6 +74,13 @@ enum SnoopAPI {
         let skinTempAvg: Double?
         let asleepS: Int?
         let samples: Int
+        /// Day load on the 0–21 scale, once the server has analysed the day.
+        let load: Double?
+        let trimp: Double?
+        /// Calories over the day's sessions.
+        let kcal: Double?
+        /// Minutes in each of the five heart-rate zones.
+        let zonesMin: [Int]?
         var id: String { day }
     }
 
@@ -100,6 +108,58 @@ enum SnoopAPI {
         var id: Date { start }
     }
 
+    /// A detected session. `kind` is the user's label when one exists, otherwise the
+    /// detector's `detectedKind`.
+    struct Workout: Decodable, Identifiable, Hashable {
+        let id: Int64
+        let startTs: Date
+        let endTs: Date
+        let durationS: Int
+        let kind: String
+        let detectedKind: String
+        let edited: Bool
+        let load: Double?
+        let avgHr: Double?
+        let maxHr: Int?
+        let trimp: Double?
+        let zonesMin: [Int]?
+        let kcal: Double?
+        let steps: Int?
+        let autoDetected: Bool
+    }
+
+    /// Steps through one local day.
+    struct StepsDay: Decodable {
+        struct Bout: Decodable, Identifiable {
+            let start: Date
+            let end: Date
+            let durationS: Int
+            let steps: Int
+            let cadenceSpm: Double
+            var id: Date { start }
+        }
+
+        let day: String
+        /// Counter increments per local hour, 0–23.
+        let hours: [Int]
+        /// The same, restricted to seconds the strap labelled walking.
+        let walkingHours: [Int]
+        let total: Int
+        let walking: Int
+        let bouts: [Bout]
+    }
+
+    /// Body profile for calories and zones, and the home time zone days are cut in.
+    struct Profile: Codable {
+        var sex: String?
+        var birthYear: Int?
+        var weightKg: Double?
+        var heightCm: Double?
+        var tz: String
+
+        static var empty: Profile { Profile(sex: nil, birthYear: nil, weightKg: nil, heightCm: nil, tz: TimeZone.current.identifier) }
+    }
+
     enum Failure: Error, LocalizedError {
         case notConfigured
         case http(Int)
@@ -112,36 +172,92 @@ enum SnoopAPI {
         }
     }
 
+    // MARK: - Calls
+
     /// Thirty-second epochs of an analysed night, aligned with its stages.
     static func epochs(deviceId: String, nightOf: String) async throws -> [Epoch] {
-        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
-        var request = URLRequest(url: base.appendingPathComponent("v1/devices/\(deviceId)/sleeps/\(nightOf)/epochs"))
-        request.timeoutInterval = 20
-        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
-        }
-        return try decoder().decode([Epoch].self, from: data)
+        try await get("v1/devices/\(deviceId)/sleeps/\(nightOf)/epochs")
     }
 
     /// Minute buckets for one local calendar day.
     static func minutes(deviceId: String, day: Date) async throws -> [Minute] {
+        try await get("v1/devices/\(deviceId)/days/\(dayString(day))", query: ["tz": TimeZone.current.identifier])
+    }
+
+    static func days(deviceId: String, limit: Int = 14) async throws -> [Day] {
+        try await get("v1/devices/\(deviceId)/days", query: ["limit": String(limit), "tz": TimeZone.current.identifier])
+    }
+
+    static func nights(deviceId: String, limit: Int = 14) async throws -> [Night] {
+        try await get("v1/devices/\(deviceId)/sleeps", query: ["limit": String(limit)])
+    }
+
+    /// Detected sessions, newest first.
+    static func workouts(deviceId: String, limit: Int = 60) async throws -> [Workout] {
+        try await get("v1/devices/\(deviceId)/workouts", query: ["limit": String(limit)])
+    }
+
+    /// Relabels a session and returns it updated.
+    static func setWorkoutKind(deviceId: String, id: Int64, kind: String) async throws -> Workout {
+        try await send("v1/devices/\(deviceId)/workouts/\(id)/kind", method: "PUT", body: ["kind": kind])
+    }
+
+    /// Hourly steps and walking bouts for one local day.
+    static func steps(deviceId: String, day: Date) async throws -> StepsDay {
+        try await get("v1/devices/\(deviceId)/days/\(dayString(day))/steps", query: ["tz": TimeZone.current.identifier])
+    }
+
+    /// The body profile, or nil when none has been entered yet.
+    static func profile(deviceId: String) async throws -> Profile? {
+        try await get("v1/devices/\(deviceId)/profile")
+    }
+
+    static func saveProfile(deviceId: String, _ profile: Profile) async throws -> Profile {
+        try await send("v1/devices/\(deviceId)/profile", method: "PUT", body: profile)
+    }
+
+    // MARK: - Plumbing
+
+    private static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+        try await perform(request(path, query: query))
+    }
+
+    private static func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B) async throws -> T {
+        var request = try request(path)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(body)
+        return try await perform(request)
+    }
+
+    private static func request(_ path: String, query: [String: String] = [:]) throws -> URLRequest {
         guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/days/\(formatter.string(from: day))"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "tz", value: TimeZone.current.identifier)]
+        var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        if !query.isEmpty {
+            components.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
         var request = URLRequest(url: components.url!)
         request.timeoutInterval = 20
         request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
+        return request
+    }
+
+    private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
         }
-        return try decoder().decode([Minute].self, from: data)
+        return try decoder().decode(T.self, from: data)
+    }
+
+    private static func dayString(_ day: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: day)
     }
 
     private static func decoder() -> JSONDecoder {
@@ -159,51 +275,5 @@ enum SnoopAPI {
             return date
         }
         return decoder
-    }
-
-    static func days(deviceId: String, limit: Int = 14) async throws -> [Day] {
-        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
-        var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/days"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "tz", value: TimeZone.current.identifier),
-        ]
-        var request = URLRequest(url: components.url!)
-        request.timeoutInterval = 20
-        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
-        }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode([Day].self, from: data)
-    }
-
-    static func nights(deviceId: String, limit: Int = 14) async throws -> [Night] {
-        guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
-        var components = URLComponents(url: base.appendingPathComponent("v1/devices/\(deviceId)/sleeps"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "limit", value: String(limit))]
-        var request = URLRequest(url: components.url!)
-        request.timeoutInterval = 20
-        request.setValue("Bearer \(Settings.ingestToken)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
-        }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let text = try decoder.singleValueContainer().decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: text) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            guard let date = formatter.date(from: text) else {
-                throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "bad date \(text)")
-            }
-            return date
-        }
-        return try decoder.decode([Night].self, from: data)
     }
 }
