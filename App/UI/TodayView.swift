@@ -8,7 +8,7 @@ struct TodayView: View {
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
     @State private var workouts: [SnoopAPI.Workout] = []
-    @State private var path: [StepsView.Scope] = []
+    @State private var path = NavigationPath()
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -190,10 +190,10 @@ struct TodayView: View {
     private func applyDemoRoute() {
         #if targetEnvironment(simulator)
         switch UserDefaults.standard.string(forKey: "demoScreen") {
-        case "steps": path = [StepsView.Scope.day]
-        case "steps7d": path = [StepsView.Scope.week]
-        case "steps30d": path = [StepsView.Scope.month]
-        case "stepsday": path = [StepsView.Scope.week]
+        case "steps": path.append(StepsView.Scope.day)
+        case "steps7d": path.append(StepsView.Scope.week)
+        case "steps30d": path.append(StepsView.Scope.month)
+        case "stepsday": path.append(StepsView.Scope.week)
         default: break
         }
         #endif
