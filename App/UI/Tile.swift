@@ -32,6 +32,8 @@ struct Tile: View {
         .padding()
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
         .contentShape(RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value) \(unit), \(caption)")
     }
 }
 

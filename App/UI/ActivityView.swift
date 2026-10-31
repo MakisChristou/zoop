@@ -27,6 +27,7 @@ struct ActivityView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Activity")
+            .mainScreenChrome()
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
         .task { await load() }

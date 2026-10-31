@@ -36,6 +36,7 @@ struct SleepView: View {
                     }
                 }
             }
+            .mainScreenChrome()
             .refreshable { await load() }
             .task { await load() }
         }

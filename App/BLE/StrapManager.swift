@@ -20,7 +20,15 @@ final class StrapManager: NSObject, ObservableObject {
     }
 
     @Published private(set) var state: State = .scanning
-    @Published private(set) var serial = ""
+    /// Simulator builds can be launched with `-demoSerial X` so the read screens have
+    /// a device id to ask the server about; the simulator has no Bluetooth.
+    @Published private(set) var serial: String = {
+        #if targetEnvironment(simulator)
+        UserDefaults.standard.string(forKey: "demoSerial") ?? ""
+        #else
+        ""
+        #endif
+    }()
     @Published private(set) var model = ""
     @Published private(set) var firmware: String?
     @Published private(set) var liveHeartRate: UInt8?

@@ -14,7 +14,6 @@ struct SnoopApp: App {
                 }
             }
             .environmentObject(model)
-            .preferredColorScheme(.dark)
         }
     }
 }

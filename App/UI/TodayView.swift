@@ -8,30 +8,29 @@ struct TodayView: View {
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
     @State private var workouts: [SnoopAPI.Workout] = []
+    @State private var path: [StepsView.Scope] = []
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if model.strap.state != .ready { connectionBanner }
                     heartRateHero
                     if !minutes.isEmpty {
                         DayTimeline(minutes: minutes, now: now, sessions: todaysWorkouts).padding(.horizontal)
                     }
                     if !todaysWorkouts.isEmpty { sessions }
                     tiles
-                    if model.strap.state != .ready {
-                        Text(hint)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-                    }
                 }
                 .padding(.vertical)
             }
             .navigationTitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
             .navigationBarTitleDisplayMode(.large)
+            .mainScreenChrome()
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
+            .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0) }
+            .onAppear(perform: applyDemoRoute)
         }
         .onReceive(clock) { now = $0 }
         .task { await loadHistory() }
@@ -56,8 +55,9 @@ struct TodayView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(model.strap.smoothedHeartRate.map(String.init) ?? "—")
+                Text(model.strap.smoothedHeartRate.map(String.init) ?? "–")
                     .font(.system(size: 72, weight: .semibold, design: .rounded))
+                    .foregroundStyle(model.strap.smoothedHeartRate == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                     .monospacedDigit()
                     .contentTransition(.numericText())
                 Text("bpm").font(.title3).foregroundStyle(.secondary)
@@ -83,18 +83,16 @@ struct TodayView: View {
                  caption: "lowest 5 min of sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr })
             Tile(title: "HRV", value: lastNight?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? rmssdText, unit: "ms",
                  caption: lastNight == nil ? "RMSSD, last 10 s live" : "RMSSD, last night", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs })
-            NavigationLink {
-                StepsDetailView()
-            } label: {
-                Tile(title: "Steps", value: days.last?.stepsWalking.map { $0.formatted() } ?? b.map { "\($0.steps)" } ?? "—", unit: "",
+            NavigationLink(value: StepsView.Scope.day) {
+                Tile(title: "Steps", value: today?.stepsWalking.map { $0.formatted() } ?? "—", unit: "",
                      caption: stepsCaption, history: days.compactMap { $0.stepsWalking.map(Double.init) }, linked: true)
             }
             .buttonStyle(PressableCardStyle())
+            .accessibilityHint("Opens steps by hour and by day")
             Tile(title: "Load", value: days.last?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "",
                  caption: loadCaption, history: days.compactMap(\.load))
             Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
                  caption: "now", history: days.compactMap { $0.skinTempAvg })
-            Tile(title: "Strap says", value: b.map { bandStateText($0.bandState) } ?? "—", unit: "", caption: "its own rest flag", history: [])
         }
         .padding(.horizontal)
     }
@@ -126,13 +124,79 @@ struct TodayView: View {
         return parts.isEmpty ? "0–21 scale" : parts.joined(separator: " · ")
     }
 
-    /// Walking-filtered count as the headline, raw counter and walking time as context.
+    /// The server's row for today, if it has synced any of today yet.
+    private var today: SnoopAPI.Day? {
+        days.last.flatMap { Calendar.current.isDateInToday(StepsView.day($0.day) ?? .distantPast) ? $0 : nil }
+    }
+
+    /// Walking steps are the one definition used everywhere; the raw strap counter
+    /// lives on the device page.
     private var stepsCaption: String {
-        guard let today = days.last, let walking = today.stepsWalking else { return "today, strap counter" }
+        guard let today, today.stepsWalking != nil else { return "while walking · counts after the first sync" }
         var parts = ["while walking"]
-        if let s = today.walkingS { parts.append("\(s / 60) min on foot") }
-        if let raw = today.steps, raw > walking { parts.append("\(raw) raw") }
+        if let s = today.walkingS, s > 0 { parts.append("\(s / 60) min on foot") }
         return parts.joined(separator: " · ")
+    }
+
+    /// What to do when the strap is not connected, with the device page a tap away.
+    private var connectionBanner: some View {
+        NavigationLink { DeviceView() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: bannerIcon).font(.title3).foregroundStyle(bannerColor).frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(bannerTitle).font(.subheadline.weight(.semibold))
+                    Text(hint).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(PressableCardStyle())
+        .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the device page")
+    }
+
+    private var bannerIcon: String {
+        switch model.strap.state {
+        case .bluetoothOff: "antenna.radiowaves.left.and.right.slash"
+        case .failed: "exclamationmark.triangle"
+        default: "sensor.tag.radiowaves.forward"
+        }
+    }
+
+    private var bannerColor: Color {
+        switch model.strap.state {
+        case .bluetoothOff, .failed: .red
+        default: .orange
+        }
+    }
+
+    private var bannerTitle: String {
+        switch model.strap.state {
+        case .scanning: "Looking for the strap"
+        case .bluetoothOff: "Bluetooth is off"
+        case .failed: "Strap disconnected"
+        case .connecting: "Connecting"
+        case .connected: "Handshaking"
+        case .ready: "Connected"
+        }
+    }
+
+    /// Simulator builds can be launched straight into a pushed screen for screenshots.
+    private func applyDemoRoute() {
+        #if targetEnvironment(simulator)
+        switch UserDefaults.standard.string(forKey: "demoScreen") {
+        case "steps": path = [StepsView.Scope.day]
+        case "steps7d": path = [StepsView.Scope.week]
+        case "steps30d": path = [StepsView.Scope.month]
+        case "stepsday": path = [StepsView.Scope.week]
+        default: break
+        }
+        #endif
     }
 
     private func hours(_ seconds: Int) -> String {
@@ -162,7 +226,7 @@ struct TodayView: View {
         switch model.strap.state {
         case .scanning: "Make sure the strap is on your wrist, nearby, and the official WHOOP app is fully closed."
         case .bluetoothOff: "Turn Bluetooth on to connect to the strap."
-        case .failed: "Connection failed. The Device tab has details."
+        case .failed: "Connection failed. The device page has details."
         default: "Connecting to the strap…"
         }
     }
@@ -175,12 +239,4 @@ struct TodayView: View {
         return value.formatted(.number.precision(.fractionLength(0)))
     }
 
-    private func bandStateText(_ state: BandState) -> String {
-        switch state {
-        case .wake: "awake"
-        case .still: "still"
-        case .sleep: "asleep"
-        case .up: "up"
-        }
-    }
 }

@@ -28,6 +28,7 @@ struct BatteryView: View {
                 }
             }
             .navigationTitle("Battery")
+            .mainScreenChrome()
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 await model.battery.refreshAuthorization()

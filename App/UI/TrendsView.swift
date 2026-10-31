@@ -79,6 +79,7 @@ struct TrendsView: View {
                 .padding()
             }
             .navigationTitle("Trends")
+            .mainScreenChrome()
             .refreshable { await load() }
             .task { await load() }
             .onChange(of: range) { _, _ in Task { await load() } }

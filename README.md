@@ -45,7 +45,16 @@ Protocol unit tests run without Xcode:
 cd Packages/SnoopProtocol && swift test
 ```
 
-In the app's settings, enter your snoop-api URL and bearer token.
+Enter your snoop-api URL and bearer token during setup, or later under Profile → Advanced.
+
+## Navigation
+
+Five tabs: Today, Activity, Sleep, Trends and Battery. Every tab shows the strap's
+connection state in its header and a profile button that opens a sheet with the body
+profile, the device page (strap identity, history sync, the raw latest record), the
+notification permission, and, under Advanced, the server connection and upload
+diagnostics. Today keeps the overview; the Steps tile opens steps by hour and by day,
+and a banner at the top says what to do whenever the strap is not connected.
 
 ## Battery
 

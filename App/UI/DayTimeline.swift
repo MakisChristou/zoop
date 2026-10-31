@@ -137,13 +137,14 @@ struct DayTimeline: View {
         }
     }
 
-    /// Steps per hour from positive counter increments, so counter resets do no harm.
+    /// Walking steps per hour from positive counter increments in minutes the strap
+    /// labelled walking, the same definition as the Steps tile. Resets do no harm.
     private var stepsPerHour: [(Date, Int)] {
         var buckets: [Date: Int] = [:]
         var previous: Int?
         for m in minutes {
             if let steps = m.steps {
-                if let p = previous, steps >= p, steps - p < 600 {
+                if let p = previous, steps >= p, steps - p < 600, (m.activity ?? 0) >= 1 {
                     let hour = Calendar.current.dateInterval(of: .hour, for: m.ts)?.start ?? m.ts
                     buckets[hour, default: 0] += steps - p
                 }
