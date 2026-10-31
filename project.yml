@@ -17,6 +17,8 @@ settings:
 packages:
   SnoopProtocol:
     path: Packages/SnoopProtocol
+  SnoopBattery:
+    path: Packages/SnoopBattery
 targets:
   Snoop:
     type: application
@@ -25,6 +27,7 @@ targets:
       - App
     dependencies:
       - package: SnoopProtocol
+      - package: SnoopBattery
     info:
       path: App/Info.plist
       properties:

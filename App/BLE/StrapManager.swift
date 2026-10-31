@@ -3,6 +3,7 @@ import CoreBluetooth
 import Foundation
 import OSLog
 import SnoopProtocol
+import SnoopBattery
 
 /// Owns the Bluetooth link to the strap.
 ///
@@ -39,6 +40,12 @@ final class StrapManager: NSObject, ObservableObject {
 
     /// Called with every complete frame and the notify channel it arrived on (3,4,5,7).
     var onFrame: ((_ bytes: [UInt8], _ channel: Int) -> Void)?
+    var onBatteryDevice: ((String) -> Void)?
+    var onBatteryLevel: ((Double, Date, Bool, BatteryReadingSource) -> Void)?
+    var onCharging: ((Bool, Date, Bool) -> Void)?
+    var onPackInfo: ((BatteryPackInfo, Date, Bool, Bool) -> Void)?
+    var onPackPresence: ((Bool, Date, Bool) -> Void)?
+    var onBatteryDisconnect: (() -> Void)?
 
     static let restoreIdentifier = "snoop.strap"
     private let log = Logger(subsystem: "snoop", category: "ble")
@@ -50,6 +57,10 @@ final class StrapManager: NSObject, ObservableObject {
     private var reassemblers: [CBUUID: Reassembler] = [:]
     private var sequence: UInt8 = 1
     private var offloadTimer: Timer?
+    private var lastBatteryRequest: Date = .distantPast
+    private var packRequest: (sequence: UInt8, at: Date)?
+    private var packQueryUnavailable = false
+    private static let packRequestTimeout: TimeInterval = 10
 
     private let serviceUUID = CBUUID(string: GATT.service)
     private let commandUUID = CBUUID(string: GATT.commandWrite)
@@ -108,6 +119,9 @@ final class StrapManager: NSObject, ObservableObject {
     }
 
     private func attach(_ p: CBPeripheral) {
+        packRequest = nil
+        packQueryUnavailable = false
+        onBatteryDevice?(p.identifier.uuidString)
         central.stopScan()
         peripheral = p
         p.delegate = self
@@ -120,9 +134,26 @@ final class StrapManager: NSObject, ObservableObject {
 
     /// Starts a history offload round, the way the official app does every ~10 minutes.
     func requestOffload() {
+        requestBattery()
         send(Command.sendHistoricalData(sequence: nextSequence()))
         send(Command.getDataRange(sequence: nextSequence()))
         send(Command.sendHistoricalData(sequence: nextSequence()))
+    }
+
+    /// Read-only query, rate-limited even if several visible views request a refresh.
+    func requestBattery() {
+        guard state == .ready, Date().timeIntervalSince(lastBatteryRequest) >= 30 else { return }
+        lastBatteryRequest = Date()
+        send(Command.getBatteryLevel(sequence: nextSequence()))
+        if let request = packRequest, Date().timeIntervalSince(request.at) > Self.packRequestTimeout {
+            packQueryUnavailable = true
+            packRequest = nil
+        }
+        if !packQueryUnavailable {
+            let sequence = nextSequence()
+            packRequest = (sequence, Date())
+            send(Command.getBatteryPackInfo(sequence: sequence))
+        }
     }
 
     private func send(_ frame: [UInt8]) {
@@ -160,13 +191,24 @@ final class StrapManager: NSObject, ObservableObject {
             lastBiometric = b
             if !realtimeStreaming { recordLive(b.heartRate, rr: b.rrMilliseconds) }
         case let .event(event):
+            let at = Date(timeIntervalSince1970: event.timestamp)
+            let live = channel == 4
             if case let .batteryLevel(level) = event.payload {
-                let at = Date(timeIntervalSince1970: TimeInterval(event.unixSeconds))
                 // Stored events replay in offload order; keep the newest reading.
-                if batteryUpdatedAt.map({ at >= $0 }) ?? true {
+                if level.stateOfChargeTenths <= 1000, at <= Date().addingTimeInterval(60), batteryUpdatedAt.map({ at >= $0 }) ?? true {
                     batteryPercent = Double(level.stateOfChargeTenths) / 10
                     batteryUpdatedAt = at
                 }
+                onBatteryLevel?(Double(level.stateOfChargeTenths) / 10, at, live, .event)
+            } else if case let .charging(charging) = event.payload {
+                log.info("charging event: \(charging), live channel: \(live)")
+                onCharging?(charging, at, live)
+                requestBattery()
+            } else if case let .batteryPack(info) = event.payload {
+                log.info("pack event: present \(info.present), charge raw \(info.rawCharge), live \(live)")
+                onPackInfo?(info, at, live, false)
+            } else if case let .packPresence(present) = event.payload {
+                onPackPresence?(present, at, live)
             }
         case let .metadata(meta):
             if let token = meta.historyEndToken, let ack = try? Command.historyAck(sequence: nextSequence(), token: token) {
@@ -176,8 +218,30 @@ final class StrapManager: NSObject, ObservableObject {
                 send(Command.abortHistoricalTransmits(sequence: nextSequence()))
             }
         case let .commandResponse(response):
+            if response.command == Command.getBatteryPackInfo.code,
+               let request = packRequest, response.originSequence == request.sequence,
+               channel == 3, Date().timeIntervalSince(request.at) <= Self.packRequestTimeout {
+                if response.result != .pending { packRequest = nil }
+                if let info = response.batteryPack {
+                    log.info("pack cache: present \(info.present), charge raw \(info.rawCharge)")
+                    onPackInfo?(info, Date(), false, true)
+                } else if response.result == .failure || response.result == .unsupported {
+                    packQueryUnavailable = true
+                    log.info("pack query unavailable; waiting for live pack events")
+                }
+            }
             if let range = response.dataRange { lastDataRange = range }
-            if response.command == Command.getHello.code { state = .ready }
+            if let percent = response.batteryPercent {
+                log.info("battery query: \(percent) percent")
+                let at = Date()
+                batteryPercent = percent
+                batteryUpdatedAt = at
+                onBatteryLevel?(percent, at, true, .query)
+            }
+            if response.command == Command.getHello.code, response.result == .success {
+                state = .ready
+                requestBattery()
+            }
         default:
             break
         }
@@ -190,8 +254,14 @@ extension StrapManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn: log.info("bluetooth on"); connect()
-        case .poweredOff: log.warning("bluetooth off"); state = .bluetoothOff
-        case .unauthorized: state = .failed("Bluetooth permission denied")
+        case .poweredOff:
+            onBatteryDisconnect?()
+            lastBatteryRequest = .distantPast
+            log.warning("bluetooth off")
+            state = .bluetoothOff
+        case .unauthorized:
+            onBatteryDisconnect?()
+            state = .failed("Bluetooth permission denied")
         default: break
         }
     }
@@ -199,6 +269,7 @@ extension StrapManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         if let restored = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first {
             peripheral = restored
+            onBatteryDevice?(restored.identifier.uuidString)
             restored.delegate = self
         }
     }
@@ -208,6 +279,9 @@ extension StrapManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        packRequest = nil
+        packQueryUnavailable = false
+        lastBatteryRequest = .distantPast
         log.info("connected to \(peripheral.name ?? "strap")")
         state = .connected
         reassemblers = [:]
@@ -230,6 +304,9 @@ extension StrapManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        packRequest = nil
+        onBatteryDisconnect?()
+        lastBatteryRequest = .distantPast
         log.warning("disconnected: \(error?.localizedDescription ?? "clean")")
         state = .connecting
         realtimeStreaming = false

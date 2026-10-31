@@ -5,6 +5,7 @@ build/
 *.ipa
 *.dSYM.zip
 .swiftpm/
+.build/
 # XcodeGen output is regenerated from project.yml
 Snoop.xcodeproj/
 # Personal signing settings

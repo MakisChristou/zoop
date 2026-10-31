@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastBatchAccepted = 0
 
     let strap = StrapManager()
+    let battery = BatteryMonitor()
     private let queue: FrameQueue?
     private let uploader: Uploader?
     private var flushTimer: Timer?
@@ -42,6 +43,15 @@ final class AppModel: ObservableObject {
             Task { @MainActor in self?.enqueue(bytes, channel: channel) }
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
+        strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
+        strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
+        strap.onPackInfo = { [weak self] info, at, live, cached in
+            self?.battery.receivePack(percent: info.percent, identifier: info.identifier, present: info.present, at: at, live: live, cached: cached)
+        }
+        strap.onPackPresence = { [weak self] present, at, live in self?.battery.receivePackPresence(present, at: at, live: live) }
+        strap.onBatteryDisconnect = { [weak self] in self?.battery.disconnected() }
 
         flushTimer = Timer.scheduledTimer(withTimeInterval: Self.flushInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.flush() }

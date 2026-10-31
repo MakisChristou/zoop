@@ -3,17 +3,29 @@ import SwiftUI
 /// Tab shell with the connection pill pinned above every tab.
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var selection = 0
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
             TodayView()
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
+                .tag(0)
             SleepView()
                 .tabItem { Label("Sleep", systemImage: "moon.fill") }
+                .tag(1)
             TrendsView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
+                .tag(2)
+            BatteryView()
+                .tabItem { Label("Battery", systemImage: "battery.100percent") }
+                .tag(3)
             DeviceView()
                 .tabItem { Label("Device", systemImage: "sensor.tag.radiowaves.forward") }
+                .tag(4)
+        }
+        .task { await model.battery.requestNotificationsIfNeeded() }
+        .onChange(of: model.battery.openBattery, initial: true) { _, open in
+            if open { selection = 3; model.battery.openBattery = false }
         }
         .overlay(alignment: .top) {
             ConnectionPill()
@@ -30,11 +42,11 @@ struct ConnectionPill: View {
         HStack(spacing: 8) {
             Circle().fill(color).frame(width: 8, height: 8)
             Text(text).font(.footnote.weight(.medium))
-            if let battery = model.strap.batteryPercent, model.strap.state == .ready {
+            if let battery = model.battery.state.percent, model.strap.state == .ready {
                 Text("·").foregroundStyle(.secondary)
-                Label(battery.formatted(.number.precision(.fractionLength(0))) + " %" + batteryAge, systemImage: batteryIcon(battery))
+                Label("\(Int(battery.rounded(.down))) %" + batteryAge, systemImage: model.battery.state.chargingStatus(at: Date()) == true && model.battery.state.isFresh(at: Date()) ? "battery.100percent.bolt" : batteryIcon(battery))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BatteryColors.level(battery))
             }
         }
         .padding(.horizontal, 12)
@@ -62,7 +74,7 @@ struct ConnectionPill: View {
     }
 
     private var batteryAge: String {
-        guard let at = model.strap.batteryUpdatedAt else { return "" }
+        guard let at = model.battery.state.levelAt else { return "" }
         let minutes = Int(Date().timeIntervalSince(at) / 60)
         return minutes < 2 ? "" : " (\(minutes) min ago)"
     }

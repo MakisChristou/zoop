@@ -47,11 +47,44 @@ cd Packages/SnoopProtocol && swift test
 
 In the app's settings, enter your snoop-api URL and bearer token.
 
+## Battery
+
+The Battery tab shows separate strap and pack percentages, charging animations,
+and reminders to recharge either battery. Pack readings come from live WHOOP 5/MG
+event 109. Command 151 provides a cached fallback when supported; cached readings
+never trigger notifications. Disconnecting or removing the pack ends its live state.
+Snoop asks for notification permission once, after setup. Alerts are enabled by
+default at 20%, 10% and 5%, at 100%, and after removing the pack. Change notification
+permission in iOS Settings.
+
+These are local iOS notifications driven by fresh Bluetooth readings, including
+background Bluetooth updates. Replayed history cannot trigger alerts. Keep Bluetooth
+on and do not force-quit Snoop if you want background reminders. Charging status uses
+the strap's charger-on/off events. After reconnecting mid-charge, sustained rising
+readings can also detect charging; the screen labels this inference. Query and event
+readings are compared separately to avoid rounding artifacts. The tab shows both
+batteries and power flowing from pack to strap, with green above 20%, yellow at
+6–20%, and red at 5% or below. The pack keeps a grey last-known level when detached
+or stale. Its level changes indicate charging or discharging; presence alone does
+not establish power flow. Pack events carry tenths of a percent, corroborated by
+our recorded MG charging sessions. Pack alerts use the same 20/10/5 and 100% policy;
+no pack alerts are possible while it is disconnected and not reporting through
+the strap. Battery level is queried when connecting and every 30 seconds while
+viewing Battery. A rejected pack query stops until reconnect; pushed events continue.
+
+Battery policy tests run independently:
+
+```sh
+cd Packages/SnoopBattery && swift test
+```
+
 ## Repository layout
 
 ```
 Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
+Packages/SnoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
 App/
+  Battery/               iOS notifications and persisted per-strap alert state
   BLE/                   CoreBluetooth: discovery, connection, reconnection, state restoration, offload loop
   Queue/                 durable SQLite frame queue
   Upload/                batching, authentication, retry
