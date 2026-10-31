@@ -164,6 +164,25 @@ final class ResponseTests: XCTestCase {
         XCTAssertEqual(hr.rrMilliseconds, [980, 990])
     }
 
+    func testChargingEventsHaveNoPayload() throws {
+        for (code, charging) in [(Event.chargingOnCode, true), (Event.chargingOffCode, false)] {
+            var inner = [UInt8](repeating: 0, count: 12)
+            inner[0] = PacketType.eventByte
+            inner[2] = code
+            Synthetic.put(&inner, 4, UInt32(1_790_000_200))
+            guard case let .event(event) = try FrameDecoder.decode(Synthetic.envelope(inner)) else { return XCTFail() }
+            XCTAssertEqual(event.payload, .charging(charging))
+        }
+    }
+
+    func testBatteryCommandRequiresSuccessAndPlausibleWholePercent() throws {
+        for (result, body, expected) in [(UInt8(1), [UInt8(42), 0, 0, 0], Optional(42.0)), (0, [42, 0, 0, 0], nil), (2, [0, 0, 0, 0], nil), (1, [101, 0, 0, 0], nil), (1, [0, 1, 0, 0], nil), (1, [42], nil)] {
+            let inner: [UInt8] = [36, 1, 26, 1, result] + body
+            guard case let .commandResponse(response) = try FrameDecoder.decode(Synthetic.envelope(inner)) else { return XCTFail() }
+            XCTAssertEqual(response.batteryPercent, expected)
+        }
+    }
+
     func testDataRangeResponse() throws {
         var inner = [UInt8](repeating: 0, count: 5 + 65)
         inner[0] = PacketType.commandResponseByte

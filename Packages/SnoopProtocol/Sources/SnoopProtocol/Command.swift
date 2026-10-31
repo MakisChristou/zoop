@@ -8,6 +8,7 @@ public enum Command: Equatable {
     case sendHistoricalData
     case historicalDataResult
     case getBatteryLevel
+    case getBatteryPackInfo
     case getDataRange
     case getAdvertisingName
     case getHello
@@ -20,6 +21,7 @@ public enum Command: Equatable {
         case .sendHistoricalData: 22
         case .historicalDataResult: 23
         case .getBatteryLevel: 26
+        case .getBatteryPackInfo: 151
         case .getDataRange: 34
         case .getAdvertisingName: 141
         case .getHello: 145
@@ -54,6 +56,14 @@ public enum Command: Equatable {
 
     public static func getDataRange(sequence: UInt8) -> [UInt8] {
         build(.getDataRange, sequence: sequence, args: [0x00])
+    }
+
+    public static func getBatteryLevel(sequence: UInt8) -> [UInt8] {
+        build(.getBatteryLevel, sequence: sequence, args: [])
+    }
+
+    public static func getBatteryPackInfo(sequence: UInt8) -> [UInt8] {
+        build(.getBatteryPackInfo, sequence: sequence, args: [1])
     }
 
     public static func sendHistoricalData(sequence: UInt8) -> [UInt8] {

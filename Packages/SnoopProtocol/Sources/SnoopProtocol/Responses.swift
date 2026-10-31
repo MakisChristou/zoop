@@ -63,6 +63,18 @@ public struct CommandResponse: Equatable {
     public let body: [UInt8]
     /// Decoded when the command was GET_DATA_RANGE and succeeded.
     public let dataRange: DataRange?
+    /// Cached accessory data; a successful reply is not a fresh measurement.
+    public var batteryPack: BatteryPackInfo? {
+        guard command == Command.getBatteryPackInfo.code, result == .success,
+              body.count >= 28, body[0] == 1 else { return nil }
+        return BatteryPackInfo(record: Array(body[1..<28]))
+    }
+    /// WHOOP 5/MG command 26: successful four-byte unsigned whole percent.
+    public var batteryPercent: Double? {
+        guard command == Command.getBatteryLevel.code, result == .success, body.count >= 4 else { return nil }
+        let value = UInt32(body[0]) | UInt32(body[1]) << 8 | UInt32(body[2]) << 16 | UInt32(body[3]) << 24
+        return value <= 100 ? Double(value) : nil
+    }
 
     init(frame: Frame) throws {
         sequence = try frame.u8(at: 9)

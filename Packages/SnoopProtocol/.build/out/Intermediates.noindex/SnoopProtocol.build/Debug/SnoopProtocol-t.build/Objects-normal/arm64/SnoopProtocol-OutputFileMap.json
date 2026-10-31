@@ -6,6 +6,16 @@
     "pch" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/SnoopProtocol-primary-Bridging-header.pch",
     "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/SnoopProtocol-primary.swiftdeps"
   },
+  "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Sources/SnoopProtocol/BatteryPackInfo.swift" : {
+    "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.swiftconstvalues",
+    "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.d",
+    "diagnostics" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.dia",
+    "index-unit-output-path" : "/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.o",
+    "llvm-bc" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.bc",
+    "object" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.o",
+    "swift-dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo.swiftdeps",
+    "swiftmodule" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/BatteryPackInfo~partial.swiftmodule"
+  },
   "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/Sources/SnoopProtocol/CRC.swift" : {
     "const-values" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/CRC.swiftconstvalues",
     "dependencies" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol/.build/out/Intermediates.noindex/SnoopProtocol.build/Debug/SnoopProtocol-t.build/Objects-normal/arm64/CRC.d",

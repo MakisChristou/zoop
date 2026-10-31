@@ -5,11 +5,11 @@
       "name" : "SnoopProtocol",
       "path" : "/Users/makischristou/Repositories/snoop/Packages/SnoopProtocol",
       "projects" : [
-        "bb307fafbdd7326a57fb220814177434f15ef23feede0a5b9abcc734d179376b",
+        "9c268392665a388cba9ae7120d7b00ba9489d9ba5d43f8665fb904d976495e29",
         "0311f505bb2c785d861314f259b29b759cace122df0c907a08036870ab1d104a"
       ]
     },
-    "signature" : "73137a1cda88e2499a28b3fb452b5a055d2a8827d3fe4f4a45f4f4fcad76b94e",
+    "signature" : "766d6fc11b07a5c61d8f61ff77e88ebb64efa335eaa8f136118b2c8a36d034b8",
     "type" : "workspace"
   },
   {
@@ -207,6 +207,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_0",
+                "name" : "BatteryPackTests.swift",
+                "path" : "BatteryPackTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_1",
                 "name" : "CaptureTests.swift",
                 "path" : "CaptureTests.swift",
                 "sourceTree" : "<group>",
@@ -214,7 +222,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_1",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_2",
                 "name" : "ProtocolTests.swift",
                 "path" : "ProtocolTests.swift",
                 "sourceTree" : "<group>",
@@ -222,7 +230,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_2",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_3",
                 "name" : "SyntheticFrames.swift",
                 "path" : "SyntheticFrames.swift",
                 "sourceTree" : "<group>",
@@ -240,6 +248,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_0",
+                "name" : "BatteryPackInfo.swift",
+                "path" : "BatteryPackInfo.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_1",
                 "name" : "CRC.swift",
                 "path" : "CRC.swift",
                 "sourceTree" : "<group>",
@@ -247,7 +263,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_1",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_2",
                 "name" : "Command.swift",
                 "path" : "Command.swift",
                 "sourceTree" : "<group>",
@@ -255,7 +271,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_2",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_3",
                 "name" : "Decoder.swift",
                 "path" : "Decoder.swift",
                 "sourceTree" : "<group>",
@@ -263,7 +279,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_3",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_4",
                 "name" : "Event.swift",
                 "path" : "Event.swift",
                 "sourceTree" : "<group>",
@@ -271,7 +287,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_4",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_5",
                 "name" : "Frame.swift",
                 "path" : "Frame.swift",
                 "sourceTree" : "<group>",
@@ -279,7 +295,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_5",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_6",
                 "name" : "GATT.swift",
                 "path" : "GATT.swift",
                 "sourceTree" : "<group>",
@@ -287,7 +303,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_6",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_7",
                 "name" : "PacketType.swift",
                 "path" : "PacketType.swift",
                 "sourceTree" : "<group>",
@@ -295,7 +311,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_7",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_8",
                 "name" : "ProtocolError.swift",
                 "path" : "ProtocolError.swift",
                 "sourceTree" : "<group>",
@@ -303,7 +319,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_8",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_9",
                 "name" : "Reassembler.swift",
                 "path" : "Reassembler.swift",
                 "sourceTree" : "<group>",
@@ -311,7 +327,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_9",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_10",
                 "name" : "Record.swift",
                 "path" : "Record.swift",
                 "sourceTree" : "<group>",
@@ -319,7 +335,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_10",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_11",
                 "name" : "Responses.swift",
                 "path" : "Responses.swift",
                 "sourceTree" : "<group>",
@@ -337,6 +353,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_0",
+                "name" : "BatteryPackInfo.swift",
+                "path" : "BatteryPackInfo.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_1",
                 "name" : "CRC.swift",
                 "path" : "CRC.swift",
                 "sourceTree" : "<group>",
@@ -344,7 +368,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_1",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_2",
                 "name" : "Command.swift",
                 "path" : "Command.swift",
                 "sourceTree" : "<group>",
@@ -352,7 +376,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_2",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_3",
                 "name" : "Decoder.swift",
                 "path" : "Decoder.swift",
                 "sourceTree" : "<group>",
@@ -360,7 +384,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_3",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_4",
                 "name" : "Event.swift",
                 "path" : "Event.swift",
                 "sourceTree" : "<group>",
@@ -368,7 +392,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_4",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_5",
                 "name" : "Frame.swift",
                 "path" : "Frame.swift",
                 "sourceTree" : "<group>",
@@ -376,7 +400,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_5",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_6",
                 "name" : "GATT.swift",
                 "path" : "GATT.swift",
                 "sourceTree" : "<group>",
@@ -384,7 +408,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_6",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_7",
                 "name" : "PacketType.swift",
                 "path" : "PacketType.swift",
                 "sourceTree" : "<group>",
@@ -392,7 +416,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_7",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_8",
                 "name" : "ProtocolError.swift",
                 "path" : "ProtocolError.swift",
                 "sourceTree" : "<group>",
@@ -400,7 +424,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_8",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_9",
                 "name" : "Reassembler.swift",
                 "path" : "Reassembler.swift",
                 "sourceTree" : "<group>",
@@ -408,7 +432,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_9",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_10",
                 "name" : "Record.swift",
                 "path" : "Record.swift",
                 "sourceTree" : "<group>",
@@ -416,7 +440,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_10",
+                "guid" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_11",
                 "name" : "Responses.swift",
                 "path" : "Responses.swift",
                 "sourceTree" : "<group>",
@@ -442,15 +466,15 @@
       "projectIsPackage" : "true",
       "projectName" : "SnoopProtocol",
       "targets" : [
-        "705e42640988db6d2a19e6e6eb51f6c32b19a7828a8a84240599270d5cac1b38",
+        "947c2ea78b8aa4cb29a0b93ca19d1cbba550522f6c28709fe0c68243529464d7",
         "f63a123950c0eeaa5c7f6ed56cc7cb1815c875d66c9a8b76ee9741663ea97233",
         "012bafa5e02c5fa27ba803a2c27d5c38e85c399faa240da85cff6f35caa31f79",
-        "c62ff5bad13ee899b38af577fb3b37afdda56119396015c37a0aee8acd15ae61",
-        "fcef1b40c923e8f1f1f38826e927c3121a5df390c7f96e0c5cd40329ec0c0e70",
+        "e287e1d6b0c767b317a34862e2816413bcabbe336dce775344999e4b2d03d1a7",
+        "eecfd5969afc77a60ed1ce4acc867279d7c52d811fe450e3df05bf2d3fdea2b8",
         "8016e4a0ab1b478cf7f9c3e4cf19733e769164ea50a3b04db8ffb1fddfe800f3"
       ]
     },
-    "signature" : "bb307fafbdd7326a57fb220814177434f15ef23feede0a5b9abcc734d179376b",
+    "signature" : "9c268392665a388cba9ae7120d7b00ba9489d9ba5d43f8665fb904d976495e29",
     "type" : "project"
   },
   {
@@ -651,6 +675,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:snoopprotocol::MAINGROUP::REF_2::REF_3",
+              "guid" : "PACKAGE-PRODUCT:snoopprotocol_SnoopProtocolTests.SnoopProtocolTests::BUILDPHASE_0::3",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-PRODUCT:snoopprotocol_SnoopProtocolTests.SnoopProtocolTests::BUILDPHASE_0",
@@ -694,7 +727,7 @@
       "productTypeIdentifier" : "com.apple.product-type.bundle.unit-test",
       "type" : "standard"
     },
-    "signature" : "705e42640988db6d2a19e6e6eb51f6c32b19a7828a8a84240599270d5cac1b38",
+    "signature" : "947c2ea78b8aa4cb29a0b93ca19d1cbba550522f6c28709fe0c68243529464d7",
     "type" : "target"
   },
   {
@@ -1118,6 +1151,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:snoopprotocol::MAINGROUP::REF_3::REF_11",
+              "guid" : "PACKAGE-TARGET:SnoopProtocol::BUILDPHASE_0::11",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-TARGET:SnoopProtocol::BUILDPHASE_0",
@@ -1144,7 +1186,7 @@
       "productTypeIdentifier" : "org.swift.product-type.library.static",
       "type" : "standard"
     },
-    "signature" : "c62ff5bad13ee899b38af577fb3b37afdda56119396015c37a0aee8acd15ae61",
+    "signature" : "e287e1d6b0c767b317a34862e2816413bcabbe336dce775344999e4b2d03d1a7",
     "type" : "target"
   },
   {
@@ -1414,6 +1456,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:snoopprotocol::MAINGROUP::REF_4::REF_11",
+              "guid" : "PACKAGE-TARGET:SnoopProtocol-54579E36C3C7226E-dynamic::BUILDPHASE_0::11",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-TARGET:SnoopProtocol-54579E36C3C7226E-dynamic::BUILDPHASE_0",
@@ -1439,7 +1490,7 @@
       "productTypeIdentifier" : "com.apple.product-type.library.dynamic",
       "type" : "standard"
     },
-    "signature" : "fcef1b40c923e8f1f1f38826e927c3121a5df390c7f96e0c5cd40329ec0c0e70",
+    "signature" : "eecfd5969afc77a60ed1ce4acc867279d7c52d811fe450e3df05bf2d3fdea2b8",
     "type" : "target"
   },
   {
