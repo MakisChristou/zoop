@@ -184,4 +184,3 @@ struct TodayView: View {
         }
     }
 }
-
