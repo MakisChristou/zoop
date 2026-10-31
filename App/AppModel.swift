@@ -46,10 +46,13 @@ final class AppModel: ObservableObject {
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        strap.onBatteryDevice = { [weak self] id in
-            self?.battery.activate(device: id)
-            self?.workouts.activate(device: id)
-        }
+        strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
+        // Sessions are keyed by the strap serial, the id every upload and read uses.
+        strap.$serial
+            .filter { !$0.isEmpty }
+            .removeDuplicates()
+            .sink { [weak self] serial in self?.workouts.activate(device: serial) }
+            .store(in: &cancellables)
         strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
         strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
         strap.onPackInfo = { [weak self] info, at, live, cached in

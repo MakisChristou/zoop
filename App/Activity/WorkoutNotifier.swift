@@ -3,10 +3,13 @@ import OSLog
 import UserNotifications
 
 /// Tells the user about sessions the server has detected. Detection happens on the
-/// server, so after each successful upload the sessions are fetched and any id not
-/// seen before gets one local notification. The seen set persists per strap, and the
-/// first run on a strap seeds it silently so an old history does not arrive as a
-/// burst of alerts. Taps are routed by `BatteryMonitor`, the notification delegate.
+/// server on its own schedule, so the app checks the session list shortly after each
+/// accepted upload, again one analysis interval later in case the server had not
+/// finished, and whenever it returns to the foreground. Sessions are recognised by
+/// their start time, which survives the server renumbering a row; the seen set
+/// persists per strap serial, and the first run on a strap seeds it silently so an
+/// old history does not arrive as a burst of alerts. Taps are routed by
+/// `BatteryMonitor`, the notification delegate.
 @MainActor
 final class WorkoutNotifier: ObservableObject {
     @Published private(set) var lastCheckedAt: Date?
@@ -16,14 +19,16 @@ final class WorkoutNotifier: ObservableObject {
     private let center: UNUserNotificationCenter
     private let log = Logger(subsystem: "snoop", category: "workouts")
     private var device: String?
-    private var seen: Set<Int64> = []
+    private var seen: Set<Int> = []
     private var pending: Task<Void, Never>?
+    private var followUp: Task<Void, Never>?
 
-    /// Uploads arrive every minute; the server analyses every few minutes. One check
-    /// per interval is plenty.
-    static let minimumInterval: TimeInterval = 180
     /// Uploads keep landing while the strap offloads; wait for the server to catch up.
     static let settleDelay: TimeInterval = 20
+    /// Back-to-back uploads share one check.
+    static let minimumInterval: TimeInterval = 120
+    /// The server's analysis cadence; the follow-up check lands just after it.
+    static let analysisInterval: TimeInterval = 15 * 60
     static let maximumAlertsPerCheck = 3
 
     init(defaults: UserDefaults = .standard, center: UNUserNotificationCenter = .current()) {
@@ -31,24 +36,36 @@ final class WorkoutNotifier: ObservableObject {
         self.center = center
     }
 
+    /// `device` is the strap serial, the id every upload and read uses.
     func activate(device: String) {
         guard device != self.device else { return }
         pending?.cancel()
+        followUp?.cancel()
         self.device = device
-        seen = Set((defaults.array(forKey: key(device)) as? [Int64]) ?? [])
+        seen = Set((defaults.array(forKey: key(device)) as? [Int]) ?? [])
         lastCheckedAt = nil
     }
 
-    /// Schedules a check shortly after an upload, at most once per interval.
-    func checkSoon() {
+    /// Schedules a check after the settle delay, throttled unless `force`, and a
+    /// follow-up one analysis interval later.
+    func checkSoon(force: Bool = false) {
         guard device != nil else { return }
-        if let last = lastCheckedAt, Date().timeIntervalSince(last) < Self.minimumInterval { return }
-        guard pending == nil else { return }
-        pending = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.settleDelay))
+        if !force, let last = lastCheckedAt, Date().timeIntervalSince(last) < Self.minimumInterval { return }
+        if pending == nil || force {
+            pending?.cancel()
+            pending = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(force ? 1 : Self.settleDelay))
+                guard !Task.isCancelled else { return }
+                await self?.check()
+                self?.pending = nil
+            }
+        }
+        followUp?.cancel()
+        followUp = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.analysisInterval + Self.settleDelay))
             guard !Task.isCancelled else { return }
             await self?.check()
-            self?.pending = nil
+            self?.followUp = nil
         }
     }
 
@@ -56,19 +73,25 @@ final class WorkoutNotifier: ObservableObject {
         guard let device, Settings.isConfigured else { return }
         lastCheckedAt = Date()
         guard let workouts = try? await SnoopAPI.workouts(deviceId: device, limit: 20) else { return }
-        let ids = Set(workouts.map(\.id))
+        let keys = Set(workouts.map(Self.key))
         let firstRun = defaults.array(forKey: key(device)) == nil
         if firstRun {
-            seen = ids
+            seen = keys
             save()
             return
         }
-        let fresh = workouts.filter { !seen.contains($0.id) }.sorted { $0.startTs < $1.startTs }
+        let fresh = workouts.filter { !seen.contains(Self.key($0)) }.sorted { $0.startTs < $1.startTs }
         for workout in fresh.suffix(Self.maximumAlertsPerCheck) {
             await notify(workout)
         }
-        seen.formUnion(ids)
+        seen.formUnion(keys)
         save()
+    }
+
+    /// Sessions keep their start minute across recomputes even when the server
+    /// renumbers them, so that is their identity here.
+    static func key(_ workout: SnoopAPI.Workout) -> Int {
+        Int(workout.startTs.timeIntervalSince1970 / 60)
     }
 
     private func notify(_ workout: SnoopAPI.Workout) async {
@@ -83,7 +106,7 @@ final class WorkoutNotifier: ObservableObject {
         content.threadIdentifier = "snoop.workout"
         content.userInfo = ["destination": "workout", "id": workout.id]
         do {
-            try await center.add(UNNotificationRequest(identifier: "snoop.workout.\(device ?? "strap").\(workout.id)", content: content, trigger: nil))
+            try await center.add(UNNotificationRequest(identifier: "snoop.workout.\(device ?? "strap").\(Self.key(workout))", content: content, trigger: nil))
             notificationError = nil
         } catch {
             notificationError = "A session alert could not be delivered. Check notification settings."

@@ -86,9 +86,11 @@ rate for twenty minutes, left unlabelled for you to name. Each session shows its
 load on a 0–21 scale, time in five heart-rate zones, average and peak heart rate,
 calories and steps, with the heart-rate trace underneath. The type can be changed
 from the session screen; the server keeps that choice through recomputes. Nothing is
-detected on the phone: after each upload the app asks the server for new sessions
+detected on the phone: after each upload the app asks the server for new sessions,
+checks again one analysis interval later and whenever it returns to the foreground,
 and posts a local notification per session, including "tap to label" for unlabelled
-ones.
+ones. With the app in the background those checks only run while iOS wakes it for
+Bluetooth, so an alert can wait until the next offload or the next time you open it.
 
 Today shows the day's sessions under the timeline, where they are shaded in their
 kind's colour, and a Load tile with the day's total. Tapping the Steps tile opens a

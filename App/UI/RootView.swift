@@ -3,6 +3,7 @@ import SwiftUI
 /// Tab shell with the connection pill pinned above every tab.
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection = 0
 
     var body: some View {
@@ -32,6 +33,9 @@ struct RootView: View {
         }
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = 1 }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.workouts.checkSoon(force: true) }
         }
         .overlay(alignment: .top) {
             ConnectionPill()
