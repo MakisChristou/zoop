@@ -6,6 +6,8 @@ import SwiftUI
 struct DayTimeline: View {
     let minutes: [SnoopAPI.Minute]
     let now: Date
+    /// Detected sessions, shaded in their kind's colour behind the heart rate.
+    var sessions: [SnoopAPI.Workout] = []
     @State private var scrub: Date?
 
     private var dayStart: Date { Calendar.current.startOfDay(for: now) }
@@ -79,6 +81,10 @@ struct DayTimeline: View {
             ForEach(spans) { span in
                 RectangleMark(xStart: .value("from", span.start), xEnd: .value("to", span.end))
                     .foregroundStyle(span.kind == .asleep ? Color.indigo.opacity(0.22) : Color.teal.opacity(0.18))
+            }
+            ForEach(sessions) { w in
+                RectangleMark(xStart: .value("from", w.startTs), xEnd: .value("to", w.endTs))
+                    .foregroundStyle(ActivityKind.named(w.kind).color.opacity(0.22))
             }
             ForEach(minutes.filter { $0.hr != nil }) { m in
                 AreaMark(x: .value("Time", m.ts), yStart: .value("min", m.hrMin ?? m.hr!), yEnd: .value("max", m.hrMax ?? m.hr!))
@@ -165,6 +171,9 @@ struct DayTimeline: View {
         HStack(spacing: 14) {
             Label { Text("asleep") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.indigo.opacity(0.4)).frame(width: 12, height: 8) }
             Label { Text("walking") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.teal.opacity(0.4)).frame(width: 12, height: 8) }
+            if !sessions.isEmpty {
+                Label { Text("session") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.orange.opacity(0.5)).frame(width: 12, height: 8) }
+            }
             Label { Text("heart rate, min–max per minute") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.red.opacity(0.5)).frame(width: 12, height: 8) }
         }
         .font(.caption2).foregroundStyle(.secondary)

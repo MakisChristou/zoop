@@ -7,6 +7,7 @@ struct TodayView: View {
     @State private var minutes: [SnoopAPI.Minute] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
+    @State private var workouts: [SnoopAPI.Workout] = []
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -15,8 +16,9 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     heartRateHero
                     if !minutes.isEmpty {
-                        DayTimeline(minutes: minutes, now: now).padding(.horizontal)
+                        DayTimeline(minutes: minutes, now: now, sessions: todaysWorkouts).padding(.horizontal)
                     }
+                    if !todaysWorkouts.isEmpty { sessions }
                     tiles
                     if model.strap.state != .ready {
                         Text(hint)
@@ -29,6 +31,7 @@ struct TodayView: View {
             }
             .navigationTitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
             .navigationBarTitleDisplayMode(.large)
+            .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
         .onReceive(clock) { now = $0 }
         .task { await loadHistory() }
@@ -80,13 +83,47 @@ struct TodayView: View {
                  caption: "lowest 5 min of sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr })
             Tile(title: "HRV", value: lastNight?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? rmssdText, unit: "ms",
                  caption: lastNight == nil ? "RMSSD, last 10 s live" : "RMSSD, last night", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs })
-            Tile(title: "Steps", value: days.last?.stepsWalking.map(String.init) ?? b.map { "\($0.steps)" } ?? "—", unit: "",
-                 caption: stepsCaption, history: days.compactMap { $0.stepsWalking.map(Double.init) })
+            NavigationLink {
+                StepsDetailView()
+            } label: {
+                Tile(title: "Steps", value: days.last?.stepsWalking.map { $0.formatted() } ?? b.map { "\($0.steps)" } ?? "—", unit: "",
+                     caption: stepsCaption, history: days.compactMap { $0.stepsWalking.map(Double.init) }, linked: true)
+            }
+            .buttonStyle(PressableCardStyle())
+            Tile(title: "Load", value: days.last?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "",
+                 caption: loadCaption, history: days.compactMap(\.load))
             Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
                  caption: "now", history: days.compactMap { $0.skinTempAvg })
             Tile(title: "Strap says", value: b.map { bandStateText($0.bandState) } ?? "—", unit: "", caption: "its own rest flag", history: [])
         }
         .padding(.horizontal)
+    }
+
+    /// Today's sessions as cards, newest first; each opens its detail.
+    private var sessions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Today's activity").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            ForEach(todaysWorkouts) { workout in
+                NavigationLink(value: workout) { WorkoutRow(workout: workout) }.buttonStyle(PressableCardStyle())
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var todaysWorkouts: [SnoopAPI.Workout] {
+        workouts.filter { Calendar.current.isDateInToday($0.startTs) }.sorted { $0.startTs > $1.startTs }
+    }
+
+    /// Hard minutes and calories once the day has been analysed; the scale otherwise.
+    private var loadCaption: String {
+        guard let today = days.last, today.load != nil else { return "0–21, builds through the day" }
+        var parts: [String] = []
+        if let zones = today.zonesMin, zones.count == 5 {
+            let hard = zones[2] + zones[3] + zones[4]
+            parts.append(hard > 0 ? "\(hard) min hard" : "nothing hard yet")
+        }
+        if let kcal = today.kcal, kcal > 0 { parts.append("\(Int(kcal.rounded())) kcal in sessions") }
+        return parts.isEmpty ? "0–21 scale" : parts.joined(separator: " · ")
     }
 
     /// Walking-filtered count as the headline, raw counter and walking time as context.
@@ -107,9 +144,11 @@ struct TodayView: View {
         async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 14)
         async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: 14)
         async let m = SnoopAPI.minutes(deviceId: model.strap.serial, day: Date())
+        async let w = SnoopAPI.workouts(deviceId: model.strap.serial, limit: 20)
         if let d = try? await d { days = d }
         if let n = try? await n { nights = n }
         if let m = try? await m { minutes = m }
+        if let w = try? await w { workouts = w }
     }
 
     private var freshness: String {
@@ -146,51 +185,3 @@ struct TodayView: View {
     }
 }
 
-private struct Tile: View {
-    let title: String
-    let value: String
-    let unit: String
-    let caption: String
-    let history: [Double]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value).font(.system(.title, design: .rounded).weight(.semibold)).monospacedDigit()
-                if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(.secondary) }
-            }
-            Text(caption).font(.caption2).foregroundStyle(.tertiary)
-            Sparkline(values: history)
-                .frame(height: 22)
-                .padding(.top, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-    }
-}
-
-
-/// Fourteen-day context under a tile. Draws nothing until there are two points.
-private struct Sparkline: View {
-    let values: [Double]
-
-    var body: some View {
-        GeometryReader { geo in
-            if values.count >= 2, let lo = values.min(), let hi = values.max() {
-                let span = max(hi - lo, 0.0001)
-                Path { path in
-                    for (i, v) in values.enumerated() {
-                        let x = geo.size.width * CGFloat(i) / CGFloat(values.count - 1)
-                        let y = geo.size.height * (1 - CGFloat((v - lo) / span))
-                        if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-                    }
-                }
-                .stroke(.secondary.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            } else {
-                Text(values.isEmpty ? " " : "1 day").font(.caption2).foregroundStyle(.quaternary)
-            }
-        }
-    }
-}
