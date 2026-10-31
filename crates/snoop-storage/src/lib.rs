@@ -4,16 +4,23 @@
 mod day_store;
 mod error;
 mod frame_store;
+mod label_store;
 mod operation;
+mod profile_store;
 mod sample_store;
 mod sleep_store;
+mod strain_store;
+mod workout_store;
 
-pub use day_store::DayRow;
+pub use day_store::{DayRow, HourSteps};
 pub use error::{StorageError, StorageResult};
 pub use frame_store::{NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;
+pub use profile_store::{NewProfile, ProfileRow};
 pub use sample_store::{MinuteRow, NewEcgStrip, NewEvent, NewSample, SampleRow};
 pub use sleep_store::{NewSleep, SampleFull, SleepRow};
+pub use strain_store::NewStrain;
+pub use workout_store::{NewWorkout, WorkoutRow};
 
 use sqlx::{PgPool, postgres::PgPoolOptions};
 

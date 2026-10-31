@@ -28,5 +28,8 @@ async fn main() -> anyhow::Result<()> {
         Command::Analyze { device, night } => {
             commands::analyze(&config.storage_config, &device, night).await
         }
+        Command::AnalyzeWorkouts { device, day } => {
+            commands::analyze_workouts(&config.storage_config, &device, day).await
+        }
     }
 }

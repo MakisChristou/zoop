@@ -128,5 +128,48 @@ work needs them (R21 motion is the likely first).
 - **Event (48)**: `[10]` u8 code, `[12]` u32 unix, `[16]` u16 subsec, `[18]` u16
   payload length, `[20]` payload. Code 3 BATTERY_LEVEL: `[0]` revision, `[1]` u16 state
   of charge in tenths of a percent, `[5]` u16 millivolts.
+  Codes 7 / 8 are CHARGING_ON / CHARGING_OFF, with no payload required;
+  observed in MG captures. These describe strap charging, not battery pack level.
+  Apply timestamps monotonically: history can replay old transitions.
+  The seven-byte WHOOP 5 battery payload has no verified charging flag.
 - **Command response (36)**: `[9]` seq, `[10]` command, `[11]` origin seq, `[12]`
   result (0 failure, 1 success, 2 pending, 3 unsupported), `[13]` body.
+  GET_BATTERY_LEVEL (26), WHOOP 5/MG: request has no arguments; a successful
+  reply body begins with a little-endian u32 whole percent (0–100). Reject
+  non-success results and out-of-range values. The reply does not identify
+  whether a charger is attached; use charging events for that state.
+
+### WHOOP 5/MG battery pack
+
+The pack and strap are separate gauges. Live channel-4 event **109** carries
+28 payload bytes: presence (0/1) at payload 0, six identifier bytes at 1,
+16 identity-text bytes at 7, little-endian u16 charge at 23, and three opaque
+bytes at 25. Own MG captures on 2026-10-30 contain 20 live records, with
+raw charge declining 557 to 5, then 918 to 543 after a later attachment.
+The display uses tenths of a percent (55.7 to 0.5, 91.8 to 54.3), consistent
+with the independently documented capture interpretation; calibration against
+an external meter has not been performed. Reject values above 1000 and
+unknown presence flags. Do not print identity bytes in diagnostics.
+
+Events **21/22** report attachment/removal separately from charging **7/8**.
+Presence never establishes current flow. History channel 5 replays these
+records: it may update last-known display data, never live state or alerts.
+A new live record expires after 15 minutes; disconnect/removal clears live
+eligibility. Equal/older timestamps cannot revive removed or stale state.
+
+Command **151**, GET_BATTERY_PACK_INFO, takes revision byte 1. A successful
+28-byte response body has revision at 0 and the same record beginning at 1
+(charge at 24, with two opaque trailing bytes). It returns cached information;
+success and request receipt time do not establish measurement freshness. Use
+it only as a last-known display fallback, correlated by origin sequence and
+connection, and stop querying for the session on failure/unsupported. The
+live event remains authoritative. References (protocol only, no code copied):
+https://github.com/ryanbr/noop/blob/main/docs/PROTOCOL_TRANSPORT.md#battery-pack--command-151
+https://github.com/ryanbr/noop/blob/main/Packages/WhoopProtocol/Sources/WhoopProtocol/BatteryPackInfo.swift
+
+Event timestamps retain their u16 fractional ticks at frame 16, scaled by
+1/32768 second. Own MG live pack events included raw charge 999 and 1000
+within the same whole second, with distinct fractions. Ordering by whole
+seconds alone loses valid changes; reject older full timestamps, not every
+update in the same second. Pack charging inference requires two rising updates
+and at least two percentage points of increase; one rebound is not charging.

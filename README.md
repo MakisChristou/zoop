@@ -93,6 +93,11 @@ YYYY-MM-DD` scores one night and prints the result.
 | `GET` | `/v1/devices/{deviceId}/latest` | most recent decoded sample |
 | `GET` | `/v1/devices/{deviceId}/days/{date}` | minute-averaged samples for a UTC day |
 | `GET` | `/v1/devices/{deviceId}/sleeps?limit=14` | analysed nights with stage segments, newest first |
+| `GET` | `/v1/devices/{deviceId}/days?limit=14&tz=UTC` | daily summaries with steps, heart rate, day load and zones |
+| `GET` | `/v1/devices/{deviceId}/days/{date}/steps?tz=UTC` | steps per local hour and walking bouts |
+| `GET` | `/v1/devices/{deviceId}/workouts?limit=30` | detected sessions, newest first, with the user's label applied |
+| `PUT` | `/v1/devices/{deviceId}/workouts/{id}/kind` | relabel a session: `{"kind": "walk" \| "resistance" \| "activity"}` |
+| `GET` `PUT` | `/v1/devices/{deviceId}/profile` | body profile (sex, birth year, weight, height) and home time zone |
 
 All `/v1` routes require `Authorization: Bearer <server.ingest_token>`.
 
@@ -145,6 +150,10 @@ in front of it if the host is reachable from outside your LAN.
 `nix build .#snoop` builds the binary on its own.
 
 ## Development
+
+Database-backed store tests run only when `SNOOP_TEST_DATABASE_URL` points at a migrated
+development database, for example `SNOOP_TEST_DATABASE_URL=postgres://snoop:snoop@localhost:5433/snoop cargo test -p snoop-storage`;
+`just ci` needs no database.
 
 ```sh
 just ci            # fmt-check, clippy -D warnings, tests

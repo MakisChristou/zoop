@@ -19,6 +19,17 @@ pub enum StoreOperation {
     UpsertSleep,
     ListSleeps,
     ListDays,
+    LocalDay,
+    HourlySteps,
+    SleepWindows,
+    RestingHr,
+    ObservedHrMax,
+    ReplaceWorkouts,
+    ListWorkouts,
+    UpsertLabel,
+    UpsertStrain,
+    GetProfile,
+    UpsertProfile,
 }
 
 impl fmt::Display for StoreOperation {
@@ -40,6 +51,17 @@ impl fmt::Display for StoreOperation {
             Self::UpsertSleep => "upsert sleep",
             Self::ListSleeps => "list sleeps",
             Self::ListDays => "list days",
+            Self::LocalDay => "resolve local day",
+            Self::HourlySteps => "read hourly steps",
+            Self::SleepWindows => "read sleep windows",
+            Self::RestingHr => "read resting heart rate",
+            Self::ObservedHrMax => "read observed maximal heart rate",
+            Self::ReplaceWorkouts => "replace workouts",
+            Self::ListWorkouts => "list workouts",
+            Self::UpsertLabel => "upsert workout label",
+            Self::UpsertStrain => "upsert strain",
+            Self::GetProfile => "read profile",
+            Self::UpsertProfile => "upsert profile",
         };
         f.write_str(name)
     }

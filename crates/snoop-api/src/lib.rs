@@ -6,14 +6,18 @@ mod devices;
 mod epochs;
 mod error;
 mod ingest;
+mod profile;
+mod query;
 mod sleeps;
 mod state;
+mod steps;
+mod workouts;
 
 pub use state::AppState;
 
 use axum::{
     Router, middleware,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use tower_http::trace::TraceLayer;
 
@@ -23,7 +27,10 @@ use crate::{
     devices::{day, latest},
     epochs::epochs,
     ingest::ingest,
+    profile::{get_profile, put_profile},
     sleeps::sleeps,
+    steps::steps,
+    workouts::{set_kind, workouts},
 };
 
 pub fn build_router(state: AppState) -> Router {
@@ -31,11 +38,18 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/ingest", post(ingest))
         .route("/v1/devices/{deviceId}/latest", get(latest))
         .route("/v1/devices/{deviceId}/days/{date}", get(day))
+        .route("/v1/devices/{deviceId}/days/{date}/steps", get(steps))
         .route("/v1/devices/{deviceId}/sleeps", get(sleeps))
         .route("/v1/devices/{deviceId}/days", get(days))
         .route(
             "/v1/devices/{deviceId}/sleeps/{nightOf}/epochs",
             get(epochs),
+        )
+        .route("/v1/devices/{deviceId}/workouts", get(workouts))
+        .route("/v1/devices/{deviceId}/workouts/{id}/kind", put(set_kind))
+        .route(
+            "/v1/devices/{deviceId}/profile",
+            get(get_profile).put(put_profile),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),

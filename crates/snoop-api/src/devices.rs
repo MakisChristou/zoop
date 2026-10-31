@@ -6,7 +6,11 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 use snoop_storage::{MinuteRow, SampleRow};
 
-use crate::{AppState, error::ApiError};
+use crate::{
+    AppState,
+    error::ApiError,
+    query::{default_tz, validate_tz},
+};
 
 pub(crate) async fn latest(
     State(state): State<AppState>,
@@ -22,10 +26,6 @@ pub(crate) struct DayQuery {
     tz: String,
 }
 
-fn default_tz() -> String {
-    "UTC".to_owned()
-}
-
 /// Minute buckets for one local calendar day: heart rate, skin temperature, steps,
 /// the strap's state and activity labels, SpO₂.
 pub(crate) async fn day(
@@ -33,14 +33,7 @@ pub(crate) async fn day(
     Path((device_id, date)): Path<(String, NaiveDate)>,
     Query(query): Query<DayQuery>,
 ) -> Result<Json<Vec<MinuteRow>>, ApiError> {
-    if query.tz.len() > 64
-        || !query
-            .tz
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "/_+-".contains(c))
-    {
-        return Err(ApiError::BadRequest("invalid tz".to_owned()));
-    }
+    validate_tz(&query.tz)?;
     Ok(Json(
         state
             .store

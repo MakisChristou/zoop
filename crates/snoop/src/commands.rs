@@ -28,6 +28,21 @@ pub(crate) async fn analyze(
     Ok(())
 }
 
+pub(crate) async fn analyze_workouts(
+    config: &StorageConfig,
+    device: &str,
+    day: Option<NaiveDate>,
+) -> anyhow::Result<()> {
+    let store = PostgresStore::connect(config.postgres_url.expose_secret())
+        .await
+        .context("connecting to Postgres")?;
+    match snoop_core::analyze_day(&store, device, day).await? {
+        Some(result) => println!("{}", serde_json::to_string_pretty(&result)?),
+        None => println!("{{\"workouts\": null}}"),
+    }
+    Ok(())
+}
+
 pub(crate) fn validate(config: &Config) -> anyhow::Result<()> {
     let issues = config.validate();
     let mut errors = 0;

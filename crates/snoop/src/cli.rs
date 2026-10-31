@@ -32,4 +32,13 @@ pub(crate) enum Command {
         #[arg(long)]
         night: Option<chrono::NaiveDate>,
     },
+    /// Detect one day's workouts for one device, store them, and print them as JSON.
+    AnalyzeWorkouts {
+        /// Strap serial.
+        #[arg(long)]
+        device: String,
+        /// Local calendar day, YYYY-MM-DD, in the profile's time zone. Defaults to today.
+        #[arg(long)]
+        day: Option<chrono::NaiveDate>,
+    },
 }

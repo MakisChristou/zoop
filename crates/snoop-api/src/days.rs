@@ -3,9 +3,14 @@ use axum::{
     extract::{Path, Query, State},
 };
 use serde::Deserialize;
+use snoop_analytics::WORKOUT_ALGO_VERSION;
 use snoop_storage::DayRow;
 
-use crate::{AppState, error::ApiError};
+use crate::{
+    AppState,
+    error::ApiError,
+    query::{default_tz, validate_tz},
+};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DaysQuery {
@@ -20,26 +25,18 @@ const fn default_limit() -> i64 {
     14
 }
 
-fn default_tz() -> String {
-    "UTC".to_owned()
-}
-
-/// Daily summaries, oldest first.
+/// Daily summaries, oldest first, with the day's load where it has been analysed.
 pub(crate) async fn days(
     State(state): State<AppState>,
     Path(device_id): Path<String>,
     Query(query): Query<DaysQuery>,
 ) -> Result<Json<Vec<DayRow>>, ApiError> {
-    if query.tz.len() > 64
-        || !query
-            .tz
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "/_+-".contains(c))
-    {
-        return Err(ApiError::BadRequest("invalid tz".to_owned()));
-    }
+    validate_tz(&query.tz)?;
     let limit = query.limit.clamp(1, 366);
     Ok(Json(
-        state.store.list_days(&device_id, &query.tz, limit).await?,
+        state
+            .store
+            .list_days(&device_id, &query.tz, limit, WORKOUT_ALGO_VERSION)
+            .await?,
     ))
 }

@@ -16,6 +16,10 @@ pub struct SampleFull {
     pub gravity_y: Option<f32>,
     pub gravity_z: Option<f32>,
     pub skin_temp_c: Option<f32>,
+    /// The strap's cumulative step counter.
+    pub steps: Option<i32>,
+    /// The strap's activity label: 0 still, 1 walk, 2 run.
+    pub activity: Option<i16>,
     pub band_state: i16,
     pub spo2_pct: Option<i16>,
 }
@@ -57,7 +61,8 @@ impl PostgresStore {
         to: DateTime<Utc>,
     ) -> StorageResult<Vec<SampleFull>> {
         sqlx::query_as(
-            "SELECT ts, hr, rr_ms, accel_dyn_g, gravity_x, gravity_y, gravity_z, skin_temp_c, band_state, spo2_pct
+            "SELECT ts, hr, rr_ms, accel_dyn_g, gravity_x, gravity_y, gravity_z, skin_temp_c,
+                    steps, activity, band_state, spo2_pct
              FROM samples WHERE device_id = $1 AND ts >= $2 AND ts < $3 ORDER BY ts",
         )
         .bind(device_id)
@@ -75,6 +80,23 @@ impl PostgresStore {
             .fetch_one(self.pool())
             .await
             .map_err(|source| StorageError::unavailable(StoreOperation::LatestSample, source))
+    }
+
+    /// Highest one-minute mean heart rate over the trailing `days`, any state. A
+    /// minute mean is robust to single-sample glitches where a raw maximum is not.
+    pub async fn observed_hr_max(&self, device_id: &str, days: i32) -> StorageResult<Option<f64>> {
+        sqlx::query_scalar(
+            "SELECT max(m)::float8 FROM (
+               SELECT avg(hr) AS m FROM samples
+               WHERE device_id = $1 AND hr > 0 AND ts > now() - make_interval(days => $2)
+               GROUP BY date_trunc('minute', ts)
+             ) minutes",
+        )
+        .bind(device_id)
+        .bind(days)
+        .fetch_one(self.pool())
+        .await
+        .map_err(|source| StorageError::unavailable(StoreOperation::ObservedHrMax, source))
     }
 
     pub async fn upsert_sleep(&self, sleep: &NewSleep<'_>) -> StorageResult<()> {
@@ -151,5 +173,41 @@ impl PostgresStore {
         .fetch_all(self.pool())
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::ListSleeps, source))
+    }
+
+    /// Main sleep windows overlapping `[from, to)`, from the newest algorithm version
+    /// that analysed each night, so a version bump does not leave the day's workouts
+    /// without a night to exclude.
+    pub async fn sleep_windows(
+        &self,
+        device_id: &str,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> StorageResult<Vec<(DateTime<Utc>, DateTime<Utc>)>> {
+        sqlx::query_as(
+            "SELECT DISTINCT ON (night_of) start_ts, end_ts FROM sleeps
+             WHERE device_id = $1 AND end_ts > $2 AND start_ts < $3
+             ORDER BY night_of, algo_version DESC",
+        )
+        .bind(device_id)
+        .bind(from)
+        .bind(to)
+        .fetch_all(self.pool())
+        .await
+        .map_err(|source| StorageError::unavailable(StoreOperation::SleepWindows, source))
+    }
+
+    /// Resting heart rate from the most recently analysed night, any version.
+    pub async fn latest_resting_hr(&self, device_id: &str) -> StorageResult<Option<f64>> {
+        let found: Option<Option<f64>> = sqlx::query_scalar(
+            "SELECT (metrics -> 'physiology' ->> 'resting_hr')::float8 FROM sleeps
+             WHERE device_id = $1 AND metrics -> 'physiology' ->> 'resting_hr' IS NOT NULL
+             ORDER BY night_of DESC, algo_version DESC LIMIT 1",
+        )
+        .bind(device_id)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(|source| StorageError::unavailable(StoreOperation::RestingHr, source))?;
+        Ok(found.flatten())
     }
 }

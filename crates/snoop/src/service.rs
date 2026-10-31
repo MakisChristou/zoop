@@ -4,7 +4,7 @@ use anyhow::Context;
 use secrecy::ExposeSecret;
 use snoop_api::AppState;
 use snoop_config::Config;
-use snoop_core::{Decoder, NightAnalyzer};
+use snoop_core::{Decoder, NightAnalyzer, WorkoutAnalyzer};
 use snoop_storage::PostgresStore;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
@@ -29,11 +29,11 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
         Duration::from_millis(config.worker_config.poll_interval_ms),
     );
     let worker = tokio::spawn(decoder.run(cancel.clone()));
-    let analyzer = NightAnalyzer::new(
-        store.clone(),
-        Duration::from_secs(config.worker_config.analysis_interval_s),
-    );
+    let analysis_interval = Duration::from_secs(config.worker_config.analysis_interval_s);
+    let analyzer = NightAnalyzer::new(store.clone(), analysis_interval);
     let analysis = tokio::spawn(analyzer.run(cancel.clone()));
+    let workouts = WorkoutAnalyzer::new(store.clone(), analysis_interval);
+    let workout_analysis = tokio::spawn(workouts.run(cancel.clone()));
 
     let app = snoop_api::build_router(AppState::new(
         store,
@@ -53,6 +53,9 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
     cancel.cancel();
     worker.await.context("joining decode worker")??;
     analysis.await.context("joining night analyzer")??;
+    workout_analysis
+        .await
+        .context("joining workout analyzer")??;
     info!("snoop stopped");
     Ok(())
 }

@@ -11,6 +11,7 @@ use tracing::error;
 pub(crate) enum ApiError {
     Unauthorized,
     BadRequest(String),
+    NotFound,
     Storage(StorageError),
 }
 
@@ -48,6 +49,11 @@ impl IntoResponse for ApiError {
                 "missing or invalid bearer token".to_owned(),
             ),
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
+            Self::NotFound => (
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "no such resource".to_owned(),
+            ),
             Self::Storage(source) => {
                 error!(%source, "storage failure");
                 (

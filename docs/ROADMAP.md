@@ -17,7 +17,9 @@ Everything else is secondary and comes after.
    respiratory rate.
 5. **Sleep v2** — four-class staging (wake / light / deep / REM) — first version done; sleep need and
    sleep debt, comparison tooling against official-app exports.
-6. **Recovery and strain**, workouts, journal, dashboard.
+6. **Workouts v1** — done. Automatic walks and resistance training, day load, body
+   profile, user labels. See below.
+7. **Recovery**, journal, dashboard.
 
 ## Sleep plan
 
@@ -54,6 +56,35 @@ nights we compute ours. Compare the two populations (onset and wake relative to 
 strap's own sleep flag, stage totals, efficiency) and keep a scorecard per algorithm
 version. The target is agreement within a few minutes on boundaries and within the
 published inter-device error on stage totals.
+
+## Workout plan
+
+Inputs: the strap's own per-second walk/run label, its step counter, heart rate, band
+state and the analysed sleep windows. No raw inertial data (see `MOTION.md`).
+
+**Sessions (v1).** A minute exerts when its mean heart rate reaches 40 % of heart-rate
+reserve (Karvonen 1957; the ACSM moderate threshold, Garber et al. 2011) or the strap
+labels most of it as walking. Exerting minutes chain across rests of up to five minutes,
+which keeps the recovery between sets inside one resistance session. Mostly ambulatory
+sessions of ten minutes or more are walks; sessions of twenty minutes or more with
+hardly any walking are resistance training; the rest is unlabelled activity for the
+user to name. Resting heart rate comes from the latest analysed night; maximal heart
+rate from Tanaka et al. 2001 on the profile's age (40 assumed when unknown), raised to
+the highest one-minute mean the strap has seen in 90 days.
+
+**Load.** Edwards 1993 summated-zone training impulse over five zones of maximal heart
+rate, per session and over the awake day, shown on a 0–21 saturating display scale that
+is documented as presentation, not measurement. Calories per session from Keytel et al.
+2005 on heart rate, weight, age and sex; the equations are fitted on exercise, so they
+are never summed over rest.
+
+**Walking bouts.** Troiano 2008 bout rules on the strap's walk label with two-minute
+interruptions tolerated; cadence read against Tudor-Locke & Rowe 2012.
+
+**Corrections.** The user may relabel a session's kind. Labels are stored unversioned
+by time span and matched to sessions by overlap, so a recompute at a new
+`algo_version` keeps them. The body profile and home time zone are likewise inputs,
+not derived data.
 
 ## Non-goals for now
 
