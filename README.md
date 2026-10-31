@@ -78,12 +78,33 @@ Battery policy tests run independently:
 cd Packages/SnoopBattery && swift test
 ```
 
+## Activity
+
+The Activity tab lists sessions the server detects: walks of ten minutes or more,
+resistance training of twenty minutes or more, and anything else that raised heart
+rate for twenty minutes, left unlabelled for you to name. Each session shows its
+load on a 0–21 scale, time in five heart-rate zones, average and peak heart rate,
+calories and steps, with the heart-rate trace underneath. The type can be changed
+from the session screen; the server keeps that choice through recomputes. Nothing is
+detected on the phone: after each upload the app asks the server for new sessions
+and posts a local notification per session, including "tap to label" for unlabelled
+ones.
+
+Today shows the day's sessions under the timeline, where they are shaded in their
+kind's colour, and a Load tile with the day's total. Tapping the Steps tile opens a
+steps screen: today by hour with every walk of three minutes or more listed, and
+seven-day and thirty-day comparisons where any day opens into its own hours and walks.
+
+Calories and zones need a body profile, entered once under Settings and stored on the
+server; the phone's time zone goes with it so days are cut at local midnight.
+
 ## Repository layout
 
 ```
 Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
 Packages/SnoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
 App/
+  Activity/              session notifications after each upload
   Battery/               iOS notifications and persisted per-strap alert state
   BLE/                   CoreBluetooth: discovery, connection, reconnection, state restoration, offload loop
   Queue/                 durable SQLite frame queue

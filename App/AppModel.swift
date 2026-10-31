@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
 
     let strap = StrapManager()
     let battery = BatteryMonitor()
+    let workouts = WorkoutNotifier()
     private let queue: FrameQueue?
     private let uploader: Uploader?
     private var flushTimer: Timer?
@@ -44,7 +45,11 @@ final class AppModel: ObservableObject {
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
+        workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        strap.onBatteryDevice = { [weak self] id in
+            self?.battery.activate(device: id)
+            self?.workouts.activate(device: id)
+        }
         strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
         strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
         strap.onPackInfo = { [weak self] info, at, live, cached in
@@ -78,6 +83,7 @@ final class AppModel: ObservableObject {
         let before = uploadStats.accepted
         uploadStats = await uploader.flush(deviceId: strap.serial, model: strap.model, firmware: strap.firmware)
         lastBatchAccepted = uploadStats.accepted - before
+        if lastBatchAccepted > 0 { workouts.checkSoon() }
         queued = (try? queue.count()) ?? queued
     }
 
