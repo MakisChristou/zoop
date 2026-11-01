@@ -38,6 +38,7 @@ figment = { version = "0.10", features = ["toml", "env"] }
 # HTTP API
 axum = { version = "0.8", features = ["macros"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
+tower = { version = "0.5", features = ["util"] }
 
 # Store
 sqlx = { version = "0.8", default-features = false, features = [

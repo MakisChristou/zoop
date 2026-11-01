@@ -4,11 +4,9 @@
 //! A day is a local calendar day in the device profile's time zone (UTC when there is
 //! no profile). Samples two hours either side are read as context so a session that
 //! straddles midnight is detected whole, and only sessions starting inside the day are
-//! stored. Results are keyed by `WORKOUT_ALGO_VERSION`; the profile and the user's labels are
-//! unversioned inputs, so a method change recomputes next to the old numbers and
-//! keeps the corrections.
-
-use std::time::Duration;
+//! stored. Results are keyed by `WORKOUT_ALGO_VERSION`;
+//! time-aware profile snapshots and independent labels keep historical inputs and
+//! corrections stable while new method versions are computed.
 
 use chrono::{DateTime, Datelike, Duration as ChronoDuration, NaiveDate, Utc};
 use serde::Serialize;
@@ -19,16 +17,14 @@ use snoop_analytics::workouts::{
     DayLoad, Physiology, Workout, WorkoutParams, day_load, detect_workouts,
 };
 use snoop_analytics::zones;
-use snoop_storage::{NewStrain, NewWorkout, PostgresStore, ProfileRow, SampleFull};
-use tokio_util::sync::CancellationToken;
+use snoop_storage::{PostgresStore, ProfileRow, SampleFull};
 use tracing::{debug, info};
 
 use crate::CoreResult;
 
 /// Hours of samples read either side of the day so sessions across midnight are whole.
 const CONTEXT_HOURS: i64 = 2;
-/// Re-analyse this many trailing days each pass, so late offloads are picked up.
-const TRAILING_DAYS: i64 = 2;
+
 /// Window over which the strap's own maximal heart rate is observed.
 const OBSERVED_HR_MAX_DAYS: i32 = 90;
 /// Resting heart rate assumed until a night has been analysed.
@@ -87,41 +83,7 @@ impl From<Bout> for BoutOut {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct WorkoutAnalyzer {
-    store: PostgresStore,
-    interval: Duration,
-}
-
-impl WorkoutAnalyzer {
-    pub const fn new(store: PostgresStore, interval: Duration) -> Self {
-        Self { store, interval }
-    }
-
-    pub async fn run(self, cancel: CancellationToken) -> CoreResult<()> {
-        info!(algo = WORKOUT_ALGO_VERSION, "workout analyzer running");
-        loop {
-            for device in self.store.list_device_ids().await? {
-                let profile = self.store.get_profile(&device).await?;
-                let tz = profile
-                    .as_ref()
-                    .map_or(DEFAULT_TZ, |p| p.tz.as_str())
-                    .to_owned();
-                let today = self.store.local_today(&tz).await?;
-                for back in 0..TRAILING_DAYS {
-                    let day = today - ChronoDuration::days(back);
-                    analyze_local_day(&self.store, &device, profile.as_ref(), &tz, day).await?;
-                }
-            }
-            tokio::select! {
-                () = cancel.cancelled() => return Ok(()),
-                () = tokio::time::sleep(self.interval) => {}
-            }
-        }
-    }
-}
-
-/// Analyses one day for one device and stores the result. `day` defaults to today in
+/// Queues a durable recalculation and returns a preview. `day` defaults to today in
 /// the profile's zone. Returns `None` when there was no heart-rate data to work from.
 pub async fn analyze_day(
     store: &PostgresStore,
@@ -137,10 +99,15 @@ pub async fn analyze_day(
         Some(day) => day,
         None => store.local_today(&tz).await?,
     };
-    analyze_local_day(store, device_id, profile.as_ref(), &tz, day).await
+    store
+        .request_analysis(device_id, "workout", day, &tz, WORKOUT_ALGO_VERSION, true)
+        .await?;
+    let (_, to) = store.local_day_bounds(day, &tz).await?;
+    let profile = store.profile_at(device_id, to).await?;
+    calculate_day(store, device_id, profile.as_ref(), &tz, day).await
 }
 
-async fn analyze_local_day(
+pub async fn calculate_day(
     store: &PostgresStore,
     device_id: &str,
     profile: Option<&ProfileRow>,
@@ -161,7 +128,7 @@ async fn analyze_local_day(
         .and_then(|p| p.birth_year)
         .map(|year| f64::from(day.year() - i32::from(year)));
     let observed = store
-        .observed_hr_max(device_id, OBSERVED_HR_MAX_DAYS)
+        .observed_hr_max_at(device_id, OBSERVED_HR_MAX_DAYS, to)
         .await?;
     if samples.iter().all(|s| s.hr.is_none()) {
         debug!(device_id, %day, "no heart rate data; skipping");
@@ -172,7 +139,7 @@ async fn analyze_local_day(
     let physiology = Physiology {
         hr_max,
         resting_hr: store
-            .latest_resting_hr(device_id)
+            .resting_hr_at(device_id, to)
             .await?
             .unwrap_or(DEFAULT_RESTING_HR),
         body: body_of(profile, age),
@@ -191,37 +158,6 @@ async fn analyze_local_day(
         .map(|w| w.kcal)
         .try_fold(0.0, |sum, kcal| kcal.map(|k| sum + k));
 
-    let rows: Vec<NewWorkout<'_>> = workouts
-        .iter()
-        .map(|w| NewWorkout {
-            device_id,
-            algo_version: WORKOUT_ALGO_VERSION,
-            start_ts: w.start,
-            end_ts: w.end,
-            kind: w.kind.as_str(),
-            load: w.load as f32,
-            avg_hr: w.avg_hr as f32,
-            max_hr: i16::from(w.max_hr),
-            trimp: w.trimp as f32,
-            zones_min: w.zones.minutes().to_vec(),
-            kcal: w.kcal.map(|k| k as f32),
-            steps: i32::try_from(w.steps).unwrap_or(i32::MAX),
-        })
-        .collect();
-    store
-        .sync_workouts(device_id, WORKOUT_ALGO_VERSION, from, to, &rows)
-        .await?;
-    store
-        .upsert_strain(&NewStrain {
-            device_id,
-            day,
-            algo_version: WORKOUT_ALGO_VERSION,
-            load: load.load as f32,
-            trimp: load.trimp as f32,
-            zones_min: load.zones.minutes().to_vec(),
-            kcal: kcal.map(|k| k as f32),
-        })
-        .await?;
     info!(device_id, %day, sessions = workouts.len(), load = format!("{:.1}", load.load), "day stored");
     Ok(Some(DayResult {
         day,

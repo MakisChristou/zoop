@@ -6,6 +6,7 @@ mod devices;
 mod epochs;
 mod error;
 mod ingest;
+mod processing;
 mod profile;
 mod query;
 mod sleeps;
@@ -26,7 +27,7 @@ use crate::{
     days::days,
     devices::{day, latest},
     epochs::epochs,
-    ingest::ingest,
+    ingest::{ingest, ingest_v2},
     profile::{get_profile, put_profile},
     sleeps::sleeps,
     steps::steps,
@@ -35,7 +36,12 @@ use crate::{
 
 pub fn build_router(state: AppState) -> Router {
     let protected = Router::new()
+        .route(
+            "/v1/devices/{deviceId}/processing",
+            get(processing::processing),
+        )
         .route("/v1/ingest", post(ingest))
+        .route("/v2/ingest", post(ingest_v2))
         .route("/v1/devices/{deviceId}/latest", get(latest))
         .route("/v1/devices/{deviceId}/days/{date}", get(day))
         .route("/v1/devices/{deviceId}/days/{date}/steps", get(steps))
@@ -58,6 +64,7 @@ pub fn build_router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route("/ready", get(processing::ready))
         .merge(protected)
         .with_state(state)
         .layer(TraceLayer::new_for_http())

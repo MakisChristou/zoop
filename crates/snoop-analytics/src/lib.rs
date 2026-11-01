@@ -17,4 +17,5 @@ pub const ALGO_VERSION: i32 = 2;
 
 /// Bump on any change that alters the workout or day-load numbers. Separate from the
 /// sleep version so a change on one side never hides the other side's history.
-pub const WORKOUT_ALGO_VERSION: i32 = 1;
+/// Version 2 evaluates physiological inputs as of the analysed day.
+pub const WORKOUT_ALGO_VERSION: i32 = 2;

@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use snoop_proto::{ActivityClass, BandState, Decoded, EventPayload, PROTO_VERSION, decode_frame};
-use snoop_storage::{NewEcgStrip, NewEvent, NewSample, PendingFrame, PostgresStore};
+use snoop_storage::{
+    AnalysisVersions, DecodeOutput, DecodedFrame, NewEcgStrip, NewEvent, NewSample, PendingFrame,
+    PostgresStore,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
@@ -40,7 +43,14 @@ impl Decoder {
         loop {
             let pass = tokio::select! {
                 () = cancel.cancelled() => return Ok(()),
-                result = self.pass() => result?,
+                result = self.pass() => match result {
+                    Ok(pass) => {self.store.worker_heartbeat("decoder",None,false).await?;pass},
+                    Err(error) => {
+                        warn!(%error,"decode pass failed; retaining pending work");
+                        let _=self.store.worker_heartbeat("decoder",Some(&error.to_string()),false).await;
+                        DecodePass::default()
+                    }
+                },
             };
             if pass.frames == 0 {
                 tokio::select! {
@@ -59,13 +69,21 @@ impl Decoder {
             .await?;
         let mut pass = DecodePass::default();
 
-        for frame in &frames {
-            self.decode_one(frame, &mut pass).await?;
-            self.store
-                .mark_frame_decoded(frame.id, PROTO_VERSION)
-                .await?;
-            pass.frames += 1;
-        }
+        let decoded: Vec<_> = frames
+            .iter()
+            .map(|frame| Self::decode_one(frame, &mut pass))
+            .collect();
+        self.store
+            .save_decoded(
+                &decoded,
+                PROTO_VERSION,
+                AnalysisVersions {
+                    sleep: snoop_analytics::ALGO_VERSION,
+                    workout: snoop_analytics::WORKOUT_ALGO_VERSION,
+                },
+            )
+            .await?;
+        pass.frames = frames.len();
 
         if pass.frames > 0 {
             debug!(?pass, "decode pass complete");
@@ -73,25 +91,20 @@ impl Decoder {
         Ok(pass)
     }
 
-    async fn decode_one(&self, frame: &PendingFrame, pass: &mut DecodePass) -> CoreResult<()> {
-        let decoded = match decode_frame(&frame.bytes) {
-            Ok(decoded) => decoded,
+    fn decode_one<'a>(frame: &'a PendingFrame, pass: &mut DecodePass) -> DecodedFrame<'a> {
+        let output = match decode_frame(&frame.bytes) {
             Err(error) => {
-                warn!(frame_id = frame.id, %error, "stored frame failed to decode");
                 pass.undecodable += 1;
-                return Ok(());
+                DecodeOutput::Failed(error.to_string())
             }
-        };
-
-        match decoded {
-            Decoded::Biometric(b) => {
-                let rr_ms = b.rr_ms.iter().map(|&rr| i32::from(rr)).collect();
-                self.store
-                    .upsert_sample(&NewSample {
+            Ok(decoded) => match decoded {
+                Decoded::Biometric(b) => {
+                    pass.samples += 1;
+                    DecodeOutput::Sample(NewSample {
                         device_id: &frame.device_id,
                         ts: strap_time(b.header.unix_s, frame.received_at),
                         hr: Some(i16::from(b.heart_rate)),
-                        rr_ms,
+                        rr_ms: b.rr_ms.iter().map(|&rr| i32::from(rr)).collect(),
                         skin_temp_c: b.skin_temp_c,
                         steps: Some(i32::from(b.steps)),
                         accel_dyn_g: b.dynamic_accel_g,
@@ -101,53 +114,46 @@ impl Decoder {
                         spo2_pct: b.spo2_percent.map(i16::from),
                         raw_frame_id: frame.id,
                     })
-                    .await?;
-                pass.samples += 1;
-            }
-            Decoded::Event(event) => {
-                let payload = match event.payload {
-                    EventPayload::Raw { bytes } => bytes,
-                    EventPayload::BatteryLevel(level) => {
-                        let mut bytes = vec![level.revision];
-                        bytes.extend_from_slice(&level.soc_tenths.to_le_bytes());
-                        bytes.extend_from_slice(&[0, 0]);
-                        bytes.extend_from_slice(&level.millivolts.to_le_bytes());
-                        bytes
-                    }
-                };
-                self.store
-                    .insert_event(&NewEvent {
+                }
+                Decoded::Event(e) => {
+                    pass.events += 1;
+                    let payload = match e.payload {
+                        EventPayload::Raw { bytes } => bytes,
+                        EventPayload::BatteryLevel(level) => {
+                            let mut b = vec![level.revision];
+                            b.extend_from_slice(&level.soc_tenths.to_le_bytes());
+                            b.extend_from_slice(&[0, 0]);
+                            b.extend_from_slice(&level.millivolts.to_le_bytes());
+                            b
+                        }
+                    };
+                    DecodeOutput::Event(NewEvent {
                         device_id: &frame.device_id,
-                        ts: strap_time(event.unix_s, frame.received_at),
-                        event_code: i16::from(event.code),
+                        ts: strap_time(e.unix_s, frame.received_at),
+                        event_code: i16::from(e.code),
                         payload,
                         raw_frame_id: frame.id,
                     })
-                    .await?;
-                pass.events += 1;
-            }
-            Decoded::Ecg(ecg) => {
-                self.store
-                    .insert_ecg_strip(&NewEcgStrip {
+                }
+                Decoded::Ecg(e) => {
+                    pass.ecg_strips += 1;
+                    DecodeOutput::Ecg(NewEcgStrip {
                         device_id: &frame.device_id,
-                        ts: strap_time(ecg.header.unix_s, frame.received_at),
-                        layout: i16::from(ecg.header.layout.as_byte()),
-                        quality: Some(i16::from(ecg.quality)),
-                        samples: ecg.samples,
+                        ts: strap_time(e.header.unix_s, frame.received_at),
+                        layout: i16::from(e.header.layout.as_byte()),
+                        quality: Some(i16::from(e.quality)),
+                        samples: e.samples,
                         raw_frame_id: frame.id,
                     })
-                    .await?;
-                pass.ecg_strips += 1;
-            }
-            // Undecoded layouts, live HR, metadata and command responses stay raw;
-            // nothing is lost and they are re-read when the decoder learns them.
-            Decoded::UnknownRecord(_)
-            | Decoded::RealtimeHr(_)
-            | Decoded::Metadata(_)
-            | Decoded::CommandResponse(_)
-            | Decoded::Other { .. } => {}
+                }
+                _ => DecodeOutput::Unsupported,
+            },
+        };
+        DecodedFrame {
+            frame_id: frame.id,
+            device_id: &frame.device_id,
+            output,
         }
-        Ok(())
     }
 }
 

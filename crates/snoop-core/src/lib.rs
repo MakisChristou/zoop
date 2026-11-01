@@ -3,10 +3,12 @@
 
 mod decoder;
 mod error;
+mod history;
 mod night;
 mod workouts;
 
 pub use decoder::{DecodePass, Decoder};
 pub use error::{CoreError, CoreResult};
-pub use night::{NightAnalyzer, NightResult, analyze_night, night_epochs};
-pub use workouts::{BoutOut, DayResult, DaySteps, WorkoutAnalyzer, analyze_day, day_steps};
+pub use history::HistoryWorker;
+pub use night::{NightResult, analyze_night, night_epochs};
+pub use workouts::{BoutOut, DayResult, DaySteps, analyze_day, day_steps};

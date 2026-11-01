@@ -1,7 +1,6 @@
 //! Database-backed checks for the workout store. They run only when
-//! `SNOOP_TEST_DATABASE_URL` points at a migrated development database; `just ci`
-//! stays database-free. Every row they create is tagged with a private device id and
-//! removed at the end.
+//! `SNOOP_TEST_DATABASE_URL` points at a development database; `just ci` stays
+//! database-free. Each test creates an isolated schema and applies the migrations.
 
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use snoop_storage::{NewWorkout, PostgresStore};
@@ -11,14 +10,17 @@ const DEVICE: &str = "TEST-WORKOUT-STORE";
 const ALGO_RESYNC: i32 = 999;
 const ALGO_LABELS: i32 = 998;
 
+#[path = "../../../tests/support/mod.rs"]
+mod support;
+
 async fn store() -> Option<PostgresStore> {
-    let url = std::env::var("SNOOP_TEST_DATABASE_URL").ok()?;
-    let store = PostgresStore::connect(&url).await.expect("connect");
-    store
+    std::env::var("SNOOP_TEST_DATABASE_URL").ok()?;
+    let db = support::Db::new().await;
+    db.store
         .upsert_device(DEVICE, "MG", None)
         .await
         .expect("device");
-    Some(store)
+    Some(db.store)
 }
 
 fn workout<'a>(algo: i32, start: DateTime<Utc>, minutes: i64, kind: &'a str) -> NewWorkout<'a> {

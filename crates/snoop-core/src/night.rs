@@ -6,8 +6,6 @@
 //! as naps in the metrics. Results are keyed by `ALGO_VERSION`, so a method change
 //! produces new rows next to the old ones.
 
-use std::time::Duration;
-
 use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, NaiveTime, Utc};
 use serde::Serialize;
 use snoop_analytics::ALGO_VERSION;
@@ -17,16 +15,13 @@ use snoop_analytics::sleep::{
 use snoop_analytics::stages::{
     EpochFeatures, StageSegment, StageSummary, features_for_window, stage_window,
 };
-use snoop_storage::{NewSleep, PostgresStore, SampleFull};
-use tokio_util::sync::CancellationToken;
+use snoop_storage::{PostgresStore, SampleFull};
 use tracing::{debug, info};
 
 use crate::CoreResult;
 
 const WINDOW_START_HOUR_UTC: u32 = 15;
 const WINDOW_END_HOUR_UTC: u32 = 11;
-/// Re-analyse this many trailing nights each pass, so late offloads are picked up.
-const TRAILING_NIGHTS: i64 = 3;
 
 /// What gets stored in `sleeps.metrics`.
 #[derive(Debug, Clone, Serialize)]
@@ -34,43 +29,16 @@ pub struct NightResult {
     pub window: SleepWindow,
     pub physiology: NightMetrics,
     pub stages: StageSummary,
+    #[serde(skip)]
+    pub segments: Vec<StageSegment>,
     pub naps: Vec<SleepWindow>,
     pub params: SleepParams,
     pub samples: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct NightAnalyzer {
-    store: PostgresStore,
-    interval: Duration,
-}
-
-impl NightAnalyzer {
-    pub const fn new(store: PostgresStore, interval: Duration) -> Self {
-        Self { store, interval }
-    }
-
-    pub async fn run(self, cancel: CancellationToken) -> CoreResult<()> {
-        info!(algo = ALGO_VERSION, "night analyzer running");
-        loop {
-            let today = Utc::now().date_naive();
-            for device in self.store.list_device_ids().await? {
-                for back in 0..TRAILING_NIGHTS {
-                    let night = today - ChronoDuration::days(back);
-                    analyze_night(&self.store, &device, night).await?;
-                }
-            }
-            tokio::select! {
-                () = cancel.cancelled() => return Ok(()),
-                () = tokio::time::sleep(self.interval) => {}
-            }
-        }
-    }
-}
-
-/// Analyses one night for one device and stores the result. Returns the main sleep
+/// Calculates one night without publishing; the leased worker owns publication. Returns the main sleep
 /// window when one was found.
-pub async fn analyze_night(
+pub async fn calculate_night(
     store: &PostgresStore,
     device_id: &str,
     night_of: NaiveDate,
@@ -84,9 +52,6 @@ pub async fn analyze_night(
 
     let Some(main) = windows.first().cloned() else {
         debug!(device_id, %night_of, samples = samples.len(), "no sleep window");
-        store
-            .delete_sleep(device_id, night_of, ALGO_VERSION)
-            .await?;
         return Ok(None);
     };
     let (segments, stage_summary): (Vec<StageSegment>, StageSummary) =
@@ -94,22 +59,12 @@ pub async fn analyze_night(
     let result = NightResult {
         physiology: night_metrics(&samples, &main),
         stages: stage_summary,
+        segments,
         naps: windows[1..].to_vec(),
         window: main,
         params,
         samples: samples.len(),
     };
-    store
-        .upsert_sleep(&NewSleep {
-            device_id,
-            night_of,
-            algo_version: ALGO_VERSION,
-            start_ts: result.window.onset,
-            end_ts: result.window.offset,
-            stages: serde_json::to_value(&segments).expect("segments serialise"),
-            metrics: serde_json::to_value(&result).expect("result serialises"),
-        })
-        .await?;
     info!(device_id, %night_of, onset = %result.window.onset, offset = %result.window.offset,
           tib_min = result.window.time_in_bed_s / 60, "night stored");
     Ok(Some(result))
@@ -168,4 +123,18 @@ fn to_sample(row: &SampleFull) -> Sample {
         band_state: u8::try_from(row.band_state).unwrap_or(0),
         spo2_pct: row.spo2_pct.and_then(|v| u8::try_from(v).ok()),
     }
+}
+
+/// Queues one explicit night and returns its calculated preview. The worker publishes atomically.
+/// # Errors
+/// Database failure.
+pub async fn analyze_night(
+    store: &PostgresStore,
+    device_id: &str,
+    night_of: NaiveDate,
+) -> CoreResult<Option<NightResult>> {
+    store
+        .request_analysis(device_id, "sleep", night_of, "UTC", ALGO_VERSION, true)
+        .await?;
+    calculate_night(store, device_id, night_of).await
 }

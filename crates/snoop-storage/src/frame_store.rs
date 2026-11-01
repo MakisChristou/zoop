@@ -1,5 +1,5 @@
-//! Raw frame intake and the decode work queue. The `(device_id, client_seq)` unique
-//! constraint makes ingest idempotent across phone retries.
+//! Raw frame intake and decode queue. UUID identities survive reinstall counter
+//! resets; legacy sequences remain isolated and duplicates require equal content.
 
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
@@ -10,6 +10,8 @@ use crate::{PostgresStore, StorageError, StorageResult, StoreOperation};
 pub struct NewRawFrame<'a> {
     pub device_id: &'a str,
     pub client_seq: i64,
+    /// Persisted UUID, or None for an unchanged legacy queue row.
+    pub upload_id: Option<&'a str>,
     pub channel: i16,
     pub received_at: DateTime<Utc>,
     pub bytes: &'a [u8],
@@ -21,6 +23,15 @@ pub struct PendingFrame {
     pub device_id: String,
     pub received_at: DateTime<Utc>,
     pub bytes: Vec<u8>,
+}
+
+/// A duplicate is acknowledged only after comparing the stored content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IngestOutcome {
+    Stored,
+    Duplicate,
+    Conflict,
 }
 
 impl PostgresStore {
@@ -45,22 +56,41 @@ impl PostgresStore {
         Ok(())
     }
 
-    /// Returns `true` when the frame was new, `false` when it was a duplicate.
-    pub async fn insert_raw_frame(&self, frame: &NewRawFrame<'_>) -> StorageResult<bool> {
-        let result = sqlx::query(
-            "INSERT INTO raw_frames (device_id, client_seq, channel, received_at, bytes)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (device_id, client_seq) DO NOTHING",
+    /// Stores a frame, or verifies that its immutable identity already has the same bytes.
+    /// # Errors
+    /// The database is unavailable.
+    pub async fn insert_raw_frame(&self, frame: &NewRawFrame<'_>) -> StorageResult<IngestOutcome> {
+        let fail = |e| StorageError::unavailable(StoreOperation::InsertRawFrame, e);
+        let mut tx = self.pool().begin().await.map_err(fail)?;
+        let inserted: Option<i64> = sqlx::query_scalar(
+            "INSERT INTO raw_frames(device_id,client_seq,upload_id,channel,received_at,bytes)
+             VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING id",
         )
         .bind(frame.device_id)
         .bind(frame.client_seq)
+        .bind(frame.upload_id)
         .bind(frame.channel)
         .bind(frame.received_at)
         .bind(frame.bytes)
-        .execute(self.pool())
+        .fetch_optional(&mut *tx)
         .await
-        .map_err(|source| StorageError::unavailable(StoreOperation::InsertRawFrame, source))?;
-        Ok(result.rows_affected() == 1)
+        .map_err(fail)?;
+        let outcome = if inserted.is_some() {
+            IngestOutcome::Stored
+        } else {
+            let same: bool = sqlx::query_scalar(
+                "SELECT bytes=$4 AND channel=$5 FROM raw_frames WHERE device_id=$1 AND
+                 (($3::text IS NOT NULL AND upload_id=$3) OR ($3 IS NULL AND upload_id IS NULL AND client_seq=$2))")
+                .bind(frame.device_id).bind(frame.client_seq).bind(frame.upload_id)
+                .bind(frame.bytes).bind(frame.channel).fetch_one(&mut *tx).await.map_err(fail)?;
+            if same {
+                IngestOutcome::Duplicate
+            } else {
+                IngestOutcome::Conflict
+            }
+        };
+        tx.commit().await.map_err(fail)?;
+        Ok(outcome)
     }
 
     /// Frames never decoded, or decoded by an older protocol version than `proto_version`.

@@ -95,3 +95,10 @@ hooks-install:
 # Install dev tooling not already provided by the Rust toolchain.
 install-tools:
     cargo install cargo-audit
+
+# Recovery tests require an explicitly supplied development database. They create
+# isolated schemas and fail if the connection is absent or migrations cannot run.
+test-db:
+    test -n "$SNOOP_TEST_DATABASE_URL"
+    cargo test -p snoop-storage -p snoop-api --test reliability -- --ignored
+    cargo test -p snoop-storage --test workouts

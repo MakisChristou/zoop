@@ -80,7 +80,9 @@ impl PostgresStore {
                     d.skin_temp_avg, d.asleep_s, d.samples,
                     st.load, st.trimp, st.kcal, st.zones_min
              FROM d LEFT JOIN strains st
-               ON st.device_id = $1 AND st.day = d.day AND st.algo_version = $5
+               ON st.device_id = $1 AND st.day = d.day AND st.algo_version = coalesce(
+                 (SELECT max(j.algo_version) FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='workout'
+                  AND j.day=d.day AND j.tz=$2 AND j.completed_generation>0 AND j.algo_version<=$5),1)
              ORDER BY d.day",
         )
         .bind(device_id)

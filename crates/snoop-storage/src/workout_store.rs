@@ -42,6 +42,7 @@ pub struct WorkoutRow {
     pub kcal: Option<f32>,
     pub steps: Option<i32>,
     pub auto_detected: bool,
+    pub notification_eligible: bool,
 }
 
 /// Shared projection: the newest label covering at least half the session wins.
@@ -51,7 +52,7 @@ const SELECT_WORKOUT: &str = "
            coalesce(l.kind, w.kind, 'activity') AS kind,
            coalesce(w.kind, 'activity') AS detected_kind,
            (l.kind IS NOT NULL) AS edited,
-           w.load, w.avg_hr, w.max_hr, w.trimp, w.zones_min, w.kcal, w.steps, w.auto_detected
+           w.load, w.avg_hr, w.max_hr, w.trimp, w.zones_min, w.kcal, w.steps, w.auto_detected, w.notification_eligible
     FROM workouts w
     LEFT JOIN LATERAL (
       SELECT kind FROM workout_labels l
@@ -61,7 +62,14 @@ const SELECT_WORKOUT: &str = "
             >= extract(epoch FROM w.end_ts - w.start_ts)
       ORDER BY l.updated_at DESC LIMIT 1
     ) l ON true
-    WHERE w.device_id = $1 AND w.algo_version = $2";
+    WHERE w.device_id = $1 AND w.algo_version =
+      coalesce((SELECT max(j.algo_version) FROM analysis_jobs j
+        WHERE j.device_id=w.device_id AND j.kind='workout' AND j.completed_generation>0 AND j.algo_version<=$2
+        AND j.tz=coalesce((SELECT tz FROM profiles WHERE device_id=w.device_id),'UTC')
+        AND j.day=(w.start_ts AT TIME ZONE j.tz)::date),
+        (SELECT max(old.algo_version) FROM workouts old WHERE old.device_id=w.device_id AND old.algo_version<=$2
+         AND (old.start_ts AT TIME ZONE coalesce((SELECT tz FROM profiles WHERE device_id=w.device_id),'UTC'))::date
+           = (w.start_ts AT TIME ZONE coalesce((SELECT tz FROM profiles WHERE device_id=w.device_id),'UTC'))::date))";
 
 impl PostgresStore {
     /// Stores a day's sessions: rows matching an existing session on its natural key

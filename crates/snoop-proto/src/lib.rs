@@ -26,7 +26,9 @@ pub use crc::{crc16_modbus, crc32};
 pub use decode::{Decoded, PROTO_VERSION, decode_frame};
 pub use error::{ProtoError, ProtoResult};
 pub use event::{BatteryLevel, Event, EventPayload};
-pub use framing::{Frame, HEADER_LEN, MIN_FRAME_LEN, PacketType, Reassembler, TRAILER_LEN};
+pub use framing::{
+    Frame, HEADER_LEN, MIN_FRAME_LEN, PacketType, Reassembler, TRAILER_LEN, encode_frame,
+};
 pub use record::{
     ActivityClass, BandState, Biometric, EcgStrip, Layout, RecordHeader, UnknownRecord,
 };

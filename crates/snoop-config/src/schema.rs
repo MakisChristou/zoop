@@ -26,6 +26,9 @@ pub struct StorageConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WorkerConfig {
+    /// Pause calculation and bootstrap during a staged rollout; decoding continues.
+    #[serde(default = "default_history_enabled")]
+    pub history_enabled: bool,
     /// Idle sleep between decode passes.
     #[serde(default = "default_poll_interval_ms")]
     pub poll_interval_ms: u64,
@@ -40,6 +43,7 @@ pub struct WorkerConfig {
 impl Default for WorkerConfig {
     fn default() -> Self {
         Self {
+            history_enabled: true,
             poll_interval_ms: default_poll_interval_ms(),
             batch_size: default_batch_size(),
             analysis_interval_s: default_analysis_interval_s(),
@@ -57,4 +61,8 @@ const fn default_batch_size() -> i64 {
 
 const fn default_analysis_interval_s() -> u64 {
     900
+}
+
+const fn default_history_enabled() -> bool {
+    true
 }

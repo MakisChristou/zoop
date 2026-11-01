@@ -32,6 +32,7 @@ let
     poll_interval_ms = ${toString cfg.pollIntervalMs}
     batch_size = ${toString cfg.batchSize}
     analysis_interval_s = ${toString cfg.analysisIntervalS}
+    history_enabled = ${lib.boolToString cfg.historyEnabled}
   '';
 in
 {
@@ -81,6 +82,12 @@ in
     batchSize = lib.mkOption {
       type = lib.types.int;
       default = 500;
+    };
+
+    historyEnabled = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Process durable history jobs. Disable to stage a migration or pause backfill while uploads continue.";
     };
 
     analysisIntervalS = lib.mkOption {

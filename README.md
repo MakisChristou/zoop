@@ -89,7 +89,10 @@ YYYY-MM-DD` scores one night and prints the result.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | liveness |
-| `POST` | `/v1/ingest` | batch of base64 frames; idempotent on `(device_id, client_seq)` |
+| `POST` | `/v1/ingest` | legacy batches; returns non-2xx if any frame cannot be acknowledged |
+| `POST` | `/v2/ingest` | per-frame receipts; UUID identities and isolated legacy sequences |
+| `GET` | `/ready` | worker readiness; 503 for stale, failed or paused workers |
+| `GET` | `/v1/devices/{deviceId}/processing` | pending decode, analysis, failures and oldest pending date |
 | `GET` | `/v1/devices/{deviceId}/latest` | most recent decoded sample |
 | `GET` | `/v1/devices/{deviceId}/days/{date}` | minute-averaged samples for a UTC day |
 | `GET` | `/v1/devices/{deviceId}/sleeps?limit=14` | analysed nights with stage segments, newest first |
@@ -99,7 +102,7 @@ YYYY-MM-DD` scores one night and prints the result.
 | `PUT` | `/v1/devices/{deviceId}/workouts/{id}/kind` | relabel a session: `{"kind": "walk" \| "resistance" \| "activity"}` |
 | `GET` `PUT` | `/v1/devices/{deviceId}/profile` | body profile (sex, birth year, weight, height) and home time zone |
 
-All `/v1` routes require `Authorization: Bearer <server.ingest_token>`.
+All `/v1` and `/v2` routes require `Authorization: Bearer <server.ingest_token>`.
 
 ## Repository layout
 
@@ -109,7 +112,7 @@ crates/
   snoop-analytics  HRV, baselines; sleep staging in progress
   snoop-config     TOML configuration and validation
   snoop-storage    Postgres via sqlx
-  snoop-core       decode worker and future analytics workers
+  snoop-core       transactional decoder and durable history worker
   snoop-api        axum HTTP API
   snoop            binary: run | migrate | validate
 migrations/        schema, applied by `snoop migrate`
@@ -172,3 +175,37 @@ independent implementation.
 
 MIT. snoop-api is an independent project, not affiliated with or endorsed by WHOOP, Inc.
 Metrics are approximations from published methods and are not medical advice.
+
+### Reliable history and database tests
+
+The durable history worker replaces the trailing-day loops. It seeds all stored
+sample dates once per device, profile time zone and algorithm-version pair, then
+processes coalesced jobs invalidated by later data. No date range or cursor can
+silently skip an old upload. `worker.history_enabled = false` pauses analysis while
+intake and decoding continue; the same option is `services.snoop.historyEnabled`
+in NixOS. The reconciliation interval remains `worker.analysis_interval_s`.
+
+Sleep stays at version 2. Workouts/day load advance to version 2 because their
+physiological inputs are now bounded by the day being calculated. Profile revisions
+are retained; existing historical profiles have only a bootstrap snapshot, not
+invented past measurements. Previous workout results remain readable until each
+replacement day is published, including an explicitly completed empty day.
+
+The CLI `analyze` and `analyze-workouts` commands enqueue durable work and print a
+preview. Publication happens through the supervised worker, so the CLI cannot race
+it or bypass the generation check. Backfill work never creates eligible session
+notifications. A job failure retains the last result and retries with capped backoff.
+
+Run the database recovery suite explicitly against a **development** database:
+
+```sh
+export SNOOP_TEST_DATABASE_URL=postgres://snoop:snoop@localhost:5433/snoop
+just test-db
+```
+
+These tests create isolated schemas, apply the real migrations and require a working
+connection. They cover upload conflicts, lost-response retries, legacy compatibility,
+transaction rollback, replay, leases, stale-worker fencing, late historical samples,
+atomic publication, empty results, labels, profile history, DST and quarter-hour
+zones. CI runs them with Postgres; the ordinary unit suite remains database-free.
+See [the rollout and recovery guide](docs/RELIABLE_HISTORY.md) for deployment order.

@@ -84,16 +84,22 @@ impl PostgresStore {
 
     /// Highest one-minute mean heart rate over the trailing `days`, any state. A
     /// minute mean is robust to single-sample glitches where a raw maximum is not.
-    pub async fn observed_hr_max(&self, device_id: &str, days: i32) -> StorageResult<Option<f64>> {
+    pub async fn observed_hr_max_at(
+        &self,
+        device_id: &str,
+        days: i32,
+        cutoff: DateTime<Utc>,
+    ) -> StorageResult<Option<f64>> {
         sqlx::query_scalar(
             "SELECT max(m)::float8 FROM (
                SELECT avg(hr) AS m FROM samples
-               WHERE device_id = $1 AND hr > 0 AND ts > now() - make_interval(days => $2)
+               WHERE device_id = $1 AND hr > 0 AND ts >= $3::timestamptz - make_interval(days => $2) AND ts < $3
                GROUP BY date_trunc('minute', ts)
              ) minutes",
         )
         .bind(device_id)
         .bind(days)
+        .bind(cutoff)
         .fetch_one(self.pool())
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::ObservedHrMax, source))
@@ -185,7 +191,7 @@ impl PostgresStore {
         to: DateTime<Utc>,
     ) -> StorageResult<Vec<(DateTime<Utc>, DateTime<Utc>)>> {
         sqlx::query_as(
-            "SELECT DISTINCT ON (night_of) start_ts, end_ts FROM sleeps
+            "SELECT DISTINCT ON (night_of) start_ts, end_ts FROM effective_sleeps
              WHERE device_id = $1 AND end_ts > $2 AND start_ts < $3
              ORDER BY night_of, algo_version DESC",
         )
@@ -198,13 +204,18 @@ impl PostgresStore {
     }
 
     /// Resting heart rate from the most recently analysed night, any version.
-    pub async fn latest_resting_hr(&self, device_id: &str) -> StorageResult<Option<f64>> {
+    pub async fn resting_hr_at(
+        &self,
+        device_id: &str,
+        cutoff: DateTime<Utc>,
+    ) -> StorageResult<Option<f64>> {
         let found: Option<Option<f64>> = sqlx::query_scalar(
-            "SELECT (metrics -> 'physiology' ->> 'resting_hr')::float8 FROM sleeps
-             WHERE device_id = $1 AND metrics -> 'physiology' ->> 'resting_hr' IS NOT NULL
+            "SELECT (metrics -> 'physiology' ->> 'resting_hr')::float8 FROM effective_sleeps
+             WHERE device_id = $1 AND end_ts <= $2 AND metrics -> 'physiology' ->> 'resting_hr' IS NOT NULL
              ORDER BY night_of DESC, algo_version DESC LIMIT 1",
         )
         .bind(device_id)
+        .bind(cutoff)
         .fetch_optional(self.pool())
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::RestingHr, source))?;

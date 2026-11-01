@@ -86,6 +86,10 @@ pub(crate) async fn put_profile(
         .await?;
     state
         .store
+        .seed_history(snoop_core::HistoryWorker::versions())
+        .await?;
+    state
+        .store
         .get_profile(&device_id)
         .await?
         .map(Json)
