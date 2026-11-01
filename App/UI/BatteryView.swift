@@ -99,6 +99,6 @@ struct BatteryView: View {
             }
         }
         .frame(maxWidth: .infinity).padding(20)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 24))
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
     }
 }

@@ -82,8 +82,8 @@ struct ActivityView: View {
                 ForEach(week) { day in
                     VStack(spacing: 4) {
                         ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 3).fill(.quaternary.opacity(0.5)).frame(height: 44)
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 2).fill(.quaternary.opacity(0.5)).frame(height: 44)
+                            RoundedRectangle(cornerRadius: 2)
                                 .fill(Calendar.current.isDateInToday(day.date) ? Color.orange : Color.orange.opacity(0.45))
                                 .frame(height: max(2, 44 * CGFloat((day.load ?? 0) / LoadRing.maximum)))
                         }

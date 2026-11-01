@@ -175,7 +175,7 @@ struct DayTimeline: View {
             if !sessions.isEmpty {
                 Label { Text("session") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.orange.opacity(0.5)).frame(width: 12, height: 8) }
             }
-            Label { Text("heart rate, min–max per minute") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.red.opacity(0.5)).frame(width: 12, height: 8) }
+            Label { Text("heart rate") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.red.opacity(0.5)).frame(width: 12, height: 8) }
         }
         .font(.caption2).foregroundStyle(.secondary)
     }

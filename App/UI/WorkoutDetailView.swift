@@ -78,7 +78,7 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                        .font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
                     Text("load").font(.title3).foregroundStyle(.secondary)
                 }
                 Text("\(workout.startTs.formatted(date: .omitted, time: .shortened)) – \(workout.endTs.formatted(date: .omitted, time: .shortened)) · \(ActivityView.dayTitle(workout.startTs).lowercased())")
@@ -115,7 +115,7 @@ struct WorkoutDetailView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -133,13 +133,13 @@ struct WorkoutDetailView: View {
                 HStack(spacing: 2) {
                     ForEach(Array(minutesByZone.enumerated()), id: \.offset) { zone, min in
                         if min > 0 {
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 2)
                                 .fill(ZoneColors.color(zone))
                                 .frame(width: max(6, geo.size.width * CGFloat(min) / CGFloat(total) - 2))
                         }
                     }
                     if minutesByZone.allSatisfy({ $0 == 0 }) {
-                        RoundedRectangle(cornerRadius: 3).fill(.quaternary.opacity(0.5))
+                        RoundedRectangle(cornerRadius: 2).fill(.quaternary.opacity(0.5))
                     }
                 }
             }

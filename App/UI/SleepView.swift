@@ -74,7 +74,7 @@ struct SleepView: View {
                             }
                             .padding(.top, 8)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableCardStyle())
                         HStack {
                             Text(w.onset.formatted(date: .omitted, time: .shortened))
                             Spacer()

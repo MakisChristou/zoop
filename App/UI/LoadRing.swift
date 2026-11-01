@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Load on its 0–21 scale as an arc that warms from yellow to red as it fills. The
+/// Load on its 0–21 scale as an orange arc, the one colour load has everywhere. The
 /// number next to it carries the value; the ring only gives it a size at a glance.
 struct LoadRing: View {
     let load: Double
     var lineWidth: CGFloat = 6
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let maximum = 21.0
 
@@ -16,12 +17,9 @@ struct LoadRing: View {
                 .stroke(.quaternary.opacity(0.6), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(
-                    AngularGradient(colors: [.yellow, .orange, .red, .red], center: .center, startAngle: .degrees(0), endAngle: .degrees(360)),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
+                .stroke(Color.orange, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.35), value: fraction)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: fraction)
         }
         .accessibilityLabel("Load \(load.formatted(.number.precision(.fractionLength(1)))) of 21")
     }

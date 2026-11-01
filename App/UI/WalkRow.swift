@@ -9,7 +9,7 @@ struct WalkRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "figure.walk")
-                .font(.body.weight(.semibold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.teal)
                 .frame(width: 24)
                 .accessibilityHidden(true)
@@ -25,8 +25,8 @@ struct WalkRow: View {
             }
         }
         .padding(12)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Walk from \(bout.start.formatted(date: .omitted, time: .shortened)) to \(bout.end.formatted(date: .omitted, time: .shortened)), \(bout.durationS / 60) minutes, \(bout.steps.formatted()) steps")
         .accessibilityHint(linked ? "Opens the session" : "")

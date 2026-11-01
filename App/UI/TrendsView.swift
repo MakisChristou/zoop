@@ -144,8 +144,9 @@ struct TrendsView: View {
                             Text(m.rawValue)
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(metric == m ? m.color.opacity(0.9) : Color.secondary.opacity(0.15), in: Capsule())
-                                .foregroundStyle(metric == m ? .white : .primary)
+                                .background(metric == m ? m.color.opacity(0.18) : Color.secondary.opacity(0.12), in: Capsule())
+                                .foregroundStyle(metric == m ? m.color : .primary)
+                                .animation(.easeOut(duration: 0.15), value: metric)
                         }
                         .buttonStyle(.plain)
                     }

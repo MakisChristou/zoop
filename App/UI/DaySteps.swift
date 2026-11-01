@@ -103,7 +103,7 @@ struct DaySteps: View {
                 Text("By hour").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
                 Spacer()
                 if let h = scrubHour, let hour = hours.first(where: { $0.hour == h }) {
-                    Text("\(String(format: "%02d", h)):00 · \(hour.steps.formatted()) steps")
+                    Text("\(hourLabel(h)) · \(hour.steps.formatted()) steps")
                         .font(.caption.weight(.semibold)).monospacedDigit()
                 } else if data == nil {
                     Text("loading").font(.caption2).foregroundStyle(.tertiary)
@@ -118,7 +118,7 @@ struct DaySteps: View {
             }
             .chartXScale(domain: -0.5...23.5)
             .chartYScale(domain: 0...Double(max(peak, 100)))
-            .chartXAxis { AxisMarks(values: [0, 6, 12, 18]) { v in AxisGridLine(); AxisValueLabel { Text("\(v.as(Int.self) ?? 0)h") } } }
+            .chartXAxis { AxisMarks(values: [0, 6, 12, 18]) { v in AxisGridLine(); AxisValueLabel { Text(hourLabel(v.as(Int.self) ?? 0)) } } }
             .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
             .frame(height: 140)
             .opacity(data == nil ? 0.35 : 1)
@@ -145,6 +145,12 @@ struct DaySteps: View {
         }
         .padding()
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// The same clock as the Today timeline, so 6h and 6 AM never sit side by side.
+    private func hourLabel(_ hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+        return date.formatted(.dateTime.hour())
     }
 
     private func busiestHour(_ hours: [Hour]) -> String {

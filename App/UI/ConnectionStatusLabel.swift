@@ -17,9 +17,8 @@ struct ConnectionStatusLabel: View {
                         .font(.footnote).foregroundStyle(BatteryColors.level(battery)).monospacedDigit()
                 }
             }
-            .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(.quaternary.opacity(0.4), in: Capsule())
-            .contentShape(Capsule())
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
             .fixedSize()
         }
         .buttonStyle(.plain)

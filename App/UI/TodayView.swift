@@ -55,8 +55,8 @@ struct TodayView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(model.strap.smoothedHeartRate.map(String.init) ?? "–")
-                    .font(.system(size: 72, weight: .semibold, design: .rounded))
+                Text(model.strap.smoothedHeartRate.map(String.init) ?? "—")
+                    .font(.system(size: model.strap.smoothedHeartRate == nil ? 40 : 56, weight: .semibold, design: .rounded))
                     .foregroundStyle(model.strap.smoothedHeartRate == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                     .monospacedDigit()
                     .contentTransition(.numericText())
