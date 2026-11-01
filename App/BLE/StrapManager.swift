@@ -275,7 +275,8 @@ final class StrapManager: NSObject, ObservableObject {
             }
             if response.command == Command.getHello.code, response.result == .success {
                 state = .ready
-                requestBattery()
+                // The handshake has passed the persistence barrier; history can start.
+                requestOffload()
             }
         default:
             break
@@ -398,7 +399,6 @@ extension StrapManager: CBPeripheralDelegate {
             log.info("all channels subscribed; sending hello")
             send(Command.clientHello)
             send(Command.getAdvertisingName(sequence: nextSequence()))
-            requestOffload()
             offloadTimer?.invalidate()
             offloadTimer = Timer.scheduledTimer(withTimeInterval: Self.offloadInterval, repeats: true) { [weak self] _ in
                 self?.requestOffload()
