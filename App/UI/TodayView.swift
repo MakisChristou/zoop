@@ -28,12 +28,8 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     DateNavigation(title: dayLabel, canGoBack: canStepBack, canGoForward: !isViewingToday,
                                    previousLabel: "Previous day", nextLabel: "Next day",
-                                   previous: { stepDay(-1) }, next: { stepDay(1) })
-                    if !isViewingToday {
-                        Button("Back to today") { selectedDay = nil }
-                            .font(.footnote).frame(minHeight: 44)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
+                                   previous: { stepDay(-1) }, next: { stepDay(1) },
+                                   reset: { selectedDay = nil }, canReset: !isViewingToday)
                     overview
                     stepsCard
                     heartRate
