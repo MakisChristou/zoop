@@ -53,17 +53,4 @@ final class SleepCorrectionsTests: XCTestCase {
         }.resume()
         wait(for: [done], timeout: 10)
     }
-    func testMissingDayCanBeAddedButRequiresRecordings() {
-        let app = launch()
-        let previous = app.buttons["Previous day"]
-        XCTAssertTrue(previous.waitForExistence(timeout: 15))
-        for _ in 0..<4 { previous.tap() }
-        XCTAssertTrue(app.staticTexts["No main sleep"].waitForExistence(timeout: 5))
-        app.buttons["Add sleep"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["saveSleep"].waitForExistence(timeout: 5)); app.buttons["saveSleep"].tap()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'No strap data'")).firstMatch.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["Fell asleep"].exists)
-        XCTAssertTrue(app.buttons["saveSleep"].isEnabled)
-        screenshot(app, "Missing sleep draft retained")
-    }
 }

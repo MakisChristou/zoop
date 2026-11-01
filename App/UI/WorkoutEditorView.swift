@@ -23,16 +23,11 @@ struct WorkoutEditorView: View {
 
     init(mode: WorkoutEditorMode, onSaved: @escaping () -> Void) {
         self.mode = mode; self.onSaved = onSaved
-        let end: Date
-        if let workout = mode.workout { end = workout.endTs }
-        else if case let .add(day) = mode {
-            let proposed = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: day) ?? day
-            end = min(proposed, Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970 / 60) * 60))
-        } else { end = Date() }
-        let start = mode.workout?.startTs ?? end.addingTimeInterval(-30 * 60)
+        let end = mode.workout.endTs
+        let start = mode.workout.startTs
         _start = State(initialValue: start); _end = State(initialValue: end)
         _split = State(initialValue: Date(timeIntervalSince1970: floor(start.addingTimeInterval(end.timeIntervalSince(start) / 2).timeIntervalSince1970 / 60) * 60))
-        let kind = ActivityKind.named(mode.workout?.kind ?? "resistance")
+        let kind = ActivityKind.named(mode.workout.kind)
         _kind = State(initialValue: kind); _secondKind = State(initialValue: kind)
     }
 
@@ -132,7 +127,8 @@ struct WorkoutEditorView: View {
     }
 
     private func loadNeighbours() async {
-        guard mode.action == "merge", let workout = mode.workout else { return }
+        guard mode.action == "merge" else { return }
+        let workout = mode.workout
         loading = true
         defer { loading = false }
         do {
@@ -155,11 +151,11 @@ struct WorkoutEditorView: View {
     }
 
     private func save() async {
-        guard !model.strap.serial.isEmpty else { error = "Sync your WHOOP before adding a workout."; return }
+        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to save this change."; return }
         guard previewEnd > previewStart, previewEnd.timeIntervalSince(previewStart) <= Self.maximumDuration else {
             error = "Choose an end after the start, within 24 hours."; return
         }
-        var targets = mode.workout.map { [WorkoutCorrection.Target($0)] } ?? []
+        var targets = [WorkoutCorrection.Target(mode.workout)]
         var intervals = [WorkoutCorrection.Interval(startTs: previewStart, endTs: previewEnd, kind: kind.rawValue)]
         if mode.action == "merge" {
             guard let merged else { error = "Choose a workout to merge with."; return }
@@ -170,7 +166,7 @@ struct WorkoutEditorView: View {
             intervals = [.init(startTs: start, endTs: split, kind: kind.rawValue), .init(startTs: split, endTs: end, kind: secondKind.rawValue)]
         }
         let action: String
-        if mode.action == "edit", let original = mode.workout, start == original.startTs, end == original.endTs {
+        if mode.action == "edit", start == mode.workout.startTs, end == mode.workout.endTs {
             action = "label"
         } else { action = mode.action }
         var request = WorkoutCorrection(action: action, targets: targets, intervals: intervals)

@@ -39,12 +39,18 @@ final class WorkoutCorrectionsTests: XCTestCase {
         XCTAssertFalse(app.buttons["Back to today"].exists)
     }
 
-    func testMergeSplitRemoveAndRestoreFromTheApp() {
+    func testEditMergeSplitRemoveAndRestoreFromTheApp() {
         let app = launch()
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'workout-'" )).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 15))
         row.tap()
         XCTAssertTrue(app.buttons["Workout actions"].waitForExistence(timeout: 10))
+        app.buttons["Workout actions"].tap()
+        app.buttons["Edit workout"].tap()
+        XCTAssertTrue(app.navigationBars["Edit workout"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Start"].exists)
+        XCTAssertTrue(app.staticTexts["End"].exists)
+        app.buttons["Cancel"].tap()
         app.buttons["Workout actions"].tap()
         app.buttons["Merge workouts"].tap()
         let neighbour = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Strength training,'")).firstMatch
@@ -67,17 +73,5 @@ final class WorkoutCorrectionsTests: XCTestCase {
         restore.tap()
         XCTAssertTrue(app.buttons["Workout actions"].waitForExistence(timeout: 15))
         screenshot(app, "Restored workout")
-    }
-
-    func testAddingWithoutSensorDataKeepsTheDraftAndShowsAUsefulError() {
-        let app = launch()
-        XCTAssertTrue(app.buttons["addWorkout"].waitForExistence(timeout: 15))
-        app.buttons["addWorkout"].tap()
-        app.buttons["saveWorkout"].tap()
-        let error = app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'No strap data'")).firstMatch
-        XCTAssertTrue(error.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.navigationBars["Add workout"].exists)
-        XCTAssertTrue(app.buttons["saveWorkout"].isEnabled)
-        screenshot(app, "No-data validation preserves the draft")
     }
 }

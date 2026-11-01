@@ -19,14 +19,15 @@ struct SleepView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < SnoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) }, reset: { editor = .init(action: "add", day: selectedDay) }, canReset: true, resetTitle: "Add sleep", resetIcon: "plus", resetAccessibility: "Add sleep")
+                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < SnoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) })
                     if let main, let night = main.night { content(night, record: main) }
                     else if loading { ProgressView().frame(maxWidth: .infinity).padding(40) }
                     else {
                         ContentUnavailableView {
                             Label(main != nil ? "Updating sleep" : "No main sleep", systemImage: "moon.zzz")
-                        } description: { Text(error ?? "Add missed sleep from your recorded data.") }
-                        actions: { Button("Add sleep") { editor = .init(action: "add", day: selectedDay) } }
+                        } description: {
+                            Text(error ?? (main != nil ? "Your sleep is being updated." : "Detected sleep appears here after syncing."))
+                        }
                     }
                     if !rows.filter({ $0.kind == "nap" }).isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
@@ -75,8 +76,8 @@ struct SleepView: View {
                         SleepDuration(seconds: w.asleepS, size: 48)
                         Spacer()
                         Menu {
-                            Button("Edit sleep", systemImage: "pencil") { editor = .init(action: "edit", record: record) }
-                            Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .init(action: "merge", record: record) }
+                            Button("Edit sleep", systemImage: "pencil") { editor = .edit(record) }
+                            Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .merge(record) }
                             if let id = record.lastEdit { Button("Undo last change", systemImage: "arrow.uturn.backward") { Task { do { try await model.sleep.undo(device: model.strap.serial, id: id) } catch { self.error = error.localizedDescription } } } }
                             Button("Reset to automatic", systemImage: "arrow.counterclockwise") { resetTarget = record }
                             NavigationLink("Sleep details") { SleepSessionDetailView(initial: record) }

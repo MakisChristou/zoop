@@ -19,16 +19,14 @@ struct SleepEditorView: View {
     @State private var request: WorkoutCorrection?
     init(mode: SleepEditorMode) {
         self.mode = mode
-        let proposed = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: mode.day) ?? mode.day
-        let end = mode.record?.endTs ?? min(proposed, Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970 / 60) * 60))
-        _end = State(initialValue: end)
-        _start = State(initialValue: mode.record?.startTs ?? end.addingTimeInterval(-8 * 3600))
-        _kind = State(initialValue: mode.record?.kind ?? "main")
+        _end = State(initialValue: mode.record.endTs)
+        _start = State(initialValue: mode.record.startTs)
+        _kind = State(initialValue: mode.record.kind)
     }
     private var neighbour: SnoopAPI.SleepSession? { neighbours.first { $0.id == mergeId } }
     private var from: Date { neighbour.map { min(start, $0.startTs) } ?? start }
     private var to: Date { neighbour.map { max(end, $0.endTs) } ?? end }
-    private var timezone: TimeZone { TimeZone(identifier: mode.record?.timezone ?? model.sleep.items.first?.timezone ?? TimeZone.current.identifier) ?? .current }
+    private var timezone: TimeZone { TimeZone(identifier: mode.record.timezone) ?? .current }
     var body: some View {
         NavigationStack {
             Form {
@@ -88,7 +86,8 @@ struct SleepEditorView: View {
         .tint(SnoopStyle.load).foregroundStyle(SnoopStyle.text).presentationBackground(SnoopStyle.background)
     }
     private func loadNeighbours() async {
-        guard mode.action == "merge", let row = mode.record else { return }
+        guard mode.action == "merge" else { return }
+        let row = mode.record
         loading = true; defer { loading = false }
         do {
             let rows = try await SnoopAPI.sleepSessions(deviceId: model.strap.serial, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration)).filter { $0.id != row.id }
@@ -106,9 +105,9 @@ struct SleepEditorView: View {
         } catch { if !Task.isCancelled { minutes = []; chartError = "Couldn’t load the chart. You can still save your times." } }
     }
     private func save() async {
-        guard !model.strap.serial.isEmpty else { error = "Sync your WHOOP before adding sleep."; return }
+        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to save this change."; return }
         guard to > from, to.timeIntervalSince(from) <= Self.maximumDuration else { error = "Choose a wake-up time after falling asleep, within 24 hours."; return }
-        var targets = mode.record.map { [WorkoutCorrection.Target($0)] } ?? []
+        var targets = [WorkoutCorrection.Target(mode.record)]
         if mode.action == "merge" { guard let neighbour else { error = "Choose a sleep recording to merge."; return }; targets.append(.init(neighbour)) }
         let draft = WorkoutCorrection(action: mode.action, targets: targets, intervals: [.init(startTs: from, endTs: to, kind: kind)])
         if request?.hasSameChange(as: draft) != true { request = draft }

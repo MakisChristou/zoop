@@ -6,7 +6,6 @@ struct ActivityView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var selectedDay: Date?
     let requestID: UUID
-    @State private var editor: WorkoutEditorMode?
     private var workouts: [SnoopAPI.Workout] { model.activity.items }
     @State private var days: [SnoopAPI.Day] = []
     @State private var error: String?
@@ -36,7 +35,6 @@ struct ActivityView: View {
             .mainScreenChrome("Activity")
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
-        .sheet(item: $editor) { mode in WorkoutEditorView(mode: mode) { } }
         .onChange(of: requestID) { _, _ in path = []; Task { await load() } }
         .onChange(of: selectedDay) { _, _ in Task { await load() } }
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
@@ -144,9 +142,6 @@ struct ActivityView: View {
             NavigationLink { RemovedWorkoutsView() } label: {
                 Image(systemName: "archivebox").frame(width: 44, height: 44)
             }.accessibilityLabel("Removed workouts")
-            Button { editor = .add(selectedDay ?? Date()) } label: {
-                Image(systemName: "plus").frame(width: 44, height: 44)
-            }.accessibilityLabel("Add workout").accessibilityIdentifier("addWorkout")
         }.padding(.horizontal, SnoopStyle.gutter)
     }
 

@@ -93,9 +93,9 @@ resistance training of twenty minutes or more, and anything else that raised hea
 rate for twenty minutes, left unlabelled for you to name. Each session shows its
 load on a 0–21 scale, time in five heart-rate zones, average and peak heart rate,
 calories and steps, with the heart-rate trace underneath. The session menu edits type and times, merges neighbouring sessions including rests,
-splits a session, removes a false detection, or undoes the last correction. Add a missed
-workout with the Activity + button; recorded strap data is required. Removed workouts
-can be restored from Activity. The server preserves corrections through recomputes. Nothing is
+splits a session, removes a false detection, or undoes the last correction. Editing
+starts from an existing detected workout, with its current times prefilled. Removed
+workouts can be restored from Activity. The server preserves corrections through recomputes. Nothing is
 detected on the phone: after each upload the app asks the server for new sessions,
 checks again one analysis interval later and whenever it returns to the foreground,
 and posts a local notification per session, including "tap to label" for unlabelled
@@ -187,15 +187,16 @@ xcodegen generate
 xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' test
 ```
 
-The tests verify selected-day navigation, merge/split/remove/restore and no-data
-validation. Reset the isolated fixture between full runs; the correction test changes
+The tests verify selected-day navigation and editing/merge/split/remove/restore.
+Reset the isolated fixture between full runs; the correction test changes
 its synthetic sessions. Real-device walk/gym validation remains separate.
 
 ### Sleep corrections and resetting history
 
 Sleep includes every local wake-up date, with naps available throughout the day.
-Use the plus button to add a missed recording, or a recording’s menu to edit its
-Fell asleep / Woke up times, change Main sleep / Nap, merge, remove, or undo.
+Use a detected recording’s menu to correct its Fell asleep / Woke up times,
+change Main sleep / Nap, merge, remove, or undo. Sleep and workout editors require
+an existing recording; the app does not offer manual creation.
 Saved readings are required. Missing periods remain gaps and awake breaks remain
 awake; editing the sleep period does not label every minute as sleep. Removed
 sleep can be restored from the Sleep screen.
@@ -208,7 +209,7 @@ Recent resets remain undoable after reopening the app; a conflicting newer edit
 must be undone first. Ordinary background recalculation preserves manual edits.
 Sleep, Today, Trends and dependent workout metrics refresh without detection alerts.
 
-The simulator suite also exercises sleep editing/merging, reset/undo, and missing-data
-validation. It uses only the synthetic backend fixture. Device validation uses a
+The simulator suite also exercises sleep editing/merging and reset/undo. It uses
+only the synthetic backend fixture. Device validation uses a
 normal signed install and launch; screen mirroring and a physical debugger are not
 needed to test these features.

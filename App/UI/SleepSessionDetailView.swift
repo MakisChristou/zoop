@@ -28,8 +28,8 @@ struct SleepSessionDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     if row.isActive {
-                        Button("Edit sleep", systemImage: "pencil") { editor = .init(action: "edit", record: row) }
-                        Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .init(action: "merge", record: row) }
+                        Button("Edit sleep", systemImage: "pencil") { editor = .edit(row) }
+                        Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .merge(row) }
                         if let edit = row.lastEdit { Button("Undo last change", systemImage: "arrow.uturn.backward") { Task { await undo(edit) } } }
                     }
                     Button("Reset to automatic", systemImage: "arrow.counterclockwise") { reset = true }
