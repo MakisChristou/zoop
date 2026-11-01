@@ -20,6 +20,8 @@ struct TodayView: View {
     @State private var steps: SnoopAPI.StepsDay?
     @State private var path = NavigationPath()
     @State private var historyFailed = false
+    @State private var insights: MorningInsights?
+    @State private var insightsFailed = false
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -32,6 +34,12 @@ struct TodayView: View {
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
                     overview
                     stepsCard
+                    if loadedDay == viewedDay, let insights {
+                        MorningBriefView(insights: insights, day: viewedDay)
+                    } else if insightsFailed && loadedDay == viewedDay {
+                        Button("Couldn’t update morning insights. Retry") { Task { await loadHistory() } }
+                            .font(.footnote).frame(minHeight: 44)
+                    }
                     heartRate
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
@@ -184,13 +192,8 @@ struct TodayView: View {
     }
 
     private var healthMetrics: some View {
-        let night = selectedNight
         let columns = typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
-            Tile(title: "Resting heart rate", value: night?.metrics.physiology.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm",
-                 caption: "During sleep", history: precedingNights.compactMap { $0.metrics.physiology.restingHr }, color: SnoopStyle.heartRate)
-            Tile(title: "HRV", value: night?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms",
-                 caption: "During sleep", history: precedingNights.compactMap { $0.metrics.physiology.hrvRmssdMs }, color: SnoopStyle.sleep)
             Tile(title: "Skin temperature", value: skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
                  caption: isViewingToday ? freshness : "Day average", history: precedingDays.compactMap { $0.skinTempAvg }, color: SnoopStyle.temperature)
         }
@@ -239,11 +242,13 @@ struct TodayView: View {
         loadID = requestID
         loading = true
         defer { if loadID == requestID { loading = false } }
+        async let brief = SnoopAPI.morningInsights(deviceId: serial, day: day)
         async let d = SnoopAPI.days(deviceId: serial, limit: 30)
         async let n = SnoopAPI.nights(deviceId: serial, limit: 30)
         async let m = SnoopAPI.minutes(deviceId: serial, day: day)
         async let w: Void = model.activity.reload(device: serial, from: day, to: Calendar.current.date(byAdding: .day, value: 1, to: day))
         async let s = SnoopAPI.steps(deviceId: serial, day: day)
+        let fetchedInsights = try? await brief
         let fetchedDays = try? await d
         let fetchedNights = try? await n
         let fetchedMinutes = try? await m
@@ -254,6 +259,8 @@ struct TodayView: View {
         if let fetchedDays { days = fetchedDays }
         if let fetchedNights { nights = fetchedNights }
 
+        insights = fetchedInsights
+        insightsFailed = fetchedInsights == nil
         minutes = fetchedMinutes ?? []
         steps = fetchedSteps
         loadedDay = day

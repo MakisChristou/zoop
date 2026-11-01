@@ -213,3 +213,16 @@ The simulator suite also exercises sleep editing/merging and reset/undo. It uses
 only the synthetic backend fixture. Device validation uses a
 normal signed install and launch; screen mirroring and a physical debugger are not
 needed to test these features.
+
+## Morning insights
+
+Today’s Morning brief opens personal sleep, HRV and resting-heart-rate comparisons,
+with a weekly summary and sleep timing variation. It follows the selected date.
+Seven usable prior readings allow an early baseline; fourteen allow a usual range.
+Incomplete recordings, learning and recalculation remain explicit. The API owns the
+calculations; corrections, Reset and Undo refresh the results. Methods are available
+from the information button. No new notification permission or setup is required.
+
+`MorningInsightsTests` exercises the brief, detail, method sheet, historical navigation
+and large text using the synthetic `INSIGHT-REVIEW` fixture on a development API.
+Set `SNOOP_UI_SERVER_URL` for that API; the default test loopback port is 28473.
