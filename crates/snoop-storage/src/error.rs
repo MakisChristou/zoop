@@ -5,6 +5,8 @@ type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("{0}")]
+    InvalidQuery(String),
+    #[error("{0}")]
     InvalidCorrection(String),
     #[error("{0}")]
     CorrectionConflict(String),

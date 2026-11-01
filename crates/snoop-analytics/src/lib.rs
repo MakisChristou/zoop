@@ -6,6 +6,7 @@ pub mod baseline;
 pub mod bouts;
 pub mod energy;
 pub mod hrv;
+pub mod insights;
 pub mod interval;
 pub mod respiration;
 pub mod sleep;

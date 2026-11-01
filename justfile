@@ -104,3 +104,4 @@ test-db:
     cargo test -p snoop-storage --test workouts
     cargo test -p snoop-api --test corrections -- --ignored
     cargo test -p snoop-api --test sleep_corrections -- --ignored
+    cargo test -p snoop-api --test insights -- --ignored

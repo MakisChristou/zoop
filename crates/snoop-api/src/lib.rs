@@ -6,6 +6,7 @@ mod devices;
 mod epochs;
 mod error;
 mod ingest;
+mod insights;
 mod processing;
 mod profile;
 mod query;
@@ -40,6 +41,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/v1/devices/{deviceId}/processing",
             get(processing::processing),
+        )
+        .route(
+            "/v1/devices/{deviceId}/days/{date}/insights",
+            get(insights::insights),
         )
         .route("/v1/ingest", post(ingest))
         .route("/v2/ingest", post(ingest_v2))

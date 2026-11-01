@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StoreOperation {
     Analysis,
+    MorningInsights,
     CorrectWorkout,
     Connect,
     Migrate,
@@ -38,6 +39,7 @@ impl fmt::Display for StoreOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::CorrectWorkout => "correct workout",
+            Self::MorningInsights => "read morning insights",
             Self::Analysis => "process analysis work",
             Self::Connect => "connect",
             Self::Migrate => "migrate",

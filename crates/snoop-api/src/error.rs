@@ -31,7 +31,9 @@ struct ErrorDetail {
 impl From<StorageError> for ApiError {
     fn from(error: StorageError) -> Self {
         match error {
-            StorageError::InvalidCorrection(message) => Self::BadRequest(message),
+            StorageError::InvalidQuery(message) | StorageError::InvalidCorrection(message) => {
+                Self::BadRequest(message)
+            }
             StorageError::CorrectionConflict(message) => Self::Conflict(message),
             StorageError::CorrectionNotFound => Self::NotFound,
             other => Self::Storage(other),

@@ -84,3 +84,7 @@ legacy nights/naps before versioned backfill. `effective_sleep_read` keeps the o
 night API aligned with corrections. Reset snapshots archive manual ownership and
 allow explicit, reversible return to automatic analysis; normal backfill preserves
 manual ownership. See [sleep corrections and resets](SLEEP_CORRECTIONS.md).
+
+Morning insights are computed on demand from a bounded, consistent effective-sleep
+snapshot. They have an independent comparison version and no new processing cursor.
+See [morning insights](MORNING_INSIGHTS.md) for quality and historical-date rules.

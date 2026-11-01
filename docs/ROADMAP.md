@@ -98,3 +98,9 @@ splits, removal/restore, and adding missed intervals with sensor data. Correctio
 publication uses the durable history queue and input fence. See
 [WORKOUT_CORRECTIONS.md](WORKOUT_CORRECTIONS.md) for contracts and validation.
 Real walk and gym accuracy remains a device-validation task.
+
+## Morning insights
+
+Personal comparisons, baseline learning, a seven-day summary and sleep-timing
+variation are implemented as descriptive observations. See
+[MORNING_INSIGHTS.md](MORNING_INSIGHTS.md). Recovery scoring remains future work.
