@@ -4,7 +4,10 @@ import SwiftUI
 /// Everything here is read from the server; the strap does not know what a workout is.
 struct ActivityView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var workouts: [SnoopAPI.Workout] = []
+    @Binding var selectedDay: Date?
+    let requestID: UUID
+    @State private var editor: WorkoutEditorMode?
+    private var workouts: [SnoopAPI.Workout] { model.activity.items }
     @State private var days: [SnoopAPI.Day] = []
     @State private var error: String?
     @State private var loaded = false
@@ -16,7 +19,8 @@ struct ActivityView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     weekCard
-                    if workouts.isEmpty {
+                    actions
+                    if visibleWorkouts.isEmpty {
                         emptyState
                     } else {
                         ForEach(groups, id: \.day) { group in
@@ -27,10 +31,15 @@ struct ActivityView: View {
                 }
                 .padding(.bottom, 24)
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) { WorkoutNotice() }
             .navigationTitle("Activity")
             .mainScreenChrome("Activity")
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
+        .sheet(item: $editor) { mode in WorkoutEditorView(mode: mode) { } }
+        .onChange(of: requestID) { _, _ in path = []; Task { await load() } }
+        .onChange(of: selectedDay) { _, _ in Task { await load() } }
+        .onChange(of: model.activity.changeToken) { _, _ in Task { await load() } }
         .task(id: model.strap.serial) { await load() }
         .task {
             while !Task.isCancelled {
@@ -118,9 +127,30 @@ struct ActivityView: View {
         let workouts: [SnoopAPI.Workout]
     }
 
+    private var visibleWorkouts: [SnoopAPI.Workout] {
+        guard let selectedDay, let end = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) else { return workouts }
+        return workouts.filter { $0.startTs < end && $0.endTs > selectedDay }
+    }
+
+    private var actions: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(selectedDay.map(Self.dayTitle) ?? "Workouts").font(.headline)
+                if selectedDay != nil { Button("Show all") { selectedDay = nil }.font(.caption).frame(minHeight: 44) }
+            }
+            Spacer()
+            NavigationLink { RemovedWorkoutsView() } label: {
+                Image(systemName: "archivebox").frame(width: 44, height: 44)
+            }.accessibilityLabel("Removed workouts")
+            Button { editor = .add(selectedDay ?? Date()) } label: {
+                Image(systemName: "plus").frame(width: 44, height: 44)
+            }.accessibilityLabel("Add workout").accessibilityIdentifier("addWorkout")
+        }.padding(.horizontal, SnoopStyle.gutter)
+    }
+
     private var groups: [Group] {
         let cal = Calendar.current
-        return Dictionary(grouping: workouts) { cal.startOfDay(for: $0.startTs) }
+        return Dictionary(grouping: visibleWorkouts) { cal.startOfDay(for: $0.startTs) }
             .map { Group(day: $0.key, workouts: $0.value.sorted { $0.startTs > $1.startTs }) }
             .sorted { $0.day > $1.day }
     }
@@ -132,6 +162,7 @@ struct ActivityView: View {
                 .padding(.horizontal, SnoopStyle.gutter)
             ForEach(items) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }
+                    .accessibilityIdentifier("workout-\(workout.id)")
                     .buttonStyle(PressableCardStyle())
                     .padding(.horizontal, SnoopStyle.gutter)
             }
@@ -140,7 +171,7 @@ struct ActivityView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(loaded ? "No activities yet" : "Loading…").font(.headline)
+            Text(loaded ? (selectedDay == nil ? "No activities yet" : "No workouts this day") : "Loading…").font(.headline)
             Text("Wear your WHOOP for a walk or workout. Detected activities appear here after syncing.")
                 .font(.footnote).foregroundStyle(SnoopStyle.secondary)
         }
@@ -153,10 +184,10 @@ struct ActivityView: View {
 
     private func load() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
-        async let w = SnoopAPI.workouts(deviceId: model.strap.serial, limit: 60)
+        async let w: Void = model.activity.reload(device: model.strap.serial, from: selectedDay, to: selectedDay.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) })
         async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 7)
         do {
-            workouts = try await w
+            try await w
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -166,10 +197,10 @@ struct ActivityView: View {
     }
 
     private func open(_ id: Int64) async {
-        if workouts.isEmpty { await load() }
-        if let workout = workouts.first(where: { $0.id == id }) {
+        do {
+            let workout = try await SnoopAPI.workout(deviceId: model.strap.serial, id: id)
             path = [workout]
-        }
+        } catch { self.error = "Couldn’t open this workout. Refresh and try again." }
         model.battery.openWorkout = nil
     }
 

@@ -92,15 +92,19 @@ The Activity tab lists sessions the server detects: walks of ten minutes or more
 resistance training of twenty minutes or more, and anything else that raised heart
 rate for twenty minutes, left unlabelled for you to name. Each session shows its
 load on a 0–21 scale, time in five heart-rate zones, average and peak heart rate,
-calories and steps, with the heart-rate trace underneath. The type can be changed
-from the session screen; the server keeps that choice through recomputes. Nothing is
+calories and steps, with the heart-rate trace underneath. The session menu edits type and times, merges neighbouring sessions including rests,
+splits a session, removes a false detection, or undoes the last correction. Add a missed
+workout with the Activity + button; recorded strap data is required. Removed workouts
+can be restored from Activity. The server preserves corrections through recomputes. Nothing is
 detected on the phone: after each upload the app asks the server for new sessions,
 checks again one analysis interval later and whenever it returns to the foreground,
 and posts a local notification per session, including "tap to label" for unlabelled
 ones. With the app in the background those checks only run while iOS wakes it for
 Bluetooth, so an alert can wait until the next offload or the next time you open it.
 
-Today shows the day's sessions under the timeline, where they are shaded in their
+Today’s arrows select a calendar day; the heading follows that day, and Back to today
+returns to the live view. Steps, Sleep and Activity links retain the selected date.
+Today shows the day’s sessions and a timeline, where they are shaded in their
 kind's colour, and a Load tile with the day's total. Tapping the Steps tile opens a
 steps screen: today by hour with every walk of three minutes or more listed, and
 seven-day and thirty-day comparisons where any day opens into its own hours and walks.
@@ -115,7 +119,7 @@ Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure
 Packages/SnoopSync       durable SQLite queue, ordered persistence, upload receipts and retries
 Packages/SnoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
 App/
-  Activity/              session notifications after each upload
+  Activity/              shared workout state, correction commands and session notifications
   Battery/               iOS notifications and persisted per-strap alert state
   BLE/                   CoreBluetooth: discovery, connection, reconnection, state restoration, offload loop
   Queue/                 durable SQLite frame queue
@@ -163,3 +167,26 @@ Run the failure-path tests with:
 ```sh
 swift test --package-path Packages/SnoopSync
 ```
+
+## Correction validation
+
+The backend must include migration 0007 and the correction endpoints before this app
+is installed. Saving uses an idempotent request and the session revision; unsuccessful
+saves retain the form. Scores stay blank while updated metrics are pending. Partial
+recordings are marked, and corrections/recalculations do not send detection alerts.
+
+Simulator UI checks in `UITests` use the synthetic `UI-REVIEW` strap and an isolated
+backend, never a real device or production database. The default test URL is
+`http://127.0.0.1:28472` (a local tunnel to the test server), with the development-only
+`ui-test-token`. `SNOOP_UI_SERVER_URL` can override the URL in the test runner.
+Seed an isolated database with `tools/ui-fixture.sql` from the backend repository,
+start its worker, then run:
+
+```sh
+xcodegen generate
+xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' test
+```
+
+The tests verify selected-day navigation, merge/split/remove/restore and no-data
+validation. Reset the isolated fixture between full runs; the correction test changes
+its synthetic sessions. Real-device walk/gym validation remains separate.

@@ -16,7 +16,6 @@ struct StepsView: View {
     private let initialDay: Date?
     @State private var scope: Scope
     @State private var days: Loadable = .loading
-    @State private var workouts: [SnoopAPI.Workout] = []
     @State private var refreshID = 0
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
 
@@ -53,7 +52,7 @@ struct StepsView: View {
                 .accessibilityLabel("Range")
                 switch scope {
                 case .day:
-                    DaySteps(day: initialDay ?? today, summary: summary(for: initialDay ?? today), summariesLoaded: days.isLoaded, workouts: workouts, refreshID: refreshID)
+                    DaySteps(day: initialDay ?? today, summary: summary(for: initialDay ?? today), summariesLoaded: days.isLoaded, refreshID: refreshID)
                 case .week, .month:
                     comparison
                 }
@@ -65,8 +64,9 @@ struct StepsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .navigationDestination(item: $selectedDay) { day in
-            DayStepsView(day: day, summary: summary(for: day), summariesLoaded: days.isLoaded, workouts: workouts)
+            DayStepsView(day: day, summary: summary(for: day), summariesLoaded: days.isLoaded)
         }
+        .onChange(of: model.activity.changeToken) { _, _ in Task { await load() } }
         .task(id: model.strap.serial) { await load() }
         .refreshable { await load(); refreshID += 1 }
         .onAppear {
@@ -235,13 +235,13 @@ struct StepsView: View {
             return
         }
         if case .failed = days { days = .loading }
-        async let w = SnoopAPI.workouts(deviceId: model.strap.serial, limit: 60)
+        async let w: Void = model.activity.reload(device: model.strap.serial)
         do {
             days = .loaded(try await SnoopAPI.days(deviceId: model.strap.serial, limit: 31))
         } catch {
             days = .failed(error.localizedDescription)
         }
-        if let w = try? await w { workouts = w }
+        _ = try? await w
     }
 
     static func day(_ text: String) -> Date? {

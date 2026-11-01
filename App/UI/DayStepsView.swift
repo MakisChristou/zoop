@@ -6,11 +6,10 @@ struct DayStepsView: View {
     let day: Date
     let summary: SnoopAPI.Day?
     let summariesLoaded: Bool
-    let workouts: [SnoopAPI.Workout]
 
     var body: some View {
         ScrollView {
-            DaySteps(day: day, summary: summary, summariesLoaded: summariesLoaded, workouts: workouts)
+            DaySteps(day: day, summary: summary, summariesLoaded: summariesLoaded)
                 .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
         }
         .snoopScreen()

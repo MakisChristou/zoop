@@ -39,3 +39,22 @@ targets:
         UIBackgroundModes: [bluetooth-central]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+  SnoopUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: Snoop
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: $(SNOOP_BUNDLE_ID).uitests
+schemes:
+  Snoop:
+    build:
+      targets:
+        Snoop: all
+    test:
+      targets:
+        - SnoopUITests

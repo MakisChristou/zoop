@@ -142,6 +142,18 @@ enum SnoopAPI {
         let steps: Int?
         let autoDetected: Bool
         let notificationEligible: Bool?
+        let revision: Int64?
+        let status: String?
+        let lastEdit: String?
+        let replacements: [Int64]?
+        let metricsPending: Bool?
+        let coverageS: Int?
+        let hrCoverageS: Int?
+        let timezone: String?
+
+        var isActive: Bool { status == nil || status == "active" }
+        var isPartial: Bool { coverageS.map { $0 < durationS - 60 } == true || hrCoverageS.map { $0 < durationS - 60 } == true }
+
     }
 
     /// Steps through one local day.
@@ -176,14 +188,21 @@ enum SnoopAPI {
         static var empty: Profile { Profile(sex: nil, birthYear: nil, weightKg: nil, heightCm: nil, tz: TimeZone.current.identifier) }
     }
 
+    private struct ErrorResponse: Decodable {
+        struct Detail: Decodable { let message: String }
+        let error: Detail
+    }
+
     enum Failure: Error, LocalizedError {
         case notConfigured
         case http(Int)
+        case server(Int, String)
 
         var errorDescription: String? {
             switch self {
             case .notConfigured: "Server not configured"
-            case let .http(code): "HTTP \(code)"
+            case let .http(code): "Unable to reach the server (\(code)). Try again."
+            case let .server(_, message): message
             }
         }
     }
@@ -209,8 +228,33 @@ enum SnoopAPI {
     }
 
     /// Detected sessions, newest first.
-    static func workouts(deviceId: String, limit: Int = 60) async throws -> [Workout] {
-        try await get("v1/devices/\(deviceId)/workouts", query: ["limit": String(limit)])
+    static func workouts(deviceId: String, limit: Int = 60, from: Date? = nil, to: Date? = nil, status: String = "active") async throws -> [Workout] {
+        var query = ["limit": String(limit), "status": status]
+        if let from { query["from"] = from.ISO8601Format() }
+        if let to { query["to"] = to.ISO8601Format() }
+        return try await get("v1/devices/\(deviceId)/workouts", query: query)
+    }
+
+    static func workout(deviceId: String, id: Int64) async throws -> Workout {
+        try await get("v1/devices/\(deviceId)/workouts/\(id)")
+    }
+
+    static func correctWorkout(deviceId: String, command: WorkoutCorrection) async throws -> WorkoutCorrection.Receipt {
+        try await send("v1/devices/\(deviceId)/workouts/corrections", method: "POST", body: command)
+    }
+
+    /// Calendar arithmetic covers midnight and daylight-saving changes.
+    static func minutes(deviceId: String, window: ClosedRange<Date>) async throws -> [Minute] {
+        var day = Calendar.current.startOfDay(for: window.lowerBound)
+        var result: [Date: Minute] = [:]
+        while day <= window.upperBound {
+            for minute in try await minutes(deviceId: deviceId, day: day) where window.contains(minute.ts) {
+                result[minute.ts] = minute
+            }
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: day), next > day else { break }
+            day = next
+        }
+        return result.values.sorted { $0.ts < $1.ts }
     }
 
     /// Relabels a session and returns it updated.
@@ -244,6 +288,7 @@ enum SnoopAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.dateEncodingStrategy = .iso8601
         request.httpBody = try encoder.encode(body)
         return try await perform(request)
     }
@@ -263,7 +308,11 @@ enum SnoopAPI {
     private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw Failure.http((response as? HTTPURLResponse)?.statusCode ?? 0)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if let body = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw Failure.server(status, body.error.message)
+            }
+            throw Failure.http(status)
         }
         return try decoder().decode(T.self, from: data)
     }

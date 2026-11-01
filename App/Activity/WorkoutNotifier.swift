@@ -6,7 +6,7 @@ import UserNotifications
 /// server on its own schedule, so the app checks the session list shortly after each
 /// accepted upload, again one analysis interval later in case the server had not
 /// finished, and whenever it returns to the foreground. Sessions are recognised by
-/// their start time, which survives the server renumbering a row; the seen set
+/// a stable server identity, including edits and recalculations; the seen set
 /// persists per strap serial, and the first run on a strap seeds it silently so an
 /// old history does not arrive as a burst of alerts. Taps are routed by
 /// `BatteryMonitor`, the notification delegate.
@@ -19,7 +19,7 @@ final class WorkoutNotifier: ObservableObject {
     private let center: UNUserNotificationCenter
     private let log = Logger(subsystem: "snoop", category: "workouts")
     private var device: String?
-    private var seen: Set<Int> = []
+    private var seen: Set<Int64> = []
     private var pending: Task<Void, Never>?
     private var followUp: Task<Void, Never>?
 
@@ -42,7 +42,7 @@ final class WorkoutNotifier: ObservableObject {
         pending?.cancel()
         followUp?.cancel()
         self.device = device
-        seen = Set((defaults.array(forKey: key(device)) as? [Int]) ?? [])
+        seen = Set((defaults.array(forKey: key(device)) as? [NSNumber])?.map(\.int64Value) ?? [])
         lastCheckedAt = nil
     }
 
@@ -88,11 +88,9 @@ final class WorkoutNotifier: ObservableObject {
         save()
     }
 
-    /// Sessions keep their start minute across recomputes even when the server
-    /// renumbers them, so that is their identity here.
-    static func key(_ workout: SnoopAPI.Workout) -> Int {
-        Int(workout.startTs.timeIntervalSince1970 / 60)
-    }
+    /// Stable identities keep corrections and recalculations silent.
+    /// The new defaults key seeds old installs silently on their first check.
+    static func key(_ workout: SnoopAPI.Workout) -> Int64 { workout.id }
 
     private func notify(_ workout: SnoopAPI.Workout) async {
         let kind = ActivityKind.named(workout.kind)
@@ -119,5 +117,5 @@ final class WorkoutNotifier: ObservableObject {
         defaults.set(Array(seen), forKey: key(device))
     }
 
-    private func key(_ device: String) -> String { "workouts.\(device).seen" }
+    private func key(_ device: String) -> String { "workouts.\(device).seen.ids" }
 }

@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     let strap = StrapManager()
     let battery = BatteryMonitor()
     let workouts = WorkoutNotifier()
+    let activity = WorkoutStore()
     private let queue: FrameQueue?
     private let uploader: Uploader?
     private var writer: FrameWriter?
@@ -70,6 +71,7 @@ final class AppModel: ObservableObject {
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        activity.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
         // Sessions are keyed by the strap serial, the id every upload and read uses.

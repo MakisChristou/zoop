@@ -4,7 +4,7 @@ import SwiftUI
 
 struct TodayView: View {
     let openSleep: (SnoopAPI.Night?) -> Void
-    let openActivity: () -> Void
+    let openActivity: (Date) -> Void
     @EnvironmentObject private var model: AppModel
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var now = Date()
@@ -16,7 +16,7 @@ struct TodayView: View {
     @State private var minutes: [SnoopAPI.Minute] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
-    @State private var workouts: [SnoopAPI.Workout] = []
+    private var workouts: [SnoopAPI.Workout] { model.activity.items }
     @State private var steps: SnoopAPI.StepsDay?
     @State private var path = NavigationPath()
     @State private var historyFailed = false
@@ -29,6 +29,11 @@ struct TodayView: View {
                     DateNavigation(title: dayLabel, canGoBack: canStepBack, canGoForward: !isViewingToday,
                                    previousLabel: "Previous day", nextLabel: "Next day",
                                    previous: { stepDay(-1) }, next: { stepDay(1) })
+                    if !isViewingToday {
+                        Button("Back to today") { selectedDay = nil }
+                            .font(.footnote).frame(minHeight: 44)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                     overview
                     stepsCard
                     heartRate
@@ -54,12 +59,13 @@ struct TodayView: View {
                 .padding(.horizontal, SnoopStyle.gutter)
                 .padding(.bottom, 24)
             }
-            .mainScreenChrome("Today")
+            .mainScreenChrome(screenTitle)
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0, day: viewedDay) }
             .onAppear(perform: applyDemoRoute)
             .refreshable { await loadHistory() }
         }
+        .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
         .onReceive(clock) { now = $0 }
         .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
         .task {
@@ -98,7 +104,7 @@ struct TodayView: View {
                 .snoopCard(padding: 14)
             }
             .buttonStyle(PressableCardStyle()).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
-            Button(action: openActivity) {
+            Button { openActivity(viewedDay) } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     metricLabel("Day load", icon: "waveform.path")
                     HStack(spacing: 6) {
@@ -114,7 +120,7 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
                 .snoopCard(padding: 14)
             }
-            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Activity")
+            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
         }
     }
 
@@ -171,7 +177,7 @@ struct TodayView: View {
             HStack {
                 sectionHeading("Activity")
                 Spacer()
-                Button("See all", action: openActivity).font(.caption).frame(minHeight: 44)
+                Button("See all") { openActivity(viewedDay) }.font(.caption).frame(minHeight: 44)
             }
             ForEach(selectedWorkouts) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }.buttonStyle(PressableCardStyle())
@@ -201,7 +207,7 @@ struct TodayView: View {
     }
 
     private var selectedWorkouts: [SnoopAPI.Workout] {
-        workouts.filter { Calendar.current.isDate($0.startTs, inSameDayAs: viewedDay) }.sorted { $0.startTs > $1.startTs }
+        workouts.filter { $0.startTs < (Calendar.current.date(byAdding: .day, value: 1, to: viewedDay) ?? viewedDay) && $0.endTs > viewedDay }.sorted { $0.startTs > $1.startTs }
     }
 
     private var selectedSummary: SnoopAPI.Day? {
@@ -238,18 +244,18 @@ struct TodayView: View {
         async let d = SnoopAPI.days(deviceId: serial, limit: 30)
         async let n = SnoopAPI.nights(deviceId: serial, limit: 30)
         async let m = SnoopAPI.minutes(deviceId: serial, day: day)
-        async let w = SnoopAPI.workouts(deviceId: serial, limit: 500)
+        async let w: Void = model.activity.reload(device: serial, from: day, to: Calendar.current.date(byAdding: .day, value: 1, to: day))
         async let s = SnoopAPI.steps(deviceId: serial, day: day)
         let fetchedDays = try? await d
         let fetchedNights = try? await n
         let fetchedMinutes = try? await m
-        let fetchedWorkouts = try? await w
+        let fetchedWorkouts: Void? = try? await w
         let fetchedSteps = try? await s
         // A slow response from a previous tap must never replace the chosen day.
         guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.strap.serial == serial else { return }
         if let fetchedDays { days = fetchedDays }
         if let fetchedNights { nights = fetchedNights }
-        if let fetchedWorkouts { workouts = fetchedWorkouts }
+
         minutes = fetchedMinutes ?? []
         steps = fetchedSteps
         loadedDay = day
@@ -282,11 +288,14 @@ struct TodayView: View {
         isViewingToday ? model.strap.lastBiometric?.skinTemperatureC.map(Double.init) : selectedSummary?.skinTempAvg
     }
 
+    private var screenTitle: String {
+        if isViewingToday { return "Today" }
+        if Calendar.current.isDateInYesterday(viewedDay) { return "Yesterday" }
+        return viewedDay.formatted(.dateTime.weekday(.wide))
+    }
+
     private var dayLabel: String {
-        let date = viewedDay.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
-        if isViewingToday { return "Today · \(date)" }
-        if Calendar.current.isDateInYesterday(viewedDay) { return "Yesterday · \(date)" }
-        return date
+        viewedDay.formatted(.dateTime.day().month(.wide).year())
     }
 
     private var canStepBack: Bool {

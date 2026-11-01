@@ -5,7 +5,7 @@ struct DaySteps: View {
     let day: Date
     let summary: SnoopAPI.Day?
     let summariesLoaded: Bool
-    let workouts: [SnoopAPI.Workout]
+    private var workouts: [SnoopAPI.Workout] { model.activity.items }
     var refreshID = 0
 
     @EnvironmentObject private var model: AppModel
