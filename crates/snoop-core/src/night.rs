@@ -66,7 +66,7 @@ pub async fn calculate_night(
         samples: samples.len(),
     };
     info!(device_id, %night_of, onset = %result.window.onset, offset = %result.window.offset,
-          tib_min = result.window.time_in_bed_s / 60, "night stored");
+          tib_min = result.window.time_in_bed_s / 60, "night calculated");
     Ok(Some(result))
 }
 

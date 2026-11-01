@@ -158,7 +158,7 @@ pub async fn calculate_day(
         .map(|w| w.kcal)
         .try_fold(0.0, |sum, kcal| kcal.map(|k| sum + k));
 
-    info!(device_id, %day, sessions = workouts.len(), load = format!("{:.1}", load.load), "day stored");
+    info!(device_id, %day, sessions = workouts.len(), load = format!("{:.1}", load.load), "day calculated");
     Ok(Some(DayResult {
         day,
         tz: tz.to_owned(),
