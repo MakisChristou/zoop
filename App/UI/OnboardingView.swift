@@ -89,7 +89,7 @@ struct OnboardingView: View {
                 .font(.title2.weight(.semibold))
             Text(connectDetail)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SnoopStyle.secondary)
                 .padding(.horizontal, 32)
             if model.strap.state != .ready {
                 Button("Try again") { model.strap.connect() }
@@ -153,7 +153,7 @@ private struct Page: View {
             Spacer()
             Image(systemName: symbol).font(.system(size: 64)).foregroundStyle(.tint)
             Text(title).font(.title.weight(.semibold))
-            Text(text).multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 32)
+            Text(text).multilineTextAlignment(.center).foregroundStyle(SnoopStyle.secondary).padding(.horizontal, 32)
             Spacer()
         }
     }

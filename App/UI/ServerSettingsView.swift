@@ -22,7 +22,7 @@ struct ServerSettingsView: View {
                     HStack {
                         Label("Test connection", systemImage: "network")
                         Spacer()
-                        if testing { ProgressView() } else if let testResult { Text(testResult).foregroundStyle(.secondary) }
+                        if testing { ProgressView() } else if let testResult { Text(testResult).foregroundStyle(SnoopStyle.secondary) }
                     }
                 }
                 .disabled(testing || serverURL.isEmpty)
@@ -37,6 +37,8 @@ struct ServerSettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .snoopScreen()
         .navigationTitle("Server connection")
         .navigationBarTitleDisplayMode(.inline)
     }

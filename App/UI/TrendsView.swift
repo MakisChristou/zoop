@@ -6,6 +6,8 @@ import SwiftUI
 /// Sections say what they need instead of drawing a line through one point.
 struct TrendsView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var nights: [SnoopAPI.Night] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var error: String?
@@ -13,7 +15,7 @@ struct TrendsView: View {
     @State private var range: Range = .month
 
     enum Range: String, CaseIterable, Identifiable {
-        case week = "W", month = "M", quarter = "3M", all = "ALL"
+        case week = "7 days", month = "30 days", quarter = "90 days", all = "Year"
         var id: String { rawValue }
         var days: Int {
             switch self {
@@ -47,13 +49,13 @@ struct TrendsView: View {
         }
         var color: Color {
             switch self {
-            case .sleep: .indigo
-            case .restingHr: .red
-            case .hrv: .teal
-            case .breathing: .mint
-            case .skinTemp: .orange
-            case .steps: .green
-            case .efficiency: .purple
+            case .sleep: SnoopStyle.sleep
+            case .restingHr: SnoopStyle.heartRate
+            case .hrv: SnoopStyle.sleep
+            case .breathing: SnoopStyle.steps
+            case .skinTemp: SnoopStyle.temperature
+            case .steps: SnoopStyle.steps
+            case .efficiency: SnoopStyle.sleep
             }
         }
         /// Whether a higher value is good, for the delta colour.
@@ -76,12 +78,13 @@ struct TrendsView: View {
                     weekdayPattern
                     if let error { Text(error).font(.footnote).foregroundStyle(.red) }
                 }
-                .padding()
+                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.bottom, 24)
             }
             .navigationTitle("Trends")
-            .mainScreenChrome()
+            .mainScreenChrome("Trends")
             .refreshable { await load() }
-            .task { await load() }
+            .task(id: model.strap.serial) { await load() }
             .onChange(of: range) { _, _ in Task { await load() } }
         }
     }
@@ -94,7 +97,7 @@ struct TrendsView: View {
         case .steps:
             return days.compactMap { day in
                 guard let date = Self.dayFormatter.date(from: day.day), date >= cutoff else { return nil }
-                return (day.stepsWalking ?? day.steps).map { TrendsViewPoint(date: date, value: Double($0)) }
+                return day.stepsWalking.map { TrendsViewPoint(date: date, value: Double($0)) }
             }
         case .skinTemp:
             return nights.compactMap { n in
@@ -143,12 +146,13 @@ struct TrendsView: View {
                         Button { metric = m } label: {
                             Text(m.rawValue)
                                 .font(.subheadline.weight(.medium))
-                                .padding(.horizontal, 12).padding(.vertical, 7)
+                                .padding(.horizontal, 12).padding(.vertical, 7).frame(minHeight: 44)
                                 .background(metric == m ? m.color.opacity(0.18) : Color.secondary.opacity(0.12), in: Capsule())
-                                .foregroundStyle(metric == m ? m.color : .primary)
-                                .animation(.easeOut(duration: 0.15), value: metric)
+                                .foregroundStyle(SnoopStyle.text)
+                                .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: metric)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityAddTraits(metric == m ? .isSelected : [])
                     }
                 }
             }
@@ -162,22 +166,21 @@ struct TrendsView: View {
     private var hero: some View {
         let pts = points
         let avg = pts.isEmpty ? nil : pts.map(\.value).reduce(0, +) / Double(pts.count)
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            layout {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(metric.rawValue).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(pts.last.map { format($0.value) } ?? "—")
-                            .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
-                            .foregroundStyle(metric.color)
-                        Text(metric.unit).font(.headline).foregroundStyle(.secondary)
-                    }
+                    Text(metric.rawValue).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                    MetricValue(pts.last.map { format($0.value) } ?? "—", unit: metric.unit, size: 40)
+                        .foregroundStyle(metric.color)
                     if let last = pts.last {
                         Text("as of " + last.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
                     }
                 }
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 if let last = pts.last, let avg, pts.count >= 3 {
                     delta(last.value - avg)
                 }
@@ -207,20 +210,17 @@ struct TrendsView: View {
                             .foregroundStyle(.secondary.opacity(0.35))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
                             .annotation(position: .top, alignment: .trailing) {
-                                Text("avg \(format(avg))").font(.caption2).foregroundStyle(.secondary)
+                                Text("avg \(format(avg))").font(.caption2).foregroundStyle(SnoopStyle.secondary)
                             }
                     }
                 }
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
                 .frame(height: 180)
-                HStack {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
                     stat("min", pts.map(\.value).min())
-                    Spacer()
                     stat("avg", avg)
-                    Spacer()
                     stat("max", pts.map(\.value).max())
-                    Spacer()
                     stat("days", Double(pts.count), decimals: 0)
                 }
             } else {
@@ -229,7 +229,7 @@ struct TrendsView: View {
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private func delta(_ d: Double) -> some View {
@@ -237,7 +237,7 @@ struct TrendsView: View {
         return VStack(alignment: .trailing, spacing: 2) {
             Text((d >= 0 ? "+" : "") + format(d)).font(.headline).monospacedDigit()
                 .foregroundStyle(deltaColor(good))
-            Text("vs \(range.rawValue) avg").font(.caption2).foregroundStyle(.secondary)
+            Text("vs period average").font(.caption2).foregroundStyle(SnoopStyle.secondary)
         }
     }
 
@@ -262,18 +262,18 @@ struct TrendsView: View {
         let labels = (0..<7).map { symbols[($0 + first - 1) % 7] }
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Sleep, last \(weeks) weeks").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Sleep, last \(weeks) weeks").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                 Spacer()
                 HStack(spacing: 3) {
-                    Text("<5h").font(.caption2).foregroundStyle(.tertiary)
-                    ForEach(0..<5) { i in RoundedRectangle(cornerRadius: 2).fill(Color.indigo.opacity(0.15 + Double(i) * 0.2)).frame(width: 10, height: 10) }
-                    Text("8h+").font(.caption2).foregroundStyle(.tertiary)
+                    Text("<5h").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                    ForEach(0..<5) { i in RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.sleep.opacity(0.15 + Double(i) * 0.2)).frame(width: 10, height: 10) }
+                    Text("8h+").font(.caption2).foregroundStyle(SnoopStyle.secondary)
                 }
             }
             HStack(spacing: 4) {
                 ForEach(0..<7, id: \.self) { col in
                     VStack(spacing: 4) {
-                        Text(labels[col]).font(.caption2).foregroundStyle(.tertiary)
+                        Text(labels[col]).font(.caption2).foregroundStyle(SnoopStyle.secondary)
                         ForEach(0..<weeks, id: \.self) { row in
                             let date = cal.date(byAdding: .day, value: row * 7 + col, to: gridStart)!
                             let hours = byDay[date]
@@ -285,18 +285,18 @@ struct TrendsView: View {
                 }
             }
             if nights.count < 7 {
-                Text("Fills in night by night. \(nights.count) so far.").font(.caption2).foregroundStyle(.tertiary)
+                Text("Fills in night by night. \(nights.count) so far.").font(.caption2).foregroundStyle(SnoopStyle.secondary)
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private func cell(_ hours: Double?, future: Bool) -> Color {
         if future { return .clear }
         guard let hours else { return Color.secondary.opacity(0.08) }
         let t = min(max((hours - 4) / 4.5, 0), 1)
-        return Color.indigo.opacity(0.15 + t * 0.8)
+        return SnoopStyle.sleep.opacity(0.15 + t * 0.8)
     }
 
     /// Average of the metric by weekday, once a fortnight of data exists.
@@ -311,12 +311,12 @@ struct TrendsView: View {
             return (symbols[wd - 1], values.map(\.value).reduce(0, +) / Double(values.count))
         }
         return VStack(alignment: .leading, spacing: 8) {
-            Text("\(metric.rawValue) by weekday").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text("\(metric.rawValue) by weekday").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
             if pts.count >= 14 {
                 Chart(bars, id: \.0) { name, value in
                     BarMark(x: .value("Day", name), y: .value(metric.rawValue, value))
                         .foregroundStyle(metric.color.opacity(0.8))
-                        .annotation(position: .top) { Text(format(value)).font(.caption2).foregroundStyle(.secondary) }
+                        .annotation(position: .top) { Text(format(value)).font(.caption2).foregroundStyle(SnoopStyle.secondary) }
                 }
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartYAxis(.hidden)
@@ -327,20 +327,20 @@ struct TrendsView: View {
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private func unlock(_ text: String) -> some View {
         HStack {
-            Image(systemName: "lock.open").foregroundStyle(.tertiary)
-            Text(text).font(.footnote).foregroundStyle(.secondary)
+            Image(systemName: "lock.open").foregroundStyle(SnoopStyle.secondary)
+            Text(text).font(.footnote).foregroundStyle(SnoopStyle.secondary)
             Spacer()
         }
     }
 
     private func stat(_ label: String, _ value: Double?, decimals: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2).foregroundStyle(.tertiary).textCase(.uppercase)
+            Text(label).font(.caption2).foregroundStyle(SnoopStyle.secondary)
             Text(value.map { String(format: "%.\(decimals ?? metric.decimals)f", $0) } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
         }
     }
@@ -351,7 +351,7 @@ struct TrendsView: View {
 
     private func load() async {
         guard !model.strap.serial.isEmpty else {
-            error = "Waiting for the strap's serial number."
+            error = "Connect your WHOOP to load trends."
             return
         }
         do {

@@ -7,7 +7,7 @@ import SwiftUI
 /// the same definition as the tile.
 struct StepsView: View {
     enum Scope: String, CaseIterable, Identifiable, Hashable {
-        case day = "Day", week = "7D", month = "30D"
+        case day = "Day", week = "7 days", month = "30 days"
         var id: String { rawValue }
         var days: Int { self == .week ? 7 : 30 }
     }
@@ -16,6 +16,8 @@ struct StepsView: View {
     @State private var scope: Scope
     @State private var days: Loadable = .loading
     @State private var workouts: [SnoopAPI.Workout] = []
+    @State private var refreshID = 0
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
 
     enum Loadable {
         case loading
@@ -41,7 +43,7 @@ struct StepsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 24) {
                 Picker("Range", selection: $scope) {
                     ForEach(Scope.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -49,20 +51,22 @@ struct StepsView: View {
                 .accessibilityLabel("Range")
                 switch scope {
                 case .day:
-                    DaySteps(day: today, summary: summary(for: today), summariesLoaded: days.isLoaded, workouts: workouts)
+                    DaySteps(day: today, summary: summary(for: today), summariesLoaded: days.isLoaded, workouts: workouts, refreshID: refreshID)
                 case .week, .month:
                     comparison
                 }
             }
-            .padding()
+            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
         }
+        .snoopScreen()
         .navigationTitle("Steps")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .navigationDestination(item: $selectedDay) { day in
             DayStepsView(day: day, summary: summary(for: day), summariesLoaded: days.isLoaded, workouts: workouts)
         }
-        .task { await load() }
-        .refreshable { await load() }
+        .task(id: model.strap.serial) { await load() }
+        .refreshable { await load(); refreshID += 1 }
         .onAppear {
             #if targetEnvironment(simulator)
             if UserDefaults.standard.string(forKey: "demoScreen") == "stepsday" {
@@ -94,40 +98,40 @@ struct StepsView: View {
         let pts = points
         let with = pts.compactMap(\.steps)
         let average = with.isEmpty ? 0.0 : Double(with.reduce(0, +)) / Double(with.count)
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(days.isLoaded ? Int(average.rounded()).formatted() : "—")
-                    .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("steps a day").font(.title3).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 54)
+            Text("Average steps per day").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            if days.isLoaded, !with.isEmpty {
+                Text(comparisonCaption(with: with)).font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
-            Text(comparisonCaption(with: with)).font(.subheadline).foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
 
         switch days {
         case .loading:
             chartCard(pts, average: average).opacity(0.35).overlay { ProgressView() }
-        case let .failed(message):
+        case .failed:
             VStack(alignment: .leading, spacing: 8) {
                 Label("Could not load these days", systemImage: "wifi.exclamationmark").font(.headline)
-                Text(message).font(.footnote).foregroundStyle(.secondary)
+                Text("Check your connection and try again.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 Button("Retry") { Task { await load() } }.buttonStyle(.bordered).font(.subheadline.weight(.medium))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+            .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
         case .loaded:
             if with.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("No days yet", systemImage: "calendar").font(.headline)
-                    Text("Days fill in as the strap syncs. Come back after the first full day.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Days fill in as the strap syncs. Come back after the first full day.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
             } else {
                 chartCard(pts, average: average)
+                dailyRows(pts)
             }
         }
     }
@@ -138,17 +142,16 @@ struct StepsView: View {
         let missing = scope.days - with.count
         var parts = ["\(total.formatted()) in \(scope.days) days"]
         if missing > 0 { parts.append(missing == 1 ? "1 day without data" : "\(missing) days without data") }
-        parts.append("tap a day")
         return parts.joined(separator: " · ")
     }
 
     private func chartCard(_ pts: [DayPoint], average: Double) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text("Daily steps").font(.subheadline.weight(.medium))
             Chart {
                 ForEach(pts) { p in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps ?? 0))
-                        .foregroundStyle(Calendar.current.isDateInToday(p.date) ? Color.teal : Color.teal.opacity(0.55))
+                        .foregroundStyle(Calendar.current.isDateInToday(p.date) ? SnoopStyle.steps : SnoopStyle.steps.opacity(0.65))
                         .cornerRadius(3)
                 }
                 if average > 0 {
@@ -156,26 +159,27 @@ struct StepsView: View {
                         .foregroundStyle(.secondary.opacity(0.5))
                         .lineStyle(StrokeStyle(dash: [3, 3]))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text("avg").font(.caption2).foregroundStyle(.secondary)
+                            Text("Average").font(.caption2).foregroundStyle(SnoopStyle.secondary)
                         }
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: scope == .week ? 1 : 7)) { _ in
-                    AxisGridLine()
                     AxisValueLabel(format: scope == .week ? .dateTime.weekday(.narrow) : .dateTime.day().month(.abbreviated))
+                        .font(.caption2)
                 }
             }
             .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
-            .frame(height: 160)
+            .frame(height: chartHeight)
             .accessibilityLabel(scope == .week ? "Walking steps for the last 7 days" : "Walking steps for the last 30 days")
             .accessibilityValue("average \(Int(average.rounded()).formatted()) a day")
             .chartOverlay { proxy in
                 GeometryReader { geo in
                     Rectangle().fill(.clear).contentShape(Rectangle())
                         .gesture(
-                            DragGesture(minimumDistance: 0).onEnded { value in
-                                let x = value.location.x - geo[proxy.plotFrame!].origin.x
+                            SpatialTapGesture().onEnded { value in
+                                guard let plot = proxy.plotFrame else { return }
+                                let x = value.location.x - geo[plot].origin.x
                                 if let date = proxy.value(atX: x, as: Date.self) {
                                     open(Calendar.current.startOfDay(for: date))
                                 }
@@ -184,8 +188,29 @@ struct StepsView: View {
                 }
             }
         }
-        .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// A visible, accessible alternative to selecting a bar in the chart.
+    private func dailyRows(_ points: [DayPoint]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("By day").font(.headline).padding(.bottom, 12).accessibilityAddTraits(.isHeader)
+            ForEach(points.reversed()) { point in
+                Button { open(point.date) } label: {
+                    HStack {
+                        Text(ActivityView.dayTitle(point.date)).font(.subheadline)
+                        Spacer()
+                        Text(point.steps.map { $0.formatted() } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
+                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                    }
+                    .padding(.vertical, 15)
+                    .overlay(alignment: .top) { Rectangle().fill(SnoopStyle.separator).frame(height: 0.5) }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(ActivityView.dayTitle(point.date)), \(point.steps.map { "\($0) steps" } ?? "no data")")
+                .accessibilityHint("Opens this day")
+            }
+        }
     }
 
     /// The day pushed from the comparison; nil once the user comes back.

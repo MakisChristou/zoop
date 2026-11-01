@@ -14,7 +14,7 @@ struct DeviceView: View {
                     Text(statusText)
                     Spacer()
                     if model.strap.framesReceived > 0, model.strap.state == .ready {
-                        Text("receiving").foregroundStyle(.secondary)
+                        Text("receiving").foregroundStyle(SnoopStyle.secondary)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -62,10 +62,12 @@ struct DeviceView: View {
                     }
                     LabeledContent("Recorded", value: Date(timeIntervalSince1970: TimeInterval(b.header.unixSeconds)).formatted(date: .omitted, time: .standard))
                 } else {
-                    Text("No records yet.").foregroundStyle(.secondary)
+                    Text("No records yet.").foregroundStyle(SnoopStyle.secondary)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .snoopScreen()
         .navigationTitle("My device")
         .navigationBarTitleDisplayMode(.inline)
     }

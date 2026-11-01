@@ -11,6 +11,7 @@ struct WorkoutDetailView: View {
     @State private var scrub: Date?
     @State private var saving = false
     @State private var error: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(workout: SnoopAPI.Workout) {
         _workout = State(initialValue: workout)
@@ -34,12 +35,13 @@ struct WorkoutDetailView: View {
                 stats
                 zones
                 heartRate
-                Text("Load is zone-weighted training impulse (Edwards 1993) shown on a 0–21 scale. Calories come from heart rate, weight, age and sex (Keytel 2005). Zones are cut from your maximal heart rate: age-predicted, raised when the strap has seen higher.")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                MetricInformation(title: "About load and calories", text: "Load is zone-weighted training impulse (Edwards 1993), displayed on a 0–21 scale. Calories are estimated from heart rate, weight, age and sex (Keytel 2005). Zones use your estimated maximum heart rate.\(workout.trimp.map { " Training impulse: \($0.formatted(.number.precision(.fractionLength(0)))) TRIMP." } ?? "")")
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
             }
-            .padding()
+            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
         }
+        .snoopScreen()
+        .toolbar(.visible, for: .navigationBar)
         .navigationTitle(kind.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -69,53 +71,46 @@ struct WorkoutDetailView: View {
     // MARK: - Sections
 
     private var hero: some View {
-        HStack(spacing: 16) {
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(spacing: 16))
+        return layout {
             ZStack {
                 LoadRing(load: workout.load ?? 0, lineWidth: 8)
                 Image(systemName: kind.icon).font(.title2.weight(.semibold)).foregroundStyle(kind.color)
             }
             .frame(width: 84, height: 84)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                        .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
-                    Text("load").font(.title3).foregroundStyle(.secondary)
-                }
+                MetricValue(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "Load")
                 Text("\(workout.startTs.formatted(date: .omitted, time: .shortened)) – \(workout.endTs.formatted(date: .omitted, time: .shortened)) · \(ActivityView.dayTitle(workout.startTs).lowercased())")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                 if workout.edited {
-                    Text("relabelled, detected as \(detected.name.lowercased())").font(.caption2).foregroundStyle(.tertiary)
+                    Text("Edited · detected as \(detected.name.lowercased())").font(.caption).foregroundStyle(SnoopStyle.secondary)
                 } else if kind == .activity {
-                    Text("not sure what this was: set the type above").font(.caption2).foregroundStyle(kind.color)
+                    Text("Choose an activity type").font(.caption).foregroundStyle(kind.color)
                 }
             }
             Spacer(minLength: 0)
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private var stats: some View {
         var cells: [(String, String, String)] = [
             ("Duration", "\(workout.durationS / 60)", "min"),
             ("Calories", workout.kcal.map { "\(Int($0.rounded()))" } ?? "—", workout.kcal == nil ? "needs profile" : "kcal"),
-            ("Avg HR", workout.avgHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm"),
-            ("Max HR", workout.maxHr.map(String.init) ?? "—", "bpm"),
+            ("Average heart rate", workout.avgHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm"),
+            ("Max heart rate", workout.maxHr.map(String.init) ?? "—", "bpm"),
         ]
         if let steps = workout.steps, steps > 0 { cells.append(("Steps", steps.formatted(), "")) }
-        if let trimp = workout.trimp { cells.append(("Impulse", trimp.formatted(.number.precision(.fractionLength(0))), "TRIMP")) }
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        return LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(cells, id: \.0) { title, value, unit in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(value).font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
-                        if !unit.isEmpty { Text(unit).font(.caption).foregroundStyle(.secondary) }
-                    }
+                    Text(title).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    MetricValue(value, unit: unit, size: 28)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
             }
         }
     }
@@ -125,9 +120,9 @@ struct WorkoutDetailView: View {
         let total = max(minutesByZone.reduce(0, +), 1)
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Heart rate zones").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Heart rate zones").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                 Spacer()
-                Text("of max HR, minutes").font(.caption2).foregroundStyle(.tertiary)
+                Text("of max HR, minutes").font(.caption2).foregroundStyle(SnoopStyle.secondary)
             }
             GeometryReader { geo in
                 HStack(spacing: 2) {
@@ -149,7 +144,7 @@ struct WorkoutDetailView: View {
                     VStack(spacing: 2) {
                         Text("\(min)").font(.subheadline.weight(.semibold)).monospacedDigit()
                             .foregroundStyle(min > 0 ? .primary : .tertiary)
-                        Text(ZoneColors.label(zone)).font(.caption2).foregroundStyle(.tertiary)
+                        Text(ZoneColors.label(zone)).font(.caption2).foregroundStyle(SnoopStyle.secondary)
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity)
@@ -157,19 +152,19 @@ struct WorkoutDetailView: View {
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private var heartRate: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                 Spacer()
                 if let m = selected {
                     Text("\(m.ts.formatted(date: .omitted, time: .shortened)) · \(m.hr.map { "\($0) bpm" } ?? "—")")
                         .font(.caption.weight(.semibold)).monospacedDigit()
                 } else {
-                    Text(minutes.isEmpty ? "loading" : "drag to inspect").font(.caption2).foregroundStyle(.tertiary)
+                    Text(minutes.isEmpty ? "Loading…" : "bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
                 }
             }
             Chart {
@@ -180,9 +175,9 @@ struct WorkoutDetailView: View {
                 }
                 ForEach(minutes.filter { $0.hr != nil }) { m in
                     AreaMark(x: .value("Time", m.ts), yStart: .value("min", m.hrMin ?? m.hr!), yEnd: .value("max", m.hrMax ?? m.hr!))
-                        .foregroundStyle(Color.red.opacity(0.18))
+                    .foregroundStyle(SnoopStyle.heartRate.opacity(0.18))
                     LineMark(x: .value("Time", m.ts), y: .value("HR", m.hr!))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SnoopStyle.heartRate)
                         .lineStyle(StrokeStyle(lineWidth: 1.4))
                         .interpolationMethod(.monotone)
                 }
@@ -211,7 +206,7 @@ struct WorkoutDetailView: View {
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     // MARK: - Data

@@ -16,19 +16,19 @@ struct BatteryView: View {
                     VStack(spacing: 20) {
                         batteries(now: context.date)
                         if model.battery.authorization == .denied {
-                            Button("Notifications off · Settings") {
+                            Button("Turn on notifications") {
                                 if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
                                     UIApplication.shared.open(url)
                                 }
                             }
-                            .font(.caption).foregroundStyle(.secondary).frame(minHeight: 44)
+                            .font(.caption).foregroundStyle(SnoopStyle.secondary).frame(minHeight: 44)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
                 }
             }
             .navigationTitle("Battery")
-            .mainScreenChrome()
+            .mainScreenChrome("Battery")
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 await model.battery.refreshAuthorization()
@@ -47,15 +47,15 @@ struct BatteryView: View {
         let full = current && state.percent == 100
         let transferring = charging && !full
         let inferred = charging && state.chargingEvidence == .risingLevel
-        let strapColor = current ? BatteryColors.level(state.percent) : .secondary
+        let strapColor = current ? BatteryColors.level(state.percent) : SnoopStyle.secondary
         let pack = model.battery.pack
         let packCurrent = model.strap.state == .ready && pack.isLive(at: now)
         let packCharging = packCurrent && pack.flow == .charging && pack.percent != 100
         let packSupplying = packCurrent && !packCharging && (transferring || pack.flow == .discharging)
-        let packColor = packCurrent ? BatteryColors.level(pack.percent) : .secondary
-        let packStatus = pack.percent == nil ? "Waiting for pack" : pack.present == false ? "Detached"
+        let packColor = packCurrent ? BatteryColors.level(pack.percent) : SnoopStyle.secondary
+        let packStatus = pack.percent == nil ? "No pack reading" : pack.present == false ? "Detached"
             : !packCurrent ? "Last reading" : packCharging ? "Charging"
-            : packSupplying ? "Supplying power" : pack.percent == 100 ? "Fully charged"
+            : packSupplying ? "Charging WHOOP" : pack.percent == 100 ? "Fully charged"
             : (pack.percent ?? 100) <= 20 ? "Low battery" : "Attached"
         let layout = dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 20))
@@ -69,7 +69,7 @@ struct BatteryView: View {
                         .frame(maxWidth: 180)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Battery pack")
-                        .accessibilityValue(pack.percent.map { "\(Int($0.rounded(.down))) percent. \(packStatus)" } ?? "Waiting for pack")
+                        .accessibilityValue(pack.percent.map { "\(Int($0.rounded(.down))) percent. \(packStatus)" } ?? "No pack reading")
                     Text(packStatus)
                         .font(.caption).foregroundStyle(packColor)
                         .multilineTextAlignment(.center)
@@ -87,7 +87,7 @@ struct BatteryView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("WHOOP battery")
                         .accessibilityValue(state.percent.map { "\(Int($0.rounded(.down))) percent\(full ? ", fully charged" : charging ? ", charging" : "")\(current ? "" : ", last known reading")" } ?? "Not available")
-                    Text(full ? "Fully charged" : charging ? (inferred ? "Charging · estimated" : "Charging") : !current ? "Last reading" : (state.percent ?? 100) <= 5 ? "Critical" : (state.percent ?? 100) <= 20 ? "Low battery" : "")
+                    Text(state.percent == nil ? "No reading" : full ? "Fully charged" : charging ? (inferred ? "Charging · estimated" : "Charging") : !current ? "Last reading" : (state.percent ?? 100) <= 5 ? "Critical" : (state.percent ?? 100) <= 20 ? "Low battery" : "")
                         .font(.caption).foregroundStyle(strapColor)
                         .multilineTextAlignment(.center)
                 }
@@ -95,10 +95,10 @@ struct BatteryView: View {
             }
             if !current, let at = state.levelAt {
                 Text("Updated \(at.formatted(.relative(presentation: .named)))")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
         }
         .frame(maxWidth: .infinity).padding(20)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 }

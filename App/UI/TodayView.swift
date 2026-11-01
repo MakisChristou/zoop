@@ -1,46 +1,60 @@
+import Combine
 import SnoopProtocol
 import SwiftUI
 
 struct TodayView: View {
+    let openSleep: () -> Void
+    let openActivity: () -> Void
     @EnvironmentObject private var model: AppModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var now = Date()
     @State private var minutes: [SnoopAPI.Minute] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
     @State private var workouts: [SnoopAPI.Workout] = []
+    @State private var steps: SnoopAPI.StepsDay?
     @State private var path = NavigationPath()
+    @State private var historyFailed = false
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if model.strap.state != .ready { connectionBanner }
-                    heartRateHero
-                    if !minutes.isEmpty {
-                        DayTimeline(minutes: minutes, now: now, sessions: todaysWorkouts).padding(.horizontal)
+                VStack(alignment: .leading, spacing: 12) {
+                    overview
+                    stepsCard
+                    liveHeartRate
+                    if historyFailed {
+                        Button { Task { await loadHistory() } } label: {
+                            Label("Couldn’t update your day. Retry", systemImage: "arrow.clockwise")
+                                .font(.footnote).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
                     }
-                    if !todaysWorkouts.isEmpty { sessions }
-                    tiles
+                    if !todaysWorkouts.isEmpty { sessions.padding(.top, 8) }
+                    if !minutes.isEmpty {
+                        sectionHeading("Daily timeline").padding(.top, 14)
+                        DayTimeline(minutes: minutes, now: now, sessions: todaysWorkouts, walkingHours: currentSteps?.walkingHours)
+                    }
+                    sectionHeading("Health metrics").padding(.top, 16)
+                    healthMetrics
                 }
-                .padding(.vertical)
+                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.bottom, 24)
             }
-            .navigationTitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
-            .navigationBarTitleDisplayMode(.large)
-            .mainScreenChrome()
+            .mainScreenChrome("Today", subtitle: now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0) }
             .onAppear(perform: applyDemoRoute)
+            .refreshable { await loadHistory() }
         }
         .onReceive(clock) { now = $0 }
-        .task { await loadHistory() }
+        .task(id: model.strap.serial) { await loadHistory() }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(300))
+                do { try await Task.sleep(for: .seconds(300)) } catch { return }
                 await loadHistory()
             }
         }
-        .refreshable { await loadHistory() }
         .onAppear { model.strap.setRealtimeHeartRate(true) }
         .onDisappear { model.strap.setRealtimeHeartRate(false) }
         .onChange(of: model.strap.state) { _, state in
@@ -48,195 +62,176 @@ struct TodayView: View {
         }
     }
 
-    private var heartRateHero: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Heart rate", systemImage: "heart.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(model.strap.smoothedHeartRate.map(String.init) ?? "—")
-                    .font(.system(size: model.strap.smoothedHeartRate == nil ? 40 : 56, weight: .semibold, design: .rounded))
-                    .foregroundStyle(model.strap.smoothedHeartRate == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("bpm").font(.title3).foregroundStyle(.secondary)
+    private var overview: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        return layout {
+            Button(action: openSleep) {
+                VStack(alignment: .leading, spacing: 8) {
+                    metricLabel("Sleep", icon: "moon")
+                    SleepDuration(seconds: nights.first?.metrics.window.asleepS)
+                    Text(nights.first.map { Calendar.current.isDateInToday($0.endTs) ? "Last night" : $0.endTs.formatted(.dateTime.day().month(.abbreviated)) } ?? "No night recorded")
+                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    if let night = nights.first, !night.stages.isEmpty {
+                        Hypnogram(segments: night.stages, onset: night.metrics.window.onset, offset: night.metrics.window.offset)
+                            .frame(height: 22).accessibilityHidden(true)
+                    } else {
+                        Sparkline(values: nights.reversed().map { Double($0.metrics.window.asleepS) }, color: SnoopStyle.sleep)
+                            .frame(height: 22).accessibilityHidden(true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                .snoopCard(padding: 14)
             }
-            Text(freshness)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Sleep")
+            Button(action: openActivity) {
+                VStack(alignment: .leading, spacing: 8) {
+                    metricLabel("Day load", icon: "waveform.path")
+                    HStack(spacing: 6) {
+                        MetricValue(today?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", size: 34)
+                        Spacer(minLength: 0)
+                        if let load = today?.load, !typeSize.isAccessibilitySize {
+                            LoadRing(load: load, lineWidth: 4).frame(width: 42, height: 42).accessibilityHidden(true)
+                        }
+                    }
+                    Text("0–21 scale").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                .snoopCard(padding: 14)
+            }
+            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Activity")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal)
     }
 
-    private var tiles: some View {
-        let b = model.strap.lastBiometric
-        let lastNight = nights.first
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            Tile(title: "Sleep", value: lastNight.map { hours($0.metrics.window.asleepS) } ?? "—", unit: "h",
-                 caption: lastNight.map { "last night · \(Int(($0.metrics.window.efficiency * 100).rounded())) % efficient" } ?? "no night yet",
-                 history: nights.reversed().map { Double($0.metrics.window.asleepS) / 3600 })
-            Tile(title: "Resting HR", value: lastNight?.metrics.physiology.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm",
-                 caption: "lowest 5 min of sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr })
-            Tile(title: "HRV", value: lastNight?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? rmssdText, unit: "ms",
-                 caption: lastNight == nil ? "RMSSD, last 10 s live" : "RMSSD, last night", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs })
-            NavigationLink(value: StepsView.Scope.day) {
-                Tile(title: "Steps", value: today?.stepsWalking.map { $0.formatted() } ?? "—", unit: "",
-                     caption: stepsCaption, history: days.compactMap { $0.stepsWalking.map(Double.init) }, linked: true)
+    private var stepsCard: some View {
+        NavigationLink(value: StepsView.Scope.day) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    metricLabel("Steps", icon: "shoeprints.fill")
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                }
+                MetricValue((currentSteps?.walking ?? today?.stepsWalking).map { $0.formatted() } ?? "—")
+                    .padding(.top, 4)
+                Text(today?.walkingS.map { "\($0 / 60) min walking" } ?? "Today")
+                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                if let steps = currentSteps {
+                    HourlyStepsChart(hours: steps.walkingHours, day: now, compact: true)
+                        .frame(height: 72).padding(.top, 8).accessibilityHidden(true)
+                } else {
+                    Sparkline(values: days.compactMap { $0.stepsWalking.map(Double.init) }, color: SnoopStyle.steps)
+                        .frame(height: 40).padding(.top, 8).accessibilityHidden(true)
+                }
             }
-            .buttonStyle(PressableCardStyle())
-            .accessibilityHint("Opens steps by hour and by day")
-            Tile(title: "Load", value: days.last?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "",
-                 caption: loadCaption, history: days.compactMap(\.load))
-            Tile(title: "Skin temp", value: b?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
-                 caption: "now", history: days.compactMap { $0.skinTempAvg })
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .snoopCard()
         }
-        .padding(.horizontal)
+        .buttonStyle(PressableCardStyle())
+        .accessibilityIdentifier("openSteps")
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens steps by hour and by day")
     }
 
-    /// Today's sessions as cards, newest first; each opens its detail.
+    private var liveHeartRate: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
+            Label("Heart rate", systemImage: "heart")
+                .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(model.strap.smoothedHeartRate.map(String.init) ?? "—").font(.title3.weight(.semibold)).monospacedDigit()
+                Text("bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                Text(freshness).font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
+            }
+        }
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
+    }
+
     private var sessions: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Today's activity").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                sectionHeading("Activity")
+                Spacer()
+                Button("See all", action: openActivity).font(.caption).frame(minHeight: 44)
+            }
             ForEach(todaysWorkouts) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }.buttonStyle(PressableCardStyle())
             }
         }
-        .padding(.horizontal)
+    }
+
+    private var healthMetrics: some View {
+        let night = nights.first
+        let columns = typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
+        return LazyVGrid(columns: columns, spacing: 12) {
+            Tile(title: "Resting heart rate", value: night?.metrics.physiology.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm",
+                 caption: "During sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr }, color: SnoopStyle.heartRate)
+            Tile(title: "HRV", value: night?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms",
+                 caption: "During sleep", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs }, color: SnoopStyle.sleep)
+            Tile(title: "Skin temperature", value: model.strap.lastBiometric?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
+                 caption: freshness, history: days.compactMap { $0.skinTempAvg }, color: SnoopStyle.temperature)
+        }
+    }
+
+    private func metricLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon).font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+    }
+
+    private func sectionHeading(_ title: String) -> some View {
+        Text(title).font(.headline).accessibilityAddTraits(.isHeader)
     }
 
     private var todaysWorkouts: [SnoopAPI.Workout] {
-        workouts.filter { Calendar.current.isDateInToday($0.startTs) }.sorted { $0.startTs > $1.startTs }
+        workouts.filter { Calendar.current.isDate($0.startTs, inSameDayAs: now) }.sorted { $0.startTs > $1.startTs }
     }
 
-    /// Hard minutes and calories once the day has been analysed; the scale otherwise.
-    private var loadCaption: String {
-        guard let today = days.last, today.load != nil else { return "0–21, builds through the day" }
-        var parts: [String] = []
-        if let zones = today.zonesMin, zones.count == 5 {
-            let hard = zones[2] + zones[3] + zones[4]
-            parts.append(hard > 0 ? "\(hard) min hard" : "nothing hard yet")
-        }
-        if let kcal = today.kcal, kcal > 0 { parts.append("\(Int(kcal.rounded())) kcal in sessions") }
-        return parts.isEmpty ? "0–21 scale" : parts.joined(separator: " · ")
-    }
-
-    /// The server's row for today, if it has synced any of today yet.
     private var today: SnoopAPI.Day? {
-        days.last.flatMap { Calendar.current.isDateInToday(StepsView.day($0.day) ?? .distantPast) ? $0 : nil }
+        days.last { StepsView.day($0.day).map { Calendar.current.isDate($0, inSameDayAs: now) } == true }
     }
 
-    /// Walking steps are the one definition used everywhere; the raw strap counter
-    /// lives on the device page.
-    private var stepsCaption: String {
-        guard let today, today.stepsWalking != nil else { return "while walking · counts after the first sync" }
-        var parts = ["while walking"]
-        if let s = today.walkingS, s > 0 { parts.append("\(s / 60) min on foot") }
-        return parts.joined(separator: " · ")
+    private var currentSteps: SnoopAPI.StepsDay? {
+        guard let steps, let day = StepsView.day(steps.day), Calendar.current.isDate(day, inSameDayAs: now) else { return nil }
+        guard steps.walking > 0 || today != nil else { return nil }
+        return steps
     }
 
-    /// What to do when the strap is not connected, with the device page a tap away.
-    private var connectionBanner: some View {
-        NavigationLink { DeviceView() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: bannerIcon).font(.title3).foregroundStyle(bannerColor).frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(bannerTitle).font(.subheadline.weight(.semibold))
-                    Text(hint).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-            }
-            .padding(12)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-            .contentShape(RoundedRectangle(cornerRadius: 16))
-        }
-        .buttonStyle(PressableCardStyle())
-        .padding(.horizontal)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens the device page")
-    }
-
-    private var bannerIcon: String {
-        switch model.strap.state {
-        case .bluetoothOff: "antenna.radiowaves.left.and.right.slash"
-        case .failed: "exclamationmark.triangle"
-        default: "sensor.tag.radiowaves.forward"
-        }
-    }
-
-    private var bannerColor: Color {
-        switch model.strap.state {
-        case .bluetoothOff, .failed: .red
-        default: .orange
-        }
-    }
-
-    private var bannerTitle: String {
-        switch model.strap.state {
-        case .scanning: "Looking for the strap"
-        case .bluetoothOff: "Bluetooth is off"
-        case .failed: "Strap disconnected"
-        case .connecting: "Connecting"
-        case .connected: "Handshaking"
-        case .ready: "Connected"
-        }
-    }
-
-    /// Simulator builds can be launched straight into a pushed screen for screenshots.
     private func applyDemoRoute() {
         #if targetEnvironment(simulator)
         switch UserDefaults.standard.string(forKey: "demoScreen") {
         case "steps": path.append(StepsView.Scope.day)
-        case "steps7d": path.append(StepsView.Scope.week)
+        case "steps7d", "stepsday": path.append(StepsView.Scope.week)
         case "steps30d": path.append(StepsView.Scope.month)
-        case "stepsday": path.append(StepsView.Scope.week)
         default: break
         }
         #endif
     }
 
-    private func hours(_ seconds: Int) -> String {
-        String(format: "%.1f", Double(seconds) / 3600)
-    }
-
     private func loadHistory() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
+        let day = Date()
         async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 14)
         async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: 14)
-        async let m = SnoopAPI.minutes(deviceId: model.strap.serial, day: Date())
+        async let m = SnoopAPI.minutes(deviceId: model.strap.serial, day: day)
         async let w = SnoopAPI.workouts(deviceId: model.strap.serial, limit: 20)
-        if let d = try? await d { days = d }
+        async let s = SnoopAPI.steps(deviceId: model.strap.serial, day: day)
+        var failed = false
+        do { days = try await d } catch { failed = true }
         if let n = try? await n { nights = n }
         if let m = try? await m { minutes = m }
         if let w = try? await w { workouts = w }
+        do { steps = try await s } catch { failed = true }
+        historyFailed = failed
     }
 
     private var freshness: String {
-        guard let at = model.strap.liveUpdatedAt else { return "Waiting for the first reading" }
+        guard let at = model.strap.liveUpdatedAt else { return "No reading" }
         let age = Int(now.timeIntervalSince(at))
-        if model.strap.realtimeStreaming, age < 5 { return "Live" }
-        return age < 60 ? "\(age) s ago" : "\(age / 60) min ago"
+        if model.strap.state == .ready, model.strap.realtimeStreaming, age < 5 { return "Live" }
+        return age < 60 ? "\(max(0, age))s ago" : "\(age / 60)m ago"
     }
-
-    private var hint: String {
-        switch model.strap.state {
-        case .scanning: "Make sure the strap is on your wrist, nearby, and the official WHOOP app is fully closed."
-        case .bluetoothOff: "Turn Bluetooth on to connect to the strap."
-        case .failed: "Connection failed. The device page has details."
-        default: "Connecting to the strap…"
-        }
-    }
-
-    private var rmssdText: String {
-        let rr = model.strap.liveRR.map(Double.init)
-        guard rr.count >= 2 else { return "—" }
-        let diffs = zip(rr.dropFirst(), rr).map { $0 - $1 }
-        let value = (diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)).squareRoot()
-        return value.formatted(.number.precision(.fractionLength(0)))
-    }
-
 }

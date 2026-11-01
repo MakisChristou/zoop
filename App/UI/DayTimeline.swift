@@ -8,6 +8,8 @@ struct DayTimeline: View {
     let now: Date
     /// Detected sessions, shaded in their kind's colour behind the heart rate.
     var sessions: [SnoopAPI.Workout] = []
+    var walkingHours: [Int]?
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var scrub: Date?
 
     private var dayStart: Date { Calendar.current.startOfDay(for: now) }
@@ -46,26 +48,27 @@ struct DayTimeline: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             heartRateChart
-            HStack(spacing: 12) {
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 16)) : AnyLayout(HStackLayout(spacing: 16))
+            layout {
                 skinTemperatureChart
                 stepsChart
             }
             legend
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Your day").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
             Spacer()
             if let m = selected {
-                Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(SnoopStyle.secondary)
                 Text(m.hr.map { "\($0) bpm" } ?? "—").font(.caption.weight(.semibold)).monospacedDigit()
-                if let t = m.skinTempC { Text(String(format: "%.1f °C", t)).font(.caption).foregroundStyle(.secondary) }
+                if let t = m.skinTempC { Text(String(format: "%.1f °C", t)).font(.caption).foregroundStyle(SnoopStyle.secondary) }
             } else if let range = hrRange {
-                Text("\(range.lowerBound)–\(range.upperBound) bpm · drag to inspect").font(.caption).foregroundStyle(.secondary)
+                Text("\(range.lowerBound)–\(range.upperBound) bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
         }
     }
@@ -80,7 +83,7 @@ struct DayTimeline: View {
         Chart {
             ForEach(spans) { span in
                 RectangleMark(xStart: .value("from", span.start), xEnd: .value("to", span.end))
-                    .foregroundStyle(span.kind == .asleep ? Color.indigo.opacity(0.22) : Color.teal.opacity(0.18))
+                    .foregroundStyle(span.kind == .asleep ? SnoopStyle.sleep.opacity(0.22) : SnoopStyle.steps.opacity(0.18))
             }
             ForEach(sessions) { w in
                 RectangleMark(xStart: .value("from", w.startTs), xEnd: .value("to", w.endTs))
@@ -88,9 +91,9 @@ struct DayTimeline: View {
             }
             ForEach(minutes.filter { $0.hr != nil }) { m in
                 AreaMark(x: .value("Time", m.ts), yStart: .value("min", m.hrMin ?? m.hr!), yEnd: .value("max", m.hrMax ?? m.hr!))
-                    .foregroundStyle(Color.red.opacity(0.18))
+                    .foregroundStyle(SnoopStyle.heartRate.opacity(0.18))
                 LineMark(x: .value("Time", m.ts), y: .value("HR", m.hr!))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(SnoopStyle.heartRate)
                     .lineStyle(StrokeStyle(lineWidth: 1.2))
             }
             RuleMark(x: .value("Now", now)).foregroundStyle(.secondary.opacity(0.4)).lineStyle(StrokeStyle(dash: [3, 3]))
@@ -112,7 +115,8 @@ struct DayTimeline: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                let x = value.location.x - geo[proxy.plotFrame!].origin.x
+                                guard let plot = proxy.plotFrame else { return }
+                                let x = value.location.x - geo[plot].origin.x
                                 scrub = proxy.value(atX: x, as: Date.self)
                             }
                             .onEnded { _ in scrub = nil }
@@ -123,10 +127,10 @@ struct DayTimeline: View {
 
     private var skinTemperatureChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Skin temp").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text("Skin temp").font(.caption2.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
             Chart(minutes.filter { $0.skinTempC != nil }) { m in
                 LineMark(x: .value("Time", m.ts), y: .value("°C", m.skinTempC!))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(SnoopStyle.temperature)
                     .lineStyle(StrokeStyle(lineWidth: 1))
             }
             .chartXScale(domain: dayStart...dayEnd)
@@ -137,46 +141,33 @@ struct DayTimeline: View {
         }
     }
 
-    /// Walking steps per hour from positive counter increments in minutes the strap
-    /// labelled walking, the same definition as the Steps tile. Resets do no harm.
-    private var stepsPerHour: [(Date, Int)] {
-        var buckets: [Date: Int] = [:]
-        var previous: Int?
-        for m in minutes {
-            if let steps = m.steps {
-                if let p = previous, steps >= p, steps - p < 600, (m.activity ?? 0) >= 1 {
-                    let hour = Calendar.current.dateInterval(of: .hour, for: m.ts)?.start ?? m.ts
-                    buckets[hour, default: 0] += steps - p
-                }
-                previous = steps
-            }
-        }
-        return buckets.sorted { $0.key < $1.key }
-    }
-
     private var stepsChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Steps / h").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-            Chart(stepsPerHour, id: \.0) { hour, steps in
-                BarMark(x: .value("Hour", hour, unit: .hour), y: .value("Steps", steps))
-                    .foregroundStyle(.teal)
+            Text("Steps").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+            if let walkingHours {
+                Chart(Array(walkingHours.prefix(24).enumerated()), id: \.offset) { hour, steps in
+                    BarMark(x: .value("Hour", Double(hour) + 0.5), y: .value("Steps", steps))
+                        .foregroundStyle(SnoopStyle.steps).cornerRadius(2)
+                }
+                .chartXScale(domain: 0...24)
+                .chartXAxis(.hidden)
+                .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) }
+                .frame(height: 56)
+            } else {
+                Text("Not available").font(.caption).foregroundStyle(SnoopStyle.secondary).frame(height: 56)
             }
-            .chartXScale(domain: dayStart...dayEnd)
-            .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) }
-            .frame(height: 56)
         }
     }
 
     private var legend: some View {
-        HStack(spacing: 14) {
-            Label { Text("asleep") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.indigo.opacity(0.4)).frame(width: 12, height: 8) }
-            Label { Text("walking") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.teal.opacity(0.4)).frame(width: 12, height: 8) }
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), alignment: .leading)], alignment: .leading, spacing: 8) {
+            Label { Text("asleep") } icon: { RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.sleep.opacity(0.4)).frame(width: 12, height: 8) }
+            Label { Text("walking") } icon: { RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.steps.opacity(0.4)).frame(width: 12, height: 8) }
             if !sessions.isEmpty {
-                Label { Text("session") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.orange.opacity(0.5)).frame(width: 12, height: 8) }
+                Label { Text("session") } icon: { RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.load.opacity(0.5)).frame(width: 12, height: 8) }
             }
-            Label { Text("heart rate") } icon: { RoundedRectangle(cornerRadius: 2).fill(Color.red.opacity(0.5)).frame(width: 12, height: 8) }
+            Label { Text("heart rate") } icon: { RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.heartRate.opacity(0.5)).frame(width: 12, height: 8) }
         }
-        .font(.caption2).foregroundStyle(.secondary)
+        .font(.caption2).foregroundStyle(SnoopStyle.secondary)
     }
 }

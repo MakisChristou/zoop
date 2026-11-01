@@ -9,7 +9,7 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     var name: String {
         switch self {
         case .walk: "Walk"
-        case .resistance: "Gym"
+        case .resistance: "Strength training"
         case .activity: "Activity"
         }
     }
@@ -17,7 +17,7 @@ enum ActivityKind: String, CaseIterable, Identifiable {
     var longName: String {
         switch self {
         case .walk: "Walk"
-        case .resistance: "Resistance training"
+        case .resistance: "Strength training"
         case .activity: "Unlabelled activity"
         }
     }
@@ -32,9 +32,9 @@ enum ActivityKind: String, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .walk: .mint
-        case .resistance: .orange
-        case .activity: .indigo
+        case .walk: SnoopStyle.steps
+        case .resistance: SnoopStyle.load
+        case .activity: SnoopStyle.secondary
         }
     }
 

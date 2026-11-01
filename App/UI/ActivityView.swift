@@ -9,11 +9,12 @@ struct ActivityView: View {
     @State private var error: String?
     @State private var loaded = false
     @State private var path: [SnoopAPI.Workout] = []
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 28) {
                     weekCard
                     if workouts.isEmpty {
                         emptyState
@@ -24,16 +25,16 @@ struct ActivityView: View {
                     }
                     if let error { Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal) }
                 }
-                .padding(.vertical)
+                .padding(.bottom, 24)
             }
             .navigationTitle("Activity")
-            .mainScreenChrome()
+            .mainScreenChrome("Activity")
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
-        .task { await load() }
+        .task(id: model.strap.serial) { await load() }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(300))
+                do { try await Task.sleep(for: .seconds(300)) } catch { return }
                 await load()
             }
         }
@@ -64,40 +65,50 @@ struct ActivityView: View {
 
     private var weekCard: some View {
         let week = week
-        let total = week.compactMap(\.load).reduce(0, +)
         let sessions = workouts.filter { $0.startTs >= week.first?.date ?? .distantPast }.count
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("This week").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Daily load").font(.subheadline.weight(.medium))
                 Spacer()
-                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(.caption).foregroundStyle(.secondary)
+                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(total.formatted(.number.precision(.fractionLength(1))))
-                    .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("load").font(.title3).foregroundStyle(.secondary)
-            }
-            HStack(alignment: .bottom, spacing: 8) {
+            Text("Last 7 days · 0–21 scale").font(.caption).foregroundStyle(SnoopStyle.secondary)
+            if typeSize.isAccessibilitySize {
                 ForEach(week) { day in
-                    VStack(spacing: 4) {
+                    HStack {
+                        Text(Self.dayTitle(day.date))
+                        Spacer()
+                        Text(day.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—").monospacedDigit()
+                    }.font(.subheadline).padding(.vertical, 4)
+                }
+            } else {
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(week) { day in
+                    VStack(spacing: 8) {
+                        Text(day.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
+                            .font(.caption2).monospacedDigit().foregroundStyle(SnoopStyle.secondary)
                         ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 2).fill(.quaternary.opacity(0.5)).frame(height: 44)
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Calendar.current.isDateInToday(day.date) ? Color.orange : Color.orange.opacity(0.45))
-                                .frame(height: max(2, 44 * CGFloat((day.load ?? 0) / LoadRing.maximum)))
+                            RoundedRectangle(cornerRadius: 3).fill(SnoopStyle.track.opacity(0.5)).frame(height: 72)
+                            if let load = day.load, load > 0 {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Calendar.current.isDateInToday(day.date) ? SnoopStyle.load : SnoopStyle.load.opacity(0.55))
+                                    .frame(height: max(2, 72 * CGFloat(min(load, LoadRing.maximum) / LoadRing.maximum)))
+                            }
                         }
                         Text(day.date.formatted(.dateTime.weekday(.narrow)))
                             .font(.caption2)
                             .foregroundStyle(Calendar.current.isDateInToday(day.date) ? .primary : .tertiary)
                     }
                     .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(Self.dayTitle(day.date)), \(day.load.map { "load \($0.formatted(.number.precision(.fractionLength(1))))" } ?? "no data")")
                 }
+            }
             }
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal)
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .padding(.horizontal, SnoopStyle.gutter)
     }
 
     // MARK: - Sessions
@@ -117,24 +128,24 @@ struct ActivityView: View {
     private func section(_ day: Date, _ items: [SnoopAPI.Workout]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Self.dayTitle(day))
-                .font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                .padding(.horizontal)
+                .font(.headline).accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, SnoopStyle.gutter)
             ForEach(items) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }
                     .buttonStyle(PressableCardStyle())
-                    .padding(.horizontal)
+                    .padding(.horizontal, SnoopStyle.gutter)
             }
         }
     }
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(loaded ? "No sessions yet" : "Loading…").font(.headline)
-            Text("Walks of ten minutes and gym sessions of twenty are found on the server after each upload. Relabel anything it gets wrong.")
-                .font(.footnote).foregroundStyle(.secondary)
+            Text(loaded ? "No activities yet" : "Loading…").font(.headline)
+            Text("Wear your WHOOP for a walk or workout. Detected activities appear here after syncing.")
+                .font(.footnote).foregroundStyle(SnoopStyle.secondary)
         }
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
         .padding(.horizontal)
     }
 
@@ -175,52 +186,5 @@ struct ActivityView: View {
         if cal.isDateInToday(day) { return "Today" }
         if cal.isDateInYesterday(day) { return "Yesterday" }
         return day.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
-    }
-}
-
-/// One session in a list: kind, when, how long, and its load.
-struct WorkoutRow: View {
-    let workout: SnoopAPI.Workout
-
-    private var kind: ActivityKind { .named(workout.kind) }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(kind.color.opacity(0.18))
-                Image(systemName: kind.icon).font(.body.weight(.semibold)).foregroundStyle(kind.color)
-            }
-            .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(kind.name).font(.headline)
-                    if kind == .activity, !workout.edited {
-                        Text("Label it")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 7).padding(.vertical, 3)
-                            .background(kind.color.opacity(0.15), in: Capsule())
-                            .foregroundStyle(kind.color)
-                    }
-                }
-                Text(subtitle).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                    .font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
-                Text("load").font(.caption2).foregroundStyle(.tertiary)
-            }
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-        }
-        .padding(12)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var subtitle: String {
-        var parts = ["\(workout.startTs.formatted(date: .omitted, time: .shortened)) · \(workout.durationS / 60) min"]
-        if let kcal = workout.kcal { parts.append("\(Int(kcal.rounded())) kcal") }
-        if let hr = workout.avgHr { parts.append("\(Int(hr.rounded())) bpm") }
-        return parts.joined(separator: " · ")
     }
 }

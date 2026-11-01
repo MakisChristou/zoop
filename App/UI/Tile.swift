@@ -9,29 +9,25 @@ struct Tile: View {
     let caption: String
     let history: [Double]
     var linked = false
+    var color = SnoopStyle.secondary
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text(title).font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
                 Spacer()
                 if linked {
-                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value).font(.system(.title, design: .rounded).weight(.semibold)).monospacedDigit()
-                if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(.secondary) }
-            }
-            Text(caption).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
-            Sparkline(values: history)
+            MetricValue(value, unit: unit, size: 28)
+            Text(caption).font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Sparkline(values: history, color: color)
                 .frame(height: 22)
                 .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .snoopCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(value) \(unit), \(caption)")
     }
@@ -40,6 +36,7 @@ struct Tile: View {
 /// Fourteen-day context under a tile. Draws nothing until there are two points.
 struct Sparkline: View {
     let values: [Double]
+    var color = SnoopStyle.secondary
 
     var body: some View {
         GeometryReader { geo in
@@ -52,7 +49,7 @@ struct Sparkline: View {
                         if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
                     }
                 }
-                .stroke(.secondary.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
             } else {
                 Text(values.isEmpty ? " " : "1 day").font(.caption2).foregroundStyle(.quaternary)
             }

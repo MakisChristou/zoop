@@ -23,7 +23,7 @@ struct DiagnosticsView: View {
                 if let error = model.uploadStats.lastError ?? model.queueError {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 } else if let blocker = model.uploadBlocker {
-                    Text(blocker).font(.footnote).foregroundStyle(.secondary)
+                    Text(blocker).font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 }
                 Button {
                     Task { await model.flush() }
@@ -44,6 +44,8 @@ struct DiagnosticsView: View {
                 Text("Frames are queued on this phone and removed only after the server accepts them.")
             }
         }
+        .scrollContentBackground(.hidden)
+        .snoopScreen()
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -1,12 +1,10 @@
 import SwiftUI
 import UserNotifications
 
-/// The slide-up drawer behind the profile button: body profile, the device, notification
-/// permission, and the server connection and diagnostics under Advanced. Pages push
-/// inside the sheet; the close button dismisses the whole thing.
+/// A compact settings hub; the body form is a separate destination inside the sheet.
 struct ProfileSheet: View {
     enum Page: Hashable {
-        case device, server, diagnostics
+        case body, device, advanced, server, diagnostics
     }
 
     @EnvironmentObject private var model: AppModel
@@ -21,47 +19,55 @@ struct ProfileSheet: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                BodyProfileSection()
-                Section("My device") {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.crop.circle").font(.largeTitle).foregroundStyle(SnoopStyle.secondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Personal profile").font(.headline)
+                            Text("Body measurements").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.clear)
+                }
+                Section {
+                    NavigationLink(value: Page.body) { Label("Edit profile", systemImage: "person") }
                     NavigationLink(value: Page.device) {
-                        HStack(spacing: 10) {
-                            Circle().fill(statusColor).frame(width: 9, height: 9)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(model.strap.serial.isEmpty ? "WHOOP strap" : "WHOOP \(model.strap.model)")
-                                Text(statusText).font(.footnote).foregroundStyle(.secondary)
-                            }
+                        HStack {
+                            Label("My WHOOP", systemImage: "sensor.tag.radiowaves.forward")
+                            Spacer()
+                            Text(statusText).font(.caption).foregroundStyle(SnoopStyle.secondary)
                         }
                     }
                     .accessibilityLabel("Device, \(statusText)")
-                }
-                Section {
                     notificationRow
-                } header: {
-                    Text("Notifications")
-                } footer: {
-                    Text("Battery reminders and detected sessions arrive as notifications.")
                 }
-                Section("Advanced") {
-                    NavigationLink(value: Page.server) { Label("Server connection", systemImage: "network") }
-                    NavigationLink(value: Page.diagnostics) { Label("Diagnostics", systemImage: "waveform.path.ecg.rectangle") }
+                .listRowBackground(SnoopStyle.surface)
+                Section {
+                    NavigationLink(value: Page.advanced) { Label("Advanced", systemImage: "slider.horizontal.3") }
                 }
+                .listRowBackground(SnoopStyle.surface)
             }
-            .navigationTitle("Profile")
+            .scrollContentBackground(.hidden)
+            .contentMargins(.top, 8, for: .scrollContent)
+            .listSectionSpacing(.compact)
+            .snoopScreen()
+            .navigationTitle("Profile & settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
+                        Image(systemName: "xmark").font(.body.weight(.medium))
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                     .accessibilityLabel("Close")
                 }
             }
             .navigationDestination(for: Page.self) { page in
                 switch page {
+                case .body: BodyProfileView()
                 case .device: DeviceView()
+                case .advanced: AdvancedSettingsView()
                 case .server: ServerSettingsView()
                 case .diagnostics: DiagnosticsView()
                 }
@@ -69,7 +75,9 @@ struct ProfileSheet: View {
             .task { await model.battery.refreshAuthorization() }
             .onAppear { if let open, path.isEmpty { path = [open] } }
         }
+        .tint(SnoopStyle.text)
         .presentationDragIndicator(.visible)
+        .presentationBackground(SnoopStyle.background)
     }
 
     private var notificationRow: some View {
@@ -83,10 +91,10 @@ struct ProfileSheet: View {
             }
         } label: {
             HStack {
-                Label("Notifications", systemImage: "bell.badge")
+                Label("Notifications", systemImage: "bell")
                 Spacer()
-                Text(authorizationText).foregroundStyle(.secondary)
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                Text(authorizationText).foregroundStyle(SnoopStyle.secondary)
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
             }
         }
         .foregroundStyle(.primary)
@@ -96,27 +104,19 @@ struct ProfileSheet: View {
 
     private var authorizationText: String {
         switch model.battery.authorization {
-        case .authorized, .provisional, .ephemeral: "Allowed"
+        case .authorized, .provisional, .ephemeral: "On"
         case .denied: "Off"
-        case .notDetermined: "Not asked yet"
+        case .notDetermined: "Set up"
         @unknown default: "Unknown"
-        }
-    }
-
-    private var statusColor: Color {
-        switch model.strap.state {
-        case .ready: .green
-        case .connected, .connecting, .scanning: .orange
-        case .bluetoothOff, .failed: .red
         }
     }
 
     private var statusText: String {
         switch model.strap.state {
         case .ready: "Connected"
-        case .connected: "Handshaking"
+        case .connected: "Connecting…"
         case .connecting: "Connecting"
-        case .scanning: "Looking for strap"
+        case .scanning: "Connecting…"
         case .bluetoothOff: "Bluetooth off"
         case .failed: "Disconnected"
         }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Load on its 0–21 scale as an orange arc, the one colour load has everywhere. The
+/// Load on its 0–21 scale as a blue arc, the one colour load has everywhere. The
 /// number next to it carries the value; the ring only gives it a size at a glance.
 struct LoadRing: View {
     let load: Double
@@ -14,10 +14,10 @@ struct LoadRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.quaternary.opacity(0.6), lineWidth: lineWidth)
+                .stroke(SnoopStyle.track, lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(Color.orange, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(SnoopStyle.load, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: fraction)
         }

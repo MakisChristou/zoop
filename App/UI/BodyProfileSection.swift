@@ -27,14 +27,14 @@ struct BodyProfileSection: View {
                 HStack(spacing: 4) {
                     TextField("75", text: $weightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         .accessibilityLabel("Weight in kilograms")
-                    Text("kg").foregroundStyle(.secondary)
+                    Text("kg").foregroundStyle(SnoopStyle.secondary)
                 }
             }
             LabeledContent("Height") {
                 HStack(spacing: 4) {
                     TextField("175", text: $heightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         .accessibilityLabel("Height in centimetres")
-                    Text("cm").foregroundStyle(.secondary)
+                    Text("cm").foregroundStyle(SnoopStyle.secondary)
                 }
             }
             Button {
@@ -43,22 +43,22 @@ struct BodyProfileSection: View {
                 HStack {
                     Label("Save profile", systemImage: "person.crop.circle")
                     Spacer()
-                    if saving { ProgressView() } else if let status { Text(status).foregroundStyle(.secondary) }
+                    if saving { ProgressView() } else if let status { Text(status).foregroundStyle(SnoopStyle.secondary) }
                 }
             }
             .disabled(saving || !Settings.isConfigured || model.strap.serial.isEmpty)
         } header: {
             Text("Body")
         } footer: {
-            Text("Calories and heart-rate zones need sex, birth year and weight. Days are cut in this phone's time zone (\(TimeZone.current.identifier)).")
+            Text("Used to estimate calories and heart-rate zones. Time zone: \(TimeZone.current.identifier).")
         }
-        .task { await load() }
+        .task(id: model.strap.serial) { await load() }
     }
 
     private func load() async {
         guard Settings.isConfigured, !model.strap.serial.isEmpty else { return }
         guard let fetched = try? await SnoopAPI.profile(deviceId: model.strap.serial) else { return }
-        profile = fetched ?? .empty
+        profile = fetched
         birthYearText = profile.birthYear.map(String.init) ?? ""
         weightText = profile.weightKg.map { $0.formatted(.number.precision(.fractionLength(0...1))) } ?? ""
         heightText = profile.heightCm.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? ""

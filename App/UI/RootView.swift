@@ -13,7 +13,7 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            TodayView()
+            TodayView(openSleep: { selection = .sleep }, openActivity: { selection = .activity })
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
                 .tag(Tab.today)
             ActivityView()
@@ -29,6 +29,9 @@ struct RootView: View {
                 .tabItem { Label("Battery", systemImage: "battery.100percent") }
                 .tag(Tab.battery)
         }
+        .tint(SnoopStyle.load)
+        .foregroundStyle(SnoopStyle.text)
+        .toolbarBackground(SnoopStyle.surface, for: .tabBar)
         .task {
             #if targetEnvironment(simulator)
             if UserDefaults.standard.string(forKey: "demoScreen") != nil { return }

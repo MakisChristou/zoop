@@ -11,9 +11,11 @@ struct DayStepsView: View {
     var body: some View {
         ScrollView {
             DaySteps(day: day, summary: summary, summariesLoaded: summariesLoaded, workouts: workouts)
-                .padding()
+                .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
         }
-        .navigationTitle(ActivityView.dayTitle(day))
+        .snoopScreen()
+        .navigationTitle("Steps")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
     }
 }

@@ -1,55 +1,36 @@
 import SwiftUI
 
-/// Strap status for the navigation bar: a dot and a word, battery when connected.
-/// Tapping opens the device page. Sits in the header of every main screen instead of
-/// floating over them.
 struct ConnectionStatusLabel: View {
     @EnvironmentObject private var model: AppModel
+    var compact = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Circle().fill(color).frame(width: 7, height: 7)
-                Text(text).font(.footnote.weight(.medium)).foregroundStyle(.primary)
-                if let battery = model.battery.state.percent, model.strap.state == .ready {
-                    Text("\(Int(battery.rounded(.down))) %")
-                        .font(.footnote).foregroundStyle(BatteryColors.level(battery)).monospacedDigit()
-                }
+            HStack(spacing: 5) {
+                Image(systemName: model.strap.state == .ready ? "battery.100percent" : "sensor.tag.radiowaves.forward")
+                if compact {
+                    EmptyView()
+                } else if model.strap.state == .ready {
+                    Text(model.battery.state.percent.map { "\(Int($0.rounded(.down)))%" } ?? "—").monospacedDigit()
+                } else { Text(status) }
             }
-            .padding(.vertical, 5)
-            .contentShape(Rectangle())
-            .fixedSize()
+            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+            .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityHint("Opens the device page")
+        .accessibilityLabel("WHOOP, \(status)")
+        .accessibilityValue(model.strap.state == .ready ? model.battery.state.percent.map { "\(Int($0.rounded(.down))) percent battery" } ?? "" : "")
+        .accessibilityHint("Opens device settings")
+        .accessibilityShowsLargeContentViewer()
     }
 
-    private var color: Color {
-        switch model.strap.state {
-        case .ready: .green
-        case .connected, .connecting, .scanning: .orange
-        case .bluetoothOff, .failed: .red
-        }
-    }
-
-    private var text: String {
+    private var status: String {
         switch model.strap.state {
         case .ready: "Connected"
-        case .connected: "Handshaking"
-        case .connecting: "Connecting"
-        case .scanning: "Looking for strap"
+        case .connected, .connecting, .scanning: "Connecting…"
         case .bluetoothOff: "Bluetooth off"
         case .failed: "Disconnected"
         }
-    }
-
-    private var accessibilityText: String {
-        var parts = ["Strap \(text.lowercased())"]
-        if let battery = model.battery.state.percent, model.strap.state == .ready {
-            parts.append("battery \(Int(battery.rounded(.down))) percent")
-        }
-        return parts.joined(separator: ", ")
     }
 }

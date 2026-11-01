@@ -28,16 +28,17 @@ struct SleepDetailView: View {
             VStack(alignment: .leading, spacing: 14) {
                 readout
                 stageChart
-                track("Heart rate", unit: "bpm", color: .red, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
-                track("HRV", unit: "ms RMSSD", color: .teal, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
+                track("Heart rate", unit: "bpm", color: SnoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
+                track("HRV", unit: "ms", color: SnoopStyle.sleep, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
                 track("Breathing", unit: "/min", color: .mint, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
                 motionTrack
-                Text("Stages are inferred from these signals with published wrist-device methods. Deep should sit where heart rate is lowest and HRV highest, mostly early; REM where heart rate rises and varies, mostly late. If the bands disagree with the curves, the staging is wrong, not the curves.")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own.")
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
             }
             .padding()
         }
+        .snoopScreen()
+        .toolbar(.visible, for: .navigationBar)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
@@ -56,21 +57,21 @@ struct SleepDetailView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(e.hr.map { "\(Int($0.rounded())) bpm" } ?? "—")
-                    Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(.secondary)
+                    Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(SnoopStyle.secondary)
                 }
                 .font(.subheadline).monospacedDigit()
             } else {
                 Text("\(onset.formatted(date: .omitted, time: .shortened)) – \(offset.formatted(date: .omitted, time: .shortened))").font(.headline)
                 Spacer()
-                Text("drag any chart").font(.caption).foregroundStyle(.secondary)
+                Text("Sleep detail").font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
         }
-        .frame(height: 36)
+        .frame(minHeight: 36)
     }
 
     private var stageChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
             Chart {
                 ForEach(Array(night.stages.enumerated()), id: \.offset) { _, seg in
                     RectangleMark(
@@ -92,15 +93,15 @@ struct SleepDetailView: View {
             .frame(height: 110)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private func track(_ name: String, unit: String, color: Color, values: [(Date, Double)]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(name).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text(name).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
                 Spacer()
-                Text(unit).font(.caption2).foregroundStyle(.tertiary)
+                Text(unit).font(.caption2).foregroundStyle(SnoopStyle.secondary)
             }
             Chart {
                 ForEach(night.stages.filter { $0.stage == .deep || $0.stage == .rem }, id: \.start) { seg in
@@ -122,15 +123,15 @@ struct SleepDetailView: View {
             .frame(height: 90)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private var motionTrack: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Motion").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Motion").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
                 Spacer()
-                Text("share of seconds moving").font(.caption2).foregroundStyle(.tertiary)
+                Text("share of seconds moving").font(.caption2).foregroundStyle(SnoopStyle.secondary)
             }
             Chart {
                 ForEach(epochs) { e in
@@ -146,7 +147,7 @@ struct SleepDetailView: View {
             .frame(height: 60)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 
     private func scrubOverlay(_ proxy: ChartProxy) -> some View {

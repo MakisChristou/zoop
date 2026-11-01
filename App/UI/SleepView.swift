@@ -9,6 +9,7 @@ struct SleepView: View {
     @State private var selected: SnoopAPI.Night?
     @State private var error: String?
     @State private var loading = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
@@ -26,19 +27,9 @@ struct SleepView: View {
                 }
             }
             .navigationTitle("Sleep")
-            .toolbar {
-                if nights.count > 1 {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button { step(1) } label: { Image(systemName: "chevron.left") }
-                            .disabled(!canStep(1))
-                        Button { step(-1) } label: { Image(systemName: "chevron.right") }
-                            .disabled(!canStep(-1))
-                    }
-                }
-            }
-            .mainScreenChrome()
+            .mainScreenChrome("Sleep")
             .refreshable { await load() }
-            .task { await load() }
+            .task(id: model.strap.serial) { await load() }
         }
     }
 
@@ -46,15 +37,23 @@ struct SleepView: View {
         let w = night.metrics.window
         let p = night.metrics.physiology
         return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Button { step(1) } label: { Image(systemName: "chevron.left").frame(minWidth: 44, minHeight: 44) }
+                        .foregroundStyle(canStep(1) ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
+                        .disabled(!canStep(1)).accessibilityLabel("Previous night")
+                    Spacer(minLength: 4)
+                    Text(nightLabel(night)).font(.subheadline).multilineTextAlignment(.center)
+                    Spacer(minLength: 4)
+                    Button { step(-1) } label: { Image(systemName: "chevron.right").frame(minWidth: 44, minHeight: 44) }
+                        .foregroundStyle(canStep(-1) ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
+                        .disabled(!canStep(-1)).accessibilityLabel("Next night")
+                }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(nightLabel(night)).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(duration(w.asleepS)).font(.system(size: 56, weight: .semibold, design: .rounded)).monospacedDigit()
-                        Text("asleep").font(.title3).foregroundStyle(.secondary)
-                    }
+                    SleepDuration(seconds: w.asleepS, size: 48)
+                    Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                     Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened)) · \(duration(w.timeInBedS)) in bed")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(SnoopStyle.secondary)
                     if night.stages.isEmpty {
                         SleepBar(asleep: w.asleepS, awake: w.wasoS)
                             .frame(height: 14)
@@ -68,8 +67,8 @@ struct SleepView: View {
                                     .frame(height: 96)
                                 HStack {
                                     Spacer()
-                                    Label("Inspect night", systemImage: "chevron.right")
-                                        .font(.caption).foregroundStyle(.secondary)
+                                    Label("Sleep details", systemImage: "chevron.right")
+                                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
                                 }
                             }
                             .padding(.top, 8)
@@ -80,69 +79,66 @@ struct SleepView: View {
                             Spacer()
                             Text(w.offset.formatted(date: .omitted, time: .shortened))
                         }
-                        .font(.caption2).foregroundStyle(.tertiary)
+                        .font(.caption2).foregroundStyle(SnoopStyle.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
 
                 if let st = night.metrics.stages, !night.stages.isEmpty {
                     let scored = max(st.lightS + st.deepS + st.remS, 1)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text("Sleep stages").font(.headline)
                         StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored))
                         StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored))
                         StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored))
                         StageRow(name: "Awake", color: Hypnogram.color(.wake), seconds: st.wakeS, share: nil)
-                        if let rem = st.remLatencyS {
-                            Text("First REM after \(duration(rem)). Deep-sleep minutes are the least certain of these figures.")
-                                .font(.caption2).foregroundStyle(.tertiary)
-                        }
+                        Text("Stages are estimates").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
                 }
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    Stat("Efficiency", pct(w.efficiency), "asleep ÷ in bed")
+                LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    Stat("Efficiency", pct(w.efficiency), "Time in bed spent asleep")
                     Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")")
-                    Stat("Resting HR", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm, lowest 5 min")
-                    Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms RMSSD, \(p.hrvWindows) windows")
+                    Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm")
+                    Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep")
                     Stat("Breathing", p.respiratoryRate.map { String(format: "%.1f", $0) } ?? "—", "breaths / min")
-                    Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "\(p.spo2Windows) windows")
-                    Stat("Skin temp", p.skinTempC.map { String(format: "%.1f °C", $0) } ?? "—", "night mean")
-                    Stat("Coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "data present")
+                    Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep")
+                    Stat("Skin temperature", p.skinTempC.map { String(format: "%.1f °C", $0) } ?? "—", "Nightly average")
+                    Stat("Data coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "Recorded during the night")
                 }
 
                 let awakenings = night.stages.filter { $0.stage == .wake && $0.start > w.onset && $0.end < w.offset }
                 if !awakenings.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Awake during the night").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text("Awake during the night").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                         ForEach(Array(awakenings.enumerated()), id: \.offset) { _, seg in
                             HStack {
                                 Text(seg.start.formatted(date: .omitted, time: .shortened))
-                                Text("·").foregroundStyle(.tertiary)
+                                Text("·").foregroundStyle(SnoopStyle.secondary)
                                 Text(duration(Int(seg.end.timeIntervalSince(seg.start))))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(SnoopStyle.secondary)
                             }
                             .font(.subheadline)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
                 }
 
                 if w.coverageS < w.timeInBedS - 120 {
                     Label("\(duration(w.timeInBedS - w.coverageS)) of this night has no data, for example while the strap was off or charging. Those minutes are not counted as sleep.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
                 }
 
                 if !night.metrics.naps.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Other sleep").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text("Other sleep").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
                         ForEach(Array(night.metrics.naps.enumerated()), id: \.offset) { _, nap in
                             Text("\(nap.onset.formatted(date: .omitted, time: .shortened)) – \(nap.offset.formatted(date: .omitted, time: .shortened)) · \(duration(nap.asleepS))")
                                 .font(.subheadline)
@@ -150,13 +146,12 @@ struct SleepView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
                 }
 
-                Text("Sleep window from the strap's own rest flag with heart-rate confirmation. Stages from motion, heart rate, HRV and breathing, using published wrist-device methods; about 70 % epoch agreement is the state of the art without EEG. Algorithm v\(night.algoVersion).")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
-            .padding()
+            .padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
         }
     }
 
@@ -177,7 +172,7 @@ struct SleepView: View {
 
     private func load() async {
         guard !model.strap.serial.isEmpty || !nights.isEmpty else {
-            error = "Waiting for the strap's serial number."
+            error = "Connect your WHOOP to load sleep."
             return
         }
         loading = true
@@ -192,16 +187,16 @@ struct SleepView: View {
 
     private var emptyDescription: String {
         if !Settings.isConfigured {
-            return "Add your server in Settings. Sleep is analysed there from the strap's overnight data."
+            return "Set up your server connection in Profile & settings."
         }
-        return "Wear the strap overnight with snoop running in the background. The first analysed night appears here the next morning."
+        return "Wear your WHOOP overnight. Your sleep appears here after syncing in the morning."
     }
 
     private func nightLabel(_ night: SnoopAPI.Night) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         guard let date = formatter.date(from: night.nightOf) else { return night.nightOf }
-        return "Night of " + date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
     }
 
     private func duration(_ seconds: Int) -> String {
@@ -222,9 +217,9 @@ struct Hypnogram: View {
     static func color(_ stage: SnoopAPI.Night.Stage) -> Color {
         switch stage {
         case .wake: .orange
-        case .light: .indigo.opacity(0.55)
-        case .deep: .indigo
-        case .rem: .teal
+        case .light: SnoopStyle.sleep.opacity(0.5)
+        case .deep: SnoopStyle.sleep
+        case .rem: SnoopStyle.sleep.opacity(0.78)
         }
     }
 
@@ -260,8 +255,19 @@ private struct StageRow: View {
     let color: Color
     let seconds: Int
     let share: Double?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(name).font(.subheadline.weight(.semibold))
+                Text(hm(seconds) + (share.map { " · \(Int(($0 * 100).rounded()))%" } ?? ""))
+                    .font(.subheadline).monospacedDigit()
+                if let share { ProgressView(value: share).tint(color).accessibilityHidden(true) }
+            }
+            .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
+        } else {
         HStack(spacing: 10) {
             Circle().fill(color).frame(width: 10, height: 10)
             Text(name).frame(width: 52, alignment: .leading)
@@ -272,9 +278,11 @@ private struct StageRow: View {
                     .frame(maxHeight: .infinity, alignment: .center)
             }
             Text(hm(seconds)).monospacedDigit().frame(width: 62, alignment: .trailing)
-            Text(share.map { "\(Int(($0 * 100).rounded())) %" } ?? "").foregroundStyle(.secondary).frame(width: 40, alignment: .trailing)
+            Text(share.map { "\(Int(($0 * 100).rounded())) %" } ?? "").foregroundStyle(SnoopStyle.secondary).frame(width: 40, alignment: .trailing)
         }
         .font(.subheadline)
+        .accessibilityElement(children: .combine)
+        }
     }
 
     private func hm(_ s: Int) -> String {
@@ -291,7 +299,7 @@ private struct SleepBar: View {
         GeometryReader { geo in
             let total = max(asleep + awake, 1)
             HStack(spacing: 2) {
-                RoundedRectangle(cornerRadius: 4).fill(.indigo)
+                RoundedRectangle(cornerRadius: 4).fill(SnoopStyle.sleep)
                     .frame(width: geo.size.width * CGFloat(asleep) / CGFloat(total))
                 if awake > 0 {
                     RoundedRectangle(cornerRadius: 4).fill(.orange.opacity(0.8))
@@ -314,12 +322,12 @@ private struct Stat: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-            Text(value).font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
-            Text(caption).font(.caption2).foregroundStyle(.tertiary)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+            Text(value).font(.system(.title2, design: .default).weight(.semibold)).monospacedDigit()
+            Text(caption).font(.caption2).foregroundStyle(SnoopStyle.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
 }
