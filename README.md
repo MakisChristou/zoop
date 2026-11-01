@@ -269,6 +269,13 @@ weight takes precedence in the daily summary; imported values are never re-expor
 The weight history is separate from the body profile used for analytics. Historical
 imports do not replace that profile or invent measurements for missing days.
 
+Weight opens from Today. Its chart shows actual measurements over 7, 30 or 90 local
+dates, or all recorded history. Swipe horizontally to browse older dates, tap a
+point to inspect it, and use Latest to return to the current window. Browsing stops
+at the earliest recorded date and today; changing the window size keeps the browsed
+end date where history allows. All weigh-ins opens the full list with sources and
+Snoop-entry editing. Units, reminders and import stay in the options menu.
+
 Weight export skips visible existing external measurements on the same local date.
 If another source arrives later, Snoop removes only its own redundant Health copy.
 HealthKit does not disclose read-permission denial: an empty query cannot prove an
