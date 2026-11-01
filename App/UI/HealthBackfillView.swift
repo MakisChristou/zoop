@@ -12,7 +12,7 @@ struct HealthBackfillView: View {
     @State private var error: String?
     @State private var started = false
     private var range: HealthJournal.Range {
-        let first = all ? (model.health.journal.importWeight ? Date(timeIntervalSince1970: 0) : (model.health.earliest ?? from)) : Calendar.current.startOfDay(for: from)
+        let first = all ? (model.health.earliest ?? from) : Calendar.current.startOfDay(for: from)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) ?? to
         return .init(from: first, to: end)
     }
@@ -30,12 +30,8 @@ struct HealthBackfillView: View {
                         LabeledContent("Workouts", value: "\(preview.workouts)")
                         if model.health.journal.exportSteps { LabeledContent("Days with steps", value: "\(preview.stepDays.count)") }
                         if model.health.journal.exportWeight { LabeledContent("Weigh-ins to Health", value: "\(preview.weights)") }
-                        if model.health.journal.importWeight { LabeledContent("Weigh-ins from Health", value: "\(preview.importedWeights)") }
                         if preview.already > 0 { LabeledContent("Already synced", value: "\(preview.already)") }
-                    } header: { Text("Ready to share") } footer: { Text("Records still being analysed will follow when ready. Repeating this range won’t duplicate Snoop exports.") }
-                    if model.health.journal.importWeight {
-                        Section { Text("Weight readings from Apple Health in this range will also be imported to your Snoop server.").font(.footnote) }
-                    }
+                    } header: { Text("Snoop → Apple Health") } footer: { Text("Records still being analysed will follow when ready. Repeating this range won’t duplicate Snoop exports.") }
                 }
                 if let error = error ?? model.health.error { Section { Text(error).foregroundStyle(SnoopStyle.unfavourable) } }
                 Section {
@@ -45,7 +41,7 @@ struct HealthBackfillView: View {
                         else if model.health.journal.paused { Button("Resume sync") { model.health.pause(false) } }
                         else if model.health.error != nil { Button("Retry sync") { model.health.checkSoon() } }
                     } else if preview != nil {
-                        Button("Sync selected history") {
+                        Button("Export selected history") {
                             let selected = range; started = true
                             Task { do { try await model.health.backfill(selected) } catch { self.error = error.localizedDescription; started = false } }
                         }
@@ -59,7 +55,7 @@ struct HealthBackfillView: View {
                 }
             }
             .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
-            .navigationTitle("Older history").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Export Snoop history").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onChange(of: from) { _, _ in preview = nil }
             .onChange(of: to) { _, _ in preview = nil }

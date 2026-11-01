@@ -4,7 +4,7 @@ import UserNotifications
 /// A compact settings hub; the body form is a separate destination inside the sheet.
 struct ProfileSheet: View {
     enum Page: Hashable {
-        case body, device, advanced, server, diagnostics, health, weight
+        case body, device, advanced, server, diagnostics, health
     }
 
     @EnvironmentObject private var model: AppModel
@@ -32,7 +32,6 @@ struct ProfileSheet: View {
                 }
                 Section {
                     NavigationLink(value: Page.body) { Label("Edit profile", systemImage: "person") }
-                    NavigationLink(value: Page.weight) { Label("Weight", systemImage: "scalemass") }
                     NavigationLink(value: Page.health) { Label("Apple Health", systemImage: "heart") }
                     NavigationLink(value: Page.device) {
                         HStack {
@@ -69,7 +68,6 @@ struct ProfileSheet: View {
                 switch page {
                 case .body: BodyProfileView()
                 case .health: AppleHealthView()
-                case .weight: WeightView()
                 case .device: DeviceView()
                 case .advanced: AdvancedSettingsView()
                 case .server: ServerSettingsView()

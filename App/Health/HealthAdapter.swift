@@ -118,6 +118,17 @@ final class HealthAdapter {
         default: throw Failure.invalidRecord
         }
     }
+    /// Read-only preview; no samples are uploaded or written to Health.
+    func weightReadings(in range: HealthJournal.Range) async throws -> [WeightReading] {
+        try await samples(type: Self.weightType, predicate: HKQuery.predicateForSamples(withStart: range.from, end: range.to, options: .strictStartDate))
+            .compactMap(Self.externalWeight)
+    }
+    nonisolated private static func externalWeight(_ sample: HKSample) -> WeightReading? {
+        guard sample.sourceRevision.source != .default(), let sample = sample as? HKQuantitySample else { return nil }
+        let kg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+        guard kg.isFinite, (20...400).contains(kg), sample.startDate <= Date() else { return nil }
+        return WeightReading(id: "health:" + sample.uuid.uuidString, measuredAt: sample.startDate, kg: kg, source: "health", sourceName: sample.sourceRevision.source.name)
+    }
     struct WeightChanges {
         let readings: [WeightReading]
         let deleted: [String]
@@ -132,12 +143,7 @@ final class HealthAdapter {
                 if let error { continuation.resume(throwing: error); return }
                 do {
                     guard let anchor else { throw Failure.unavailable }
-                    let readings = (samples ?? []).compactMap { sample -> WeightReading? in
-                        guard sample.sourceRevision.source != .default(), let sample = sample as? HKQuantitySample else { return nil }
-                        let kg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
-                        guard kg.isFinite, (20...400).contains(kg) else { return nil }
-                        return WeightReading(id: "health:" + sample.uuid.uuidString, measuredAt: sample.startDate, kg: kg, source: "health", sourceName: sample.sourceRevision.source.name)
-                    }
+                    let readings = (samples ?? []).compactMap(Self.externalWeight)
                     let result = WeightChanges(readings: readings, deleted: (deleted ?? []).map { "health:" + $0.uuid.uuidString }, anchor: try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true), more: (samples?.count ?? 0) + (deleted?.count ?? 0) >= 200)
                     continuation.resume(returning: result)
                 } catch { continuation.resume(throwing: error) }

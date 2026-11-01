@@ -31,7 +31,6 @@ struct AppleHealthView: View {
             }
             Section {
                 Toggle("Import weight", isOn: $importWeight)
-                NavigationLink("Weight history") { WeightView() }
             } header: { Text("Weight") } footer: {
                 Text("Imported weights are saved to your Snoop server with their date and source. Other apps’ records stay unchanged.")
             }
@@ -49,7 +48,7 @@ struct AppleHealthView: View {
                 .disabled(connecting || health.busy || !health.adapter.available)
                 if connecting { ProgressView().accessibilityLabel("Connecting Apple Health") }
                 if health.connected {
-                    Button("Sync older history") { showBackfill = true }.disabled(health.busy)
+                    Button("Export older Snoop history") { showBackfill = true }.disabled(health.busy)
                     Button(health.journal.paused ? "Resume syncing" : "Pause syncing") { health.pause(!health.journal.paused) }
                     Button("Disconnect Apple Health") { health.disconnect() }.disabled(health.busy)
                     Button("Remove Snoop exports", role: .destructive) { confirmRemoval = true }.disabled(health.busy)

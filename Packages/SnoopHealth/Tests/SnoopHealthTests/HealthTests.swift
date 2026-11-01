@@ -14,7 +14,7 @@ final class HealthTests: XCTestCase {
         XCTAssertTrue(j.eligible(record(end: start)))
         let range = HealthJournal.Range(from: start.addingTimeInterval(-86400), to: start)
         j.backfill(range); j.backfill(range)
-        XCTAssertEqual(j.ranges.count, 1); XCTAssertEqual(j.connectedAt, start)
+        XCTAssertEqual(j.allExportRanges.count, 1); XCTAssertEqual(j.connectedAt, start)
         XCTAssertTrue(j.eligible(record(end: start.addingTimeInterval(-100))))
     }
     func testCorrectionsStayEnrolledOutsideOriginalWindow() {

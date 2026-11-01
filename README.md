@@ -235,11 +235,20 @@ descriptive outlook, not a validated readiness score or a training recommendatio
 
 ## Apple Health and weight
 
-Profile & settings contains Apple Health and Weight. Connecting asks for sleep and
-workout write access, with optional steps and weight export and optional weight
-import. Sharing starts at connection time. Sync older history previews a chosen
-range (or all available history), including older Health weights when import is on.
-Backfills resume from saved progress and overlapping ranges reuse stable identities.
+Today’s compact Weight card opens a dedicated weight page with a 7D/1M/3M/All chart,
+actual measurement dots and a seven-day average of available daily readings. Gaps
+of a week or more break the trend line. Units and wake reminders live in Weight’s
+options menu; weight changes have neutral colours.
+
+Apple Health connection and export controls remain in Profile & settings. Connecting
+asks for sleep and workout write access, optional steps/weight export and optional
+weight import. Automatic sharing starts at connection time. Weight → Import weight
+history previews Health readings automatically after choosing All history or dates.
+It imports only weights, reports existing readings separately, and never enrolls
+sleep/workout/steps exports. Export older Snoop history is a separate consent action
+in Apple Health settings. Legacy combined selections retain both original consents;
+new selections are stored separately. Imports resume from saved per-reading receipts
+and overlapping ranges reuse stable identities.
 
 Sleep exports actual known asleep intervals, including naps, without guessed sleep
 stages, awake breaks or missing seconds. Workouts export corrected type, times and

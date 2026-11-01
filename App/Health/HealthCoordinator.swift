@@ -16,6 +16,8 @@ final class HealthCoordinator: ObservableObject {
     @Published private(set) var error: String?
     @Published private(set) var earliest: Date?
     @Published var showWeightEntry = false
+    @Published private(set) var importingWeightHistory = false
+    @Published private(set) var importedWeightCount = 0
     let adapter = HealthAdapter()
     private var file: URL?
     private var device = ""
@@ -40,7 +42,7 @@ final class HealthCoordinator: ObservableObject {
         let input = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
         let next = SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
         guard next != scope else { return }
-        epoch += 1; followUp?.cancel(); followUp = nil; busy = false
+        epoch += 1; followUp?.cancel(); followUp = nil; busy = false; importingWeightHistory = false
         if let observation { adapter.store.stop(observation) }; observation = nil
         if let activeReminder { center.removePendingNotificationRequests(withIdentifiers: [activeReminder]) }; activeReminder = nil
         scope = next; self.device = device; journal = HealthJournal(); error = nil
@@ -93,7 +95,7 @@ final class HealthCoordinator: ObservableObject {
         do {
             journal.paused = true; try persist()
             try await adapter.removeExports(namespace: journal.namespace); try valid(generation)
-            journal.versions = [:]; journal.deferred = [:]; journal.ranges = []
+            journal.versions = [:]; journal.deferred = [:]; journal.clearExportHistory()
             journal.cursor = 0; journal.watermark = nil; journal.pageCursor = 0; journal.snapshot = true
             disconnect()
         } catch { self.error = "Some Snoop exports could not be removed. Check Health permissions and retry." }
@@ -156,7 +158,7 @@ final class HealthCoordinator: ObservableObject {
             guard UIApplication.shared.isProtectedDataAvailable else { status = "Waiting to unlock"; return }
             // Bootstrap only consented periods, in small server transactions.
             if journal.exportSteps, let connectedAt = journal.connectedAt {
-                for range in [HealthJournal.Range(from: connectedAt, to: Date())] + journal.ranges {
+                for range in [HealthJournal.Range(from: connectedAt, to: Date())] + journal.allExportRanges {
                     var start = range.from
                     while !journal.paused {
                         try valid(generation); status = "Preparing steps…"
@@ -231,25 +233,28 @@ final class HealthCoordinator: ObservableObject {
         } while true
         journal.weights = loaded; try persist()
     }
-    private func importWeights(_ generation: Int) async throws {
+    private func importWeights(_ generation: Int, allowWhilePaused: Bool = false) async throws {
         guard let from = journal.importStart ?? journal.connectedAt else { return }
         repeat {
-            try valid(generation); if journal.paused || !journal.importWeight { return }
+            try valid(generation); if (journal.paused && !allowWhilePaused) || !journal.importWeight { return }
             let changes = try await adapter.weightChanges(anchor: journal.anchor, from: from, to: nil); try valid(generation)
             for row in changes.readings {
-                guard journal.connectedAt.map({ row.measuredAt >= $0 }) == true || journal.ranges.contains(where: { $0.contains(row.measuredAt) }) else { continue }
+                guard journal.permitsWeightImport(at: row.measuredAt) else { continue }
                 try valid(generation)
-                guard !journal.paused else { throw CancellationError() }
+                guard !journal.paused || allowWhilePaused else { throw CancellationError() }
                 if journal.weights.contains(where: { $0.id == row.id && $0.kg == row.kg && !$0.removed }) { continue }
                 let saved = try await SnoopAPI.saveWeight(device, row); try valid(generation)
                 journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved)
+                if importingWeightHistory && journal.pendingWeightImport?.contains(saved.measuredAt) == true { importedWeightCount += 1 }
                 // Preserve per-reading receipts before advancing the Health anchor;
                 // repeated short background windows can finish a large import.
                 try persist()
             }
             try await SnoopAPI.removeImportedWeights(device, ids: changes.deleted); try valid(generation)
+            let deleted = Set(changes.deleted)
+            journal.weights.removeAll { $0.source == "health" && deleted.contains($0.id) }
             journal.anchor = changes.anchor; try persist()
-            if !changes.more { return }
+            if !changes.more { journal.pendingWeightImport = nil; try persist(); return }
         } while true
     }
     private func remind(wake: Date?, generation: Int) async throws {
@@ -295,7 +300,7 @@ final class HealthCoordinator: ObservableObject {
         observation = query; adapter.store.execute(query)
         adapter.store.enableBackgroundDelivery(for: HealthAdapter.weightType, frequency: .immediate) { _, _ in }
     }
-    struct Preview { var sleep = 0; var workouts = 0; var stepDays: Set<String> = []; var weights = 0; var importedWeights = 0; var already = 0 }
+    struct Preview { var sleep = 0; var workouts = 0; var stepDays: Set<String> = []; var weights = 0; var already = 0 }
     func preview(_ range: HealthJournal.Range) async throws -> Preview {
         guard !busy else { throw PreviewFailure.busy }
         busy = true
@@ -328,18 +333,50 @@ final class HealthCoordinator: ObservableObject {
             }
             cursor = page.nextCursor; if page.done { break }
         } while true
-        if journal.importWeight {
-            let samples = try await adapter.samples(type: HealthAdapter.weightType, predicate: HKQuery.predicateForSamples(withStart: range.from, end: range.to, options: .strictStartDate))
-            try valid(generation)
-            result.importedWeights = samples.filter { sample in sample.sourceRevision.source != .default() && !journal.weights.contains(where: { $0.id == "health:" + sample.uuid.uuidString && !$0.removed }) }.count
-        }
         return result
+    }
+    func previewWeightImport(_ range: HealthJournal.Range) async throws -> WeightImportPreview {
+        let generation = epoch
+        guard connected, journal.importWeight else { throw WeightImportFailure.notEnabled }
+        let readings = try await adapter.weightReadings(in: range)
+        try valid(generation)
+        return WeightImportPreview(readings: readings, savedIDs: Set(rows.map(\.id)), range: range)
+    }
+    /// Selected weights only. Export selections/cursors and the global pause state stay intact.
+    func importWeightHistory(_ range: HealthJournal.Range) async throws -> Int {
+        let generation = epoch
+        while busy { try await Task.sleep(for: .milliseconds(150)); try valid(generation) }
+        try valid(generation)
+        guard connected, journal.importWeight else { throw WeightImportFailure.notEnabled }
+        busy = true; importingWeightHistory = true; importedWeightCount = 0; error = nil
+        defer { if epoch == generation { busy = false; importingWeightHistory = false } }
+        let previous = Set(rows.filter { range.contains($0.measuredAt) }.map(\.id))
+        do {
+            let info = try await SnoopAPI.healthInfo(device); try valid(generation)
+            guard journal.namespace.isEmpty || journal.namespace == info.namespace, journal.cursor <= info.cursor else { throw HealthAdapter.Failure.newerVersion }
+            journal.namespace = info.namespace
+            journal.approveWeightImport(range); try persist()
+            status = "Importing weigh-ins…"
+            try await importWeights(generation, allowWhilePaused: true)
+            try valid(generation)
+            let count = rows.filter { $0.source == "health" && range.contains($0.measuredAt) && !previous.contains($0.id) }.count
+            cancelReminderIfWeighed()
+            status = journal.paused ? "Paused" : "Weight history imported"
+            return count
+        } catch {
+            if epoch == generation { self.error = error.localizedDescription; status = "Weight import interrupted" }
+            throw error
+        }
+    }
+    private func cancelReminderIfWeighed() { if today != nil { cancelReminder() } }
+    enum WeightImportFailure: LocalizedError {
+        case notEnabled
+        var errorDescription: String? { "Enable weight imports in the Apple Health connection to continue." }
     }
     enum PreviewFailure: LocalizedError { case busy; var errorDescription: String? { "Wait for the current sync to finish, then preview again." } }
     func backfill(_ range: HealthJournal.Range) async throws {
         guard !busy else { throw PreviewFailure.busy }
         journal.backfill(range); journal.paused = false
-        if journal.importWeight { journal.importStart = min(journal.importStart ?? range.from, range.from); journal.anchor = nil }
         try persist(); await sync()
     }
 }
