@@ -76,7 +76,7 @@ impl PostgresStore {
             .bind(versions.sleep).bind(versions.workout).fetch_all(&mut *tx).await.map_err(fail)?;
         for (device, tz) in devices {
             sqlx::query("INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version,backfill)
-                SELECT $1,'sleep',(ts AT TIME ZONE 'UTC' + interval '9 hours')::date,'UTC',$3,true FROM samples WHERE device_id=$1 GROUP BY 3
+                SELECT $1,'sleep',(ts AT TIME ZONE $2)::date+n,$2,$3,true FROM samples CROSS JOIN generate_series(0,1)n WHERE device_id=$1 GROUP BY 3
                 UNION SELECT $1,'workout',(ts AT TIME ZONE $2)::date,$2,$4,true FROM samples WHERE device_id=$1 GROUP BY 3
                 ON CONFLICT(device_id,kind,day,tz,algo_version) DO UPDATE SET backfill=true")
                 .bind(&device).bind(&tz).bind(versions.sleep).bind(versions.workout).execute(&mut *tx).await.map_err(fail)?;
@@ -96,9 +96,9 @@ impl PostgresStore {
         sqlx::query_as("WITH candidate AS (
             SELECT j.* FROM analysis_jobs j WHERE generation>completed_generation AND available_at<=now()
             AND (lease_until IS NULL OR lease_until<now())
-            AND ((kind='sleep' AND algo_version=$1) OR (kind='workout' AND algo_version=$2 AND tz=coalesce((SELECT tz FROM profiles p WHERE p.device_id=j.device_id),'UTC')))
+            AND ((kind='sleep' AND algo_version=$1) OR (kind='workout' AND algo_version=$2)) AND tz=coalesce((SELECT tz FROM profiles p WHERE p.device_id=j.device_id),'UTC')
             AND (kind='sleep' OR NOT EXISTS(SELECT 1 FROM analysis_jobs s WHERE s.device_id=j.device_id AND s.kind='sleep' AND s.algo_version=$1
-                AND s.generation>s.completed_generation AND s.day<=j.day+1))
+                AND s.tz=j.tz AND s.generation>s.completed_generation AND s.day<=j.day+1))
             ORDER BY CASE kind WHEN 'sleep' THEN 0 ELSE 1 END, backfill, day DESC
             FOR UPDATE OF j SKIP LOCKED LIMIT 1
         ) UPDATE analysis_jobs j SET claim_id=nextval('analysis_claim_ids'),claimed_generation=j.generation,
@@ -250,7 +250,15 @@ impl PostgresStore {
                 .map_err(fail)?;
         }
         if let Some(sessions) = sessions {
-            crate::session_store::publish_sessions(&mut tx, job, from, to, sessions).await?;
+            crate::session_store::publish_domain_sessions(
+                &mut tx,
+                crate::SessionDomain::Workout,
+                job,
+                from,
+                to,
+                sessions,
+            )
+            .await?;
         }
         complete(&mut tx, job, inputs).await?;
         tx.commit().await.map_err(fail)?;
@@ -288,15 +296,15 @@ impl PostgresStore {
             min(day) FILTER(WHERE generation>completed_generation) oldest_pending_day,max(completed_at) last_analyzed_at,
             (SELECT count(*)=2 AND coalesce(bool_and(heartbeat_at>now()-interval '2 minutes' AND last_error IS NULL),false) FROM worker_status WHERE name IN ('decoder','analysis')) workers_healthy,
             (SELECT coalesce(bool_or(paused),false) FROM worker_status) paused
-            FROM analysis_jobs j WHERE device_id=$1 AND ((kind='sleep' AND algo_version=$3) OR (kind='workout' AND algo_version=$4 AND tz=coalesce((SELECT tz FROM profiles WHERE device_id=$1),'UTC')))")
+            FROM analysis_jobs j WHERE device_id=$1 AND ((kind='sleep' AND algo_version=$3) OR (kind='workout' AND algo_version=$4)) AND tz=coalesce((SELECT tz FROM profiles WHERE device_id=$1),'UTC')")
             .bind(device).bind(proto).bind(versions.sleep).bind(versions.workout).fetch_one(self.pool()).await.map_err(fail)
     }
 }
 
-async fn fence(tx: &mut PgConnection, job: &AnalysisJob) -> StorageResult<bool> {
+pub(crate) async fn fence(tx: &mut PgConnection, job: &AnalysisJob) -> StorageResult<bool> {
     let valid: Option<bool> = sqlx::query_scalar(
         "SELECT generation=$2 AND lease_until>now() AND
-        (kind='sleep' OR tz=coalesce((SELECT tz FROM profiles WHERE device_id=j.device_id),'UTC'))
+        tz=coalesce((SELECT tz FROM profiles WHERE device_id=j.device_id),'UTC')
         FROM analysis_jobs j WHERE claim_id=$1 FOR UPDATE",
     )
     .bind(job.claim_id)
@@ -313,7 +321,11 @@ async fn fence(tx: &mut PgConnection, job: &AnalysisJob) -> StorageResult<bool> 
     }
     Ok(valid == Some(true))
 }
-async fn complete(tx: &mut PgConnection, job: &AnalysisJob, inputs: Value) -> StorageResult<()> {
+pub(crate) async fn complete(
+    tx: &mut PgConnection,
+    job: &AnalysisJob,
+    inputs: Value,
+) -> StorageResult<()> {
     sqlx::query("UPDATE analysis_jobs SET completed_generation=$2,completed_at=now(),last_error=NULL,attempts=0,
         lease_until=NULL,claim_id=NULL,backfill=false,inputs=$3 WHERE claim_id=$1")
         .bind(job.claim_id).bind(job.generation).bind(inputs).execute(tx).await.map_err(fail)?;
@@ -330,7 +342,7 @@ pub(crate) async fn queue_samples(
 ) -> StorageResult<()> {
     sqlx::query("WITH z AS(SELECT coalesce((SELECT tz FROM profiles WHERE device_id=$1),'UTC') tz),
         changed AS(SELECT unnest($2::timestamptz[]) at), targets AS (
-        SELECT 'sleep' kind,(at AT TIME ZONE 'UTC'+interval '9 hours')::date AS day,'UTC' tz,$3::int version,at FROM changed
+        SELECT 'sleep' kind,(at AT TIME ZONE z.tz)::date+n AS day,z.tz,$3::int version,at FROM changed,z,generate_series(-1,1)n
         UNION ALL SELECT 'workout',(at AT TIME ZONE z.tz)::date+n,z.tz,$4,at FROM changed,z,generate_series(-1,1) n
         UNION ALL SELECT j.kind,j.day,j.tz,j.algo_version,at FROM analysis_jobs j,changed WHERE j.device_id=$1 AND j.kind='workout' AND j.algo_version=$4
             AND j.day BETWEEN (at AT TIME ZONE j.tz)::date AND (at AT TIME ZONE j.tz)::date+90

@@ -1,11 +1,9 @@
 //! Restartable history processing using durable database jobs, not a moving time cursor.
-use crate::{CoreResult, night::calculate_night, workouts::calculate_day};
+use crate::{CoreResult, sleep_sessions::calculate_sleep_day, workouts::calculate_day};
 use chrono::Utc;
 use serde_json::json;
 use snoop_analytics::{ALGO_VERSION, WORKOUT_ALGO_VERSION};
-use snoop_storage::{
-    AnalysisJob, AnalysisVersions, NewSleep, NewStrain, NewWorkout, PostgresStore,
-};
+use snoop_storage::{AnalysisJob, AnalysisVersions, NewStrain, NewWorkout, PostgresStore};
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
@@ -87,17 +85,12 @@ impl HistoryWorker {
     }
     async fn calculate(&self, job: &AnalysisJob) -> CoreResult<()> {
         if job.kind == "sleep" {
-            let result = calculate_night(&self.store, &job.device_id, job.day).await?;
-            let row = result.as_ref().map(|r| NewSleep {
-                device_id: &job.device_id,
-                night_of: job.day,
-                algo_version: job.algo_version,
-                start_ts: r.window.onset,
-                end_ts: r.window.offset,
-                stages: json!(r.segments),
-                metrics: json!(r),
-            });
-            self.store.publish_night(job,row.as_ref(),json!({"proto_version":snoop_proto::PROTO_VERSION,"sleep_version":ALGO_VERSION,"window":"15:00-11:00 UTC"})).await?;
+            let sessions =
+                calculate_sleep_day(&self.store, &job.device_id, job.day, &job.tz).await?;
+            let (from, to) = self.store.local_day_bounds(job.day, &job.tz).await?;
+            self.store
+                .publish_sleep_sessions(job, from, to, &sessions, WORKOUT_ALGO_VERSION)
+                .await?;
         } else {
             let (from, to) = self.store.local_day_bounds(job.day, &job.tz).await?;
             let profile = self.store.profile_at(&job.device_id, to).await?;

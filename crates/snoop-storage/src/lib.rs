@@ -9,9 +9,12 @@ mod frame_store;
 mod label_store;
 mod operation;
 mod profile_store;
+mod reset;
 mod sample_store;
 mod session;
+mod session_access;
 mod session_store;
+mod sleep_session_store;
 mod sleep_store;
 mod strain_store;
 mod workout_store;
@@ -23,10 +26,11 @@ pub use error::{StorageError, StorageResult};
 pub use frame_store::{IngestOutcome, NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;
 pub use profile_store::{NewProfile, ProfileRow};
+pub use reset::{ResetCommand, ResetPreview, ResetReceipt, ResetScope, UndoReset};
 pub use sample_store::{MinuteRow, NewEcgStrip, NewEvent, NewSample, SampleRow};
 pub use session::{
-    CorrectionReceipt, CorrectionScope, SessionCalculation, SessionInterval, SessionMetrics,
-    SessionRevision, WorkoutCorrection, WorkoutSession,
+    CorrectionReceipt, CorrectionScope, SessionCalculation, SessionDomain, SessionInterval,
+    SessionMetrics, SessionRevision, WorkoutCorrection, WorkoutSession,
 };
 pub use sleep_store::{NewSleep, SampleFull, SleepRow};
 pub use strain_store::NewStrain;

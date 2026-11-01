@@ -151,8 +151,8 @@ impl PostgresStore {
         algo_version: i32,
     ) -> StorageResult<Option<SleepRow>> {
         sqlx::query_as(
-            "SELECT night_of, algo_version, start_ts, end_ts, stages, metrics FROM sleeps
-             WHERE device_id = $1 AND night_of = $2 AND algo_version = $3",
+            "SELECT night_of, algo_version, start_ts, end_ts, stages, metrics FROM effective_sleep_read
+             WHERE device_id = $1 AND night_of = $2 AND algo_version <= $3 ORDER BY algo_version DESC LIMIT 1",
         )
         .bind(device_id)
         .bind(night_of)
@@ -170,8 +170,8 @@ impl PostgresStore {
         limit: i64,
     ) -> StorageResult<Vec<SleepRow>> {
         sqlx::query_as(
-            "SELECT night_of, algo_version, start_ts, end_ts, stages, metrics FROM sleeps
-             WHERE device_id = $1 AND algo_version = $2 ORDER BY night_of DESC LIMIT $3",
+            "SELECT DISTINCT ON (night_of) night_of, algo_version, start_ts, end_ts, stages, metrics FROM effective_sleep_read
+             WHERE device_id = $1 AND algo_version <= $2 ORDER BY night_of DESC,algo_version DESC LIMIT $3",
         )
         .bind(device_id)
         .bind(algo_version)
@@ -191,9 +191,8 @@ impl PostgresStore {
         to: DateTime<Utc>,
     ) -> StorageResult<Vec<(DateTime<Utc>, DateTime<Utc>)>> {
         sqlx::query_as(
-            "SELECT DISTINCT ON (night_of) start_ts, end_ts FROM effective_sleeps
-             WHERE device_id = $1 AND end_ts > $2 AND start_ts < $3
-             ORDER BY night_of, algo_version DESC",
+            "WITH supported AS(SELECT ts,ts-row_number() OVER(ORDER BY ts)*interval '1 second' grp FROM samples x WHERE device_id=$1 AND ts>=$2 AND ts<$3 AND band_state=2 AND EXISTS(SELECT 1 FROM sleep_sessions s WHERE s.device_id=$1 AND s.status='active' AND s.start_ts<=x.ts AND s.end_ts>x.ts)) SELECT min(ts),max(ts)+interval '1 second' FROM supported GROUP BY grp
+             UNION ALL SELECT start_ts,end_ts FROM effective_sleeps WHERE device_id=$1 AND end_ts>$2 AND start_ts<$3 AND NOT EXISTS(SELECT 1 FROM sleep_sessions WHERE device_id=$1)"
         )
         .bind(device_id)
         .bind(from)
@@ -210,7 +209,7 @@ impl PostgresStore {
         cutoff: DateTime<Utc>,
     ) -> StorageResult<Option<f64>> {
         let found: Option<Option<f64>> = sqlx::query_scalar(
-            "SELECT (metrics -> 'physiology' ->> 'resting_hr')::float8 FROM effective_sleeps
+            "SELECT (metrics -> 'physiology' ->> 'resting_hr')::float8 FROM effective_sleep_read
              WHERE device_id = $1 AND end_ts <= $2 AND metrics -> 'physiology' ->> 'resting_hr' IS NOT NULL
              ORDER BY night_of DESC, algo_version DESC LIMIT 1",
         )

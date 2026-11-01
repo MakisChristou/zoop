@@ -123,7 +123,7 @@ async fn decode_replay_is_idempotent_and_outputs_marker_and_jobs_rollback_togeth
     assert_eq!(
         db.count("SELECT count(*) FROM analysis_jobs WHERE day<'2025-01-10'")
             .await,
-        4
+        6
     );
     assert_eq!(
         db.count("SELECT count(*) FROM raw_frames WHERE decoded_proto=4")
@@ -304,7 +304,7 @@ async fn bootstrap_is_once_per_version_and_empty_results_replace_old_versions() 
     db.store.upsert_sample(&sample(id, ts)).await.unwrap();
     db.store.seed_history(VERSIONS).await.unwrap();
     db.store.seed_history(VERSIONS).await.unwrap();
-    assert_eq!(db.count("SELECT count(*) FROM analysis_jobs").await, 2);
+    assert_eq!(db.count("SELECT count(*) FROM analysis_jobs").await, 3);
     assert_eq!(
         db.count("SELECT max(generation) FROM analysis_jobs").await,
         1
@@ -332,9 +332,14 @@ async fn bootstrap_is_once_per_version_and_empty_results_replace_old_versions() 
         1,
         "old version readable during backfill"
     );
+    // Full local wake-up dates include the next date for sleep crossing midnight.
+    for _ in 0..2 {
+        let job = db.store.claim_analysis(VERSIONS).await.unwrap().unwrap();
+        assert_eq!(job.kind, "sleep");
+        db.store.publish_night(&job, None, json!({})).await.unwrap();
+    }
     let job = db.store.claim_analysis(VERSIONS).await.unwrap().unwrap();
-    db.store.publish_night(&job, None, json!({})).await.unwrap();
-    let job = db.store.claim_analysis(VERSIONS).await.unwrap().unwrap();
+    assert_eq!(job.kind, "workout");
     db.store
         .publish_day(
             &job,

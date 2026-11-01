@@ -9,6 +9,7 @@ mod ingest;
 mod processing;
 mod profile;
 mod query;
+mod sleep_sessions;
 mod sleeps;
 mod state;
 mod steps;
@@ -46,6 +47,38 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/devices/{deviceId}/days/{date}", get(day))
         .route("/v1/devices/{deviceId}/days/{date}/steps", get(steps))
         .route("/v1/devices/{deviceId}/sleeps", get(sleeps))
+        .route(
+            "/v1/devices/{deviceId}/sleep-sessions",
+            get(sleep_sessions::list),
+        )
+        .route(
+            "/v1/devices/{deviceId}/sleep-sessions/{id}",
+            get(sleep_sessions::get),
+        )
+        .route(
+            "/v1/devices/{deviceId}/sleep-sessions/{id}/epochs",
+            get(sleep_sessions::epochs),
+        )
+        .route(
+            "/v1/devices/{deviceId}/sleep-sessions/corrections",
+            post(sleep_sessions::correct),
+        )
+        .route(
+            "/v1/devices/{deviceId}/analysis/reset-preview",
+            post(sleep_sessions::preview_reset),
+        )
+        .route(
+            "/v1/devices/{deviceId}/analysis/reset",
+            post(sleep_sessions::reset),
+        )
+        .route(
+            "/v1/devices/{deviceId}/analysis/reset-undo",
+            post(sleep_sessions::undo_reset),
+        )
+        .route(
+            "/v1/devices/{deviceId}/analysis/resets",
+            get(sleep_sessions::resets),
+        )
         .route("/v1/devices/{deviceId}/days", get(days))
         .route(
             "/v1/devices/{deviceId}/sleeps/{nightOf}/epochs",

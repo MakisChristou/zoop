@@ -1,27 +1,16 @@
 //! Nightly sleep analysis worker and the on-demand entry point behind `snoop analyze`.
 //!
-//! A "night of D" is analysed over the window from 15:00 UTC on D-1 to 11:00 UTC on D,
-//! which brackets an evening-to-morning sleep for most time zones east of the Atlantic.
-//! The longest detected window becomes the night's main sleep; shorter ones are kept
-//! as naps in the metrics. Results are keyed by `ALGO_VERSION`, so a method change
-//! produces new rows next to the old ones.
+//! Sleep is assigned to its local wake-up date. Both the CLI and leased worker
+//! calculate the entire date, including naps, with persisted corrections applied.
 
-use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use snoop_analytics::ALGO_VERSION;
-use snoop_analytics::sleep::{
-    NightMetrics, Sample, SleepParams, SleepWindow, detect_sleep, night_metrics,
-};
-use snoop_analytics::stages::{
-    EpochFeatures, StageSegment, StageSummary, features_for_window, stage_window,
-};
+use snoop_analytics::sleep::{NightMetrics, Sample, SleepParams, SleepWindow, selected_window};
+use snoop_analytics::stages::{EpochFeatures, StageSegment, StageSummary, features_for_window};
 use snoop_storage::{PostgresStore, SampleFull};
-use tracing::{debug, info};
 
 use crate::CoreResult;
-
-const WINDOW_START_HOUR_UTC: u32 = 15;
-const WINDOW_END_HOUR_UTC: u32 = 11;
 
 /// What gets stored in `sleeps.metrics`.
 #[derive(Debug, Clone, Serialize)]
@@ -43,31 +32,43 @@ pub async fn calculate_night(
     device_id: &str,
     night_of: NaiveDate,
 ) -> CoreResult<Option<NightResult>> {
-    let (from, to) = night_bounds(night_of);
-    let rows = store.fetch_samples(device_id, from, to).await?;
-    let samples: Vec<Sample> = rows.iter().map(to_sample).collect();
-    let params = SleepParams::default();
-    let mut windows = detect_sleep(&samples, &params);
-    windows.sort_by_key(|w| std::cmp::Reverse(w.time_in_bed_s));
-
-    let Some(main) = windows.first().cloned() else {
-        debug!(device_id, %night_of, samples = samples.len(), "no sleep window");
+    let tz = store
+        .get_profile(device_id)
+        .await?
+        .map_or_else(|| "UTC".to_owned(), |p| p.tz);
+    let calculated =
+        crate::sleep_sessions::calculate_sleep_day(store, device_id, night_of, &tz).await?;
+    let Some(main) = calculated.iter().find(|s| s.kind == "main") else {
         return Ok(None);
     };
-    let (segments, stage_summary): (Vec<StageSegment>, StageSummary) =
-        stage_window(&samples, &main);
-    let result = NightResult {
-        physiology: night_metrics(&samples, &main),
-        stages: stage_summary,
-        segments,
-        naps: windows[1..].to_vec(),
-        window: main,
-        params,
-        samples: samples.len(),
-    };
-    info!(device_id, %night_of, onset = %result.window.onset, offset = %result.window.offset,
-          tib_min = result.window.time_in_bed_s / 60, "night calculated");
-    Ok(Some(result))
+    let payload = main
+        .metrics
+        .sleep
+        .clone()
+        .unwrap_or(serde_json::Value::Null);
+    let window: SleepWindow = serde_json::from_value(payload["window"].clone())?;
+    let samples = usize::try_from(window.coverage_s).unwrap_or(0);
+    let naps = calculated
+        .iter()
+        .filter(|s| s.kind == "nap")
+        .map(|s| {
+            serde_json::from_value(
+                s.metrics
+                    .sleep
+                    .as_ref()
+                    .map_or(serde_json::Value::Null, |v| v["window"].clone()),
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(NightResult {
+        window,
+        physiology: serde_json::from_value(payload["physiology"].clone())?,
+        stages: serde_json::from_value(payload["stages"].clone())?,
+        segments: serde_json::from_value(payload["segments"].clone())?,
+        naps,
+        params: SleepParams::default(),
+        samples,
+    }))
 }
 
 /// Per-epoch features over an analysed window, recomputed from samples on demand.
@@ -77,34 +78,16 @@ pub async fn night_epochs(
     onset: DateTime<Utc>,
     offset: DateTime<Utc>,
 ) -> CoreResult<Vec<EpochFeatures>> {
-    let rows = store
-        .fetch_samples(device_id, onset, offset + ChronoDuration::seconds(1))
-        .await?;
+    let rows = store.fetch_samples(device_id, onset, offset).await?;
     let samples: Vec<Sample> = rows.iter().map(to_sample).collect();
-    let window = SleepWindow {
-        onset,
-        offset,
-        time_in_bed_s: (offset - onset).num_seconds() + 1,
-        asleep_s: 0,
-        waso_s: 0,
-        efficiency: 0.0,
-        coverage_s: samples.len() as i64,
-        disturbances: 0,
-    };
-    Ok(features_for_window(&samples, &window))
+    let window = selected_window(&samples, onset, offset);
+    Ok(features_for_window(&samples, &window)
+        .into_iter()
+        .filter(|f| f.coverage_s > 0)
+        .collect())
 }
 
-fn night_bounds(night_of: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {
-    let start = (night_of - ChronoDuration::days(1))
-        .and_time(NaiveTime::from_hms_opt(WINDOW_START_HOUR_UTC, 0, 0).expect("valid"))
-        .and_utc();
-    let end = night_of
-        .and_time(NaiveTime::from_hms_opt(WINDOW_END_HOUR_UTC, 0, 0).expect("valid"))
-        .and_utc();
-    (start, end)
-}
-
-fn to_sample(row: &SampleFull) -> Sample {
+pub(crate) fn to_sample(row: &SampleFull) -> Sample {
     Sample {
         ts: row.ts,
         hr: row.hr.and_then(|h| u8::try_from(h).ok()).filter(|h| *h > 0),
@@ -133,8 +116,12 @@ pub async fn analyze_night(
     device_id: &str,
     night_of: NaiveDate,
 ) -> CoreResult<Option<NightResult>> {
+    let tz = store
+        .get_profile(device_id)
+        .await?
+        .map_or_else(|| "UTC".to_owned(), |p| p.tz);
     store
-        .request_analysis(device_id, "sleep", night_of, "UTC", ALGO_VERSION, true)
+        .request_analysis(device_id, "sleep", night_of, &tz, ALGO_VERSION, true)
         .await?;
     calculate_night(store, device_id, night_of).await
 }

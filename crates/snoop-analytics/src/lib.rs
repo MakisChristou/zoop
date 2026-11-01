@@ -14,10 +14,10 @@ pub mod workouts;
 pub mod zones;
 
 /// Bump on any change that alters the sleep numbers.
-pub const ALGO_VERSION: i32 = 2;
+pub const ALGO_VERSION: i32 = 3;
 
 /// Bump on any change that alters the workout or day-load numbers. Separate from the
 /// sleep version so a change on one side never hides the other side's history.
 /// Version 2 evaluates physiological inputs as of the analysed day.
 /// Version 3 adds durable corrections and allocates session calories by local day.
-pub const WORKOUT_ALGO_VERSION: i32 = 3;
+pub const WORKOUT_ALGO_VERSION: i32 = 4;

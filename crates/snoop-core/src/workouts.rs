@@ -136,7 +136,23 @@ pub async fn calculate_day(
         .map(|s| (s.start_ts, s.end_ts))
         .collect();
     let rows = store.fetch_samples(device_id, read_from, read_to).await?;
-    let samples: Vec<ActivitySample> = rows.iter().map(to_activity_sample).collect();
+    let mut samples: Vec<ActivitySample> = rows.iter().map(to_activity_sample).collect();
+    // Explicit sleep ownership replaces the raw flag within its scope. Active
+    // recorded sleep is still masked below; removed false sleep cannot return via
+    // the detector's independent raw-band fallback.
+    let sleep_scopes = store
+        .sessions(snoop_storage::SessionDomain::Sleep)
+        .correction_scopes(device_id, read_from, read_to)
+        .await?;
+    for sample in &mut samples {
+        if sample.band_state == 2
+            && sleep_scopes
+                .iter()
+                .any(|s| s.start_ts <= sample.ts && sample.ts < s.end_ts)
+        {
+            sample.band_state = 0;
+        }
+    }
     let sleep = store.sleep_windows(device_id, read_from, read_to).await?;
 
     if samples.is_empty() && fixed.is_empty() {
@@ -314,6 +330,7 @@ fn metrics(
 ) -> SessionMetrics {
     let m = summarize_interval(samples, start, end, physiology);
     SessionMetrics {
+        sleep: None,
         load: m.load,
         avg_hr: m.avg_hr,
         max_hr: m.max_hr.map(i16::from),

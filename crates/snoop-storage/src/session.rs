@@ -9,6 +9,9 @@ use sqlx::{FromRow, types::Json};
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SessionMetrics {
+    /// Sleep-specific projection; absent for workouts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sleep: Option<serde_json::Value>,
     pub load: Option<f64>,
     pub avg_hr: Option<f64>,
     pub max_hr: Option<i16>,
@@ -92,4 +95,50 @@ pub struct SessionCalculation {
 pub struct CorrectionScope {
     pub start_ts: DateTime<Utc>,
     pub end_ts: DateTime<Utc>,
+}
+
+/// Separate namespaces sharing correction concurrency and reset semantics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionDomain {
+    Workout,
+    Sleep,
+}
+impl SessionDomain {
+    pub(crate) const fn sessions(self) -> &'static str {
+        match self {
+            Self::Workout => "workout_sessions",
+            Self::Sleep => "sleep_sessions",
+        }
+    }
+    pub(crate) const fn corrections(self) -> &'static str {
+        match self {
+            Self::Workout => "workout_corrections",
+            Self::Sleep => "sleep_corrections",
+        }
+    }
+    pub(crate) const fn aliases(self) -> &'static str {
+        match self {
+            Self::Workout => "workout_aliases",
+            Self::Sleep => "sleep_aliases",
+        }
+    }
+    pub(crate) const fn sequence(self) -> &'static str {
+        match self {
+            Self::Workout => "workouts_id_seq",
+            Self::Sleep => "sleep_session_ids",
+        }
+    }
+    pub(crate) const fn kind(self) -> &'static str {
+        match self {
+            Self::Workout => "workout",
+            Self::Sleep => "sleep",
+        }
+    }
+    pub(crate) fn valid_kind(self, kind: &str) -> bool {
+        match self {
+            Self::Workout => matches!(kind, "walk" | "resistance" | "activity"),
+            Self::Sleep => matches!(kind, "main" | "nap"),
+        }
+    }
 }

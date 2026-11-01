@@ -27,7 +27,7 @@ where it can be re-run over the full history.
    workers; generations fence changed inputs. Sessions, day load and completion
    publish in one transaction, so readers retain the previous completed version
    until the replacement is ready. Empty completion is meaningful, not missing work.
-4. A sample invalidates its fixed-window sleep night, its local day and adjacent
+4. A sample invalidates its local sleep wake-up date and adjacent dates, its local day and adjacent
    context days, plus existing days whose trailing observed-HR inputs can include it.
    A changed sleep invalidates downstream resting-HR and sleep-exclusion consumers.
    Workout jobs wait for pending prerequisite nights. Retries survive restarts.
@@ -78,3 +78,9 @@ The binary is configuration-file driven and has no runtime dependencies beyond P
 so it packages as a plain systemd unit, a container (`crates/snoop/Dockerfile`), or a
 NixOS service module. TLS and network exposure are left to the host (reverse proxy or
 a private overlay network).
+
+Sleep uses the same correction engine with separate tables. Migration 0008 promotes
+legacy nights/naps before versioned backfill. `effective_sleep_read` keeps the old
+night API aligned with corrections. Reset snapshots archive manual ownership and
+allow explicit, reversible return to automatic analysis; normal backfill preserves
+manual ownership. See [sleep corrections and resets](SLEEP_CORRECTIONS.md).

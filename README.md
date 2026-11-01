@@ -185,7 +185,7 @@ silently skip an old upload. `worker.history_enabled = false` pauses analysis wh
 intake and decoding continue; the same option is `services.snoop.historyEnabled`
 in NixOS. The reconciliation interval remains `worker.analysis_interval_s`.
 
-Sleep stays at version 2. Workouts/day load advance to version 2 because their
+Sleep and workout/day load have independent versions. Their
 physiological inputs are now bounded by the day being calculated. Profile revisions
 are retained; existing historical profiles have only a bootstrap snapshot, not
 invented past measurements. Previous workout results remain readable until each
@@ -216,3 +216,12 @@ Workout reads expose stable effective sessions. Reversible corrections preserve 
 choices through late uploads and algorithm upgrades; interval metrics are recalculated
 from raw-derived samples. See [the correction contract](docs/WORKOUT_CORRECTIONS.md).
 The database-backed suite includes correction operations and worker races (`just test-db`).
+
+## Sleep corrections and reset
+
+Sleep supports stable main-sleep and nap records, time/type edits, additions, merges,
+removal/restoration, and undo. Full-day analysis and coverage-aware staging use sleep
+version 3; downstream workout/day Load uses version 4. Existing nights remain visible
+through backfill. [Sleep and reset contract](docs/SLEEP_CORRECTIONS.md) documents the
+routes, saved time-zone semantics, missing-data reporting, and reversible resets for
+sleep, workouts, date ranges, or all recorded history.

@@ -34,18 +34,19 @@ pub(crate) async fn epochs(
     };
     let features =
         snoop_core::night_epochs(&state.store, &device_id, sleep.start_ts, sleep.end_ts).await?;
-    Ok(Json(
-        features
-            .into_iter()
-            .map(|f| EpochOut {
-                start: f.start,
-                hr: f.hr_mean,
-                hr_variability: f.hr_dog,
-                rmssd: f.rmssd,
-                resp_rate: f.resp_rate,
-                move_frac: f.move_frac,
-                strap_awake: f.strap_awake,
-            })
-            .collect(),
-    ))
+    Ok(Json(features.into_iter().map(EpochOut::from).collect()))
+}
+
+impl From<snoop_analytics::stages::EpochFeatures> for EpochOut {
+    fn from(f: snoop_analytics::stages::EpochFeatures) -> Self {
+        Self {
+            start: f.start,
+            hr: if f.hr_coverage_s > 0 { f.hr_mean } else { None },
+            hr_variability: if f.hr_coverage_s > 0 { f.hr_dog } else { None },
+            rmssd: if f.coverage_s > 0 { f.rmssd } else { None },
+            resp_rate: if f.coverage_s > 0 { f.resp_rate } else { None },
+            move_frac: f.move_frac,
+            strap_awake: f.strap_awake,
+        }
+    }
 }

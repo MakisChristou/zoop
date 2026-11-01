@@ -18,7 +18,8 @@
 //!   part. Epochs whose score clears an absolute threshold are candidates; the share
 //!   assigned is then kept inside the range reported for adult sleep architecture
 //!   (deep 12–25 %, REM 18–28 % of sleep), so a night cannot come out as all light
-//!   sleep merely because one feature was noisy. Everything else is light.
+//!   sleep merely because one feature was noisy. Other sufficiently recorded epochs
+//!   are light; missing or insufficiently recorded epochs remain unclassified.
 //! - Physiological smoothing: five-epoch majority filter, no REM in the first fifteen
 //!   minutes, fragments under three minutes absorbed into their neighbours.
 //!
@@ -72,7 +73,7 @@ pub struct StageSummary {
     /// Time from sleep onset to the first REM epoch, when REM occurred.
     pub rem_latency_s: Option<i64>,
     pub epochs: usize,
-    /// Epochs with enough cardiac data to classify (others fall back to light).
+    /// Recorded epochs with sufficient cardiac features.
     pub epochs_with_cardiac: usize,
 }
 
@@ -80,6 +81,10 @@ pub struct StageSummary {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EpochFeatures {
     pub start: DateTime<Utc>,
+    /// Actual one-second readings in this epoch.
+    pub coverage_s: usize,
+    /// Actual heart-rate readings in this epoch, without interpolation.
+    pub hr_coverage_s: usize,
     pub strap_awake: bool,
     pub move_frac: f64,
     pub angle_change_deg: Option<f64>,
@@ -105,26 +110,75 @@ pub fn stage_window(samples: &[Sample], window: &SleepWindow) -> (Vec<StageSegme
         .iter()
         .filter(|s| s.ts >= window.onset && s.ts <= window.offset)
         .collect();
-    let features = epoch_features(&inside, window.onset, window.offset);
-    if features.is_empty() {
-        return (
-            Vec::new(),
-            StageSummary {
-                wake_s: 0,
-                light_s: 0,
-                deep_s: 0,
-                rem_s: 0,
-                sleep_latency_s: 0,
-                rem_latency_s: None,
-                epochs: 0,
-                epochs_with_cardiac: 0,
-            },
-        );
+    // Coverage is a reporting gate, not a new sleep classifier. Never infer a stage
+    // through absent epochs or let smoothing join across a recording gap.
+    let features: Vec<_> = epoch_features(&inside, window.onset, window.offset)
+        .into_iter()
+        .filter(|f| {
+            let expected = (window.offset + Duration::seconds(1) - f.start)
+                .num_seconds()
+                .min(EPOCH_S) as usize;
+            f.coverage_s * 2 >= expected && (f.strap_awake || f.hr_coverage_s * 2 >= expected)
+        })
+        .collect();
+    let raw = classify(&features);
+    let mut staged = Vec::new();
+    let mut a = 0;
+    while a < features.len() {
+        let mut b = a + 1;
+        while b < features.len()
+            && features[b].start == features[b - 1].start + Duration::seconds(EPOCH_S)
+        {
+            b += 1;
+        }
+        let smoothed = smooth(&raw[a..b], &features[a..b], window);
+        staged.extend(segments(&smoothed, &features[a..b], window.offset));
+        a = b;
     }
-    let raw: Vec<Stage> = classify(&features);
-    let smoothed = smooth(&raw, &features, window);
-    let segments = segments(&smoothed, &features, window.offset);
-    let summary = summarise(&smoothed, &features, window.onset);
+    // Even partially recorded epochs only paint the seconds actually observed.
+    let mut recorded: Vec<(DateTime<Utc>, DateTime<Utc>)> = Vec::new();
+    for sample in &inside {
+        if let Some(last) = recorded.last_mut()
+            && last.1 == sample.ts
+        {
+            last.1 += Duration::seconds(1);
+        } else {
+            recorded.push((sample.ts, sample.ts + Duration::seconds(1)));
+        }
+    }
+    let mut segments = Vec::new();
+    for seg in staged {
+        for &(a, b) in recorded
+            .iter()
+            .filter(|(a, b)| *a < seg.end && *b > seg.start)
+        {
+            segments.push(StageSegment {
+                stage: seg.stage,
+                start: seg.start.max(a),
+                end: seg.end.min(b),
+            });
+        }
+    }
+    let mut summary = summarise(&raw, &features, window.onset);
+    let mut totals = [0; 4];
+    for seg in &segments {
+        totals[seg.stage as usize] += (seg.end - seg.start).num_seconds();
+    }
+    summary.wake_s = totals[0];
+    summary.light_s = totals[1];
+    summary.deep_s = totals[2];
+    summary.rem_s = totals[3];
+    let first = segments
+        .iter()
+        .find(|s| s.stage != Stage::Wake)
+        .map(|s| s.start);
+    summary.sleep_latency_s = first.map_or(0, |s| (s - window.onset).num_seconds());
+    summary.rem_latency_s = first.and_then(|first| {
+        segments
+            .iter()
+            .find(|s| s.stage == Stage::Rem)
+            .map(|s| (s.start - first).num_seconds())
+    });
     (segments, summary)
 }
 
@@ -216,6 +270,8 @@ fn epoch_features(
 
             EpochFeatures {
                 start,
+                coverage_s: epoch.len(),
+                hr_coverage_s: epoch.iter().filter(|s| s.hr.is_some()).count(),
                 strap_awake,
                 move_frac,
                 angle_change_deg,
@@ -405,7 +461,8 @@ fn classify(features: &[EpochFeatures]) -> Vec<Stage> {
     let mut rem_scores: Vec<(usize, f64)> = Vec::new();
 
     for (i, f) in features.iter().enumerate() {
-        let t = i as f64 / n.max(1) as f64; // position in the night, 0 at onset
+        let t = (f.start - features[0].start).num_seconds() as f64
+            / ((features[n - 1].start - features[0].start).num_seconds() + EPOCH_S).max(1) as f64; // position in the night, 0 at onset
         let z_hr = z(&hr, f.hr_mean);
         let z_dog = z(&dog, f.hr_dog);
         let z_rmssd = z(&rmssd, f.rmssd);
@@ -535,7 +592,7 @@ fn segments(
         let start = features[i].start;
         let end = (start + Duration::seconds(EPOCH_S)).min(offset + Duration::seconds(1));
         match out.last_mut() {
-            Some(last) if last.stage == *stage => last.end = end,
+            Some(last) if last.stage == *stage && last.end == start => last.end = end,
             _ => out.push(StageSegment {
                 stage: *stage,
                 start,

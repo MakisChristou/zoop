@@ -14,6 +14,7 @@ pub(crate) enum ApiError {
     NotFound,
     Conflict(String),
     Storage(StorageError),
+    Projection(serde_json::Error),
 }
 
 #[derive(Debug, Serialize)]
@@ -42,6 +43,7 @@ impl From<snoop_core::CoreError> for ApiError {
     fn from(error: snoop_core::CoreError) -> Self {
         match error {
             snoop_core::CoreError::Storage(source) => Self::from(source),
+            snoop_core::CoreError::Projection(source) => Self::Projection(source),
         }
     }
 }
@@ -49,6 +51,14 @@ impl From<snoop_core::CoreError> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
+            Self::Projection(source) => {
+                error!(%source,"invalid sleep projection");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "projection_failure",
+                    "Unable to load this recording. Try again.".to_owned(),
+                )
+            }
             Self::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
                 "unauthorized",

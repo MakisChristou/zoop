@@ -5,6 +5,7 @@ mod decoder;
 mod error;
 mod history;
 mod night;
+mod sleep_sessions;
 mod workouts;
 
 pub use decoder::{DecodePass, Decoder};

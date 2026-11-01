@@ -172,7 +172,12 @@ fn account(inside: &[Sample]) -> SleepWindow {
 
     let mut disturbances = 0;
     let mut awake_run_start: Option<DateTime<Utc>> = None;
+    let mut previous: Option<DateTime<Utc>> = None;
     for s in inside {
+        if previous.is_some_and(|p| (s.ts - p).num_seconds() > 1) {
+            awake_run_start = None;
+        }
+        previous = Some(s.ts);
         if s.band_state == Sample::BAND_SLEEP {
             if let Some(start) = awake_run_start.take()
                 && (s.ts - start).num_seconds() >= DISTURBANCE_MIN_S
@@ -351,3 +356,41 @@ fn median(mut values: Vec<f64>) -> f64 {
 
 #[cfg(test)]
 mod tests;
+
+/// Accounts for user-confirmed, half-open sleep bounds. Recorded awakenings and
+/// unknown seconds are distinct; selection never fabricates asleep readings.
+pub fn selected_window(
+    samples: &[Sample],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> SleepWindow {
+    let inside: Vec<_> = samples
+        .iter()
+        .filter(|s| s.ts >= start && s.ts < end)
+        .cloned()
+        .collect();
+    let mut window = if inside.is_empty() {
+        SleepWindow {
+            onset: start,
+            offset: end - Duration::seconds(1),
+            time_in_bed_s: 0,
+            asleep_s: 0,
+            waso_s: 0,
+            efficiency: 0.0,
+            coverage_s: 0,
+            disturbances: 0,
+        }
+    } else {
+        account(&inside)
+    };
+    window.onset = start;
+    window.offset = end - Duration::seconds(1);
+    window.time_in_bed_s = (end - start).num_seconds();
+    // This is recorded-period efficiency; the API suppresses it when coverage is partial.
+    window.efficiency = if window.coverage_s > 0 {
+        window.asleep_s as f64 / window.coverage_s as f64
+    } else {
+        0.0
+    };
+    window
+}
