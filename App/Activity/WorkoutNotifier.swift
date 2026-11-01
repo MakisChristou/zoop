@@ -80,7 +80,7 @@ final class WorkoutNotifier: ObservableObject {
             save()
             return
         }
-        let fresh = workouts.filter { !seen.contains(Self.key($0)) }.sorted { $0.startTs < $1.startTs }
+        let fresh = workouts.filter { !seen.contains(Self.key($0)) && $0.notificationEligible == true && $0.endTs > Date().addingTimeInterval(-24 * 60 * 60) }.sorted { $0.startTs < $1.startTs }
         for workout in fresh.suffix(Self.maximumAlertsPerCheck) {
             await notify(workout)
         }

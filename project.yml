@@ -15,6 +15,8 @@ settings:
     DEVELOPMENT_TEAM: $(SNOOP_TEAM_ID)
     PRODUCT_BUNDLE_IDENTIFIER: $(SNOOP_BUNDLE_ID)
 packages:
+  SnoopSync:
+    path: Packages/SnoopSync
   SnoopProtocol:
     path: Packages/SnoopProtocol
   SnoopBattery:
@@ -26,6 +28,7 @@ targets:
     sources:
       - App
     dependencies:
+      - package: SnoopSync
       - package: SnoopProtocol
       - package: SnoopBattery
     info:

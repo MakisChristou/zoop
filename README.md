@@ -8,10 +8,9 @@ server. No WHOOP account, no WHOOP cloud, no subscription.
 
 Pure Swift. The strap protocol is implemented in the app itself.
 
-> **Status: early development.** The app builds and implements the full pipeline
-> (connect, hello, decode, queue, upload, offload acknowledgements) but has not yet been
-> run against a strap. First hardware test is the next milestone; see
-> [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
+> **Status: early development.** The app has been exercised with a real strap;
+> protocol coverage and background behavior still need continued hardware testing.
+> See [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
 
 ## How it works
 
@@ -24,7 +23,7 @@ strap talks to one app at a time.
 3. Reassemble notifications into frames, verify both CRCs, and queue every frame locally.
 4. Drive the history offload: data range, send historical, acknowledge each chunk with
    its token.
-5. Upload the queue in batches to `POST /v1/ingest`; delete only on success.
+5. Upload to `POST /v2/ingest`; remove only frames with matching stored or duplicate receipts.
 6. Show live heart rate and R-R derived HRV.
 
 ## Build
@@ -113,6 +112,7 @@ server; the phone's time zone goes with it so days are cut at local midnight.
 
 ```
 Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
+Packages/SnoopSync       durable SQLite queue, ordered persistence, upload receipts and retries
 Packages/SnoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
 App/
   Activity/              session notifications after each upload
@@ -136,3 +136,30 @@ NOOP, wearable5.0, Goose and whoop-rs projects. snoop contains no code from any 
 ## License
 
 MIT. snoop is an independent project, not affiliated with or endorsed by WHOOP, Inc.
+
+## Reliable history
+
+Complete frames pass through a serial persistence barrier before live decoding or
+history acknowledgements. SQLite uses WAL and full durability. If storage fails,
+history acknowledgements pause; queued callbacks resume in order after a successful
+retry, and the strap is asked to replay history. Do not delete the app to repair a
+queue: uninstalling also removes its saved frames.
+
+Each new frame has a persisted UUID. Existing queue rows keep their original
+sequence identity during migration. The uploader requires a matching v2 receipt for
+every submitted row. A lost or malformed response retains the whole batch; rejected
+or conflicting rows remain saved separately while healthy rows continue. Diagnostics
+shows held frames and provides a retry action. There is no fallback to aggregate v1
+acknowledgements; deploy a backend supporting v2 before installing this app.
+
+History processing is server-side and survives app/service restarts. Diagnostics
+shows pending decode and analysis work separately. Historical backfill sessions are
+silent; only server-eligible recent sessions can trigger a notification. iOS still
+controls when background Bluetooth work runs, so continuous processing on the phone
+is not guaranteed while the OS has suspended it.
+
+Run the failure-path tests with:
+
+```sh
+swift test --package-path Packages/SnoopSync
+```

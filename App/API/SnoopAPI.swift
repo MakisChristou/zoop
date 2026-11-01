@@ -3,6 +3,21 @@ import Foundation
 /// Read side of the snoop-api server: nights, days, minutes, sessions, steps and the
 /// body profile. Every call is one request helper plus a decodable type.
 enum SnoopAPI {
+    struct Processing: Decodable {
+        let pendingDecode: Int
+        let decodeFailures: Int
+        let pendingAnalysis: Int
+        let failedAnalysis: Int
+        let oldestPendingDay: String?
+        let lastAnalyzedAt: Date?
+        let workersHealthy: Bool
+        let paused: Bool
+    }
+
+    static func processing(deviceId: String) async throws -> Processing {
+        try await get("v1/devices/\(deviceId)/processing")
+    }
+
     struct Night: Decodable, Identifiable {
         struct Window: Decodable {
             let onset: Date
@@ -126,6 +141,7 @@ enum SnoopAPI {
         let kcal: Double?
         let steps: Int?
         let autoDetected: Bool
+        let notificationEligible: Bool?
     }
 
     /// Steps through one local day.

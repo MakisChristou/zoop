@@ -1,11 +1,15 @@
 import Combine
 import Foundation
 import SwiftUI
+import SnoopSync
 
 /// Wires the strap manager to the local queue and the uploader.
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var queued = 0
+    @Published private(set) var heldFrames = 0
+    @Published private(set) var processing: SnoopAPI.Processing?
+    @Published private(set) var processingError: String?
     @Published private(set) var uploadStats = Uploader.Stats()
     @Published private(set) var queueError: String?
     @Published private(set) var isUploading = false
@@ -17,6 +21,7 @@ final class AppModel: ObservableObject {
     let workouts = WorkoutNotifier()
     private let queue: FrameQueue?
     private let uploader: Uploader?
+    private var writer: FrameWriter?
     private var flushTimer: Timer?
     private var cancellables: Set<AnyCancellable> = []
 
@@ -40,8 +45,28 @@ final class AppModel: ObservableObject {
             queueError = "queue unavailable: \(error)"
         }
 
-        strap.onFrame = { [weak self] bytes, channel in
-            Task { @MainActor in self?.enqueue(bytes, channel: channel) }
+        if let queue {
+            writer = FrameWriter(save: { bytes, channel, at in
+                try queue.enqueue(bytes, channel: channel, receivedAt: at)
+            }, onFailure: { [weak self] error in
+                self?.queueError = "Storage paused: \(error.localizedDescription)"
+                self?.strap.pauseHistoryForStorage()
+            }, onRecovery: { [weak self] in
+                self?.queueError = nil
+                self?.strap.resumeHistoryAfterStorage()
+            })
+        }
+        strap.onFrame = { [weak self] bytes, channel, saved in
+            guard let self, let writer = self.writer else {
+                self?.strap.pauseHistoryForStorage()
+                return
+            }
+            writer.enqueue(bytes, channel: channel) { [weak self] in
+                saved()
+                guard let self else { return }
+                self.queued += 1
+                if self.queued - self.heldFrames >= Uploader.batchSize { Task { await self.flush() } }
+            }
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
@@ -68,26 +93,27 @@ final class AppModel: ObservableObject {
         if isOnboarded { strap.start() }
     }
 
-    private func enqueue(_ bytes: [UInt8], channel: Int) {
-        guard let queue else { return }
-        do {
-            try queue.enqueue(bytes, channel: channel)
-            queued += 1
-            if queued >= Uploader.batchSize { Task { await flush() } }
-        } catch {
-            queueError = "enqueue failed: \(error)"
-        }
-    }
-
     func flush() async {
-        guard let uploader, let queue, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
+        writer?.retry()
+        guard let uploader, let queue, let baseURL = Settings.serverURL, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
         isUploading = true
         defer { isUploading = false }
         let before = uploadStats.accepted
-        uploadStats = await uploader.flush(deviceId: strap.serial, model: strap.model, firmware: strap.firmware)
+        let previousDuplicates = uploadStats.duplicates
+        uploadStats = await uploader.flush(deviceId: strap.serial, model: strap.model, firmware: strap.firmware, baseURL: baseURL, token: Settings.ingestToken)
         lastBatchAccepted = uploadStats.accepted - before
-        if lastBatchAccepted > 0 { workouts.checkSoon() }
+        if lastBatchAccepted > 0 || uploadStats.duplicates > previousDuplicates { workouts.checkSoon() }
         queued = (try? queue.count()) ?? queued
+        heldFrames = (try? queue.heldCount()) ?? heldFrames
+        do {
+            processing = try await SnoopAPI.processing(deviceId: strap.serial)
+            processingError = nil
+        } catch { processingError = error.localizedDescription }
+    }
+
+    func retryHeldFrames() async {
+        do { try queue?.retryHeld(); await flush() }
+        catch { queueError = error.localizedDescription }
     }
 
     /// Why an upload cannot start right now, or nil when it can.

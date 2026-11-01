@@ -47,7 +47,7 @@ final class StrapManager: NSObject, ObservableObject {
     @Published private(set) var lastDataRange: DataRange?
 
     /// Called with every complete frame and the notify channel it arrived on (3,4,5,7).
-    var onFrame: ((_ bytes: [UInt8], _ channel: Int) -> Void)?
+    var onFrame: ((_ bytes: [UInt8], _ channel: Int, _ saved: @escaping () -> Void) -> Void)?
     var onBatteryDevice: ((String) -> Void)?
     var onBatteryLevel: ((Double, Date, Bool, BatteryReadingSource) -> Void)?
     var onCharging: ((Bool, Date, Bool) -> Void)?
@@ -63,6 +63,8 @@ final class StrapManager: NSObject, ObservableObject {
     private var peripheral: CBPeripheral?
     private var commandCharacteristic: CBCharacteristic?
     private var reassemblers: [CBUUID: Reassembler] = [:]
+    private var connectionEpoch = UUID()
+    private var storagePaused = false
     private var sequence: UInt8 = 1
     private var offloadTimer: Timer?
     private var lastBatteryRequest: Date = .distantPast
@@ -97,7 +99,7 @@ final class StrapManager: NSObject, ObservableObject {
 
     /// Turns the beat-by-beat stream on or off. On while the Today screen is visible.
     func setRealtimeHeartRate(_ on: Bool) {
-        guard state == .ready, realtimeStreaming != on else { return }
+        guard state == .ready, (!storagePaused || !on), realtimeStreaming != on else { return }
         realtimeStreaming = on
         send(Command.toggleRealtimeHeartRate(on, sequence: nextSequence()))
     }
@@ -127,6 +129,7 @@ final class StrapManager: NSObject, ObservableObject {
     }
 
     private func attach(_ p: CBPeripheral) {
+        connectionEpoch = UUID()
         packRequest = nil
         packQueryUnavailable = false
         onBatteryDevice?(p.identifier.uuidString)
@@ -142,10 +145,27 @@ final class StrapManager: NSObject, ObservableObject {
 
     /// Starts a history offload round, the way the official app does every ~10 minutes.
     func requestOffload() {
+        guard state == .ready, !storagePaused else { return }
         requestBattery()
         send(Command.sendHistoricalData(sequence: nextSequence()))
         send(Command.getDataRange(sequence: nextSequence()))
         send(Command.sendHistoricalData(sequence: nextSequence()))
+    }
+
+    /// Withhold history acknowledgements while the phone cannot retain data.
+    func pauseHistoryForStorage() {
+        guard !storagePaused else { return }
+        storagePaused = true
+        if state == .ready {
+            send(Command.abortHistoricalTransmits(sequence: nextSequence()))
+            setRealtimeHeartRate(false)
+        }
+    }
+
+    func resumeHistoryAfterStorage() {
+        guard storagePaused else { return }
+        storagePaused = false
+        requestOffload()
     }
 
     /// Read-only query, rate-limited even if several visible views request a refresh.
@@ -183,7 +203,14 @@ final class StrapManager: NSObject, ObservableObject {
 
     private func handle(frame: [UInt8], channel: Int) {
         framesReceived += 1
-        onFrame?(frame, channel)
+        let epoch = connectionEpoch
+        onFrame?(frame, channel) { [weak self] in
+            guard let self, self.connectionEpoch == epoch else { return }
+            self.handleSaved(frame: frame, channel: channel)
+        }
+    }
+
+    private func handleSaved(frame: [UInt8], channel: Int) {
         let decoded: Decoded
         do { decoded = try FrameDecoder.decode(frame) } catch {
             log.error("frame on channel \(channel) failed to decode: \(String(describing: error))")
@@ -219,7 +246,7 @@ final class StrapManager: NSObject, ObservableObject {
                 onPackPresence?(present, at, live)
             }
         case let .metadata(meta):
-            if let token = meta.historyEndToken, let ack = try? Command.historyAck(sequence: nextSequence(), token: token) {
+            if !storagePaused, let token = meta.historyEndToken, let ack = try? Command.historyAck(sequence: nextSequence(), token: token) {
                 offloadChunks += 1
                 send(ack)
             } else if meta.kind == .historyComplete {
@@ -312,6 +339,7 @@ extension StrapManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        connectionEpoch = UUID()
         packRequest = nil
         onBatteryDisconnect?()
         lastBatteryRequest = .distantPast

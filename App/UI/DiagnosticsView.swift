@@ -15,7 +15,11 @@ struct DiagnosticsView: View {
                     if model.isUploading { ProgressView() }
                 }
                 .accessibilityElement(children: .combine)
-                LabeledContent("Waiting to upload", value: "\(model.queued.formatted()) frames")
+                LabeledContent("Waiting to upload", value: "\((model.queued - model.heldFrames).formatted()) frames")
+                if model.heldFrames > 0 {
+                    LabeledContent("Saved for review", value: "\(model.heldFrames.formatted()) frames")
+                    Button("Retry saved frames") { Task { await model.retryHeldFrames() } }
+                }
                 LabeledContent("Accepted by server", value: model.uploadStats.accepted.formatted())
                 if model.uploadStats.duplicates > 0 || model.uploadStats.rejected > 0 {
                     LabeledContent("Duplicates / rejected", value: "\(model.uploadStats.duplicates) / \(model.uploadStats.rejected)")
@@ -32,9 +36,21 @@ struct DiagnosticsView: View {
                 }
                 .disabled(model.uploadBlocker != nil || model.isUploading)
             }
+            if let status = model.processing {
+                Section("History") {
+                    LabeledContent("Status", value: status.paused ? "Paused" : !status.workersHealthy || status.failedAnalysis > 0 || status.decodeFailures > 0 ? "Needs attention" : status.pendingDecode + status.pendingAnalysis > 0 ? "Catching up" : "Up to date")
+                    LabeledContent("Frames to process", value: status.pendingDecode.formatted())
+                    LabeledContent("Periods to analyze", value: status.pendingAnalysis.formatted())
+                    if status.decodeFailures + status.failedAnalysis > 0 {
+                        LabeledContent("Needs review", value: (status.decodeFailures + status.failedAnalysis).formatted())
+                    }
+                    if let day = status.oldestPendingDay { LabeledContent("Oldest pending", value: day) }
+                }
+            }
             Section {
                 LabeledContent("Server", value: Settings.serverURL?.host() ?? "not set")
                 LabeledContent("Sessions checked", value: model.workouts.lastCheckedAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "never")
+                if let error = model.processingError { Text(error).font(.footnote).foregroundStyle(.red) }
                 if let error = model.workouts.notificationError ?? model.battery.notificationError {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
