@@ -13,7 +13,11 @@ public struct WeightReading: Codable, Equatable, Identifiable, Sendable {
     }
     public static func preferred(_ rows: [Self], on day: Date, calendar: Calendar = .current) -> Self? {
         rows.filter { !$0.removed && calendar.isDate($0.measuredAt, inSameDayAs: day) }
-            .sorted { a, b in a.source == b.source ? a.measuredAt > b.measuredAt : a.source == "health" }.first
+            .sorted { a, b in
+                if a.source != b.source { return a.source == "health" }
+                if a.measuredAt == b.measuredAt { return a.id > b.id }
+                return a.measuredAt > b.measuredAt
+            }.first
     }
     /// One actual observation per date; never invent missing days or average duplicate sources.
     public static func trend(_ rows: [Self], ending day: Date, calendar: Calendar = .current) -> Double? {

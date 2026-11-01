@@ -2,11 +2,7 @@ import SwiftUI
 import SnoopHealth
 
 struct WeightView: View {
-    enum Period: String, CaseIterable, Identifiable {
-        case week = "7D", month = "1M", quarter = "3M", all = "All"
-        var id: Self { self }
-        var days: Int? { switch self { case .week: 7; case .month: 30; case .quarter: 90; case .all: nil } }
-    }
+    typealias Period = WeightChartData.Period
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("weightUnit") private var unit = "kg"
@@ -21,22 +17,16 @@ struct WeightView: View {
     @State private var saveError: String?
     private var rows: [WeightReading] { model.health.rows }
     private var latest: WeightReading? { trend.points.last?.reading }
-    private var range: ClosedRange<Date> {
-        let cal = Calendar.current, today = Calendar.current.startOfDay(for: Date())
-        let start = period.days.flatMap { cal.date(byAdding: .day, value: -($0 - 1), to: today) }
-            ?? trend.points.first?.day ?? today
-        let last = period == .all ? (trend.points.last?.day ?? today) : today
-        return start...(cal.date(byAdding: .day, value: 1, to: last) ?? Date())
+    private var range: DateInterval {
+        period.range(now: Date(), first: trend.points.first?.date, last: trend.points.last?.date)
     }
-    private var visiblePoints: [WeightTrend.Point] { trend.points.filter { range.contains($0.date) } }
-    private var visibleReadings: [WeightReading] { rows.filter { range.contains($0.measuredAt) && $0.measuredAt <= Date() } }
     private func display(_ kg: Double) -> Double { unit == "lb" ? kg * 2.2046226218 : kg }
     private func value(_ kg: Double) -> String { display(kg).formatted(.number.precision(.fractionLength(1))) + " " + unit }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if let latest { summary(latest); trendCard } else { empty }
+                if latest != nil { trendCard } else { empty }
                 if !model.health.journal.pendingWeights.isEmpty {
                     Label("Saved on this iPhone · waiting to sync", systemImage: "icloud.and.arrow.up")
                         .font(.footnote).foregroundStyle(SnoopStyle.secondary)
@@ -53,7 +43,13 @@ struct WeightView: View {
         .snoopScreen().tint(SnoopStyle.load)
         .navigationTitle("Weight").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { options } }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { adding = true } label: { Image(systemName: "plus").frame(minWidth: 44, minHeight: 44) }
+                    .accessibilityLabel("Log weight").accessibilityIdentifier("logWeight")
+            }
+            ToolbarItem(placement: .topBarTrailing) { options }
+        }
         .onChange(of: rows, initial: true) { _, rows in
             trend = WeightTrend(rows)
             if !choseInitialRange, let latest = trend.points.last {
@@ -72,64 +68,24 @@ struct WeightView: View {
             }
         } message: { Text("This removes the Snoop measurement and its Snoop export. Other apps’ records stay unchanged.") }
     }
-    private func summary(_ row: WeightReading) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                HStack { latestLabel.fixedSize(); Spacer(minLength: 16); logButton }
-                VStack(alignment: .leading, spacing: 12) { latestLabel; logButton }
-            }
-            (Text(display(row.kg).formatted(.number.precision(.fractionLength(1)))).font(.largeTitle.weight(.semibold))
-             + Text(" \(unit)").font(.title3).foregroundColor(SnoopStyle.secondary)).monospacedDigit()
-            Text("\(row.measuredAt.formatted(date: .abbreviated, time: .shortened)) · \(row.sourceName)")
-                .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-        }
-    }
-    private var latestLabel: some View {
-        Text("Latest weigh-in").font(.subheadline.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
-    }
-    private var logButton: some View {
-        Button { adding = true } label: {
-            Text("Log weight").font(.subheadline.weight(.semibold)).fixedSize(horizontal: true, vertical: false)
-                .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-        }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).accessibilityIdentifier("logWeight")
-    }
     private var trendCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        let data = WeightChartData(rows, range: range)
+        return VStack(alignment: .leading, spacing: 20) {
             Picker("Chart range", selection: $period) {
                 ForEach(Period.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
-            if visibleReadings.isEmpty {
+            if data.points.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("No weigh-ins in this range").font(.headline)
+                    Text(range.start.formatted(date: .abbreviated, time: .omitted) + " – " + range.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))
+                        .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                     Text("Your older measurements are still in your history.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                     Button("Show all history") { period = .all }
                 }.frame(maxWidth: .infinity, minHeight: 180, alignment: .leading)
             } else {
-                WeightTrendChart(points: visiblePoints, readings: visibleReadings, range: range, unit: unit)
-                Divider().overlay(SnoopStyle.separator)
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 24) { average; Spacer(minLength: 0); change }
-                    VStack(alignment: .leading, spacing: 16) { average; change }
-                }
+                WeightTrendChart(data: data, unit: unit)
             }
         }.snoopCard()
-    }
-    private var average: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Latest 7-day average").font(.caption).foregroundStyle(SnoopStyle.secondary)
-            Text(visiblePoints.last.map { value($0.average) } ?? "—").font(.title3.weight(.semibold)).monospacedDigit()
-        }
-    }
-    private var change: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Trend change · \(period.rawValue)").font(.caption).foregroundStyle(SnoopStyle.secondary)
-            if visiblePoints.count > 1, let first = visiblePoints.first, let last = visiblePoints.last {
-                let rounded = (display(last.average - first.average) * 10).rounded() / 10
-                let delta = rounded == 0 ? 0.0 : rounded
-                Text((delta > 0 ? "+" : "") + delta.formatted(.number.precision(.fractionLength(1))) + " " + unit)
-                    .font(.title3.weight(.semibold)).monospacedDigit()
-            } else { Text("—").font(.title3.weight(.semibold)) }
-        }
     }
     private var empty: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -140,7 +96,7 @@ struct WeightView: View {
             Button { importing = true } label: {
                 Text("Import weight history").foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
             }.buttonStyle(.borderedProminent)
-            Button("Log weight") { adding = true }.accessibilityIdentifier("logWeight")
+            Button("Log first weight") { adding = true }
         }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
     }
     private var history: some View {

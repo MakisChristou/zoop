@@ -36,7 +36,7 @@ struct WeightCheckIn: View {
                 Spacer(minLength: 0)
                 if points.count > 1 && !dynamicType.isAccessibilitySize {
                     Chart(points) { point in
-                        LineMark(x: .value("Date", point.date), y: .value("Average", display(point.average)), series: .value("Segment", point.segment))
+                        LineMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg)), series: .value("Segment", point.segment))
                             .foregroundStyle(SnoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2))
                     }
                     .chartXScale(domain: points.first!.date...max(Date(), points.last!.date))

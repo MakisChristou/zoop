@@ -29,14 +29,19 @@ final class HealthWeightTests: XCTestCase {
     }
     func testWeightRangesOptionsAndImportNavigation() {
         let app = launch(); openWeight(app)
-        XCTAssertTrue(app.segmentedControls.buttons["1M"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.segmentedControls.buttons["30D"].waitForExistence(timeout: 10))
+        let monthDates = app.staticTexts["weightChartDates"].label
+        app.segmentedControls.buttons["7D"].tap()
+        XCTAssertNotEqual(app.staticTexts["weightChartDates"].label, monthDates)
         app.segmentedControls.buttons["All"].tap()
         XCTAssertTrue(app.segmentedControls.buttons["All"].isSelected)
         shot(app, "Weight trend all history")
         let chart = app.descendants(matching: .any)["Weight chart"].firstMatch
         XCTAssertTrue(chart.exists); chart.tap()
-        XCTAssertFalse(app.staticTexts["Touch the chart to see a weigh-in"].exists)
+        XCTAssertEqual(app.staticTexts["weightChartMetric"].label, "Weigh-in")
         shot(app, "Selected weight measurement")
+        app.buttons["Clear chart selection"].tap()
+        XCTAssertEqual(app.staticTexts["weightChartMetric"].label, "Latest weigh-in")
         app.buttons["Weight options"].tap()
         app.buttons["Import weight history"].tap()
         XCTAssertTrue(app.navigationBars["Import weight history"].waitForExistence(timeout: 5))

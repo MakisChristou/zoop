@@ -235,10 +235,14 @@ descriptive outlook, not a validated readiness score or a training recommendatio
 
 ## Apple Health and weight
 
-Today’s compact Weight card opens a dedicated weight page with a 7D/1M/3M/All chart,
-actual measurement dots and a seven-day average of available daily readings. Gaps
-of a week or more break the trend line. Units and wake reminders live in Weight’s
-options menu; weight changes have neutral colours.
+Today’s compact Weight card opens a dedicated chart with 7D/30D/90D/All ranges.
+These are rolling local calendar days including today, with exact start/end dates
+shown. The line shows actual measurements, without averaging or smoothing.
+The headline shows the latest measurement in the selected range; tapping a point
+shows that exact value, timestamp and source. Health readings take priority over
+Snoop readings on the same date, with all distinct Health readings retained.
+Missing days are never zero-filled and gaps of a week or more break the line.
+Units and wake reminders live in Weight’s options menu.
 
 Apple Health connection and export controls remain in Profile & settings. Connecting
 asks for sleep and workout write access, optional steps/weight export and optional
@@ -259,7 +263,7 @@ The server maintains a separate transactional export feed; editing, merging,
 splitting, removal, reset and undo do not depend on detector version numbers.
 
 Weight entries are saved durably on the phone before upload, with kg/lb entry,
-history and a seven-day mean of available daily measurements. Imported readings
+history of actual measurements. Imported readings
 retain their date, identity and source and are read-only in Snoop. A visible external
 weight takes precedence in the daily summary; imported values are never re-exported.
 The weight history is separate from the body profile used for analytics. Historical
