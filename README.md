@@ -226,3 +226,9 @@ from the information button. No new notification permission or setup is required
 `MorningInsightsTests` exercises the brief, detail, method sheet, historical navigation
 and large text using the synthetic `INSIGHT-REVIEW` fixture on a development API.
 Set `SNOOP_UI_SERVER_URL` for that API; the default test loopback port is 28473.
+
+Morning outlook uses a neutral Headline card above the daily overview. Only its
+status and individual comparison deltas carry green, amber or red. The backend
+supplies the classification; mixed signals stay mixed and incomplete/early data
+stays neutral. Details and the method sheet explain the comparisons. This is a
+descriptive outlook, not a validated readiness score or a training recommendation.

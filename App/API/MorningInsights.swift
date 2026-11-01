@@ -29,12 +29,44 @@ struct MorningInsights: Decodable {
         let average: Double?
         let previousAverage: Double?
     }
+    struct Outlook: Decodable {
+        let state: String
+        let level: Int?
+        let baselineCount: Int
+        let baselineRequired: Int
+    }
+    struct Comparison: Decodable {
+        let delta: Double
+        let unit: String
+        let signal: String?
+        var formatted: String {
+            let value = (unit == "seconds" ? delta / 60 : delta).rounded()
+            guard value.isFinite else { return "—" }
+            let prefix = value > 0 ? "+" : value < 0 ? "−" : ""
+            let magnitude = abs(value)
+            let number = magnitude.formatted(.number.precision(.fractionLength(0)))
+            switch unit {
+            case "seconds":
+                if magnitude >= 60 {
+                    let hours = floor(magnitude / 60).formatted(.number.precision(.fractionLength(0)))
+                    let minutes = magnitude.truncatingRemainder(dividingBy: 60).formatted(.number.precision(.fractionLength(0)))
+                    return "\(prefix)\(hours)h \(minutes)m"
+                }
+                return "\(prefix)\(number) min"
+            case "percent": return "\(prefix)\(number)%"
+            case "bpm": return "\(prefix)\(number) bpm"
+            default: return "—"
+            }
+        }
+    }
     struct Metric: Decodable, Identifiable {
         let key: String
         let value: Double?
         let quality: String
         let baseline: Baseline
         let relation: String?
+        let comparison: Comparison?
+        var deltaText: String { comparison?.formatted ?? "—" }
         let history: [Point]
         let week: Week
         var id: String { key }
@@ -72,6 +104,7 @@ struct MorningInsights: Decodable {
         let asleepSdMin: Double?
         let wakeSdMin: Double?
     }
+    let outlook: Outlook?
     let version: Int
     let day: String
     let timezone: String
@@ -81,6 +114,54 @@ struct MorningInsights: Decodable {
     let metrics: [Metric]
     let observations: [String]
     let timing: Timing
+    // Older servers remain readable, without inventing an assessment on the phone.
+    private var outlookState: String { outlook?.state ?? (state == "ready" ? "learning" : state) }
+    var outlookTitle: String {
+        switch outlookState {
+        case "good": "Good"
+        case "average": "Average"
+        case "low": "Low"
+        case "mixed": "Mixed"
+        case "learning": "Learning"
+        case "limited": "Limited data"
+        case "updating": "Updating"
+        case "awaiting_sync": "Syncing"
+        case "no_sleep": "No sleep"
+        default: "Your morning"
+        }
+    }
+    var outlookSubtitle: String {
+        switch outlookState {
+        case "good": outlook?.level == 5 ? "Clearly above your usual" : "Slightly above your usual"
+        case "low": outlook?.level == 1 ? "Clearly below your usual" : "Slightly below your usual"
+        case "average": "Close to your usual"
+        case "mixed": "Readings point in different directions"
+        case "learning":
+            if let outlook {
+                "\(outlook.baselineCount) of \(outlook.baselineRequired) nights · \(outlook.baselineCount >= 7 ? "Early baseline" : "Building your baseline")"
+            } else { "Building your personal comparison" }
+        case "limited": "Some readings need a fuller recording"
+        case "updating": "Updating after your latest data"
+        case "awaiting_sync": "Waiting for a finished sleep recording"
+        case "no_sleep": "No main sleep recorded for this day"
+        default: "Your personal comparisons"
+        }
+    }
+    var outlookSymbol: String {
+        switch outlookState {
+        case "good": "arrow.up.right"
+        case "low": "arrow.down.right"
+        case "average": "minus"
+        case "mixed": "arrow.up.arrow.down"
+        case "learning": "circle.dashed"
+        case "updating", "awaiting_sync": "arrow.triangle.2.circlepath"
+        default: "minus"
+        }
+    }
+    var comparisonCaption: String {
+        guard state == "ready" else { return "View measurements" }
+        return outlookState == "learning" ? "Early comparisons" : "Compared with your usual"
+    }
     var status: String {
         switch state {
         case "updating": "Updating your morning"

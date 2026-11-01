@@ -24,7 +24,9 @@ final class MorningInsightsTests: XCTestCase {
     func testBriefDetailsMethodsAndPreviousDay() {
         let app = launch()
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 25))
-        shot(app, "Today morning brief")
+        XCTAssertTrue(app.buttons["openMorningInsights"].label.contains("Good"))
+        XCTAssertLessThan(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY)
+        shot(app, "Today neutral headline")
         open(app)
         XCTAssertTrue(app.staticTexts["Based on 14 nights"].firstMatch.waitForExistence(timeout: 15))
         shot(app, "Morning comparisons")
@@ -39,8 +41,11 @@ final class MorningInsightsTests: XCTestCase {
         shot(app, "Yesterday early baseline")
     }
     func testLargeTextDetailsRemainReadable() {
-        let app = launch(large: true); open(app)
-        XCTAssertTrue(app.staticTexts["Sleep"].firstMatch.waitForExistence(timeout: 10))
+        let app = launch(large: true)
+        XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 25))
+        shot(app, "Today headline accessibility text")
+        open(app)
+        XCTAssertTrue(app.staticTexts["morningOutlookStatus"].firstMatch.waitForExistence(timeout: 10))
         shot(app, "Morning insights large text")
         for _ in 0..<8 { if app.staticTexts["Sleep timing"].isHittable { break }; app.swipeUp() }
         XCTAssertTrue(app.staticTexts["Sleep timing"].exists)

@@ -18,9 +18,7 @@ struct MorningInsightsView: View {
                         .frame(minHeight: 44).accessibilityIdentifier("retryInsights")
                 }
                 if let insights {
-                    if insights.state != "ready" {
-                        Text(insights.status).foregroundStyle(SnoopStyle.secondary)
-                    }
+                    MorningOutlookView(insights: insights, showsChanges: false)
                     ForEach(insights.metrics) { InsightMetricView(metric: $0) }
                     weekly(insights)
                     timing(insights)

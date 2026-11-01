@@ -13,6 +13,9 @@ enum SnoopStyle {
     static let steps = adaptive(light: 0x08786F, dark: 0x64D3BD)
     static let heartRate = adaptive(light: 0xB74B55, dark: 0xEE8C94)
     static let temperature = adaptive(light: 0x986028, dark: 0xD8AC79)
+    static let favourable = adaptive(light: 0x137848, dark: 0x79D6A1)
+    static let typical = adaptive(light: 0x865C00, dark: 0xEAC564)
+    static let unfavourable = adaptive(light: 0xB43C50, dark: 0xF08F9E)
     static let gutter: CGFloat = 20
     static let radius: CGFloat = 16
 

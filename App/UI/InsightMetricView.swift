@@ -8,7 +8,18 @@ struct InsightMetricView: View {
     private func chartValue(_ value: Double) -> Double { metric.key == "sleep" ? value / 3600 : value }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(metric.title).font(.headline)
+            let titleLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+            titleLayout {
+                Text(metric.title).font(.headline)
+                if metric.comparison != nil {
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    Text(metric.deltaText).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(InsightTone.color(metric.comparison?.signal))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 MetricValue(metric.formatted(metric.value), size: 32)
                 Text(metric.unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary)

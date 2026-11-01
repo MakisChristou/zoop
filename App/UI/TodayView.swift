@@ -32,14 +32,14 @@ struct TodayView: View {
                                    previousLabel: "Previous day", nextLabel: "Next day",
                                    previous: { stepDay(-1) }, next: { stepDay(1) },
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
-                    overview
-                    stepsCard
                     if loadedDay == viewedDay, let insights {
                         MorningBriefView(insights: insights, day: viewedDay)
                     } else if insightsFailed && loadedDay == viewedDay {
                         Button("Couldn’t update morning insights. Retry") { Task { await loadHistory() } }
                             .font(.footnote).frame(minHeight: 44)
                     }
+                    overview
+                    stepsCard
                     heartRate
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
