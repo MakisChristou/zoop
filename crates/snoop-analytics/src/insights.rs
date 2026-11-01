@@ -7,10 +7,12 @@
 //! conventions, not clinical cutoffs or a validated overnight readiness model.
 use chrono::{Duration, NaiveDate};
 use serde::Serialize;
+mod outlook;
 #[cfg(test)]
 mod tests;
+pub use outlook::{Comparison, Outlook};
 /// Change when comparison rules change; sleep and workout versions are independent.
-pub const INSIGHTS_VERSION: i32 = 1;
+pub const INSIGHTS_VERSION: i32 = 2;
 /// Previous calendar days, excluding the assessed night.
 pub const BASELINE_DAYS: i64 = 28;
 const EARLY_COUNT: usize = 7;
@@ -69,6 +71,7 @@ pub struct Metric {
     pub quality: &'static str,
     pub baseline: Baseline,
     pub relation: Option<&'static str>,
+    pub comparison: Option<Comparison>,
     pub history: Vec<Point>,
     pub week: Week,
 }
@@ -91,6 +94,7 @@ pub struct MorningInsights {
     pub metrics: Vec<Metric>,
     pub observations: Vec<String>,
     pub timing: Timing,
+    pub outlook: Outlook,
 }
 /// Creates a historical or current brief. Later dates are never included.
 pub fn calculate(
@@ -119,6 +123,7 @@ pub fn calculate(
         sleep_id: current.map(|n| n.id),
         sleep_revision: current.map(|n| n.revision),
         timing: timing(day, nights),
+        outlook: outlook::summarize(&metrics, state),
         metrics,
         observations,
     }
@@ -235,6 +240,13 @@ fn metric(
         value,
         quality,
         relation,
+        comparison: outlook::comparison(
+            key,
+            value,
+            avg.map(|a| inverse(a, key)),
+            quality,
+            relation,
+        ),
         history,
         baseline: Baseline {
             state: if count < EARLY_COUNT {

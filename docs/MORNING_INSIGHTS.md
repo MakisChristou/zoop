@@ -29,7 +29,7 @@ Quality is independent per metric:
 Nonfinite, zero or missing physiology is unavailable. The original measurement may
 be shown with `limited` quality but cannot generate comparisons or chart points.
 
-## Descriptive methods, version 1
+## Descriptive methods, version 2
 
 Sources: Plews et al. 2014, doi:10.1123/ijspp.2013-0455 (repeated individual lnRMSSD);
 Fischer et al. 2021, doi:10.1093/sleep/zsab103 (sleep timing variability).
@@ -43,7 +43,7 @@ deviation band. HRV is log-transformed before averaging/spread, then back-transf
 Minimum half-widths are 15 minutes for sleep, 1 bpm for resting HR, and ln(1.05) for
 HRV, preventing tiny changes around an invariant baseline from looking unusual.
 A below/above/within-band label requires an established baseline. No recovery score
-or good/bad physiological verdict is inferred. Early sleep comparisons are numerical
+or physiological verdict is inferred. Early sleep comparisons are numerical
 and visibly labelled early in the app.
 
 The recent week includes the selected day plus six earlier dates. Five usable
@@ -66,7 +66,7 @@ an older date can revise that date after the existing history worker catches up.
 The app has one Today entry point, a detail page, an explanation sheet, date-specific
 request protection, refresh on correction/analysis completion and retry on failure.
 Learning and missing-data states are visible. This slice does not schedule alerts.
-Sleep/workout algorithm versions and stored data do not change for insights v1.
+Sleep/workout algorithm versions and stored data do not change for insights v2.
 
 ## Validation
 
@@ -74,3 +74,32 @@ Sleep/workout algorithm versions and stored data do not change for insights v1.
 includes `insights` API, coverage, correction/reset/undo, and historical-date tests
 against isolated Postgres schemas. Fixtures are synthetic. UI tests use a separate
 synthetic device and server; no screen mirroring is required for phone installation.
+
+## Morning outlook presentation (v2)
+
+The approved neutral Headline card uses `outlook` and each metric's `comparison`.
+This is an explicit product presentation convention over the existing descriptive
+bands, not a peer-reviewed readiness algorithm. The cited studies support the
+measurements and comparisons, not the Good/Average/Low labels. Higher HRV or lower
+resting HR can have several explanations; the labels do not diagnose recovery,
+fitness, illness or capacity to train. No training recommendation is generated.
+
+All three current metrics must have good coverage and at least 14 eligible prior
+readings. Otherwise the outlook is `learning`, `limited`, or the recording's waiting
+state, with no level. The progress count is the smallest independent baseline count.
+Each usable metric can still show a numerical delta after seven prior readings;
+its signal remains null and its text neutral until the baseline is established.
+
+For display, sleep/HRV above their usual band and resting HR below its band are
+`favourable`; the reverse is `unfavourable`; inside the band is `usual`.
+`good` means at least one favourable and no unfavourable comparison; `low` means
+at least one unfavourable and no favourable comparison. `average` means all three
+are inside their usual bands. Opposing comparisons are `mixed`, never cancelled
+into an average. Each delta retains its own colour, including in a mixed outlook.
+
+The five neutral segments are ordinal: one unfavourable comparison = position 2,
+two or three = 1; all usual = 3; one favourable = 4, two or three = 5. Mixed and
+unavailable states omit the segments. This depicts agreement among comparisons,
+not a measurement of physiological magnitude. Exact deltas below it supply the
+magnitude: seconds for sleep (formatted as minutes/hours), percent change from the
+geometric HRV average, and bpm for resting HR. No 0–100 score is invented.

@@ -121,3 +121,75 @@ fn meaningful_changes_precede_routine_observations() {
     assert_eq!(r.observations.len(), 2);
     assert!(r.observations[1].contains("resting heart rate"));
 }
+
+#[test]
+fn outlook_preserves_mixed_signals_and_distinguishes_extent() {
+    let mut nights = (0..=14).map(night).collect::<Vec<_>>();
+    for n in &mut nights {
+        n.hrv.value = Some(50.0);
+    }
+    let scenarios = [
+        (28800.0, 50.0, 55.0, "average", Some(3)),
+        (30000.0, 50.0, 55.0, "good", Some(4)),
+        (30000.0, 60.0, 52.0, "good", Some(5)),
+        (27000.0, 50.0, 55.0, "low", Some(2)),
+        (27000.0, 40.0, 60.0, "low", Some(1)),
+        (30000.0, 40.0, 55.0, "mixed", None),
+    ];
+    for (sleep, hrv, hr, state, level) in scenarios {
+        nights[14].sleep.value = Some(sleep);
+        nights[14].hrv.value = Some(hrv);
+        nights[14].resting_hr.value = Some(hr);
+        let r = calculate(day(14), "UTC", &nights, false);
+        assert_eq!(r.outlook.state, state);
+        assert_eq!(r.outlook.level, level);
+        assert_eq!(r.outlook.baseline_count, 14);
+        assert_eq!(r.outlook.baseline_required, 14);
+        assert!(
+            (r.metrics[1].comparison.as_ref().unwrap().delta - (hrv / 50.0 - 1.0) * 100.0).abs()
+                < 1e-8
+        );
+        assert_eq!(r.metrics[0].comparison.as_ref().unwrap().unit, "seconds");
+        assert_eq!(r.metrics[2].comparison.as_ref().unwrap().unit, "bpm");
+    }
+}
+
+#[test]
+fn outlook_never_turns_early_missing_or_pending_data_into_average() {
+    let mut nights = (0..=14).map(night).collect::<Vec<_>>();
+    for count in [0, 6, 7, 13] {
+        let r = calculate(day(count), "UTC", &nights, false);
+        assert_eq!(r.outlook.state, "learning");
+        assert_eq!(r.outlook.level, None);
+        assert!(
+            r.metrics[0]
+                .comparison
+                .as_ref()
+                .is_none_or(|c| c.signal.is_none())
+        );
+    }
+    assert_eq!(
+        calculate(day(14), "UTC", &nights, true).outlook.state,
+        "updating"
+    );
+    assert_eq!(
+        calculate(day(15), "UTC", &nights, false).outlook.state,
+        "no_sleep"
+    );
+    nights[14].state = "awaiting_sync";
+    assert_eq!(
+        calculate(day(14), "UTC", &nights, false).outlook.state,
+        "awaiting_sync"
+    );
+    nights[14].state = "ready";
+    nights[14].hrv.quality = "limited";
+    let r = calculate(day(14), "UTC", &nights, false);
+    assert_eq!(r.outlook.state, "limited");
+    assert!(r.metrics[1].comparison.is_none());
+    nights[14].hrv.quality = "good";
+    nights[14].hrv.value = Some(f64::NAN);
+    assert_eq!(
+        calculate(day(14), "UTC", &nights, false).outlook.state,
+        "limited"
+    );
+}
