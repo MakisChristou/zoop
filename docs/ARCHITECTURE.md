@@ -31,8 +31,9 @@ where it can be re-run over the full history.
    context days, plus existing days whose trailing observed-HR inputs can include it.
    A changed sleep invalidates downstream resting-HR and sleep-exclusion consumers.
    Workout jobs wait for pending prerequisite nights. Retries survive restarts.
-5. Profile snapshots are time-aware and labels are independent overlap-based user
-   corrections. Historical HR maximum and resting HR use an as-of-day cutoff. Initial
+5. Profile snapshots are time-aware. Stable workout sessions and revisioned user
+   corrections project over versioned detector candidates; fixed boundaries and
+   suppression scopes survive recalculation (see `WORKOUT_CORRECTIONS.md`). Historical HR maximum and resting HR use an as-of-day cutoff. Initial
    profile history is an explicit bootstrap assumption because older edits were not
    recorded. Job provenance stores versions, profile, physiology and parameters.
 6. The service supervises worker tasks. `/health` is liveness; `/ready` checks worker
@@ -67,7 +68,8 @@ Dependencies point downward only: `snoop` → `snoop-api`/`snoop-core` → `snoo
 - `sleeps`, `recoveries`, `strains`, `workouts`, `journal` — derived, versioned.
   `workouts` carries kind, load, zones, impulse, calories and steps per session;
   `strains` the same per local day.
-- `profiles`, `profile_revisions`, `workout_labels` — current profile, historical snapshots and independent corrections.
+- `profiles`, `profile_revisions`, `workout_labels` — current profile, historical snapshots and legacy type labels.
+- `workout_sessions`, `workout_corrections`, `workout_aliases` — stable effective sessions, reversible user intent and old notification links.
 - `analysis_jobs`, `analysis_bootstraps`, `worker_status` — durable progress, completion provenance and worker health.
 
 ## Deployment

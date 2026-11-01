@@ -10,11 +10,13 @@ mod label_store;
 mod operation;
 mod profile_store;
 mod sample_store;
+mod session;
+mod session_store;
 mod sleep_store;
 mod strain_store;
 mod workout_store;
 
-pub use analysis_store::{AnalysisJob, AnalysisVersions, ProcessingStatus};
+pub use analysis_store::{AnalysisJob, AnalysisVersions, DayPublication, ProcessingStatus};
 pub use day_store::{DayRow, HourSteps};
 pub use decode_store::{DecodeOutput, DecodedFrame};
 pub use error::{StorageError, StorageResult};
@@ -22,6 +24,10 @@ pub use frame_store::{IngestOutcome, NewRawFrame, PendingFrame};
 pub use operation::StoreOperation;
 pub use profile_store::{NewProfile, ProfileRow};
 pub use sample_store::{MinuteRow, NewEcgStrip, NewEvent, NewSample, SampleRow};
+pub use session::{
+    CorrectionReceipt, CorrectionScope, SessionCalculation, SessionInterval, SessionMetrics,
+    SessionRevision, WorkoutCorrection, WorkoutSession,
+};
 pub use sleep_store::{NewSleep, SampleFull, SleepRow};
 pub use strain_store::NewStrain;
 pub use workout_store::{NewWorkout, WorkoutRow};

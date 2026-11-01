@@ -90,3 +90,11 @@ not derived data.
 
 Blood-pressure insights, Healthspan-style ages, and anything requiring WHOOP's
 proprietary models or lab data.
+
+## Workout corrections
+
+Stable, revisioned workout corrections support time/type edits, continuous merges,
+splits, removal/restore, and adding missed intervals with sensor data. Correction
+publication uses the durable history queue and input fence. See
+[WORKOUT_CORRECTIONS.md](WORKOUT_CORRECTIONS.md) for contracts and validation.
+Real walk and gym accuracy remains a device-validation task.

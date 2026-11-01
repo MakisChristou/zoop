@@ -13,11 +13,12 @@ use serde::Serialize;
 use snoop_analytics::WORKOUT_ALGO_VERSION;
 use snoop_analytics::bouts::{ActivitySample, Bout, detect_bouts};
 use snoop_analytics::energy::{Body, Sex};
+use snoop_analytics::interval::{summarize_interval, unclaimed_intervals};
 use snoop_analytics::workouts::{
     DayLoad, Physiology, Workout, WorkoutParams, day_load, detect_workouts,
 };
 use snoop_analytics::zones;
-use snoop_storage::{PostgresStore, ProfileRow, SampleFull};
+use snoop_storage::{PostgresStore, ProfileRow, SampleFull, SessionCalculation, SessionMetrics};
 use tracing::{debug, info};
 
 use crate::CoreResult;
@@ -46,6 +47,9 @@ pub struct DayResult {
     pub load: DayLoad,
     pub kcal: Option<f64>,
     pub samples: usize,
+    pub has_hr: bool,
+    #[serde(skip)]
+    pub sessions: Vec<SessionCalculation>,
 }
 
 /// Steps through one local day, for the detailed steps screen.
@@ -116,47 +120,122 @@ pub async fn calculate_day(
 ) -> CoreResult<Option<DayResult>> {
     let (from, to) = store.local_day_bounds(day, tz).await?;
     let context = ChronoDuration::hours(CONTEXT_HOURS);
-    let rows = store
-        .fetch_samples(device_id, from - context, to + context)
-        .await?;
+    let fixed = store.fixed_sessions(device_id, from, to).await?;
+    let read_from = fixed
+        .iter()
+        .map(|w| w.start_ts - ChronoDuration::seconds(1))
+        .fold(from - context, std::cmp::min);
+    let read_to = fixed
+        .iter()
+        .map(|w| w.end_ts)
+        .fold(to + context, std::cmp::max);
+    let scopes: Vec<_> = store
+        .correction_scopes(device_id, read_from, read_to)
+        .await?
+        .into_iter()
+        .map(|s| (s.start_ts, s.end_ts))
+        .collect();
+    let rows = store.fetch_samples(device_id, read_from, read_to).await?;
     let samples: Vec<ActivitySample> = rows.iter().map(to_activity_sample).collect();
-    let sleep = store
-        .sleep_windows(device_id, from - context, to + context)
-        .await?;
+    let sleep = store.sleep_windows(device_id, read_from, read_to).await?;
 
-    let age = profile
-        .and_then(|p| p.birth_year)
-        .map(|year| f64::from(day.year() - i32::from(year)));
-    let observed = store
-        .observed_hr_max_at(device_id, OBSERVED_HR_MAX_DAYS, to)
-        .await?;
-    if samples.iter().all(|s| s.hr.is_none()) {
-        debug!(device_id, %day, "no heart rate data; skipping");
+    if samples.is_empty() && fixed.is_empty() {
+        debug!(device_id, %day, "no sample data; skipping");
         return Ok(None);
     }
-    let hr_max = zones::hr_max(Some(age.unwrap_or(DEFAULT_AGE_YEARS)), observed)
-        .unwrap_or_else(|| zones::predicted_hr_max(DEFAULT_AGE_YEARS));
-    let physiology = Physiology {
-        hr_max,
-        resting_hr: store
-            .resting_hr_at(device_id, to)
-            .await?
-            .unwrap_or(DEFAULT_RESTING_HR),
-        body: body_of(profile, age),
-    };
+    let physiology = physiology_for_day(store, device_id, profile, day, to).await?;
     let params = WorkoutParams::default();
 
-    let workouts: Vec<Workout> = detect_workouts(&samples, &sleep, &physiology, &params)
-        .into_iter()
+    let detected = detect_workouts(&samples, &sleep, &physiology, &params);
+    let workouts: Vec<Workout> = detected
+        .iter()
         .filter(|w| w.start >= from && w.start < to)
+        .cloned()
+        .collect();
+    let mut effective = Vec::new();
+    for candidate in &detected {
+        let fragments = unclaimed_intervals(candidate.start, candidate.end, &scopes);
+        for (a, b) in fragments {
+            let candidates = if a == candidate.start && b == candidate.end {
+                vec![candidate.clone()]
+            } else {
+                let slice = &samples
+                    [samples.partition_point(|s| s.ts < a)..samples.partition_point(|s| s.ts < b)];
+                detect_workouts(slice, &sleep, &physiology, &params)
+            };
+            for w in candidates {
+                let start = w.start.max(a);
+                let end = w.end.min(b);
+                let min_minutes = if w.kind == snoop_analytics::workouts::WorkoutKind::Walk {
+                    params.min_walk_min
+                } else {
+                    params.min_session_min
+                };
+                if (end - start).num_seconds() < min_minutes * 60 {
+                    continue;
+                }
+                effective.push(SessionCalculation {
+                    id: None,
+                    start_ts: start,
+                    end_ts: end,
+                    kind: w.kind.as_str().to_owned(),
+                    metrics: metrics(&samples, start, end, &physiology),
+                });
+            }
+        }
+    }
+    let mut physiology_by_day = std::collections::BTreeMap::from([(day, physiology)]);
+    for w in &fixed {
+        let session_day = store.local_date_at(w.start_ts, tz).await?;
+        if let std::collections::btree_map::Entry::Vacant(entry) =
+            physiology_by_day.entry(session_day)
+        {
+            let (_, cutoff) = store.local_day_bounds(session_day, tz).await?;
+            let past_profile = store.profile_at(device_id, cutoff).await?;
+            let past =
+                physiology_for_day(store, device_id, past_profile.as_ref(), session_day, cutoff)
+                    .await?;
+            entry.insert(past);
+        }
+        let session_physiology = physiology_by_day.get(&session_day).unwrap_or(&physiology);
+        effective.push(SessionCalculation {
+            id: Some(w.id),
+            start_ts: w.start_ts,
+            end_ts: w.end_ts,
+            kind: w.kind.clone(),
+            metrics: metrics(&samples, w.start_ts, w.end_ts, session_physiology),
+        });
+    }
+    // Daily workout calories are assigned by sample time, including sessions that
+    // began yesterday. Corrected intervals are disjoint, so no second is counted twice.
+    let mut kcal = Some(0.0);
+    for w in effective
+        .iter()
+        .filter(|w| w.start_ts < to && w.end_ts > from)
+    {
+        let session_day = store.local_date_at(w.start_ts, tz).await?;
+        if let std::collections::btree_map::Entry::Vacant(entry) =
+            physiology_by_day.entry(session_day)
+        {
+            let (_, cutoff) = store.local_day_bounds(session_day, tz).await?;
+            let past_profile = store.profile_at(device_id, cutoff).await?;
+            let past =
+                physiology_for_day(store, device_id, past_profile.as_ref(), session_day, cutoff)
+                    .await?;
+            entry.insert(past);
+        }
+        let p = physiology_by_day.get(&session_day).unwrap_or(&physiology);
+        let part = summarize_interval(&samples, w.start_ts.max(from), w.end_ts.min(to), p).kcal;
+        kcal = kcal.zip(part).map(|(sum, part)| sum + part);
+    }
+    let sessions = effective
+        .into_iter()
+        .filter(|w| w.start_ts >= from && w.start_ts < to)
         .collect();
     let day_from = samples.partition_point(|s| s.ts < from);
     let day_to = samples.partition_point(|s| s.ts < to);
     let load = day_load(&samples[day_from..day_to], &sleep, &physiology);
-    let kcal = workouts
-        .iter()
-        .map(|w| w.kcal)
-        .try_fold(0.0, |sum, kcal| kcal.map(|k| sum + k));
+    let has_hr = samples[day_from..day_to].iter().any(|s| s.hr.is_some());
 
     info!(device_id, %day, sessions = workouts.len(), load = format!("{:.1}", load.load), "day calculated");
     Ok(Some(DayResult {
@@ -168,6 +247,8 @@ pub async fn calculate_day(
         load,
         kcal,
         samples: day_to - day_from,
+        has_hr,
+        sessions,
     }))
 }
 
@@ -223,4 +304,48 @@ fn to_activity_sample(row: &SampleFull) -> ActivitySample {
         motion_g: row.accel_dyn_g,
         band_state: u8::try_from(row.band_state).unwrap_or(0),
     }
+}
+
+fn metrics(
+    samples: &[ActivitySample],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    physiology: &Physiology,
+) -> SessionMetrics {
+    let m = summarize_interval(samples, start, end, physiology);
+    SessionMetrics {
+        load: m.load,
+        avg_hr: m.avg_hr,
+        max_hr: m.max_hr.map(i16::from),
+        trimp: m.trimp,
+        zones_min: m.zones.map(|z| z.minutes().to_vec()),
+        kcal: m.kcal,
+        steps: m.steps,
+        coverage_s: Some(m.coverage_s),
+        hr_coverage_s: Some(m.hr_coverage_s),
+    }
+}
+
+async fn physiology_for_day(
+    store: &PostgresStore,
+    device: &str,
+    profile: Option<&ProfileRow>,
+    day: NaiveDate,
+    cutoff: DateTime<Utc>,
+) -> CoreResult<Physiology> {
+    let age = profile
+        .and_then(|p| p.birth_year)
+        .map(|year| f64::from(day.year() - i32::from(year)));
+    let observed = store
+        .observed_hr_max_at(device, OBSERVED_HR_MAX_DAYS, cutoff)
+        .await?;
+    Ok(Physiology {
+        hr_max: zones::hr_max(Some(age.unwrap_or(DEFAULT_AGE_YEARS)), observed)
+            .unwrap_or_else(|| zones::predicted_hr_max(DEFAULT_AGE_YEARS)),
+        resting_hr: store
+            .resting_hr_at(device, cutoff)
+            .await?
+            .unwrap_or(DEFAULT_RESTING_HR),
+        body: body_of(profile, age),
+    })
 }

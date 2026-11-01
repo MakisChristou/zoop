@@ -186,7 +186,38 @@ impl PostgresStore {
         strain: Option<&NewStrain<'_>>,
         inputs: Value,
     ) -> StorageResult<bool> {
+        self.publish_day_sessions(
+            job,
+            DayPublication {
+                from,
+                to,
+                workouts,
+                strain,
+                inputs,
+                sessions: None,
+            },
+        )
+        .await
+    }
+
+    /// Publishes the effective correction projection under the same input fence.
+    /// # Errors
+    /// Database failure; the complete publication rolls back.
+    pub async fn publish_day_sessions(
+        &self,
+        job: &AnalysisJob,
+        publication: DayPublication<'_>,
+    ) -> StorageResult<bool> {
+        let DayPublication {
+            from,
+            to,
+            workouts,
+            strain,
+            inputs,
+            sessions,
+        } = publication;
         let mut tx = self.pool().begin().await.map_err(fail)?;
+        crate::session_store::lock_device(&mut tx, &job.device_id).await?;
         if !fence(&mut tx, job).await? {
             tx.commit().await.map_err(fail)?;
             return Ok(false);
@@ -217,6 +248,9 @@ impl PostgresStore {
                 .execute(&mut *tx)
                 .await
                 .map_err(fail)?;
+        }
+        if let Some(sessions) = sessions {
+            crate::session_store::publish_sessions(&mut tx, job, from, to, sessions).await?;
         }
         complete(&mut tx, job, inputs).await?;
         tx.commit().await.map_err(fail)?;
@@ -307,4 +341,15 @@ pub(crate) async fn queue_samples(
         available_at=CASE WHEN analysis_jobs.generation=analysis_jobs.completed_generation THEN now()+interval '30 seconds' ELSE analysis_jobs.available_at END")
         .bind(device).bind(times).bind(v.sleep).bind(v.workout).execute(tx).await.map_err(fail)?;
     Ok(())
+}
+
+/// All projections of a day share one generation and publication transaction.
+#[derive(Debug)]
+pub struct DayPublication<'a> {
+    pub from: DateTime<Utc>,
+    pub to: DateTime<Utc>,
+    pub workouts: &'a [NewWorkout<'a>],
+    pub strain: Option<&'a NewStrain<'a>>,
+    pub inputs: Value,
+    pub sessions: Option<&'a [crate::SessionCalculation]>,
 }

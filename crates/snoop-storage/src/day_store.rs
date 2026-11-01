@@ -142,6 +142,18 @@ impl PostgresStore {
         .map_err(|source| StorageError::unavailable(StoreOperation::LocalDay, source))
     }
 
+    /// Local calendar date of an absolute instant.
+    /// # Errors
+    /// Database failure or an unknown time zone.
+    pub async fn local_date_at(&self, ts: DateTime<Utc>, tz: &str) -> StorageResult<NaiveDate> {
+        sqlx::query_scalar("SELECT ($1::timestamptz AT TIME ZONE $2)::date")
+            .bind(ts)
+            .bind(tz)
+            .fetch_one(self.pool())
+            .await
+            .map_err(|source| StorageError::unavailable(StoreOperation::LocalDay, source))
+    }
+
     /// Today's date in `tz`. Fails when `tz` is not a zone Postgres knows.
     pub async fn local_today(&self, tz: &str) -> StorageResult<NaiveDate> {
         sqlx::query_scalar("SELECT (now() AT TIME ZONE $1)::date")

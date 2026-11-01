@@ -12,6 +12,7 @@ pub(crate) enum ApiError {
     Unauthorized,
     BadRequest(String),
     NotFound,
+    Conflict(String),
     Storage(StorageError),
 }
 
@@ -28,14 +29,19 @@ struct ErrorDetail {
 
 impl From<StorageError> for ApiError {
     fn from(error: StorageError) -> Self {
-        Self::Storage(error)
+        match error {
+            StorageError::InvalidCorrection(message) => Self::BadRequest(message),
+            StorageError::CorrectionConflict(message) => Self::Conflict(message),
+            StorageError::CorrectionNotFound => Self::NotFound,
+            other => Self::Storage(other),
+        }
     }
 }
 
 impl From<snoop_core::CoreError> for ApiError {
     fn from(error: snoop_core::CoreError) -> Self {
         match error {
-            snoop_core::CoreError::Storage(source) => Self::Storage(source),
+            snoop_core::CoreError::Storage(source) => Self::from(source),
         }
     }
 }
@@ -48,6 +54,7 @@ impl IntoResponse for ApiError {
                 "unauthorized",
                 "missing or invalid bearer token".to_owned(),
             ),
+            Self::Conflict(message) => (StatusCode::CONFLICT, "conflict", message),
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
             Self::NotFound => (
                 StatusCode::NOT_FOUND,

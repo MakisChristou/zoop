@@ -52,6 +52,14 @@ pub fn build_router(state: AppState) -> Router {
             get(epochs),
         )
         .route("/v1/devices/{deviceId}/workouts", get(workouts))
+        .route(
+            "/v1/devices/{deviceId}/workouts/corrections",
+            post(workouts::correct),
+        )
+        .route(
+            "/v1/devices/{deviceId}/workouts/{id}",
+            get(workouts::workout),
+        )
         .route("/v1/devices/{deviceId}/workouts/{id}/kind", put(set_kind))
         .route(
             "/v1/devices/{deviceId}/profile",

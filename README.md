@@ -209,3 +209,10 @@ transaction rollback, replay, leases, stale-worker fencing, late historical samp
 atomic publication, empty results, labels, profile history, DST and quarter-hour
 zones. CI runs them with Postgres; the ordinary unit suite remains database-free.
 See [the rollout and recovery guide](docs/RELIABLE_HISTORY.md) for deployment order.
+
+## Workout corrections
+
+Workout reads expose stable effective sessions. Reversible corrections preserve user
+choices through late uploads and algorithm upgrades; interval metrics are recalculated
+from raw-derived samples. See [the correction contract](docs/WORKOUT_CORRECTIONS.md).
+The database-backed suite includes correction operations and worker races (`just test-db`).

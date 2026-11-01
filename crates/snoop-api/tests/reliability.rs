@@ -143,12 +143,13 @@ async fn status_distinguishes_readiness_stale_workers_and_paused_history() {
 #[ignore = "requires development Postgres"]
 async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
     let db = Db::new().await;
+    let versions = snoop_core::HistoryWorker::versions();
     let first = db.raw(1).await;
     // A continuous twenty-minute walk, long before the former two-day window.
     sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id)
         SELECT $1,'2025-01-01 10:00:00Z'::timestamptz+make_interval(secs=>n),110,ARRAY[545],n*2,1,1,$2 FROM generate_series(0,1200) n")
         .bind(DEVICE).bind(first).execute(&db.pool).await.unwrap();
-    db.store.seed_history(VERSIONS).await.unwrap();
+    db.store.seed_history(versions).await.unwrap();
     let worker =
         snoop_core::HistoryWorker::new(db.store.clone(), true, std::time::Duration::from_secs(60));
     for _ in 0..10 {
@@ -156,7 +157,11 @@ async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
             break;
         }
     }
-    let sessions = db.store.list_workouts(DEVICE, 2, 10).await.unwrap();
+    let sessions = db
+        .store
+        .list_workouts(DEVICE, versions.workout, 10)
+        .await
+        .unwrap();
     assert_eq!(sessions.len(), 1);
     assert!(!sessions[0].notification_eligible);
     let original = sessions[0].id;
@@ -169,7 +174,11 @@ async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
         )
         .await
         .unwrap();
-    let days = db.store.list_days(DEVICE, "UTC", 30, 2).await.unwrap();
+    let days = db
+        .store
+        .list_days(DEVICE, "UTC", 30, versions.workout)
+        .await
+        .unwrap();
     assert_eq!(days.len(), 1);
     assert!(days[0].load.is_some());
     // Late input invalidates the old day, survives a worker restart and retains its session identity and label.
@@ -185,7 +194,7 @@ async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
                 )),
             }],
             snoop_proto::PROTO_VERSION,
-            VERSIONS,
+            versions,
         )
         .await
         .unwrap();
@@ -197,13 +206,17 @@ async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
             break;
         }
     }
-    let sessions = db.store.list_workouts(DEVICE, 2, 10).await.unwrap();
+    let sessions = db
+        .store
+        .list_workouts(DEVICE, versions.workout, 10)
+        .await
+        .unwrap();
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].id, original);
     assert_eq!(sessions[0].kind, "resistance");
     assert_eq!(
         db.store
-            .processing_status(DEVICE, 3, VERSIONS)
+            .processing_status(DEVICE, 3, versions)
             .await
             .unwrap()
             .pending_analysis,

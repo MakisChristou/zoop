@@ -102,3 +102,4 @@ test-db:
     test -n "$SNOOP_TEST_DATABASE_URL"
     cargo test -p snoop-storage -p snoop-api --test reliability -- --ignored
     cargo test -p snoop-storage --test workouts
+    cargo test -p snoop-api --test corrections -- --ignored
