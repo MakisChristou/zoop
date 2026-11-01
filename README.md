@@ -237,7 +237,7 @@ descriptive outlook, not a validated readiness score or a training recommendatio
 
 Profile & settings contains Apple Health and Weight. Connecting asks for sleep and
 workout write access, with optional steps and weight export and optional weight
-import. Sharing starts at connection time. Export older history previews a chosen
+import. Sharing starts at connection time. Sync older history previews a chosen
 range (or all available history), including older Health weights when import is on.
 Backfills resume from saved progress and overlapping ranges reuse stable identities.
 
