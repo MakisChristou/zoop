@@ -6,7 +6,7 @@ import SwiftUI
 struct SleepView: View {
     @EnvironmentObject private var model: AppModel
     @State private var nights: [SnoopAPI.Night] = []
-    @State private var selected: SnoopAPI.Night?
+    @Binding var selected: SnoopAPI.Night?
     @State private var error: String?
     @State private var loading = false
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -38,17 +38,9 @@ struct SleepView: View {
         let p = night.metrics.physiology
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Button { step(1) } label: { Image(systemName: "chevron.left").frame(minWidth: 44, minHeight: 44) }
-                        .foregroundStyle(canStep(1) ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
-                        .disabled(!canStep(1)).accessibilityLabel("Previous night")
-                    Spacer(minLength: 4)
-                    Text(nightLabel(night)).font(.subheadline).multilineTextAlignment(.center)
-                    Spacer(minLength: 4)
-                    Button { step(-1) } label: { Image(systemName: "chevron.right").frame(minWidth: 44, minHeight: 44) }
-                        .foregroundStyle(canStep(-1) ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
-                        .disabled(!canStep(-1)).accessibilityLabel("Next night")
-                }
+                DateNavigation(title: nightLabel(night), canGoBack: canStep(1), canGoForward: canStep(-1),
+                               previousLabel: "Previous night", nextLabel: "Next night",
+                               previous: { step(1) }, next: { step(-1) })
                 VStack(alignment: .leading, spacing: 6) {
                     SleepDuration(seconds: w.asleepS, size: 48)
                     Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
@@ -178,7 +170,10 @@ struct SleepView: View {
         loading = true
         defer { loading = false }
         do {
-            nights = try await SnoopAPI.nights(deviceId: model.strap.serial)
+            nights = try await SnoopAPI.nights(deviceId: model.strap.serial, limit: 30)
+            if let selected, let refreshed = nights.first(where: { $0.id == selected.id }) {
+                self.selected = refreshed
+            }
             error = nil
         } catch {
             self.error = error.localizedDescription

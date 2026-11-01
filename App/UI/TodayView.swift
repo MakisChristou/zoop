@@ -3,11 +3,16 @@ import SnoopProtocol
 import SwiftUI
 
 struct TodayView: View {
-    let openSleep: () -> Void
+    let openSleep: (SnoopAPI.Night?) -> Void
     let openActivity: () -> Void
     @EnvironmentObject private var model: AppModel
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var now = Date()
+    /// Nil follows today across midnight; a chosen past day stays fixed.
+    @State private var selectedDay: Date?
+    @State private var loadedDay: Date?
+    @State private var loading = false
+    @State private var loadID = UUID()
     @State private var minutes: [SnoopAPI.Minute] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var nights: [SnoopAPI.Night] = []
@@ -21,19 +26,27 @@ struct TodayView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    DateNavigation(title: dayLabel, canGoBack: canStepBack, canGoForward: !isViewingToday,
+                                   previousLabel: "Previous day", nextLabel: "Next day",
+                                   previous: { stepDay(-1) }, next: { stepDay(1) })
                     overview
                     stepsCard
-                    liveHeartRate
+                    heartRate
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
                             Label("Couldn’t update your day. Retry", systemImage: "arrow.clockwise")
                                 .font(.footnote).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
                     }
-                    if !todaysWorkouts.isEmpty { sessions.padding(.top, 8) }
-                    if !minutes.isEmpty {
+                    if !selectedWorkouts.isEmpty { sessions.padding(.top, 8) }
+                    if !currentMinutes.isEmpty {
                         sectionHeading("Daily timeline").padding(.top, 14)
-                        DayTimeline(minutes: minutes, now: now, sessions: todaysWorkouts, walkingHours: currentSteps?.walkingHours)
+                        DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? now : nil,
+                                    sessions: selectedWorkouts, walkingHours: currentSteps?.walkingHours)
+                            .id(viewedDay)
+                    }
+                    if loading && loadedDay != viewedDay {
+                        ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading day")
                     }
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
@@ -41,14 +54,14 @@ struct TodayView: View {
                 .padding(.horizontal, SnoopStyle.gutter)
                 .padding(.bottom, 24)
             }
-            .mainScreenChrome("Today", subtitle: now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+            .mainScreenChrome("Today")
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
-            .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0) }
+            .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0, day: viewedDay) }
             .onAppear(perform: applyDemoRoute)
             .refreshable { await loadHistory() }
         }
         .onReceive(clock) { now = $0 }
-        .task(id: model.strap.serial) { await loadHistory() }
+        .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
         .task {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
@@ -67,31 +80,31 @@ struct TodayView: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return layout {
-            Button(action: openSleep) {
+            Button { openSleep(selectedNight) } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     metricLabel("Sleep", icon: "moon")
-                    SleepDuration(seconds: nights.first?.metrics.window.asleepS)
-                    Text(nights.first.map { Calendar.current.isDateInToday($0.endTs) ? "Last night" : $0.endTs.formatted(.dateTime.day().month(.abbreviated)) } ?? "No night recorded")
+                    SleepDuration(seconds: selectedNight?.metrics.window.asleepS)
+                    Text(selectedNight.map { isViewingToday ? "Last night" : $0.metrics.window.offset.formatted(.dateTime.day().month(.abbreviated)) } ?? "No night recorded")
                         .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    if let night = nights.first, !night.stages.isEmpty {
+                    if let night = selectedNight, !night.stages.isEmpty {
                         Hypnogram(segments: night.stages, onset: night.metrics.window.onset, offset: night.metrics.window.offset)
                             .frame(height: 22).accessibilityHidden(true)
                     } else {
-                        Sparkline(values: nights.reversed().map { Double($0.metrics.window.asleepS) }, color: SnoopStyle.sleep)
+                        Sparkline(values: precedingNights.map { Double($0.metrics.window.asleepS) }, color: SnoopStyle.sleep)
                             .frame(height: 22).accessibilityHidden(true)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
                 .snoopCard(padding: 14)
             }
-            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Sleep")
+            .buttonStyle(PressableCardStyle()).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
             Button(action: openActivity) {
                 VStack(alignment: .leading, spacing: 8) {
                     metricLabel("Day load", icon: "waveform.path")
                     HStack(spacing: 6) {
-                        MetricValue(today?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", size: 34)
+                        MetricValue(selectedSummary?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", size: 34)
                         Spacer(minLength: 0)
-                        if let load = today?.load, !typeSize.isAccessibilitySize {
+                        if let load = selectedSummary?.load, !typeSize.isAccessibilitySize {
                             LoadRing(load: load, lineWidth: 4).frame(width: 42, height: 42).accessibilityHidden(true)
                         }
                     }
@@ -113,16 +126,17 @@ struct TodayView: View {
                     Spacer()
                     Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
                 }
-                MetricValue((currentSteps?.walking ?? today?.stepsWalking).map { $0.formatted() } ?? "—")
+                MetricValue((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
                     .padding(.top, 4)
-                Text(today?.walkingS.map { "\($0 / 60) min walking" } ?? "Today")
+                Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
                     .font(.caption).foregroundStyle(SnoopStyle.secondary)
                 if let steps = currentSteps {
-                    HourlyStepsChart(hours: steps.walkingHours, day: now, compact: true)
+                    HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)
                         .frame(height: 72).padding(.top, 8).accessibilityHidden(true)
                 } else {
-                    Sparkline(values: days.compactMap { $0.stepsWalking.map(Double.init) }, color: SnoopStyle.steps)
-                        .frame(height: 40).padding(.top, 8).accessibilityHidden(true)
+                    Color.clear.frame(height: 72).padding(.top, 8)
+                        .overlay { if loading { ProgressView().controlSize(.small) } }
+                        .accessibilityHidden(true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,18 +148,18 @@ struct TodayView: View {
         .accessibilityHint("Opens steps by hour and by day")
     }
 
-    private var liveHeartRate: some View {
+    private var heartRate: some View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
             : AnyLayout(HStackLayout(spacing: 8))
         return layout {
-            Label("Heart rate", systemImage: "heart")
+            Label(isViewingToday ? "Heart rate" : "Average heart rate", systemImage: "heart")
                 .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(model.strap.smoothedHeartRate.map(String.init) ?? "—").font(.title3.weight(.semibold)).monospacedDigit()
+                Text(heartRateValue).font(.title3.weight(.semibold)).monospacedDigit()
                 Text("bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                Text(freshness).font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
+                Text(isViewingToday ? freshness : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
             }
         }
         .padding(.vertical, 10)
@@ -159,22 +173,22 @@ struct TodayView: View {
                 Spacer()
                 Button("See all", action: openActivity).font(.caption).frame(minHeight: 44)
             }
-            ForEach(todaysWorkouts) { workout in
+            ForEach(selectedWorkouts) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }.buttonStyle(PressableCardStyle())
             }
         }
     }
 
     private var healthMetrics: some View {
-        let night = nights.first
+        let night = selectedNight
         let columns = typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
             Tile(title: "Resting heart rate", value: night?.metrics.physiology.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm",
-                 caption: "During sleep", history: nights.reversed().compactMap { $0.metrics.physiology.restingHr }, color: SnoopStyle.heartRate)
+                 caption: "During sleep", history: precedingNights.compactMap { $0.metrics.physiology.restingHr }, color: SnoopStyle.heartRate)
             Tile(title: "HRV", value: night?.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms",
-                 caption: "During sleep", history: nights.reversed().compactMap { $0.metrics.physiology.hrvRmssdMs }, color: SnoopStyle.sleep)
-            Tile(title: "Skin temperature", value: model.strap.lastBiometric?.skinTemperatureC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
-                 caption: freshness, history: days.compactMap { $0.skinTempAvg }, color: SnoopStyle.temperature)
+                 caption: "During sleep", history: precedingNights.compactMap { $0.metrics.physiology.hrvRmssdMs }, color: SnoopStyle.sleep)
+            Tile(title: "Skin temperature", value: skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
+                 caption: isViewingToday ? freshness : "Day average", history: precedingDays.compactMap { $0.skinTempAvg }, color: SnoopStyle.temperature)
         }
     }
 
@@ -186,23 +200,25 @@ struct TodayView: View {
         Text(title).font(.headline).accessibilityAddTraits(.isHeader)
     }
 
-    private var todaysWorkouts: [SnoopAPI.Workout] {
-        workouts.filter { Calendar.current.isDate($0.startTs, inSameDayAs: now) }.sorted { $0.startTs > $1.startTs }
+    private var selectedWorkouts: [SnoopAPI.Workout] {
+        workouts.filter { Calendar.current.isDate($0.startTs, inSameDayAs: viewedDay) }.sorted { $0.startTs > $1.startTs }
     }
 
-    private var today: SnoopAPI.Day? {
-        days.last { StepsView.day($0.day).map { Calendar.current.isDate($0, inSameDayAs: now) } == true }
+    private var selectedSummary: SnoopAPI.Day? {
+        days.last { StepsView.day($0.day).map { Calendar.current.isDate($0, inSameDayAs: viewedDay) } == true }
     }
 
     private var currentSteps: SnoopAPI.StepsDay? {
-        guard let steps, let day = StepsView.day(steps.day), Calendar.current.isDate(day, inSameDayAs: now) else { return nil }
-        guard steps.walking > 0 || today != nil else { return nil }
+        guard let steps, let day = StepsView.day(steps.day), Calendar.current.isDate(day, inSameDayAs: viewedDay) else { return nil }
+        guard steps.walking > 0 || selectedSummary != nil else { return nil }
         return steps
     }
 
     private func applyDemoRoute() {
         #if targetEnvironment(simulator)
         switch UserDefaults.standard.string(forKey: "demoScreen") {
+        case "yesterday":
+            selectedDay = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: now))
         case "steps": path.append(StepsView.Scope.day)
         case "steps7d", "stepsday": path.append(StepsView.Scope.week)
         case "steps30d": path.append(StepsView.Scope.month)
@@ -213,19 +229,76 @@ struct TodayView: View {
 
     private func loadHistory() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
-        let day = Date()
-        async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 14)
-        async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: 14)
-        async let m = SnoopAPI.minutes(deviceId: model.strap.serial, day: day)
-        async let w = SnoopAPI.workouts(deviceId: model.strap.serial, limit: 20)
-        async let s = SnoopAPI.steps(deviceId: model.strap.serial, day: day)
-        var failed = false
-        do { days = try await d } catch { failed = true }
-        if let n = try? await n { nights = n }
-        if let m = try? await m { minutes = m }
-        if let w = try? await w { workouts = w }
-        do { steps = try await s } catch { failed = true }
-        historyFailed = failed
+        let day = viewedDay
+        let serial = model.strap.serial
+        let requestID = UUID()
+        loadID = requestID
+        loading = true
+        defer { if loadID == requestID { loading = false } }
+        async let d = SnoopAPI.days(deviceId: serial, limit: 30)
+        async let n = SnoopAPI.nights(deviceId: serial, limit: 30)
+        async let m = SnoopAPI.minutes(deviceId: serial, day: day)
+        async let w = SnoopAPI.workouts(deviceId: serial, limit: 500)
+        async let s = SnoopAPI.steps(deviceId: serial, day: day)
+        let fetchedDays = try? await d
+        let fetchedNights = try? await n
+        let fetchedMinutes = try? await m
+        let fetchedWorkouts = try? await w
+        let fetchedSteps = try? await s
+        // A slow response from a previous tap must never replace the chosen day.
+        guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.strap.serial == serial else { return }
+        if let fetchedDays { days = fetchedDays }
+        if let fetchedNights { nights = fetchedNights }
+        if let fetchedWorkouts { workouts = fetchedWorkouts }
+        minutes = fetchedMinutes ?? []
+        steps = fetchedSteps
+        loadedDay = day
+        historyFailed = fetchedDays == nil || fetchedNights == nil || fetchedMinutes == nil
+            || fetchedWorkouts == nil || fetchedSteps == nil
+    }
+
+    private var viewedDay: Date { selectedDay ?? Calendar.current.startOfDay(for: now) }
+    private var isViewingToday: Bool { Calendar.current.isDate(viewedDay, inSameDayAs: now) }
+    private var currentMinutes: [SnoopAPI.Minute] { loadedDay == viewedDay ? minutes : [] }
+
+    private var selectedNight: SnoopAPI.Night? {
+        nights.first { Calendar.current.isDate($0.metrics.window.offset, inSameDayAs: viewedDay) }
+    }
+
+    private var precedingNights: [SnoopAPI.Night] {
+        nights.filter { Calendar.current.startOfDay(for: $0.metrics.window.offset) <= viewedDay }.reversed()
+    }
+
+    private var precedingDays: [SnoopAPI.Day] {
+        days.filter { StepsView.day($0.day).map { $0 <= viewedDay } == true }
+    }
+
+    private var heartRateValue: String {
+        if isViewingToday { return model.strap.smoothedHeartRate.map(String.init) ?? "—" }
+        return selectedSummary?.hrAvg.map { String(Int($0.rounded())) } ?? "—"
+    }
+
+    private var skinTemperature: Double? {
+        isViewingToday ? model.strap.lastBiometric?.skinTemperatureC.map(Double.init) : selectedSummary?.skinTempAvg
+    }
+
+    private var dayLabel: String {
+        let date = viewedDay.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        if isViewingToday { return "Today · \(date)" }
+        if Calendar.current.isDateInYesterday(viewedDay) { return "Yesterday · \(date)" }
+        return date
+    }
+
+    private var canStepBack: Bool {
+        guard let oldest = days.compactMap({ StepsView.day($0.day) }).min() else { return false }
+        return viewedDay > oldest
+    }
+
+    private func stepDay(_ delta: Int) {
+        guard delta < 0 ? canStepBack : !isViewingToday,
+              let day = Calendar.current.date(byAdding: .day, value: delta, to: viewedDay) else { return }
+        selectedDay = Calendar.current.isDate(day, inSameDayAs: now) ? nil : day
+        historyFailed = false
     }
 
     private var freshness: String {

@@ -13,6 +13,7 @@ struct StepsView: View {
     }
 
     @EnvironmentObject private var model: AppModel
+    private let initialDay: Date?
     @State private var scope: Scope
     @State private var days: Loadable = .loading
     @State private var workouts: [SnoopAPI.Workout] = []
@@ -35,8 +36,9 @@ struct StepsView: View {
         }
     }
 
-    init(initialScope: Scope = .day) {
+    init(initialScope: Scope = .day, day: Date? = nil) {
         _scope = State(initialValue: initialScope)
+        initialDay = day
     }
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
@@ -51,7 +53,7 @@ struct StepsView: View {
                 .accessibilityLabel("Range")
                 switch scope {
                 case .day:
-                    DaySteps(day: today, summary: summary(for: today), summariesLoaded: days.isLoaded, workouts: workouts, refreshID: refreshID)
+                    DaySteps(day: initialDay ?? today, summary: summary(for: initialDay ?? today), summariesLoaded: days.isLoaded, workouts: workouts, refreshID: refreshID)
                 case .week, .month:
                     comparison
                 }

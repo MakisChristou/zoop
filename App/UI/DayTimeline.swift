@@ -5,14 +5,15 @@ import SwiftUI
 /// shaded behind it (asleep, walking), skin temperature below, and steps per hour.
 struct DayTimeline: View {
     let minutes: [SnoopAPI.Minute]
-    let now: Date
+    let day: Date
+    var now: Date?
     /// Detected sessions, shaded in their kind's colour behind the heart rate.
     var sessions: [SnoopAPI.Workout] = []
     var walkingHours: [Int]?
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var scrub: Date?
 
-    private var dayStart: Date { Calendar.current.startOfDay(for: now) }
+    private var dayStart: Date { Calendar.current.startOfDay(for: day) }
     private var dayEnd: Date { Calendar.current.date(byAdding: .day, value: 1, to: dayStart)! }
 
     private struct Span: Identifiable {
@@ -96,7 +97,9 @@ struct DayTimeline: View {
                     .foregroundStyle(SnoopStyle.heartRate)
                     .lineStyle(StrokeStyle(lineWidth: 1.2))
             }
-            RuleMark(x: .value("Now", now)).foregroundStyle(.secondary.opacity(0.4)).lineStyle(StrokeStyle(dash: [3, 3]))
+            if let now {
+                RuleMark(x: .value("Now", now)).foregroundStyle(.secondary.opacity(0.4)).lineStyle(StrokeStyle(dash: [3, 3]))
+            }
             if let m = selected {
                 RuleMark(x: .value("Scrub", m.ts)).foregroundStyle(.primary.opacity(0.6))
                 if let hr = m.hr {

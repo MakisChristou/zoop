@@ -6,6 +6,7 @@ struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection = Tab.today
+    @State private var selectedNight: SnoopAPI.Night?
 
     enum Tab: Hashable {
         case today, activity, sleep, trends, battery
@@ -13,13 +14,13 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            TodayView(openSleep: { selection = .sleep }, openActivity: { selection = .activity })
+            TodayView(openSleep: { selectedNight = $0; selection = .sleep }, openActivity: { selection = .activity })
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
                 .tag(Tab.today)
             ActivityView()
                 .tabItem { Label("Activity", systemImage: "figure.run") }
                 .tag(Tab.activity)
-            SleepView()
+            SleepView(selected: $selectedNight)
                 .tabItem { Label("Sleep", systemImage: "moon.fill") }
                 .tag(Tab.sleep)
             TrendsView()
