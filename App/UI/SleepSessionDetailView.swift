@@ -70,4 +70,3 @@ struct SleepSessionDetailView: View {
         catch { self.error = error.localizedDescription }
     }
 }
-

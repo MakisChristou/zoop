@@ -7,4 +7,3 @@ struct SleepEditorMode: Identifiable {
     var id: String { "\(action)-\(record?.id ?? 0)" }
     var title: String { action == "merge" ? "Merge sleep" : action == "add" ? "Add sleep" : "Edit sleep" }
 }
-
