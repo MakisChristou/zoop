@@ -5,6 +5,7 @@ mod days;
 mod devices;
 mod epochs;
 mod error;
+mod health;
 mod ingest;
 mod insights;
 mod processing;
@@ -38,6 +39,23 @@ use crate::{
 
 pub fn build_router(state: AppState) -> Router {
     let protected = Router::new()
+        .route("/v1/devices/{deviceId}/health", get(health::info))
+        .route(
+            "/v1/devices/{deviceId}/health/exports",
+            get(health::exports),
+        )
+        .route(
+            "/v1/devices/{deviceId}/health/prepare",
+            post(health::prepare),
+        )
+        .route(
+            "/v1/devices/{deviceId}/weights",
+            get(health::weights).put(health::save_weight),
+        )
+        .route(
+            "/v1/devices/{deviceId}/weights/remove-imports",
+            post(health::remove_imports),
+        )
         .route(
             "/v1/devices/{deviceId}/processing",
             get(processing::processing),

@@ -260,6 +260,13 @@ impl PostgresStore {
             )
             .await?;
         }
+        sqlx::query("SELECT project_health_steps($1,$2,$3)")
+            .bind(&job.device_id)
+            .bind(from)
+            .bind(to)
+            .execute(&mut *tx)
+            .await
+            .map_err(fail)?;
         complete(&mut tx, job, inputs).await?;
         tx.commit().await.map_err(fail)?;
         Ok(true)

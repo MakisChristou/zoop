@@ -225,3 +225,51 @@ version 3; downstream workout/day Load uses version 4. Existing nights remain vi
 through backfill. [Sleep and reset contract](docs/SLEEP_CORRECTIONS.md) documents the
 routes, saved time-zone semantics, missing-data reporting, and reversible resets for
 sleep, workouts, date ranges, or all recorded history.
+
+## Apple Health export and weight history
+
+Migration 0009 adds per-device opaque Health namespaces, independent export versions,
+immutable export changes, step bootstrap receipts and source-preserving weight
+measurements. Session projections publish in their existing transactions, including
+removals and metric-only recalculation. Sleep intervals use the same known one-second
+sleep flag accounting as the app totals; wake/unknown gaps remain gaps. Current sleep
+waits for sustained awake evidence (or confirmed edited bounds) before export. Day
+publication refreshes UTC-minute steps using the existing walking/running filter.
+No raw rows are changed and no analytics version bump is required.
+
+Authenticated endpoints:
+
+- `GET /v1/devices/{deviceId}/health`: namespace, committed cursor, earliest data and
+  a recently confirmed automatic main-sleep wake for optional weight reminders.
+- `GET /v1/devices/{deviceId}/health/exports?cursor=0&snapshot=true`: latest export
+  per identity at a captured watermark. Continue using `next_cursor` and `watermark`.
+  Once done, use `snapshot=false` after that watermark for changes. Pages are bounded;
+  retained tombstones, not missing list entries, indicate removal.
+- `POST /v1/devices/{deviceId}/health/prepare` with `from`/`to` dates: initializes
+  at most three UTC days of step history per call, clamped to existing samples.
+- `GET /v1/devices/{deviceId}/weights?from=...&to=...&after=...`: measurements,
+  including tombstones; pages contain at most 250 rows ordered by opaque ID.
+- `PUT /v1/devices/{deviceId}/weights`: value, measured date, stable ID, source,
+  source name and expected version. Identical retries are idempotent. Conflicting
+  edits return 409; invalid measurements return 400.
+- `POST /v1/devices/{deviceId}/weights/remove-imports` with `ids`: applies explicit
+  Health deletion IDs only to imported mirrors. It cannot remove Snoop weigh-ins.
+
+All routes use the existing installation bearer-token boundary and device scope.
+The iPhone owns Health permission and source checks. Imported weight is stored only
+following the user's connection/backfill consent. Other Health types are not imported.
+Weight history does not mutate the analytics body profile. The server never writes
+into Health directly and never imports a Health-derived aggregate as raw strap data.
+
+A dataset row serializes export counter allocation until transaction commit; consumers
+cannot miss a lower sequence committed after a later one. Snapshot pages use immutable
+changes at the captured watermark, so concurrent publication cannot move a row between
+pages. Payload equality avoids no-op version churn. Back up the Health tables with the
+rest of the database. The app rejects cursor rollback or newer Health sample versions;
+do not reset counters or reuse namespaces after an incompatible database restore.
+
+Run `just ci`, then `just test-db` with an explicit development database URL. The
+Health suite covers sleep gaps, pending metrics, removal/undo, concurrent publication,
+step correction, weight retries/source boundaries and recent-awake reminder gating.
+Physical Health permission, syncing, and notification delivery require separate iPhone
+acceptance; simulator and database tests cannot prove those behaviors.

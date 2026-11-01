@@ -6,7 +6,11 @@ mod day_store;
 mod decode_store;
 mod error;
 mod frame_store;
+mod health_store;
 mod insight_store;
+pub use health_store::{
+    HealthExport, HealthInfo, HealthPage, HealthPreparation, WeightInput, WeightReading,
+};
 mod label_store;
 pub use insight_store::{InsightNight, InsightSnapshot};
 mod operation;
