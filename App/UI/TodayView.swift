@@ -40,6 +40,7 @@ struct TodayView: View {
                     }
                     overview
                     stepsCard
+                    if isViewingToday { WeightCheckIn() }
                     heartRate
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {

@@ -48,8 +48,14 @@ struct RootView: View {
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
         }
+        .sheet(isPresented: Binding(get: { model.health.showWeightEntry }, set: { model.health.showWeightEntry = $0 })) { WeightEntryView() }
+        .onChange(of: model.battery.openWeightScope, initial: true) { _, scope in
+            if let scope { selection = .today; model.health.openReminder(scope: scope); model.battery.openWeightScope = nil }
+        }
+        .onChange(of: model.sleep.changeToken) { _, _ in model.health.checkSoon() }
+        .onChange(of: model.activity.changeToken) { _, _ in model.health.checkSoon() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
+            if phase == .active { model.health.activate(model.strap.serial); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
         .onAppear(perform: applyDemoRoute)
     }

@@ -14,6 +14,7 @@ final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenter
     @Published var openBattery = false
     /// Set from a tapped session notification; the Activity tab clears it once shown.
     @Published var openWorkout: Int64?
+    @Published var openWeightScope: String?
 
     private let defaults: UserDefaults
     private let center: UNUserNotificationCenter
@@ -240,6 +241,7 @@ final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenter
             let info = response.notification.request.content.userInfo
             switch info["destination"] as? String {
             case "battery": openBattery = true
+            case "weight": openWeightScope = info["scope"] as? String
             case "workout": openWorkout = (info["id"] as? NSNumber)?.int64Value
             default: break
             }

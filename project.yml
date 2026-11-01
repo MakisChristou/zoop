@@ -15,6 +15,8 @@ settings:
     DEVELOPMENT_TEAM: $(SNOOP_TEAM_ID)
     PRODUCT_BUNDLE_IDENTIFIER: $(SNOOP_BUNDLE_ID)
 packages:
+  SnoopHealth:
+    path: Packages/SnoopHealth
   SnoopSync:
     path: Packages/SnoopSync
   SnoopProtocol:
@@ -27,7 +29,13 @@ targets:
     platform: iOS
     sources:
       - App
+    entitlements:
+      path: App/Snoop.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.background-delivery: true
     dependencies:
+      - package: SnoopHealth
       - package: SnoopSync
       - package: SnoopProtocol
       - package: SnoopBattery
@@ -35,6 +43,8 @@ targets:
       path: App/Info.plist
       properties:
         UILaunchScreen: {}
+        NSHealthShareUsageDescription: "Imports weight measurements into Snoop and your Snoop server, and checks for existing weigh-ins."
+        NSHealthUpdateUsageDescription: "Shares sleep, workouts, optional steps and weigh-ins recorded in Snoop with Apple Health."
         NSBluetoothAlwaysUsageDescription: "Connects to your WHOOP strap to read heart-rate and sensor data."
         UIBackgroundModes: [bluetooth-central]
         UIApplicationSceneManifest:

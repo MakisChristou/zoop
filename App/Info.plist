@@ -20,6 +20,10 @@
 	<string>1</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Connects to your WHOOP strap to read heart-rate and sensor data.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Imports weight measurements into Snoop and your Snoop server, and checks for existing weigh-ins.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Shares sleep, workouts, optional steps and weigh-ins recorded in Snoop with Apple Health.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

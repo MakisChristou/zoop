@@ -232,3 +232,60 @@ status and individual comparison deltas carry green, amber or red. The backend
 supplies the classification; mixed signals stay mixed and incomplete/early data
 stays neutral. Details and the method sheet explain the comparisons. This is a
 descriptive outlook, not a validated readiness score or a training recommendation.
+
+## Apple Health and weight
+
+Profile & settings contains Apple Health and Weight. Connecting asks for sleep and
+workout write access, with optional steps and weight export and optional weight
+import. Sharing starts at connection time. Export older history previews a chosen
+range (or all available history), including older Health weights when import is on.
+Backfills resume from saved progress and overlapping ranges reuse stable identities.
+
+Sleep exports actual known asleep intervals, including naps, without guessed sleep
+stages, awake breaks or missing seconds. Workouts export corrected type, times and
+continuous duration. Steps use timed minute counts with the same walking/running
+filter as the dashboard; Health controls priority relative to phone/watch sources.
+Calories, heart measurements, readiness, and sleep/workout imports are not included.
+The server maintains a separate transactional export feed; editing, merging,
+splitting, removal, reset and undo do not depend on detector version numbers.
+
+Weight entries are saved durably on the phone before upload, with kg/lb entry,
+history and a seven-day mean of available daily measurements. Imported readings
+retain their date, identity and source and are read-only in Snoop. A visible external
+weight takes precedence in the daily summary; imported values are never re-exported.
+The weight history is separate from the body profile used for analytics. Historical
+imports do not replace that profile or invent measurements for missing days.
+
+Weight export skips visible existing external measurements on the same local date.
+If another source arrives later, Snoop removes only its own redundant Health copy.
+HealthKit does not disclose read-permission denial: an empty query cannot prove an
+empty day. The connection screen therefore makes weight export an explicit opt-in
+and does not promise cross-app deduplication. Pause and disconnect preserve existing
+Health data. Removing Snoop exports is a separate confirmed action scoped to the
+selected backend dataset; other sources and the Snoop server history are untouched.
+Health consent and progress live in a protected, backup-excluded local journal.
+
+Wake-up reminders are local notifications, enabled by default with the app's normal
+notification permission. The server requires an automatic main sleep, at least 25
+minutes of awake readings in the following 30 minutes, and recent awake coverage.
+The phone then schedules one reminder five minutes later. A current-day weight
+(or a visible Health weight) cancels it. Naps, edited sleep, wakes before reminders
+were enabled, and wakes more than three hours old do not alert. Tapping opens Log
+weight, including after a cold launch. BLE/Health background opportunities and
+foreground refresh drive checks; iOS suspension, locked Health storage, or delayed
+uploads can delay or prevent a reminder. No APNs service or guaranteed delivery time.
+
+Deploy backend migration 0009 before installing this app. HealthKit and background
+Health delivery require an enabled App ID, suitable provisioning profile, and current
+Apple Developer agreements. On-device acceptance must verify permissions, actual
+Health entries, edits/removals, backfill repetition and a real post-wake reminder.
+Simulator UI tests and backend checks do not establish physical Health delivery.
+
+```sh
+swift test --package-path Packages/SnoopHealth
+xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
+  -only-testing:SnoopUITests/HealthWeightTests test
+```
+
+The UI test uses only synthetic `UI-REVIEW` data at a development API. Override
+`SNOOP_UI_SERVER_URL` in the runner; its default loopback port is 28474.

@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     let workouts = WorkoutNotifier()
     let activity = WorkoutStore()
     let sleep = SleepStore()
+    let health = HealthCoordinator()
     @Published var analysisRevision = 0
     @Published private(set) var analysisUpdating = false
     private static let analysisRefreshAttempts = 120
@@ -77,6 +78,7 @@ final class AppModel: ObservableObject {
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        health.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         sleep.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         activity.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
@@ -85,7 +87,7 @@ final class AppModel: ObservableObject {
         strap.$serial
             .filter { !$0.isEmpty }
             .removeDuplicates()
-            .sink { [weak self] serial in self?.workouts.activate(device: serial) }
+            .sink { [weak self] serial in self?.workouts.activate(device: serial); self?.health.activate(serial) }
             .store(in: &cancellables)
         strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
         strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
@@ -117,6 +119,7 @@ final class AppModel: ObservableObject {
                 if let status = try? await SnoopAPI.processing(deviceId: device), status.pendingAnalysis == 0 {
                     self.analysisUpdating = false
                     self.analysisRevision += 1
+                    self.health.checkSoon()
                     return
                 }
                 do { try await Task.sleep(for: Self.analysisRefreshDelay) } catch { return }
@@ -140,6 +143,8 @@ final class AppModel: ObservableObject {
             processing = try await SnoopAPI.processing(deviceId: strap.serial)
             processingError = nil
         } catch { processingError = error.localizedDescription }
+        health.activate(strap.serial)
+        health.checkSoon()
     }
 
     func retryHeldFrames() async {
