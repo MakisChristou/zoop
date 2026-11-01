@@ -61,6 +61,8 @@ struct TodayView: View {
             .onAppear(perform: applyDemoRoute)
             .refreshable { await loadHistory() }
         }
+        .onChange(of: model.sleep.changeToken) { _, _ in Task { await loadHistory() } }
+        .onChange(of: model.analysisRevision) { _, _ in Task { await loadHistory() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
         .onReceive(clock) { now = $0 }
         .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }

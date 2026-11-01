@@ -278,11 +278,11 @@ enum SnoopAPI {
 
     // MARK: - Plumbing
 
-    private static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+    static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
         try await perform(request(path, query: query))
     }
 
-    private static func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B) async throws -> T {
+    static func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B) async throws -> T {
         var request = try request(path)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

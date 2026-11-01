@@ -39,6 +39,8 @@ struct ActivityView: View {
         .sheet(item: $editor) { mode in WorkoutEditorView(mode: mode) { } }
         .onChange(of: requestID) { _, _ in path = []; Task { await load() } }
         .onChange(of: selectedDay) { _, _ in Task { await load() } }
+        .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
+        .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await load() } }
         .task(id: model.strap.serial) { await load() }
         .task {

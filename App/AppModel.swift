@@ -20,6 +20,12 @@ final class AppModel: ObservableObject {
     let battery = BatteryMonitor()
     let workouts = WorkoutNotifier()
     let activity = WorkoutStore()
+    let sleep = SleepStore()
+    @Published var analysisRevision = 0
+    @Published private(set) var analysisUpdating = false
+    private static let analysisRefreshAttempts = 120
+    private static let analysisRefreshDelay: Duration = .seconds(2)
+    private var analysisRefresh: Task<Void, Never>?
     private let queue: FrameQueue?
     private let uploader: Uploader?
     private var writer: FrameWriter?
@@ -71,6 +77,7 @@ final class AppModel: ObservableObject {
         }
         strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        sleep.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         activity.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
@@ -93,6 +100,28 @@ final class AppModel: ObservableObject {
         }
 
         if isOnboarded { strap.start() }
+    }
+
+    /// Refresh projections after reset without creating a detection notification.
+    func refreshAnalysis() {
+        analysisRefresh?.cancel()
+        sleep.dismissNotice(); activity.dismissNotice()
+        analysisUpdating = true
+        analysisRevision += 1
+        let device = strap.serial
+        analysisRefresh = Task { [weak self] in
+            for _ in 0..<Self.analysisRefreshAttempts {
+                guard let self, !Task.isCancelled, self.strap.serial == device else { return }
+                try? await self.sleep.reload(device: device)
+                try? await self.activity.reload(device: device)
+                if let status = try? await SnoopAPI.processing(deviceId: device), status.pendingAnalysis == 0 {
+                    self.analysisUpdating = false
+                    self.analysisRevision += 1
+                    return
+                }
+                do { try await Task.sleep(for: Self.analysisRefreshDelay) } catch { return }
+            }
+        }
     }
 
     func flush() async {

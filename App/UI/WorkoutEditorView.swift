@@ -53,6 +53,7 @@ struct WorkoutEditorView: View {
                         }
                     }
                 }
+                .listRowBackground(SnoopStyle.surface)
                 if mode.action == "merge" {
                     Section("Merge with") {
                         if loading { ProgressView("Loading workouts") }
@@ -73,11 +74,13 @@ struct WorkoutEditorView: View {
                             }.foregroundStyle(SnoopStyle.text)
                         }
                     }
+                    .listRowBackground(SnoopStyle.surface)
                     if merged != nil {
                         Section {
                             LabeledContent("Duration", value: "\(Int(previewEnd.timeIntervalSince(previewStart) / 60)) min")
                             Text("Includes the rest between workouts").font(.footnote).foregroundStyle(SnoopStyle.secondary)
                         }
+                        .listRowBackground(SnoopStyle.surface)
                     }
                 } else if mode.action == "split" {
                     Section {
@@ -85,19 +88,23 @@ struct WorkoutEditorView: View {
                         LabeledContent("First workout", value: "\(max(0, Int(split.timeIntervalSince(start) / 60))) min")
                         LabeledContent("Second workout", value: "\(max(0, Int(end.timeIntervalSince(split) / 60))) min")
                     }
+                    .listRowBackground(SnoopStyle.surface)
                 } else {
                     Section {
                         DatePicker("Start", selection: $start, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                         DatePicker("End", selection: $end, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                     }
+                    .listRowBackground(SnoopStyle.surface)
                 }
                 Section {
                     if loading && minutes.isEmpty { ProgressView("Loading readings") }
                     else { WorkoutWindowChart(minutes: minutes, start: previewStart, end: max(previewEnd, previewStart.addingTimeInterval(1)), split: mode.action == "split" ? split : nil, selected: $chartSelection) }
                     if let chartError { Text(chartError).font(.footnote).foregroundStyle(SnoopStyle.secondary) }
                 }
+                .listRowBackground(SnoopStyle.surface)
                 if let error {
                     Section { Text(error).foregroundStyle(.red).accessibilityLabel("Unable to save. \(error)") }
+                    .listRowBackground(SnoopStyle.surface)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -120,7 +127,8 @@ struct WorkoutEditorView: View {
                 let minute = Date(timeIntervalSince1970: (value.timeIntervalSince1970 / 60).rounded() * 60)
                 if minute > start && minute < end { split = minute }
             }
-        }.tint(SnoopStyle.load)
+        }.tint(SnoopStyle.load).foregroundStyle(SnoopStyle.text)
+        .presentationBackground(SnoopStyle.background)
     }
 
     private func loadNeighbours() async {

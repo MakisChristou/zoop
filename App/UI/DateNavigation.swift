@@ -11,6 +11,9 @@ struct DateNavigation: View {
     let next: () -> Void
     var reset: (() -> Void)? = nil
     var canReset = false
+    var resetTitle = "Today"
+    var resetIcon: String? = nil
+    var resetAccessibility = "Back to today"
 
     var body: some View {
         HStack {
@@ -23,13 +26,15 @@ struct DateNavigation: View {
             HStack(spacing: 6) {
                 Text(title).font(.subheadline).multilineTextAlignment(.center)
                 if let reset {
-                    Button("Today", action: reset)
+                    Button(action: reset) {
+                        if let resetIcon { Image(systemName: resetIcon) } else { Text(resetTitle) }
+                    }
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(SnoopStyle.load)
                         .frame(minWidth: 44, minHeight: 44)
                         .opacity(canReset ? 1 : 0)
                         .disabled(!canReset)
-                        .accessibilityLabel("Back to today")
+                        .accessibilityLabel(resetAccessibility)
                         .accessibilityHidden(!canReset)
                 }
             }

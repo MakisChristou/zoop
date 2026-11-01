@@ -49,7 +49,7 @@ struct RootView: View {
             if id != nil { selection = .activity }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.workouts.checkSoon(force: true) }
+            if phase == .active { model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
         .onAppear(perform: applyDemoRoute)
     }

@@ -5,6 +5,7 @@ import SwiftUI
 /// same time axis so the staging can be judged against the physiology by eye.
 struct SleepDetailView: View {
     let night: SnoopAPI.Night
+    var sessionID: Int64? = nil
     @EnvironmentObject private var model: AppModel
     @State private var epochs: [SnoopAPI.Epoch] = []
     @State private var scrub: Date?
@@ -30,7 +31,7 @@ struct SleepDetailView: View {
                 stageChart
                 track("Heart rate", unit: "bpm", color: SnoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
                 track("HRV", unit: "ms", color: SnoopStyle.sleep, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
-                track("Breathing", unit: "/min", color: .mint, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
+                track("Breathing", unit: "/min", color: SnoopStyle.steps, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
                 motionTrack
                 MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own.")
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
@@ -41,7 +42,7 @@ struct SleepDetailView: View {
         .toolbar(.visible, for: .navigationBar)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
+        .task(id: "\(sessionID ?? 0)-\(night.startTs)-\(night.endTs)-\(model.sleep.changeToken)-\(model.analysisRevision)") { await load() }
     }
 
     private var title: String {
@@ -108,11 +109,11 @@ struct SleepDetailView: View {
                     RectangleMark(xStart: .value("from", seg.start), xEnd: .value("to", seg.end))
                         .foregroundStyle(Hypnogram.color(seg.stage).opacity(0.14))
                 }
-                ForEach(values, id: \.0) { t, v in
-                    LineMark(x: .value("Time", t), y: .value(name, v))
+                ForEach(grouped(values), id: \.date) { point in
+                    LineMark(x: .value("Time", point.date), y: .value(name, point.value), series: .value("Recorded interval", point.group))
                         .foregroundStyle(color)
                         .lineStyle(StrokeStyle(lineWidth: 1.2))
-                        .interpolationMethod(.monotone)
+                        .interpolationMethod(.linear)
                 }
                 if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
             }
@@ -191,9 +192,20 @@ struct SleepDetailView: View {
         }
     }
 
+    private struct SignalPoint { let date: Date; let value: Double; let group: Int }
+    private func grouped(_ values: [(Date, Double)]) -> [SignalPoint] {
+        var group = 0
+        return values.enumerated().map { i, point in
+            if i > 0, point.0.timeIntervalSince(values[i - 1].0) > 30 { group += 1 }
+            return SignalPoint(date: point.0, value: point.1, group: group)
+        }
+    }
+
     private func load() async {
         do {
-            epochs = try await SnoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf)
+            if let sessionID { epochs = try await SnoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
+            else { epochs = try await SnoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
+            error = nil
         } catch {
             self.error = error.localizedDescription
         }

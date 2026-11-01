@@ -170,7 +170,7 @@ swift test --package-path Packages/SnoopSync
 
 ## Correction validation
 
-The backend must include migration 0007 and the correction endpoints before this app
+The backend must include migration 0008 and the sleep/reset correction endpoints before this app
 is installed. Saving uses an idempotent request and the session revision; unsuccessful
 saves retain the form. Scores stay blank while updated metrics are pending. Partial
 recordings are marked, and corrections/recalculations do not send detection alerts.
@@ -190,3 +190,25 @@ xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Revi
 The tests verify selected-day navigation, merge/split/remove/restore and no-data
 validation. Reset the isolated fixture between full runs; the correction test changes
 its synthetic sessions. Real-device walk/gym validation remains separate.
+
+### Sleep corrections and resetting history
+
+Sleep includes every local wake-up date, with naps available throughout the day.
+Use the plus button to add a missed recording, or a recording’s menu to edit its
+Fell asleep / Woke up times, change Main sleep / Nap, merge, remove, or undo.
+Saved readings are required. Missing periods remain gaps and awake breaks remain
+awake; editing the sleep period does not label every minute as sleep. Removed
+sleep can be restored from the Sleep screen.
+
+Reset to automatic is available in a recording’s menu and in Profile & settings →
+Advanced. Choose sleep, workouts, or both, for a date range or all recorded history.
+Review the affected dates before confirming: linked edits can expand the range.
+Reset clears the chosen manual overrides, keeps recordings, and rebuilds results.
+Recent resets remain undoable after reopening the app; a conflicting newer edit
+must be undone first. Ordinary background recalculation preserves manual edits.
+Sleep, Today, Trends and dependent workout metrics refresh without detection alerts.
+
+The simulator suite also exercises sleep editing/merging, reset/undo, and missing-data
+validation. It uses only the synthetic backend fixture. Device validation uses a
+normal signed install and launch; screen mirroring and a physical debugger are not
+needed to test these features.

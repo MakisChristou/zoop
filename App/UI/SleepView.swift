@@ -1,58 +1,100 @@
 import SwiftUI
 
-/// Last night and recent nights as analysed by the server. Numbers come from
-/// published methods over the strap's raw data; the screen says what is missing
-/// rather than filling gaps with guesses.
 struct SleepView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var nights: [SnoopAPI.Night] = []
     @Binding var selected: SnoopAPI.Night?
+    @State private var selectedDay = Date()
+    @State private var editor: SleepEditorMode?
+    @State private var resetTarget: SnoopAPI.SleepSession?
     @State private var error: String?
     @State private var loading = false
     @Environment(\.dynamicTypeSize) private var typeSize
-
+    private var timezone: String { model.sleep.items.first?.timezone ?? TimeZone.current.identifier }
+    private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: timezone) ?? .current; return c }
+    private var key: String { SnoopAPI.SleepSession.day(selectedDay, timezone: timezone) }
+    private var rows: [SnoopAPI.SleepSession] { model.sleep.items.filter { $0.day == key }.sorted { $0.startTs < $1.startTs } }
+    private var main: SnoopAPI.SleepSession? { rows.first { $0.kind == "main" } }
+    private var dayTitle: String { let f = DateFormatter(); f.timeZone = calendar.timeZone; f.dateFormat = "EEE d MMM"; return f.string(from: selectedDay) }
     var body: some View {
         NavigationStack {
-            Group {
-                if let night = selected ?? nights.first {
-                    content(night)
-                } else if loading {
-                    ProgressView()
-                } else {
-                    ContentUnavailableView {
-                        Label("No nights yet", systemImage: "moon.zzz")
-                    } description: {
-                        Text(error ?? emptyDescription)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < SnoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) }, reset: { editor = .init(action: "add", day: selectedDay) }, canReset: true, resetTitle: "Add sleep", resetIcon: "plus", resetAccessibility: "Add sleep")
+                    if let main, let night = main.night { content(night, record: main) }
+                    else if loading { ProgressView().frame(maxWidth: .infinity).padding(40) }
+                    else {
+                        ContentUnavailableView {
+                            Label(main != nil ? "Updating sleep" : "No main sleep", systemImage: "moon.zzz")
+                        } description: { Text(error ?? "Add missed sleep from your recorded data.") }
+                        actions: { Button("Add sleep") { editor = .init(action: "add", day: selectedDay) } }
                     }
-                }
+                    if !rows.filter({ $0.kind == "nap" }).isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Naps").font(.headline)
+                            ForEach(rows.filter { $0.kind == "nap" }) { row in
+                                NavigationLink { SleepSessionDetailView(initial: row) } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(row.startTs.formatted(date: .omitted, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
+                                            if let data = row.sleep { Text(duration(data.window.asleepS)).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
+                                            if row.metricsPending { Text("Updating sleep").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                                        }
+                                        Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                    }.frame(minHeight: 44).padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                                }.buttonStyle(PressableCardStyle())
+                            }
+                        }
+                    }
+                    if main != nil, let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                    NavigationLink("Removed sleep") { RemovedSleepView() }.font(.footnote).frame(minHeight: 44)
+                }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
             }
-            .navigationTitle("Sleep")
-            .mainScreenChrome("Sleep")
+            .navigationTitle("Sleep").mainScreenChrome("Sleep")
+            .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
             .refreshable { await load() }
-            .task(id: model.strap.serial) { await load() }
+            .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
+            .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
+            .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         }
+        .sheet(item: $editor) { SleepEditorView(mode: $0) }
+        .sheet(item: $resetTarget) { row in NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(SnoopStyle.background) }
     }
-
-    private func content(_ night: SnoopAPI.Night) -> some View {
+    private func step(_ delta: Int) { selected = nil; selectedDay = calendar.date(byAdding: .day, value: delta, to: selectedDay) ?? selectedDay }
+    private func load() async {
+        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to load sleep."; return }
+        loading = true; defer { loading = false }
+        do { try await model.sleep.reload(device: model.strap.serial); error = nil }
+        catch { self.error = error.localizedDescription }
+    }
+    private func content(_ night: SnoopAPI.Night, record: SnoopAPI.SleepSession) -> some View {
         let w = night.metrics.window
         let p = night.metrics.physiology
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                DateNavigation(title: nightLabel(night), canGoBack: canStep(1), canGoForward: canStep(-1),
-                               previousLabel: "Previous night", nextLabel: "Next night",
-                               previous: { step(1) }, next: { step(-1) })
+        return VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    SleepDuration(seconds: w.asleepS, size: 48)
+                    HStack(alignment: .top) {
+                        SleepDuration(seconds: w.asleepS, size: 48)
+                        Spacer()
+                        Menu {
+                            Button("Edit sleep", systemImage: "pencil") { editor = .init(action: "edit", record: record) }
+                            Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .init(action: "merge", record: record) }
+                            if let id = record.lastEdit { Button("Undo last change", systemImage: "arrow.uturn.backward") { Task { do { try await model.sleep.undo(device: model.strap.serial, id: id) } catch { self.error = error.localizedDescription } } } }
+                            Button("Reset to automatic", systemImage: "arrow.counterclockwise") { resetTarget = record }
+                            NavigationLink("Sleep details") { SleepSessionDetailView(initial: record) }
+                        } label: { Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44) }
+                        .accessibilityLabel("Sleep options")
+                    }
+                    if record.metricsPending { Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                    else if record.edited { Text(record.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(SnoopStyle.secondary) }
                     Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                    Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened)) · \(duration(w.timeInBedS)) in bed")
+                    Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened)) · \(duration(w.timeInBedS)) sleep period")
                         .font(.footnote).foregroundStyle(SnoopStyle.secondary)
                     if night.stages.isEmpty {
-                        SleepBar(asleep: w.asleepS, awake: w.wasoS)
-                            .frame(height: 14)
-                            .padding(.top, 4)
+                        NavigationLink { SleepSessionDetailView(initial: record) } label: {
+                            Label("Sleep details", systemImage: "chevron.right").font(.footnote).frame(minHeight: 44)
+                        }
                     } else {
                         NavigationLink {
-                            SleepDetailView(night: night)
+                            SleepSessionDetailView(initial: record)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
@@ -94,7 +136,7 @@ struct SleepView: View {
                 }
 
                 LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    Stat("Efficiency", pct(w.efficiency), "Time in bed spent asleep")
+                    Stat("Efficiency", record.sleep?.efficiency.map(pct) ?? "—", "Sleep period spent asleep")
                     Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")")
                     Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm")
                     Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep")
@@ -128,80 +170,16 @@ struct SleepView: View {
                         .font(.caption).foregroundStyle(SnoopStyle.secondary)
                 }
 
-                if !night.metrics.naps.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Other sleep").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-                        ForEach(Array(night.metrics.naps.enumerated()), id: \.offset) { _, nap in
-                            Text("\(nap.onset.formatted(date: .omitted, time: .shortened)) – \(nap.offset.formatted(date: .omitted, time: .shortened)) · \(duration(nap.asleepS))")
-                                .font(.subheadline)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-                }
-
                 MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
-            .padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
-        }
-    }
-
-    /// Nights are newest first; +1 steps back in time.
-    private func currentIndex() -> Int {
-        nights.firstIndex { $0.id == (selected ?? nights.first)?.id } ?? 0
-    }
-
-    private func canStep(_ delta: Int) -> Bool {
-        let i = currentIndex() + delta
-        return i >= 0 && i < nights.count
-    }
-
-    private func step(_ delta: Int) {
-        guard canStep(delta) else { return }
-        selected = nights[currentIndex() + delta]
-    }
-
-    private func load() async {
-        guard !model.strap.serial.isEmpty || !nights.isEmpty else {
-            error = "Connect your WHOOP to load sleep."
-            return
-        }
-        loading = true
-        defer { loading = false }
-        do {
-            nights = try await SnoopAPI.nights(deviceId: model.strap.serial, limit: 30)
-            if let selected, let refreshed = nights.first(where: { $0.id == selected.id }) {
-                self.selected = refreshed
-            }
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private var emptyDescription: String {
-        if !Settings.isConfigured {
-            return "Set up your server connection in Profile & settings."
-        }
-        return "Wear your WHOOP overnight. Your sleep appears here after syncing in the morning."
-    }
-
-    private func nightLabel(_ night: SnoopAPI.Night) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        guard let date = formatter.date(from: night.nightOf) else { return night.nightOf }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+            .padding(.bottom, 4)
     }
 
     private func duration(_ seconds: Int) -> String {
         let h = seconds / 3600, m = (seconds % 3600) / 60
         return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
     }
-
-    private func pct(_ value: Double) -> String {
-        "\(Int((value * 100).rounded())) %"
-    }
+    private func pct(_ value: Double) -> String { "\(Int((value * 100).rounded())) %" }
 }
 
 struct Hypnogram: View {
@@ -283,24 +261,6 @@ private struct StageRow: View {
     private func hm(_ s: Int) -> String {
         let h = s / 3600, m = (s % 3600) / 60
         return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
-    }
-}
-
-private struct SleepBar: View {
-    let asleep: Int
-    let awake: Int
-
-    var body: some View {
-        GeometryReader { geo in
-            let total = max(asleep + awake, 1)
-            HStack(spacing: 2) {
-                RoundedRectangle(cornerRadius: 4).fill(SnoopStyle.sleep)
-                    .frame(width: geo.size.width * CGFloat(asleep) / CGFloat(total))
-                if awake > 0 {
-                    RoundedRectangle(cornerRadius: 4).fill(.orange.opacity(0.8))
-                }
-            }
-        }
     }
 }
 

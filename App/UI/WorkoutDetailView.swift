@@ -8,6 +8,7 @@ struct WorkoutDetailView: View {
     @EnvironmentObject private var model: AppModel
     @State private var snapshot: SnoopAPI.Workout
     @State private var editor: WorkoutEditorMode?
+    @State private var showReset = false
     @State private var confirmRemove = false
     @State private var removalRequest: WorkoutCorrection?
     @State private var readingsLoaded = false
@@ -42,6 +43,7 @@ struct WorkoutDetailView: View {
                     if workout.status == "removed", let id = workout.lastEdit {
                         Button("Restore workout") { Task { await undo(id) } }.disabled(saving).frame(minHeight: 44)
                     }
+                    Button("Reset to automatic") { showReset = true }.frame(minHeight: 44)
                 } else {
                     hero
                     if workout.metricsPending == true {
@@ -58,6 +60,7 @@ struct WorkoutDetailView: View {
             }
             .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
         }
+        .sheet(isPresented: $showReset) { NavigationStack { AnalysisResetView(domain: "workout", targetId: workout.id, isSheet: true) }.presentationBackground(SnoopStyle.background) }
         .snoopScreen()
         .toolbar(.visible, for: .navigationBar)
         .navigationTitle(kind.name)
@@ -69,6 +72,7 @@ struct WorkoutDetailView: View {
                         Button("Edit workout", systemImage: "pencil") { editor = .edit(workout) }
                         Button("Merge workouts", systemImage: "arrow.triangle.merge") { editor = .merge(workout) }
                         Button("Split workout", systemImage: "scissors") { editor = .split(workout) }
+                        Button("Reset to automatic", systemImage: "arrow.counterclockwise") { showReset = true }
                         if let id = workout.lastEdit {
                             Button("Undo last edit", systemImage: "arrow.uturn.backward") { Task { await undo(id) } }
                         }
@@ -81,7 +85,7 @@ struct WorkoutDetailView: View {
                 .disabled(saving)
             } }
         }
-        .task(id: model.activity.changeToken) { await load() }
+        .task(id: "\(model.activity.changeToken)-\(model.analysisRevision)") { await load() }
         .sheet(item: $editor) { mode in
             WorkoutEditorView(mode: mode) { Task { await load() } }
         }

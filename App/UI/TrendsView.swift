@@ -85,6 +85,8 @@ struct TrendsView: View {
             .mainScreenChrome("Trends")
             .refreshable { await load() }
             .task(id: model.strap.serial) { await load() }
+            .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
+            .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
             .onChange(of: range) { _, _ in Task { await load() } }
         }
     }
