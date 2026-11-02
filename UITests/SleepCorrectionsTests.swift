@@ -2,9 +2,9 @@ import XCTest
 
 /// Uses only the isolated fake UI-REVIEW readings from the backend fixture.
 final class SleepCorrectionsTests: XCTestCase {
-    private func launch() -> XCUIApplication {
+    private func launch(device: String = "UI-REVIEW") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28472", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "sleep"]
+        app.launchArguments = ["-demoSerial", device, "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28472", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "sleep"]
         app.launch(); return app
     }
     private func screenshot(_ app: XCUIApplication, _ name: String) {
@@ -39,16 +39,42 @@ final class SleepCorrectionsTests: XCTestCase {
         app.buttons["Done"].tap()
         XCTAssertTrue(options.waitForExistence(timeout: 20))
     }
-    private func assertMergedPeriod() {
+    /// Synthetic fixture: two hours of main sleep, one hour awake, then a
+    /// half-hour nap. Starting the merge from the nap must keep the main type.
+    func testMergeFromNapPrefersMainAndRespectsAnExplicitChoice() {
+        let app = launch(device: "UI-SLEEP-MERGE")
+        let nap = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'napSession-'")).firstMatch
+        XCTAssertTrue(nap.waitForExistence(timeout: 20))
+        for _ in 0..<12 { if nap.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(nap.isHittable); nap.tap()
+        XCTAssertTrue(app.buttons["Sleep options"].waitForExistence(timeout: 5))
+        app.buttons["Sleep options"].tap()
+        app.buttons["Merge sleep"].press(forDuration: 0.1)
+        let type = app.buttons["sleepType"]
+        XCTAssertTrue(type.waitForExistence(timeout: 5))
+        XCTAssertTrue(type.label.contains("Nap"), type.debugDescription)
+        let main = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Main sleep,'")).firstMatch
+        XCTAssertTrue(main.waitForExistence(timeout: 10)); main.tap()
+        XCTAssertTrue(type.label.contains("Main sleep"), type.debugDescription)
+        screenshot(app, "Merging from a nap keeps main sleep")
+        type.tap(); app.buttons["Nap"].press(forDuration: 0.1)
+        XCTAssertTrue(type.label.contains("Nap"), type.debugDescription)
+        main.tap()
+        XCTAssertTrue(type.label.contains("Nap"), "Keep an explicit choice when the neighbour is selected again: \(type.debugDescription)")
+        type.tap(); app.buttons["Main sleep"].press(forDuration: 0.1)
+        app.buttons["saveSleep"].tap()
+        assertMergedPeriod(device: "UI-SLEEP-MERGE", duration: 12600)
+    }
+    private func assertMergedPeriod(device: String = "UI-REVIEW", duration: Int = 9000) {
         let base = ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28472"
-        var request = URLRequest(url: URL(string: base + "/v1/devices/UI-REVIEW/sleep-sessions")!)
+        var request = URLRequest(url: URL(string: base + "/v1/devices/\(device)/sleep-sessions")!)
         request.setValue("Bearer ui-test-token", forHTTPHeaderField: "Authorization")
         let done = expectation(description: "Saved merged sleep")
         URLSession.shared.dataTask(with: request) { data, _, error in
             XCTAssertNil(error)
             let rows = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
             let edited = rows.first { $0["kind"] as? String == "main" && $0["edited"] as? Bool == true }
-            XCTAssertEqual(edited?["duration_s"] as? Int, 9000, "Merge the nearest fragment from this night")
+            XCTAssertEqual(edited?["duration_s"] as? Int, duration, "Merge the nearest fragment from this night")
             done.fulfill()
         }.resume()
         wait(for: [done], timeout: 10)

@@ -7,7 +7,7 @@ struct SleepEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var start: Date
     @State private var end: Date
-    @State private var kind: String
+    @State private var chosenKind: String?
     @State private var neighbours: [SnoopAPI.SleepSession] = []
     @State private var mergeId: Int64?
     @State private var minutes: [SnoopAPI.Minute] = []
@@ -21,9 +21,14 @@ struct SleepEditorView: View {
         self.mode = mode
         _end = State(initialValue: mode.record.endTs)
         _start = State(initialValue: mode.record.startTs)
-        _kind = State(initialValue: mode.record.kind)
+        _chosenKind = State(initialValue: mode.action == "merge" ? nil : mode.record.kind)
     }
     private var neighbour: SnoopAPI.SleepSession? { neighbours.first { $0.id == mergeId } }
+    // Joining a main sleep and a nap remains main sleep whichever card opened
+    // the editor. An explicit type choice still takes precedence.
+    private var kind: String {
+        chosenKind ?? (mode.record.kind == "main" || neighbour?.kind == "main" ? "main" : "nap")
+    }
     private var from: Date { neighbour.map { min(start, $0.startTs) } ?? start }
     private var to: Date { neighbour.map { max(end, $0.endTs) } ?? end }
     private var timezone: TimeZone { TimeZone(identifier: mode.record.timezone) ?? .current }
@@ -31,7 +36,7 @@ struct SleepEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Type", selection: $kind) { Text("Main sleep").tag("main"); Text("Nap").tag("nap") }
+                    Picker("Type", selection: Binding(get: { kind }, set: { chosenKind = $0 })) { Text("Main sleep").tag("main"); Text("Nap").tag("nap") }.accessibilityIdentifier("sleepType")
                 }.listRowBackground(SnoopStyle.surface)
                 if mode.action == "merge" {
                     Section("Merge with") {

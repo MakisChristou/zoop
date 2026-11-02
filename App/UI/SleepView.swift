@@ -42,7 +42,7 @@ struct SleepView: View {
                                         }
                                         Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(SnoopStyle.secondary)
                                     }.frame(minHeight: 44).padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-                                }.buttonStyle(PressableCardStyle())
+                                }.buttonStyle(PressableCardStyle()).accessibilityIdentifier("napSession-\(row.id)")
                             }
                         }
                     }
