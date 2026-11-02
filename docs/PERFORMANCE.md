@@ -96,3 +96,18 @@ personal data and credentials out of traces attached to public issues.
 Production backend deployment is a separate step. The app remains compatible with
 an older backend, but server-side performance benefits require migrations 0010 and
 0011 and the matching server binary. No detection algorithm version is changed.
+
+## Interactive Trends follow-up
+
+Selection state lives inside `TrendChartCard`, separate from the heat strip and
+weekday chart. Binary lookup selects an actual daily point across gaps; it never
+reports an interpolated or rolling value. Main sleep details load on demand from
+the existing session endpoint, with cancellation/request guards. A changed sleep
+must substantially overlap the selected main sleep; a nap is never substituted.
+
+Validation: 15 data-package tests, 6 app-state/matching tests, 4 chart-interaction UI
+tests and the existing Trends performance navigation test passed. The unselected
+screen is pixel-identical below the status bar to the performance build. Tests cover
+vertical scrolling over the chart, selection/reset without layout movement, detail
+navigation/back, metric/range changes and the largest text size in dark appearance.
+VoiceOver actions are implemented; physical VoiceOver interaction is not yet verified.

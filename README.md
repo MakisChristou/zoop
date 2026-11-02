@@ -310,6 +310,15 @@ xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Revi
 The UI test uses only synthetic `UI-REVIEW` data at a development API. Override
 `SNOOP_UI_SERVER_URL` in the runner; its default loopback port is 28474.
 
+### Inspecting Trends
+
+Tap a daily point or drag horizontally across the hero chart to inspect its recorded
+value and exact date. Tap the selected headline to open that sleep's full details or
+that day's hourly steps; Back preserves the selected reading. Latest clears selection,
+and changing the metric or range starts fresh. Vertical swipes still scroll the page.
+VoiceOver exposes previous/next readings and detail/reset actions. Sleep stage data
+loads only when its detail page opens.
+
 ### Performance validation
 
 See [performance and concurrency](docs/PERFORMANCE.md) for the internal architecture,

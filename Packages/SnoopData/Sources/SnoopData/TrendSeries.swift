@@ -31,4 +31,13 @@ public struct TrendSeries: Sendable {
         weekdays = Dictionary(grouping: points) { calendar.component(.weekday, from: $0.date) }
             .mapValues { values in values.reduce(0) { $0 + $1.value } / Double(values.count) }
     }
+    /// Nearest recorded point, clamped to the ends. Equal distances choose the earlier reading.
+    public func nearestIndex(to date: Date) -> Int? {
+        guard !points.isEmpty else { return nil }
+        let right = SortedWindow.lowerBound(points, value: date.timeIntervalSince1970) { $0.date.timeIntervalSince1970 }
+        if right == 0 { return 0 }
+        if right == points.count { return points.count - 1 }
+        return date.timeIntervalSince(points[right - 1].date) <= points[right].date.timeIntervalSince(date) ? right - 1 : right
+    }
+
 }

@@ -7,7 +7,6 @@ import SwiftUI
 /// Sections say what they need instead of drawing a line through one point.
 struct TrendsView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var nights: [SnoopAPI.Night] = []
     @State private var days: [SnoopAPI.Day] = []
@@ -17,6 +16,9 @@ struct TrendsView: View {
     @State private var sleepByDay: [Date: Double] = [:]
     @State private var metric: Metric = .sleep
     @State private var range: Range = .month
+    @State private var detailDay: Date?
+    @State private var detailNight: SnoopAPI.Night?
+    @State private var showNight = false
 
     enum Range: String, CaseIterable, Identifiable {
         case week = "7 days", month = "30 days", quarter = "90 days", all = "Year"
@@ -77,7 +79,8 @@ struct TrendsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     chips
-                    hero
+                    TrendChartCard(metric: metric, series: series[metric] ?? TrendSeries([]), open: openReading)
+                        .id("\(metric.rawValue)-\(range.rawValue)")
                     sleepHeatStrip
                     weekdayPattern
                     if let error { Text(error).font(.footnote).foregroundStyle(.red) }
@@ -87,6 +90,13 @@ struct TrendsView: View {
             }
             .navigationTitle("Trends")
             .mainScreenChrome("Trends")
+            .navigationDestination(item: $detailDay) { day in
+                DayStepsView(day: day, summary: days.first { DayKey.date($0.day) == day }, summariesLoaded: true)
+            }
+            .navigationDestination(isPresented: $showNight) {
+                if let detailNight { TrendSleepDetailView(summary: detailNight) }
+            }
+            .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .refreshable { await SnoopAPI.invalidateReads(); await load() }
             .task(id: "\(model.strap.serial)-\(range.rawValue)-\(model.sleep.changeToken)-\(model.analysisRevision)") { await load() }
         }
@@ -95,7 +105,6 @@ struct TrendsView: View {
     // MARK: - Data shaping
 
     private var points: [TrendPoint] { series[metric]?.points ?? [] }
-    private var rolling: [TrendPoint] { series[metric]?.rolling ?? [] }
 
     /// One preparation per data/range change; chart updates only read these values.
     private func prepare() {
@@ -158,92 +167,6 @@ struct TrendsView: View {
                 ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
-        }
-    }
-
-    private var hero: some View {
-        let pts = points
-        let avg = series[metric]?.average
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
-        return VStack(alignment: .leading, spacing: 10) {
-            layout {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(metric.rawValue).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-                    MetricValue(pts.last.map { format($0.value) } ?? "—", unit: metric.unit, size: 40)
-                        .foregroundStyle(metric.color)
-                    if let last = pts.last {
-                        Text("as of " + last.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }
-                }
-                if !typeSize.isAccessibilitySize { Spacer() }
-                if let last = pts.last, let avg, pts.count >= 3 {
-                    delta(last.value - avg)
-                }
-            }
-
-            if pts.count >= 2 {
-                Chart {
-                    ForEach(rolling) { p in
-                        AreaMark(x: .value("Date", p.date), y: .value("7-day", p.value))
-                            .foregroundStyle(metric.color.opacity(0.12))
-                            .interpolationMethod(.monotone)
-                        LineMark(x: .value("Date", p.date), y: .value("7-day", p.value))
-                            .foregroundStyle(metric.color.opacity(0.45))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                            .interpolationMethod(.monotone)
-                    }
-                    ForEach(pts) { p in
-                        LineMark(x: .value("Date", p.date), y: .value(metric.rawValue, p.value), series: .value("s", "daily"))
-                            .foregroundStyle(metric.color)
-                            .interpolationMethod(.monotone)
-                        PointMark(x: .value("Date", p.date), y: .value(metric.rawValue, p.value))
-                            .foregroundStyle(metric.color)
-                            .symbolSize(28)
-                    }
-                    if let avg {
-                        RuleMark(y: .value("avg", avg))
-                            .foregroundStyle(.secondary.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
-                            .annotation(position: .top, alignment: .trailing) {
-                                Text("avg \(format(avg))").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-                            }
-                    }
-                }
-                .chartYScale(domain: .automatic(includesZero: false))
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
-                .frame(height: 180)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
-                    stat("min", series[metric]?.minimum)
-                    stat("avg", avg)
-                    stat("max", series[metric]?.maximum)
-                    stat("days", Double(pts.count), decimals: 0)
-                }
-            } else {
-                unlock(pts.isEmpty ? "No values in this range yet." : "One value so far. The chart appears with the second \(metric == .steps ? "day" : "night").")
-                    .frame(height: 120)
-            }
-        }
-        .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-    }
-
-    private func delta(_ d: Double) -> some View {
-        let good: Bool? = metric.higherIsBetter.map { $0 ? d >= 0 : d <= 0 }
-        return VStack(alignment: .trailing, spacing: 2) {
-            Text((d >= 0 ? "+" : "") + format(d)).font(.headline).monospacedDigit()
-                .foregroundStyle(deltaColor(good))
-            Text("vs period average").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-        }
-    }
-
-    private func deltaColor(_ good: Bool?) -> Color {
-        switch good {
-        case nil: .secondary
-        case true?: .green
-        case false?: .orange
         }
     }
 
@@ -335,15 +258,15 @@ struct TrendsView: View {
         }
     }
 
-    private func stat(_ label: String, _ value: Double?, decimals: Int? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2).foregroundStyle(SnoopStyle.secondary)
-            Text(value.map { String(format: "%.\(decimals ?? metric.decimals)f", $0) } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
-        }
-    }
-
     private func format(_ v: Double) -> String {
         String(format: "%.\(metric.decimals)f", v)
+    }
+
+    private func openReading(_ point: TrendPoint) {
+        if metric == .steps { detailDay = point.date }
+        else if let night = nights.first(where: { $0.endTs == point.date }) {
+            detailNight = night; showNight = true
+        }
     }
 
     private func load() async {
