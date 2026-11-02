@@ -1,4 +1,5 @@
-import Combine
+import Observation
+import SnoopData
 import CryptoKit
 import Foundation
 import HealthKit
@@ -9,16 +10,22 @@ import UserNotifications
 /// Serialized, disk-backed reconciliation. A cancelled/failed pass retains its cursor,
 /// pending measurements and per-type work; consent is scoped to server and strap.
 @MainActor
-final class HealthCoordinator: ObservableObject {
-    @Published private(set) var journal = HealthJournal()
-    @Published private(set) var busy = false
-    @Published private(set) var status = "Not connected"
-    @Published private(set) var error: String?
-    @Published private(set) var earliest: Date?
-    @Published var showWeightEntry = false
-    @Published private(set) var importingWeightHistory = false
-    @Published private(set) var importedWeightCount = 0
+@Observable
+final class HealthCoordinator {
+    private(set) var journal = HealthJournal()
+    private(set) var busy = false
+    private(set) var status = "Not connected"
+    private(set) var error: String?
+    private(set) var earliest: Date?
+    var showWeightEntry = false
+    private(set) var importingWeightHistory = false
+    private(set) var importedWeightCount = 0
     let adapter = HealthAdapter()
+    private let disk = HealthJournalDisk()
+    private var diskRevision: UInt64 = 0
+    private var activation: Task<Void, Never>?
+    private var syncRequested = false
+    private var scheduledSync: Task<Void, Never>?
     private var file: URL?
     private var device = ""
     private var scope = ""
@@ -28,7 +35,12 @@ final class HealthCoordinator: ObservableObject {
     private var activeReminder: String?
     private let center = UNUserNotificationCenter.current()
     var connected: Bool { journal.connectedAt != nil }
-    var rows: [WeightReading] { (journal.weights.filter { row in !row.removed && !journal.pendingWeights.contains(where: { $0.id == row.id }) } + journal.pendingWeights.filter { !$0.removed }).sorted { $0.measuredAt > $1.measuredAt } }
+    private(set) var rows: [WeightReading] = []
+    private func refreshRows() {
+        let pending = Set(journal.pendingWeights.map(\.id))
+        let result = (journal.weights.filter { !$0.removed && !pending.contains($0.id) } + journal.pendingWeights.filter { !$0.removed }).sorted { $0.measuredAt > $1.measuredAt }
+        if rows != result { rows = result }
+    }
     var today: WeightReading? { WeightReading.preferred(rows, on: Date()) }
     var lastWeight: WeightReading? { rows.first }
     var canRemind: Bool { journal.remindWeight }
@@ -42,25 +54,44 @@ final class HealthCoordinator: ObservableObject {
         let input = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
         let next = SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
         guard next != scope else { return }
-        epoch += 1; followUp?.cancel(); followUp = nil; busy = false; importingWeightHistory = false
+        epoch += 1; activation?.cancel(); scheduledSync?.cancel(); scheduledSync = nil; syncRequested = false; followUp?.cancel(); followUp = nil; busy = false; importingWeightHistory = false
         if let observation { adapter.store.stop(observation) }; observation = nil
         if let activeReminder { center.removePendingNotificationRequests(withIdentifiers: [activeReminder]) }; activeReminder = nil
         scope = next; self.device = device; journal = HealthJournal(); error = nil
-        do {
-            var folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("HealthSync", isDirectory: true)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            var values = URLResourceValues(); values.isExcludedFromBackup = true; try folder.setResourceValues(values)
-            file = folder.appendingPathComponent(next + ".json")
-            if let file, FileManager.default.fileExists(atPath: file.path) { journal = try JSONDecoder().decode(HealthJournal.self, from: Data(contentsOf: file)) }
-            status = connected ? (journal.paused ? "Paused" : "Ready to sync") : "Not connected"
-            UserDefaults.standard.set(device, forKey: "health.lastDevice")
-            installObserver()
-        } catch { self.file = nil; self.error = "Couldn’t open saved Health sync progress. Restart Snoop to try again." }
-        checkSoon()
+        file = nil; rows = []
+        let generation = epoch
+        activation = Task { [weak self] in
+            guard let self else { return }
+            do {
+                // The application-support directory already exists after queue setup;
+                // directory creation and all journal I/O belong to the disk actor.
+                let folder = URL.applicationSupportDirectory.appendingPathComponent("HealthSync", isDirectory: true)
+                let (file, saved) = try await self.disk.open(folder: folder, name: next)
+                try self.valid(generation)
+                self.file = file; self.journal = saved; self.refreshRows()
+                self.status = self.connected ? (self.journal.paused ? "Paused" : "Ready to sync") : "Not connected"
+                UserDefaults.standard.set(device, forKey: "health.lastDevice")
+                self.installObserver(); self.checkSoon()
+            } catch is CancellationError { }
+            catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Snoop to try again." } }
+        }
     }
-    private func persist() throws {
+    private func persist() async throws {
         guard let file else { throw CocoaError(.fileWriteUnknown) }
-        try JSONEncoder().encode(journal).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        let generation = epoch
+        diskRevision &+= 1
+        try await disk.save(journal, to: file, revision: diskRevision)
+        try valid(generation)
+    }
+    /// Settings remain immediately reflected in the existing UI while persistence is queued.
+    private func persistSettings() {
+        guard let file else { return }
+        diskRevision &+= 1
+        let snapshot = journal, revision = diskRevision, generation = epoch
+        Task {
+            do { try await disk.save(snapshot, to: file, revision: revision) }
+            catch { if generation == epoch { self.error = "Couldn’t save sync settings. Try again." } }
+        }
     }
     private func valid(_ generation: Int) throws {
         guard generation == epoch, !Task.isCancelled, Settings.isConfigured else { throw CancellationError() }
@@ -77,7 +108,7 @@ final class HealthCoordinator: ObservableObject {
             if steps != journal.exportSteps || exportWeight != journal.exportWeight { journal.snapshot = true; journal.watermark = nil; journal.pageCursor = 0 }
             journal.exportSteps = steps; journal.importWeight = importWeight; journal.exportWeight = exportWeight; journal.paused = false
             if journal.importStart == nil { journal.importStart = journal.connectedAt }
-            try persist(); installObserver(); await sync()
+            try await persist(); installObserver(); await sync()
         } catch { self.error = error.localizedDescription }
     }
     func disconnect() {
@@ -85,15 +116,20 @@ final class HealthCoordinator: ObservableObject {
         journal.connectedAt = nil
         if let observation { adapter.store.stop(observation) }; observation = nil
         adapter.store.disableBackgroundDelivery(for: HealthAdapter.weightType) { _, _ in }
-        do { try persist(); status = "Not connected" } catch { self.error = "Couldn’t save connection settings. Try again." }
+        persistSettings(); status = "Not connected"
     }
     func removeExports() async {
         guard !busy else { return }
         busy = true
         let generation = epoch
-        defer { if epoch == generation { busy = false } }
+        defer {
+            if epoch == generation {
+                busy = false
+                if syncRequested && scheduledSync == nil { syncRequested = false; checkSoon() }
+            }
+        }
         do {
-            journal.paused = true; try persist()
+            journal.paused = true; try await persist()
             try await adapter.removeExports(namespace: journal.namespace); try valid(generation)
             journal.versions = [:]; journal.deferred = [:]; journal.clearExportHistory()
             journal.cursor = 0; journal.watermark = nil; journal.pageCursor = 0; journal.snapshot = true
@@ -102,12 +138,11 @@ final class HealthCoordinator: ObservableObject {
     }
     func pause(_ paused: Bool) {
         journal.paused = paused
-        do { try persist(); status = paused ? "Paused" : "Ready to sync"; if !paused { checkSoon() } }
-        catch { self.error = "Couldn’t save sync settings. Try again." }
+        persistSettings(); status = paused ? "Paused" : "Ready to sync"; if !paused { checkSoon() }
     }
     func setReminder(_ enabled: Bool) {
         journal.remindWeight = enabled
-        do { try persist() } catch { self.error = "Couldn’t save reminder settings. Try again." }
+        persistSettings()
         if !enabled { cancelReminder() } else { checkSoon() }
     }
     func openReminder(scope: String) {
@@ -116,11 +151,23 @@ final class HealthCoordinator: ObservableObject {
     }
     func checkSoon() {
         guard !device.isEmpty else { return }
-        Task { await sync() }
+        let generation = epoch
+        if busy { syncRequested = true }
+        else if scheduledSync == nil {
+            scheduledSync = Task { [weak self] in
+                guard let self else { return }
+                await self.sync()
+                guard self.epoch == generation else { return }
+                self.scheduledSync = nil
+                if self.syncRequested { self.syncRequested = false; self.checkSoon() }
+            }
+        }
         if followUp == nil {
             followUp = Task { [weak self] in
                 do { try await Task.sleep(for: .seconds(15 * 60 + 20)) } catch { return }
-                await self?.sync(); self?.followUp = nil
+                guard let self, self.epoch == generation else { return }
+                await self.sync()
+                if self.epoch == generation { self.followUp = nil }
             }
         }
     }
@@ -128,15 +175,21 @@ final class HealthCoordinator: ObservableObject {
         activate(device)
         guard file != nil else { throw SnoopAPI.Failure.notConfigured }
         journal.pendingWeights.removeAll { $0.id == row.id }; journal.pendingWeights.append(row)
-        try persist(); cancelReminder(); showWeightEntry = false
+        refreshRows(); try await persist(); cancelReminder(); showWeightEntry = false
         checkSoon()
     }
     func sync() async {
         activate(device)
-        guard !busy, !device.isEmpty, file != nil, Settings.isConfigured else { return }
+        guard !busy else { syncRequested = true; return }
+        guard !device.isEmpty, file != nil, Settings.isConfigured else { return }
         busy = true; error = nil
         let generation = epoch
-        defer { if epoch == generation { busy = false } }
+        defer {
+            if epoch == generation {
+                busy = false
+                if syncRequested && scheduledSync == nil { syncRequested = false; checkSoon() }
+            }
+        }
         do {
             let info = try await SnoopAPI.healthInfo(device); try valid(generation)
             guard journal.namespace.isEmpty || journal.namespace == info.namespace else { throw HealthAdapter.Failure.newerVersion }
@@ -147,7 +200,7 @@ final class HealthCoordinator: ObservableObject {
                 try valid(generation)
                 let saved = try await SnoopAPI.saveWeight(device, row); try valid(generation)
                 journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved)
-                journal.pendingWeights.removeAll { $0 == row }; try persist()
+                journal.pendingWeights.removeAll { $0 == row }; refreshRows(); try await persist()
             }
             if connected && !journal.paused && journal.importWeight && adapter.available && UIApplication.shared.isProtectedDataAvailable {
                 try await importWeights(generation)
@@ -175,14 +228,14 @@ final class HealthCoordinator: ObservableObject {
                 let page = try await SnoopAPI.healthPage(device, cursor: journal.watermark == nil ? (journal.snapshot ? 0 : journal.cursor) : journal.pageCursor, watermark: journal.watermark, snapshot: journal.snapshot)
                 try valid(generation)
                 guard page.namespace == journal.namespace else { throw HealthAdapter.Failure.newerVersion }
-                journal.watermark = page.watermark; try persist()
+                journal.watermark = page.watermark; try await persist()
                 for record in page.records {
                     try valid(generation); if journal.paused { return }
                     try await export(record, generation: generation)
                 }
                 journal.pageCursor = page.nextCursor
                 if page.done { journal.cursor = page.watermark; journal.watermark = nil; journal.snapshot = false }
-                try persist()
+                try await persist()
                 if page.done { break }
                 await Task.yield()
             } while true
@@ -191,7 +244,7 @@ final class HealthCoordinator: ObservableObject {
                 try await export(record, generation: generation)
             }
             if journal.exportWeight { try await adapter.removeWeightConflicts(namespace: journal.namespace); try valid(generation) }
-            journal.lastSync = Date(); try persist()
+            journal.lastSync = Date(); try await persist()
             status = journal.deferred.isEmpty ? "Up to date" : "Some exports are waiting"
         } catch is CancellationError { }
         catch {
@@ -210,20 +263,40 @@ final class HealthCoordinator: ObservableObject {
         guard eligible else { return }
         if let prior = journal.versions[record.id], prior >= record.version { journal.deferred.removeValue(forKey: record.id); return }
         let enabled = record.domain == "steps" ? journal.exportSteps : record.domain == "weight" ? journal.exportWeight : true
-        guard enabled, adapter.canWrite(record.domain) else { journal.deferred[record.id] = record; try persist(); return }
+        guard enabled, adapter.canWrite(record.domain) else { journal.deferred[record.id] = record; try await persist(); return }
         if record.domain == "weight", !record.removed {
             // Read permission is intentionally opaque. Never promise that an empty
             // query proves an empty day; the person explicitly opts into exports.
             let foreign = try await adapter.existingWeight(on: record.startTs); try valid(generation)
             if !foreign.isEmpty {
-                journal.acknowledge(record); try persist(); return
+                journal.acknowledge(record); try await persist(); return
             }
         }
         guard !journal.paused else { throw CancellationError() }
         try await adapter.apply(record, namespace: journal.namespace); try valid(generation)
-        journal.acknowledge(record); try persist()
+        journal.acknowledge(record); try await persist()
     }
     private func loadWeights(_ generation: Int) async throws {
+        var watermark: Int64?
+        do {
+            repeat {
+                let page = try await SnoopAPI.weightChanges(device, cursor: journal.weightCursor ?? 0, watermark: watermark)
+                try valid(generation)
+                var saved = Dictionary(journal.weights.map { ($0.id, $0) }, uniquingKeysWith: { a, b in a.version >= b.version ? a : b })
+                for row in page.rows where (saved[row.id]?.version ?? -1) <= row.version { saved[row.id] = row }
+                if !page.rows.isEmpty { journal.weights = Array(saved.values); refreshRows() }
+                journal.weightCursor = page.nextCursor
+                try await persist()
+                if page.done { return }
+                watermark = page.watermark
+            } while true
+        } catch SnoopAPI.Failure.http(404) {
+            try await loadAllWeights(generation)
+        } catch SnoopAPI.Failure.server(404, _) {
+            try await loadAllWeights(generation)
+        }
+    }
+    private func loadAllWeights(_ generation: Int) async throws {
         var loaded: [WeightReading] = []; var after = ""
         repeat {
             try valid(generation)
@@ -231,7 +304,7 @@ final class HealthCoordinator: ObservableObject {
             try valid(generation); loaded += rows
             guard rows.count == 250, let last = rows.last else { break }; after = last.id
         } while true
-        journal.weights = loaded; try persist()
+        journal.weights = loaded; refreshRows(); try await persist()
     }
     private func importWeights(_ generation: Int, allowWhilePaused: Bool = false) async throws {
         guard let from = journal.importStart ?? journal.connectedAt else { return }
@@ -244,17 +317,17 @@ final class HealthCoordinator: ObservableObject {
                 guard !journal.paused || allowWhilePaused else { throw CancellationError() }
                 if journal.weights.contains(where: { $0.id == row.id && $0.kg == row.kg && !$0.removed }) { continue }
                 let saved = try await SnoopAPI.saveWeight(device, row); try valid(generation)
-                journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved)
+                journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved); refreshRows()
                 if importingWeightHistory && journal.pendingWeightImport?.contains(saved.measuredAt) == true { importedWeightCount += 1 }
                 // Preserve per-reading receipts before advancing the Health anchor;
                 // repeated short background windows can finish a large import.
-                try persist()
+                try await persist()
             }
             try await SnoopAPI.removeImportedWeights(device, ids: changes.deleted); try valid(generation)
             let deleted = Set(changes.deleted)
             journal.weights.removeAll { $0.source == "health" && deleted.contains($0.id) }
-            journal.anchor = changes.anchor; try persist()
-            if !changes.more { journal.pendingWeightImport = nil; try persist(); return }
+            refreshRows(); journal.anchor = changes.anchor; try await persist()
+            if !changes.more { journal.pendingWeightImport = nil; try await persist(); return }
         } while true
     }
     private func remind(wake: Date?, generation: Int) async throws {
@@ -274,13 +347,13 @@ final class HealthCoordinator: ObservableObject {
         content.threadIdentifier = "snoop.weight"; content.userInfo = ["destination": "weight", "scope": scope, "day": key]
         // Save deduplication before scheduling. A crash can skip one reminder, never
         // multiply it. Scheduling failure rolls the receipt back for a later retry.
-        journal.remindedDays.insert(key); try persist()
+        journal.remindedDays.insert(key); try await persist()
         do {
             try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, delivery.timeIntervalSinceNow), repeats: false)))
             try valid(generation); activeReminder = identifier
         } catch {
             center.removePendingNotificationRequests(withIdentifiers: [identifier])
-            if generation == epoch { journal.remindedDays.remove(key); try persist() }
+            if generation == epoch { journal.remindedDays.remove(key); try await persist() }
             throw error
         }
     }
@@ -288,13 +361,15 @@ final class HealthCoordinator: ObservableObject {
         let identifier = "snoop.weight.\(scope).\(Self.dayKey(Date()))"
         center.removePendingNotificationRequests(withIdentifiers: [identifier]); center.removeDeliveredNotifications(withIdentifiers: [identifier]); activeReminder = nil
     }
-    static func dayKey(_ date: Date) -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: date) }
+    static func dayKey(_ date: Date) -> String { DayKey.string(date) }
     private func installObserver() {
         guard connected, (journal.importWeight || journal.exportWeight), adapter.available, observation == nil else { return }
+        let generation = epoch
         let query = HKObserverQuery(sampleType: HealthAdapter.weightType, predicate: nil) { [weak self] _, completion, error in
+            let done = CompletionOnce(completion)
             Task { @MainActor in
-                if error == nil { await self?.sync() }
-                completion()
+                if error == nil, let self, self.epoch == generation { await self.sync() }
+                done.call()
             }
         }
         observation = query; adapter.store.execute(query)
@@ -305,7 +380,7 @@ final class HealthCoordinator: ObservableObject {
         guard !busy else { throw PreviewFailure.busy }
         busy = true
         let generation = epoch
-        defer { if generation == epoch { busy = false } }
+        defer { if generation == epoch { busy = false; if syncRequested { syncRequested = false; checkSoon() } } }
         if journal.exportSteps {
             var start = range.from
             while true {
@@ -349,13 +424,13 @@ final class HealthCoordinator: ObservableObject {
         try valid(generation)
         guard connected, journal.importWeight else { throw WeightImportFailure.notEnabled }
         busy = true; importingWeightHistory = true; importedWeightCount = 0; error = nil
-        defer { if epoch == generation { busy = false; importingWeightHistory = false } }
+        defer { if epoch == generation { busy = false; importingWeightHistory = false; if syncRequested { syncRequested = false; checkSoon() } } }
         let previous = Set(rows.filter { range.contains($0.measuredAt) }.map(\.id))
         do {
             let info = try await SnoopAPI.healthInfo(device); try valid(generation)
             guard journal.namespace.isEmpty || journal.namespace == info.namespace, journal.cursor <= info.cursor else { throw HealthAdapter.Failure.newerVersion }
             journal.namespace = info.namespace
-            journal.approveWeightImport(range); try persist()
+            journal.approveWeightImport(range); try await persist()
             status = "Importing weigh-ins…"
             try await importWeights(generation, allowWhilePaused: true)
             try valid(generation)
@@ -377,6 +452,6 @@ final class HealthCoordinator: ObservableObject {
     func backfill(_ range: HealthJournal.Range) async throws {
         guard !busy else { throw PreviewFailure.busy }
         journal.backfill(range); journal.paused = false
-        try persist(); await sync()
+        try await persist(); await sync()
     }
 }

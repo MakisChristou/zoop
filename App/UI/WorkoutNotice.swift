@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Undo remains available until dismissed; it does not disappear on a timer.
 struct WorkoutNotice: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var saving = false
     @State private var error: String?
 

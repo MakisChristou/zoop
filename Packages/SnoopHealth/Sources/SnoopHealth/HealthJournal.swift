@@ -30,6 +30,8 @@ public struct HealthJournal: Codable, Sendable {
     public var deferred: [String: HealthRecord] = [:]
     public var pendingWeights: [WeightReading] = []
     public var weights: [WeightReading] = []
+    /// Optional for journals written before incremental server weight sync.
+    public var weightCursor: Int64?
     public var anchor: Data?
     public var importStart: Date?
     public var remindedDays: Set<String> = []

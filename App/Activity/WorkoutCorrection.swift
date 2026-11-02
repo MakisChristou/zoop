@@ -1,18 +1,18 @@
 import Foundation
 
 /// Reuse a request id after a lost response; a changed draft gets a new id.
-struct WorkoutCorrection: Encodable, Equatable {
-    struct Target: Encodable, Equatable {
+struct WorkoutCorrection: Encodable, Equatable, Sendable {
+    struct Target: Encodable, Equatable, Sendable {
         let id: Int64
         let revision: Int64
         init(_ workout: SnoopAPI.Workout) { id = workout.id; revision = workout.revision ?? 0 }
     }
-    struct Interval: Encodable, Equatable {
+    struct Interval: Encodable, Equatable, Sendable {
         let startTs: Date
         let endTs: Date
         let kind: String
     }
-    struct Receipt: Decodable {
+    struct Receipt: Decodable, Sendable {
         let operationId: String
         let workoutIds: [Int64]
     }

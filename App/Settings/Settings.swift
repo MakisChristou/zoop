@@ -14,6 +14,9 @@ enum Settings {
         UserDefaults.standard.string(forKey: ingestTokenKey) ?? ""
     }
 
+    /// In-memory scope only. Never log or persist this identity.
+    static var connectionID: String { (serverURL?.absoluteString ?? "") + "|" + ingestToken }
+
     static var isConfigured: Bool {
         serverURL != nil && !ingestToken.isEmpty
     }

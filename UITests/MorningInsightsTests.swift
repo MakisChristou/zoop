@@ -1,7 +1,7 @@
 import XCTest
 
 /// Synthetic INSIGHT-REVIEW only; no physical phone or personal recordings.
-final class MorningInsightsTests: XCTestCase {
+@MainActor final class MorningInsightsTests: XCTestCase {
     private func launch(large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", "INSIGHT-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28473", "-ingestToken", "ui-test-token", "-onboarded", "YES"]

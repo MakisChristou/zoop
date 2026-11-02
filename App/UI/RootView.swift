@@ -3,7 +3,7 @@ import SwiftUI
 /// Five tabs. Each main screen carries the strap status and the profile button in its
 /// own header; the device page lives behind both.
 struct RootView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?

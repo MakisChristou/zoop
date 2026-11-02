@@ -4,7 +4,7 @@ import SwiftUI
 /// button. Stored on the server with the phone's time zone so calories, zones and
 /// local days line up everywhere.
 struct BodyProfileSection: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var profile = SnoopAPI.Profile.empty
     @State private var status: String?
     @State private var saving = false

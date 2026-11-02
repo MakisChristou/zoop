@@ -3,7 +3,7 @@ import SwiftUI
 /// First-run wizard. Explains Bluetooth before iOS asks for it, gets the strap connected,
 /// and collects the server details. Runs once; revisit anything from Settings.
 struct OnboardingView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var page = 0
     @AppStorage(Settings.serverURLKey) private var serverURL = ""
     @AppStorage(Settings.ingestTokenKey) private var ingestToken = ""
@@ -43,7 +43,7 @@ struct OnboardingView: View {
 
     private func advance() {
         switch page {
-        case 1: model.strap.start()
+        case 1: model.startStrap()
         case pageCount - 1: model.isOnboarded = true; return
         default: break
         }

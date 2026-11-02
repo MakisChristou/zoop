@@ -3,7 +3,7 @@ import SwiftUI
 struct WorkoutEditorView: View {
     let mode: WorkoutEditorMode
     let onSaved: () -> Void
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var start: Date
     @State private var end: Date

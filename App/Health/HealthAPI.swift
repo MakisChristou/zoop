@@ -19,6 +19,17 @@ extension SnoopAPI {
     static func weights(_ device: String, from: Date, to: Date, after: String = "") async throws -> [WeightReading] {
         try await get("v1/devices/\(device)/weights", query: ["from": from.ISO8601Format(), "to": to.ISO8601Format(), "after": after])
     }
+    struct WeightChanges: Decodable {
+        let rows: [WeightReading]
+        let nextCursor: Int64
+        let watermark: Int64
+        let done: Bool
+    }
+    static func weightChanges(_ device: String, cursor: Int64, watermark: Int64?) async throws -> WeightChanges {
+        var query = ["cursor": String(cursor)]
+        if let watermark { query["watermark"] = String(watermark) }
+        return try await get("v1/devices/\(device)/weight-changes", query: query)
+    }
     static func saveWeight(_ device: String, _ row: WeightReading) async throws -> WeightReading {
         try await send("v1/devices/\(device)/weights", method: "PUT", body: row)
     }

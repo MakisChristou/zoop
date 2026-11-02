@@ -5,7 +5,7 @@ import SwiftUI
 /// heart-rate trace over the session with a drag readout. The type can be changed
 /// from the toolbar; the server keeps that choice through recomputes.
 struct WorkoutDetailView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var snapshot: SnoopAPI.Workout
     @State private var editor: WorkoutEditorMode?
     @State private var showReset = false

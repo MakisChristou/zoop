@@ -66,6 +66,7 @@ final class ReliabilityTests: XCTestCase {
     func testMixedReceiptsRetainRejectedFramesWithoutBlockingLaterData() async throws {
         let queue = try FrameQueue(path: path)
         for i in 0..<4 { try queue.enqueue([UInt8(i)], channel: 5) }
+        try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
         let rows = try queue.peek(limit: 10)
         Transport.handler = { request in
             XCTAssertEqual(request.url!.path, "/v2/ingest")
@@ -83,6 +84,7 @@ final class ReliabilityTests: XCTestCase {
     }
     func testLostResponseRetriesSameIdentityAndDuplicateReceiptRemovesIt() async throws {
         let queue = try FrameQueue(path: path); try queue.enqueue([1, 2, 3], channel: 5)
+        try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
         let rows = try queue.peek(limit: 10)
         let uploader = Uploader(queue: queue, session: session())
         Transport.handler = { _ in throw URLError(.networkConnectionLost) }
@@ -95,6 +97,7 @@ final class ReliabilityTests: XCTestCase {
     func testPartialDuplicateUnknownAndWrongIdentityReceiptsNeverDeleteBatch() async throws {
         let queue = try FrameQueue(path: path)
         try queue.enqueue([1], channel: 5); try queue.enqueue([2], channel: 5)
+        try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
         let rows = try queue.peek(limit: 10)
         let uploader = Uploader(queue: queue, session: session())
         let cases: [Data] = [
@@ -114,6 +117,7 @@ final class ReliabilityTests: XCTestCase {
     }
     func testUnavailableV2DoesNotFallBackOrDiscard() async throws {
         let queue = try FrameQueue(path: path); try queue.enqueue([1], channel: 5)
+        try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
         Transport.handler = { _ in (404, Data()) }
         let stats = await flush(Uploader(queue: queue, session: session()))
         XCTAssertEqual(stats.lastError, "HTTP 404"); XCTAssertEqual(try queue.count(), 1)
@@ -123,7 +127,7 @@ final class ReliabilityTests: XCTestCase {
         let recovered = expectation(description: "recovered")
         let saved = expectation(description: "saved callbacks"); saved.expectedFulfillmentCount = 3
         let state = WriterState()
-        let writer = FrameWriter(save: { bytes, _, _ in try state.save(bytes[0]) }, onFailure: { _ in failed.fulfill() }, onRecovery: { recovered.fulfill() })
+        let writer = FrameWriter(save: { bytes, _, _, _ in try state.save(bytes[0]) }, onFailure: { _ in failed.fulfill() }, onRecovery: { recovered.fulfill() })
         var acknowledgements: [UInt8] = []
         for value: UInt8 in [1, 2, 3] {
             writer.enqueue([value], channel: 5) { acknowledgements.append(value); saved.fulfill() }

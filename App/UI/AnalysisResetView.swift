@@ -4,7 +4,7 @@ import SwiftUI
 struct AnalysisResetView: View {
     var targetId: Int64? = nil
     var isSheet = false
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var domain: String
     @State private var allHistory = false

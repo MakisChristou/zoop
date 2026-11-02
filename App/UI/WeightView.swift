@@ -2,7 +2,7 @@ import SwiftUI
 import SnoopHealth
 
 struct WeightView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var adding = false

@@ -2,7 +2,7 @@ import SwiftUI
 import SnoopHealth
 
 struct HealthBackfillView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var from = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
     @State private var to = Date()

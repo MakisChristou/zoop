@@ -309,3 +309,8 @@ xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Revi
 
 The UI test uses only synthetic `UI-REVIEW` data at a development API. Override
 `SNOOP_UI_SERVER_URL` in the runner; its default loopback port is 28474.
+
+### Performance validation
+
+See [performance and concurrency](docs/PERFORMANCE.md) for the internal architecture,
+regression checks, synthetic UI fixture and physical-device validation boundaries.

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RemovedSleepView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var rows: [SnoopAPI.SleepSession] = []
     @State private var error: String?
     var body: some View {

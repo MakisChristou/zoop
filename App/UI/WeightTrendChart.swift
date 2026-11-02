@@ -1,3 +1,4 @@
+import SnoopData
 import Charts
 import SwiftUI
 import SnoopHealth
@@ -23,12 +24,21 @@ struct WeightTrendChart: View {
 
     private var range: DateInterval { window.range(position: position, days: period.days) }
     private var visible: [PlotPoint] {
-        let interval = range
-        return points.filter { $0.observation.date >= interval.start && $0.observation.date < interval.end }
+        Array(points[visibleBounds])
+    }
+    private var visibleBounds: Range<Int> {
+        SortedWindow.range(points, from: range.start.timeIntervalSince1970, to: range.end.timeIntervalSince1970) { $0.observation.date.timeIntervalSince1970 }
+    }
+    private var plotted: ArraySlice<PlotPoint> {
+        let bounds = visibleBounds
+        return points[max(0, bounds.lowerBound - 1)..<min(points.count, bounds.upperBound + 1)]
     }
     private var selected: PlotPoint? {
-        guard let selectedX else { return nil }
-        return visible.min { abs($0.x - selectedX) < abs($1.x - selectedX) }
+        guard let selectedX, !visibleBounds.isEmpty else { return nil }
+        let index = SortedWindow.lowerBound(points, value: selectedX, key: { $0.x })
+        let right = min(max(index, visibleBounds.lowerBound), visibleBounds.upperBound - 1)
+        let left = max(visibleBounds.lowerBound, right - 1)
+        return abs(points[left].x - selectedX) <= abs(points[right].x - selectedX) ? points[left] : points[right]
     }
     private var displayed: PlotPoint? { selected ?? visible.last }
     private var isLatest: Bool { period.days.map { abs(position - window.latestStart(days: $0)) < 0.5 } ?? true }
@@ -156,7 +166,7 @@ struct WeightTrendChart: View {
     }
     private var chart: some View {
         Chart {
-            ForEach(points) { point in
+            ForEach(plotted) { point in
                 LineMark(x: .value("Day", point.x), y: .value("Weight", display(point.observation.kg)), series: .value("Segment", point.observation.segment))
                     .foregroundStyle(SnoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                 PointMark(x: .value("Day", point.x), y: .value("Weight", display(point.observation.kg)))

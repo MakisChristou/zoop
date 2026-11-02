@@ -4,7 +4,7 @@ import SwiftUI
 /// The strap itself: link state, identity, history sync, and the raw latest record
 /// for anyone curious what the strap is reporting. Pushed from the profile sheet.
 struct DeviceView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         List {

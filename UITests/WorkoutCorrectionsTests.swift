@@ -2,7 +2,7 @@ import XCTest
 
 /// Run only against the isolated synthetic UI-REVIEW dataset described in README.
 /// Launch arguments apply to this process; they never change the phone's settings.
-final class WorkoutCorrectionsTests: XCTestCase {
+@MainActor final class WorkoutCorrectionsTests: XCTestCase {
     private func launch(_ screen: String = "activity") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28472", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen]

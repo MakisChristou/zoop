@@ -1,15 +1,17 @@
+import SnoopData
 import SwiftUI
 
 /// Detected sessions, newest first, grouped by day, with the week's load on top.
 /// Everything here is read from the server; the strap does not know what a workout is.
 struct ActivityView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Binding var selectedDay: Date?
     let requestID: UUID
     private var workouts: [SnoopAPI.Workout] { model.activity.items }
     @State private var days: [SnoopAPI.Day] = []
     @State private var error: String?
     @State private var loaded = false
+    @State private var loadID = UUID()
     @State private var path: [SnoopAPI.Workout] = []
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -181,15 +183,16 @@ struct ActivityView: View {
 
     private func load() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
-        async let w: Void = model.activity.reload(device: model.strap.serial, from: selectedDay, to: selectedDay.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) })
-        async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: 7)
-        do {
-            try await w
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
-        if let d = try? await d { days = d }
+        let serial = model.strap.serial, connection = Settings.connectionID, day = selectedDay
+        let request = UUID(); loadID = request
+        async let w: Void = model.activity.reload(device: serial, from: day, to: day.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) })
+        async let d = SnoopAPI.days(deviceId: serial, limit: 7)
+        var failure: String?
+        do { try await w } catch { failure = error.localizedDescription }
+        let rows = try? await d
+        guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == selectedDay else { return }
+        error = failure
+        if let rows { days = rows }
         loaded = true
     }
 
@@ -202,11 +205,7 @@ struct ActivityView: View {
     }
 
     private static func day(_ text: String) -> Date? {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: text)
+        DayKey.date(text)
     }
 
     static func dayTitle(_ day: Date) -> String {

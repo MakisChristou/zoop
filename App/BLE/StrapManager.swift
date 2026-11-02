@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import CoreBluetooth
 import Foundation
 import OSLog
@@ -13,41 +13,44 @@ import SnoopBattery
 /// and from then on turns every notification into complete frames. Every frame is
 /// handed to `onFrame` (for the queue) and decoded for the live view and the offload
 /// loop.
-final class StrapManager: NSObject, ObservableObject {
+@MainActor
+@Observable
+final class StrapManager: NSObject {
     enum State: Equatable {
         case bluetoothOff, scanning, connecting, connected, ready
         case failed(String)
     }
 
-    @Published private(set) var state: State = .scanning
+    private(set) var state: State = .scanning
     /// Simulator builds can be launched with `-demoSerial X` so the read screens have
     /// a device id to ask the server about; the simulator has no Bluetooth.
-    @Published private(set) var serial: String = {
+    private(set) var serial: String = {
         #if targetEnvironment(simulator)
         UserDefaults.standard.string(forKey: "demoSerial") ?? ""
         #else
         ""
         #endif
     }()
-    @Published private(set) var model = ""
-    @Published private(set) var firmware: String?
-    @Published private(set) var liveHeartRate: UInt8?
-    @Published private(set) var liveRR: [UInt16] = []
+    private(set) var model = ""
+    private(set) var firmware: String?
+    private(set) var liveHeartRate: UInt8?
+    private(set) var liveRR: [UInt16] = []
     /// When the live heart rate was last updated, for "x s ago" and smoothing.
-    @Published private(set) var liveUpdatedAt: Date?
+    private(set) var liveUpdatedAt: Date?
     /// Recent live samples (time, bpm) for a stable displayed value.
-    @Published private(set) var recentHeartRates: [(Date, UInt8)] = []
-    @Published private(set) var realtimeStreaming = false
-    @Published private(set) var started = false
-    @Published private(set) var lastBiometric: Biometric?
-    @Published private(set) var batteryPercent: Double?
-    @Published private(set) var batteryUpdatedAt: Date?
-    @Published private(set) var framesReceived = 0
-    @Published private(set) var offloadChunks = 0
-    @Published private(set) var lastDataRange: DataRange?
+    private(set) var recentHeartRates: [(Date, UInt8)] = []
+    private(set) var realtimeStreaming = false
+    private(set) var started = false
+    private(set) var lastBiometric: Biometric?
+    private(set) var batteryPercent: Double?
+    private(set) var batteryUpdatedAt: Date?
+    private(set) var framesReceived = 0
+    private(set) var offloadChunks = 0
+    private(set) var lastDataRange: DataRange?
 
     /// Called with every complete frame and the notify channel it arrived on (3,4,5,7).
     var onFrame: ((_ bytes: [UInt8], _ channel: Int, _ saved: @escaping () -> Void) -> Void)?
+    var onSerial: ((String) -> Void)?
     var onBatteryDevice: ((String) -> Void)?
     var onBatteryLevel: ((Double, Date, Bool, BatteryReadingSource) -> Void)?
     var onCharging: ((Bool, Date, Bool) -> Void)?
@@ -60,6 +63,7 @@ final class StrapManager: NSObject, ObservableObject {
     static let offloadInterval: TimeInterval = 600
 
     private var central: CBCentralManager!
+    var storageOwner: String? { peripheral?.identifier.uuidString }
     private var peripheral: CBPeripheral?
     private var commandCharacteristic: CBCharacteristic?
     private var reassemblers: [CBUUID: Reassembler] = [:]
@@ -134,6 +138,7 @@ final class StrapManager: NSObject, ObservableObject {
         packQueryUnavailable = false
         onBatteryDevice?(p.identifier.uuidString)
         central.stopScan()
+        if peripheral?.identifier != p.identifier { serial = ""; model = ""; firmware = nil }
         peripheral = p
         p.delegate = self
         state = .connecting
@@ -286,7 +291,7 @@ final class StrapManager: NSObject, ObservableObject {
 
 // MARK: - CBCentralManagerDelegate
 
-extension StrapManager: CBCentralManagerDelegate {
+extension StrapManager: @preconcurrency CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn: log.info("bluetooth on"); connect()
@@ -358,7 +363,7 @@ extension StrapManager: CBCentralManagerDelegate {
 
 // MARK: - CBPeripheralDelegate
 
-extension StrapManager: CBPeripheralDelegate {
+extension StrapManager: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         for service in peripheral.services ?? [] {
             peripheral.discoverCharacteristics(nil, for: service)
@@ -401,7 +406,7 @@ extension StrapManager: CBPeripheralDelegate {
             send(Command.getAdvertisingName(sequence: nextSequence()))
             offloadTimer?.invalidate()
             offloadTimer = Timer.scheduledTimer(withTimeInterval: Self.offloadInterval, repeats: true) { [weak self] _ in
-                self?.requestOffload()
+                Task { @MainActor in self?.requestOffload() }
             }
         }
     }
@@ -416,6 +421,7 @@ extension StrapManager: CBPeripheralDelegate {
         switch characteristic.uuid {
         case CBUUID(string: GATT.serialNumberString):
             serial = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)
+            if !serial.isEmpty { onSerial?(serial) }
             if model.isEmpty { model = serial.hasPrefix(GATT.serialPrefixMG) ? "MG" : "5.0" }
         case CBUUID(string: GATT.modelNumberString):
             let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .controlCharacters)

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SleepNotice: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var saving = false
     @State private var error: String?
     var body: some View {

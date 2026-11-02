@@ -4,7 +4,7 @@ import SnoopHealth
 
 /// A lightweight entry point to weight, independent of whether today has a reading.
 struct WeightCheckIn: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicType
     @AppStorage("weightUnit") private var unit = "kg"
     private var rows: [WeightReading] { model.health.rows }

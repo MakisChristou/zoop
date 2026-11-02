@@ -5,7 +5,7 @@ import SwiftUI
 struct TodayView: View {
     let openSleep: (SnoopAPI.Night?) -> Void
     let openActivity: (Date) -> Void
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var now = Date()
     /// Nil follows today across midnight; a chosen past day stays fixed.
@@ -41,7 +41,7 @@ struct TodayView: View {
                     overview
                     stepsCard
                     if isViewingToday { WeightCheckIn() }
-                    heartRate
+                    TodayLiveMetric(kind: .heartRate, isViewingToday: isViewingToday, summary: selectedSummary, history: [])
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
                             Label("Couldn’t update your day. Retry", systemImage: "arrow.clockwise")
@@ -73,7 +73,7 @@ struct TodayView: View {
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await loadHistory() } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await loadHistory() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
-        .onReceive(clock) { now = $0 }
+        .onReceive(clock) { if !Calendar.current.isDate(now, inSameDayAs: $0) { now = $0 } }
         .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
         .task {
             while !Task.isCancelled {
@@ -161,24 +161,6 @@ struct TodayView: View {
         .accessibilityHint("Opens steps by hour and by day")
     }
 
-    private var heartRate: some View {
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-            : AnyLayout(HStackLayout(spacing: 8))
-        return layout {
-            Label(isViewingToday ? "Heart rate" : "Average heart rate", systemImage: "heart")
-                .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(heartRateValue).font(.title3.weight(.semibold)).monospacedDigit()
-                Text("bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                Text(isViewingToday ? freshness : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
-            }
-        }
-        .padding(.vertical, 10)
-        .accessibilityElement(children: .combine)
-    }
-
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -195,8 +177,8 @@ struct TodayView: View {
     private var healthMetrics: some View {
         let columns = typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
-            Tile(title: "Skin temperature", value: skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
-                 caption: isViewingToday ? freshness : "Day average", history: precedingDays.compactMap { $0.skinTempAvg }, color: SnoopStyle.temperature)
+            TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
+                            history: precedingDays.compactMap { $0.skinTempAvg })
         }
     }
 
@@ -239,6 +221,7 @@ struct TodayView: View {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
         let day = viewedDay
         let serial = model.strap.serial
+        let connection = Settings.connectionID
         let requestID = UUID()
         loadID = requestID
         loading = true
@@ -256,7 +239,7 @@ struct TodayView: View {
         let fetchedWorkouts: Void? = try? await w
         let fetchedSteps = try? await s
         // A slow response from a previous tap must never replace the chosen day.
-        guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.strap.serial == serial else { return }
+        guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.strap.serial == serial, Settings.connectionID == connection else { return }
         if let fetchedDays { days = fetchedDays }
         if let fetchedNights { nights = fetchedNights }
 
@@ -285,15 +268,6 @@ struct TodayView: View {
         days.filter { StepsView.day($0.day).map { $0 <= viewedDay } == true }
     }
 
-    private var heartRateValue: String {
-        if isViewingToday { return model.strap.smoothedHeartRate.map(String.init) ?? "—" }
-        return selectedSummary?.hrAvg.map { String(Int($0.rounded())) } ?? "—"
-    }
-
-    private var skinTemperature: Double? {
-        isViewingToday ? model.strap.lastBiometric?.skinTemperatureC.map(Double.init) : selectedSummary?.skinTempAvg
-    }
-
     private var screenTitle: String {
         if isViewingToday { return "Today" }
         if Calendar.current.isDateInYesterday(viewedDay) { return "Yesterday" }
@@ -316,10 +290,5 @@ struct TodayView: View {
         historyFailed = false
     }
 
-    private var freshness: String {
-        guard let at = model.strap.liveUpdatedAt else { return "No reading" }
-        let age = Int(now.timeIntervalSince(at))
-        if model.strap.state == .ready, model.strap.realtimeStreaming, age < 5 { return "Live" }
-        return age < 60 ? "\(max(0, age))s ago" : "\(age / 60)m ago"
-    }
+
 }

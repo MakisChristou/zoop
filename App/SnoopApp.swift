@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct SnoopApp: App {
-    @StateObject private var model = AppModel()
+    @State private var model = AppModel()
 
     var body: some Scene {
         WindowGroup {
@@ -13,7 +13,7 @@ struct SnoopApp: App {
                     OnboardingView()
                 }
             }
-            .environmentObject(model)
+            .environment(model)
         }
     }
 }

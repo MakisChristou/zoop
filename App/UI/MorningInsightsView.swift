@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MorningInsightsView: View {
     let day: Date
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var insights: MorningInsights?
     @State private var error = false
     @State private var loading = false

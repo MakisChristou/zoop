@@ -1,3 +1,4 @@
+import Observation
 import Foundation
 import OSLog
 import UserNotifications
@@ -11,9 +12,10 @@ import UserNotifications
 /// old history does not arrive as a burst of alerts. Taps are routed by
 /// `BatteryMonitor`, the notification delegate.
 @MainActor
-final class WorkoutNotifier: ObservableObject {
-    @Published private(set) var lastCheckedAt: Date?
-    @Published private(set) var notificationError: String?
+@Observable
+final class WorkoutNotifier {
+    private(set) var lastCheckedAt: Date?
+    private(set) var notificationError: String?
 
     private let defaults: UserDefaults
     private let center: UNUserNotificationCenter

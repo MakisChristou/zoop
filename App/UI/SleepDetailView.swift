@@ -6,7 +6,7 @@ import SwiftUI
 struct SleepDetailView: View {
     let night: SnoopAPI.Night
     var sessionID: Int64? = nil
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var epochs: [SnoopAPI.Epoch] = []
     @State private var scrub: Date?
     @State private var error: String?

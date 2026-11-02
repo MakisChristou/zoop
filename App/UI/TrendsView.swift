@@ -1,3 +1,4 @@
+import SnoopData
 import Charts
 import SwiftUI
 
@@ -5,12 +6,15 @@ import SwiftUI
 /// behind the daily points, an 8-week heat-strip of sleep, and weekday patterns.
 /// Sections say what they need instead of drawing a line through one point.
 struct TrendsView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var nights: [SnoopAPI.Night] = []
     @State private var days: [SnoopAPI.Day] = []
     @State private var error: String?
+    @State private var requestID = UUID()
+    @State private var series: [Metric: TrendSeries] = [:]
+    @State private var sleepByDay: [Date: Double] = [:]
     @State private var metric: Metric = .sleep
     @State private var range: Range = .month
 
@@ -83,60 +87,52 @@ struct TrendsView: View {
             }
             .navigationTitle("Trends")
             .mainScreenChrome("Trends")
-            .refreshable { await load() }
-            .task(id: model.strap.serial) { await load() }
-            .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
-            .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
-            .onChange(of: range) { _, _ in Task { await load() } }
+            .refreshable { await SnoopAPI.invalidateReads(); await load() }
+            .task(id: "\(model.strap.serial)-\(range.rawValue)-\(model.sleep.changeToken)-\(model.analysisRevision)") { await load() }
         }
     }
 
     // MARK: - Data shaping
 
-    private var points: [TrendsViewPoint] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -range.days, to: Date())!
-        switch metric {
-        case .steps:
-            return days.compactMap { day in
-                guard let date = Self.dayFormatter.date(from: day.day), date >= cutoff else { return nil }
-                return day.stepsWalking.map { TrendsViewPoint(date: date, value: Double($0)) }
-            }
-        case .skinTemp:
-            return nights.compactMap { n in
-                guard n.endTs >= cutoff else { return nil }
-                return n.metrics.physiology.skinTempC.map { TrendsViewPoint(date: n.endTs, value: $0) }
-            }.sorted { $0.date < $1.date }
-        default:
-            return nights.compactMap { n in
-                guard n.endTs >= cutoff else { return nil }
-                let v: Double? = switch metric {
-                case .sleep: Double(n.metrics.window.asleepS) / 3600
-                case .restingHr: n.metrics.physiology.restingHr
-                case .hrv: n.metrics.physiology.hrvRmssdMs
-                case .breathing: n.metrics.physiology.respiratoryRate
-                case .efficiency: n.metrics.window.efficiency * 100
-                default: nil
+    private var points: [TrendPoint] { series[metric]?.points ?? [] }
+    private var rolling: [TrendPoint] { series[metric]?.rolling ?? [] }
+
+    /// One preparation per data/range change; chart updates only read these values.
+    private func prepare() {
+        PerformanceTrace.measure("Trend preparation") { prepareSeries() }
+    }
+
+    private func prepareSeries() {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -range.days, to: Date())!
+        var result: [Metric: TrendSeries] = [:]
+        for metric in Metric.allCases {
+            let points: [TrendPoint]
+            if metric == .steps {
+                points = days.compactMap { day in
+                    guard let date = DayKey.date(day.day), date >= cutoff, let value = day.stepsWalking else { return nil }
+                    return TrendPoint(date: date, value: Double(value))
                 }
-                return v.map { TrendsViewPoint(date: n.endTs, value: $0) }
-            }.sorted { $0.date < $1.date }
+            } else {
+                points = nights.compactMap { night in
+                    guard night.endTs >= cutoff else { return nil }
+                    let value: Double? = switch metric {
+                    case .sleep: Double(night.metrics.window.asleepS) / 3600
+                    case .restingHr: night.metrics.physiology.restingHr
+                    case .hrv: night.metrics.physiology.hrvRmssdMs
+                    case .breathing: night.metrics.physiology.respiratoryRate
+                    case .skinTemp: night.metrics.physiology.skinTempC
+                    case .efficiency: night.metrics.window.efficiency * 100
+                    case .steps: nil
+                    }
+                    return value.map { TrendPoint(date: night.endTs, value: $0) }
+                }
+            }
+            result[metric] = TrendSeries(points, calendar: calendar)
         }
+        series = result
+        sleepByDay = Dictionary(nights.map { (calendar.startOfDay(for: $0.endTs), Double($0.metrics.window.asleepS) / 3600) }, uniquingKeysWith: { a, _ in a })
     }
-
-    /// Trailing 7-day mean at each point.
-    private var rolling: [TrendsViewPoint] {
-        let pts = points
-        return pts.map { p in
-            let window = pts.filter { $0.date <= p.date && $0.date > p.date.addingTimeInterval(-7 * 86400) }
-            return TrendsViewPoint(date: p.date, value: window.map(\.value).reduce(0, +) / Double(window.count))
-        }
-    }
-
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
 
     // MARK: - Sections
 
@@ -167,7 +163,7 @@ struct TrendsView: View {
 
     private var hero: some View {
         let pts = points
-        let avg = pts.isEmpty ? nil : pts.map(\.value).reduce(0, +) / Double(pts.count)
+        let avg = series[metric]?.average
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
@@ -220,9 +216,9 @@ struct TrendsView: View {
                 .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
                 .frame(height: 180)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
-                    stat("min", pts.map(\.value).min())
+                    stat("min", series[metric]?.minimum)
                     stat("avg", avg)
-                    stat("max", pts.map(\.value).max())
+                    stat("max", series[metric]?.maximum)
                     stat("days", Double(pts.count), decimals: 0)
                 }
             } else {
@@ -258,7 +254,7 @@ struct TrendsView: View {
         let weeks = 8
         let startOfThisWeek = cal.dateInterval(of: .weekOfYear, for: today)!.start
         let gridStart = cal.date(byAdding: .weekOfYear, value: -(weeks - 1), to: startOfThisWeek)!
-        let byDay: [Date: Double] = Dictionary(nights.map { (cal.startOfDay(for: $0.endTs), Double($0.metrics.window.asleepS) / 3600) }, uniquingKeysWith: { a, _ in a })
+        let byDay = sleepByDay
         let symbols = cal.veryShortStandaloneWeekdaySymbols
         let first = cal.firstWeekday
         let labels = (0..<7).map { symbols[($0 + first - 1) % 7] }
@@ -305,12 +301,11 @@ struct TrendsView: View {
     private var weekdayPattern: some View {
         let pts = points
         let cal = Calendar.current
-        let grouped = Dictionary(grouping: pts) { cal.component(.weekday, from: $0.date) }
         let symbols = cal.shortStandaloneWeekdaySymbols
         let order = (0..<7).map { ($0 + cal.firstWeekday - 1) % 7 + 1 }
         let bars: [(String, Double)] = order.compactMap { wd in
-            guard let values = grouped[wd], !values.isEmpty else { return nil }
-            return (symbols[wd - 1], values.map(\.value).reduce(0, +) / Double(values.count))
+            guard let value = series[metric]?.weekdays[wd] else { return nil }
+            return (symbols[wd - 1], value)
         }
         return VStack(alignment: .leading, spacing: 8) {
             Text("\(metric.rawValue) by weekday").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
@@ -352,25 +347,22 @@ struct TrendsView: View {
     }
 
     private func load() async {
-        guard !model.strap.serial.isEmpty else {
-            error = "Connect your WHOOP to load trends."
-            return
-        }
+        let serial = model.strap.serial, selectedRange = range, connection = Settings.connectionID
+        let request = UUID(); requestID = request
+        guard !serial.isEmpty else { error = "Connect your WHOOP to load trends."; return }
+        prepare()
         do {
-            async let n = SnoopAPI.nights(deviceId: model.strap.serial, limit: max(range.days, 56))
-            async let d = SnoopAPI.days(deviceId: model.strap.serial, limit: range.days)
-            nights = try await n
-            days = try await d
-            error = nil
-        } catch {
+            async let n = SnoopAPI.nights(deviceId: serial, limit: max(selectedRange.days, 56), summary: true)
+            async let d = SnoopAPI.days(deviceId: serial, limit: selectedRange.days)
+            let (loadedNights, loadedDays) = try await (n, d)
+            guard !Task.isCancelled, requestID == request, model.strap.serial == serial,
+                  range == selectedRange, Settings.connectionID == connection else { return }
+            nights = loadedNights; days = loadedDays
+            prepare(); error = nil
+        } catch is CancellationError { }
+        catch {
+            guard !Task.isCancelled, requestID == request else { return }
             self.error = error.localizedDescription
         }
     }
-}
-
-/// Shared point type for the trend charts.
-struct TrendsViewPoint: Identifiable {
-    let date: Date
-    let value: Double
-    var id: Date { date }
 }

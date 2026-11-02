@@ -1,8 +1,9 @@
 import Foundation
+import SnoopData
 
 extension SnoopAPI {
-    struct SleepSession: Decodable, Identifiable, Hashable {
-        struct Payload: Decodable {
+    struct SleepSession: Decodable, Identifiable, Hashable, Sendable {
+        struct Payload: Decodable, Sendable {
             let window: Night.Window
             let physiology: Night.Physiology
             let stages: Night.StageSummary?
@@ -35,9 +36,7 @@ extension SnoopAPI {
                          stages: sleep.segments, metrics: .init(window: sleep.window, physiology: sleep.physiology, stages: sleep.stages, naps: []))
         }
         static func day(_ date: Date, timezone: String) -> String {
-            let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian)
-            f.timeZone = TimeZone(identifier: timezone) ?? .current; f.dateFormat = "yyyy-MM-dd"
-            return f.string(from: date)
+            DayKey.string(date, timeZone: TimeZone(identifier: timezone) ?? .current)
         }
         static func == (a: Self, b: Self) -> Bool { a.id == b.id && a.revision == b.revision }
         func hash(into h: inout Hasher) { h.combine(id); h.combine(revision) }
@@ -52,30 +51,30 @@ extension SnoopAPI {
     static func correctSleep(deviceId: String, command: WorkoutCorrection) async throws -> WorkoutCorrection.Receipt {
         try await send("v1/devices/\(deviceId)/sleep-sessions/corrections", method: "POST", body: command)
     }
-    struct ResetScope: Encodable, Equatable {
+    struct ResetScope: Encodable, Equatable, Sendable {
         let domains: [String]
         var from: Date?
         var to: Date?
         var targetId: Int64?
     }
-    struct ResetPreview: Decodable {
+    struct ResetPreview: Decodable, Sendable {
         let from: Date
         let to: Date
         let manualChanges: Int
         let token: String
         let expanded: Bool
     }
-    struct ResetCommand: Encodable {
+    struct ResetCommand: Encodable, Sendable {
         var operationId = UUID().uuidString
         let scope: ResetScope
         let token: String
     }
-    struct ResetReceipt: Decodable { let operationId: String; let from: Date; let to: Date }
-    struct ResetHistory: Decodable, Identifiable {
+    struct ResetReceipt: Decodable, Sendable { let operationId: String; let from: Date; let to: Date }
+    struct ResetHistory: Decodable, Identifiable, Sendable {
         let operationId: String; let from: Date; let to: Date; let domains: [String]
         var id: String { operationId }
     }
-    struct ResetUndo: Encodable { var operationId = UUID().uuidString; let resetId: String }
+    struct ResetUndo: Encodable, Sendable { var operationId = UUID().uuidString; let resetId: String }
     static func resetPreview(deviceId: String, scope: ResetScope) async throws -> ResetPreview {
         try await send("v1/devices/\(deviceId)/analysis/reset-preview", method: "POST", body: scope)
     }

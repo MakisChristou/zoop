@@ -3,7 +3,7 @@ import SwiftUI
 struct SleepEditorView: View {
     private static let maximumDuration: TimeInterval = 24 * 60 * 60
     let mode: SleepEditorMode
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var start: Date
     @State private var end: Date

@@ -86,6 +86,14 @@ final class HealthAdapter {
             if !existing.isEmpty { try await store.delete(existing) }
             return
         }
+        if record.domain == "workout" {
+            guard record.endTs > record.startTs else { throw Failure.invalidRecord }
+            if maximum < record.version || restore { try await saveWorkout(record, namespace: namespace) }
+            let wanted = "\(namespace).\(record.id).0"
+            let obsolete = existing.filter { $0.metadata?[HKMetadataKeySyncIdentifier] as? String != wanted }
+            if !obsolete.isEmpty { try await store.delete(obsolete) }
+            return
+        }
         let desired = try makeSamples(record, namespace: namespace)
         // A matching version after reinstall is already exported. Do not recreate
         // missing members that the person deliberately deleted in Health.
@@ -93,6 +101,22 @@ final class HealthAdapter {
         let wanted = Set(desired.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
         let obsolete = existing.filter { !wanted.contains($0.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "") }
         if !obsolete.isEmpty { try await store.delete(obsolete) }
+    }
+    /// Builder completion persists the workout, so it must never be followed by save().
+    private func saveWorkout(_ record: HealthRecord, namespace: String) async throws {
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = record.payload.kind == "walk" ? .walking : record.payload.kind == "resistance" ? .traditionalStrengthTraining : .other
+        let builder = HKWorkoutBuilder(healthStore: store, configuration: configuration, device: nil)
+        do {
+            try await builder.beginCollection(at: record.startTs)
+            try await builder.addMetadata([
+                HKMetadataKeySyncIdentifier: "\(namespace).\(record.id).0",
+                HKMetadataKeySyncVersion: NSNumber(value: record.version),
+                Self.recordKey: record.id, Self.namespaceKey: namespace
+            ])
+            try await builder.endCollection(at: record.endTs)
+            _ = try await builder.finishWorkout()
+        } catch { builder.discardWorkout(); throw error }
     }
     private func makeSamples(_ r: HealthRecord, namespace: String) throws -> [HKSample] {
         func metadata(_ member: String) -> [String: Any] {
@@ -105,10 +129,6 @@ final class HealthAdapter {
                 guard interval.end > interval.start, interval.start >= r.startTs, interval.end <= r.endTs else { throw Failure.invalidRecord }
                 return HKCategorySample(type: type("sleep") as! HKCategoryType, value: HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, start: interval.start, end: interval.end, metadata: metadata(String(index)))
             }
-        case "workout":
-            guard r.endTs > r.startTs else { throw Failure.invalidRecord }
-            let activity: HKWorkoutActivityType = r.payload.kind == "walk" ? .walking : r.payload.kind == "resistance" ? .traditionalStrengthTraining : .other
-            return [HKWorkout(activityType: activity, start: r.startTs, end: r.endTs, duration: r.endTs.timeIntervalSince(r.startTs), totalEnergyBurned: nil, totalDistance: nil, metadata: metadata("0"))]
         case "steps":
             guard let count = r.payload.count, count > 0, r.endTs > r.startTs else { throw Failure.invalidRecord }
             return [HKQuantitySample(type: type("steps") as! HKQuantityType, quantity: HKQuantity(unit: .count(), doubleValue: Double(count)), start: r.startTs, end: r.endTs, metadata: metadata("0"))]

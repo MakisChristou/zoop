@@ -1,3 +1,4 @@
+import SnoopData
 import Charts
 import SwiftUI
 
@@ -12,11 +13,12 @@ struct StepsView: View {
         var days: Int { self == .week ? 7 : 30 }
     }
 
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     private let initialDay: Date?
     @State private var scope: Scope
     @State private var days: Loadable = .loading
     @State private var refreshID = 0
+    @State private var loadID = UUID()
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
 
     enum Loadable {
@@ -235,20 +237,22 @@ struct StepsView: View {
             return
         }
         if case .failed = days { days = .loading }
-        async let w: Void = model.activity.reload(device: model.strap.serial)
+        let serial = model.strap.serial, connection = Settings.connectionID
+        let request = UUID(); loadID = request
+        async let w: Void = model.activity.reload(device: serial)
         do {
-            days = .loaded(try await SnoopAPI.days(deviceId: model.strap.serial, limit: 31))
-        } catch {
+            let rows = try await SnoopAPI.days(deviceId: serial, limit: 31)
+            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection else { return }
+            days = .loaded(rows)
+        } catch is CancellationError { }
+        catch {
+            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection else { return }
             days = .failed(error.localizedDescription)
         }
         _ = try? await w
     }
 
     static func day(_ text: String) -> Date? {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: text)
+        DayKey.date(text)
     }
 }

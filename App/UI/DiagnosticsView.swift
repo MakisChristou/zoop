@@ -3,7 +3,7 @@ import SwiftUI
 /// Upload pipeline state: what is queued on the phone, what the server accepted, and
 /// the last error. Pushed from the profile sheet's Advanced group.
 struct DiagnosticsView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         List {

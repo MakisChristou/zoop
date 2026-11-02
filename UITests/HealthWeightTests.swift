@@ -2,7 +2,7 @@ import XCTest
 
 /// Uses only the synthetic UI-REVIEW backend. Physical Health permissions and
 /// background wake delivery remain a separate on-device acceptance check.
-final class HealthWeightTests: XCTestCase {
+@MainActor final class HealthWeightTests: XCTestCase {
     private func launch(large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28474", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]

@@ -3,6 +3,7 @@ import SwiftUI
 /// Server URL and token, with a connection test. Pushed from the profile sheet's
 /// Advanced group; the onboarding flow collects the same two values on first run.
 struct ServerSettingsView: View {
+    @Environment(AppModel.self) private var model
     @AppStorage(Settings.serverURLKey) private var serverURL = ""
     @AppStorage(Settings.ingestTokenKey) private var ingestToken = ""
     @State private var testResult: String?
@@ -33,7 +34,7 @@ struct ServerSettingsView: View {
             }
             Section("Setup") {
                 Button("Show the welcome guide again") {
-                    UserDefaults.standard.set(false, forKey: AppModel.onboardedKey)
+                    model.isOnboarded = false
                 }
             }
         }

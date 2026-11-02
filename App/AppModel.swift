@@ -1,20 +1,21 @@
-import Combine
+import Observation
 import Foundation
-import SwiftUI
 import SnoopSync
+import SnoopData
 
 /// Wires the strap manager to the local queue and the uploader.
 @MainActor
-final class AppModel: ObservableObject {
-    @Published private(set) var queued = 0
-    @Published private(set) var heldFrames = 0
-    @Published private(set) var processing: SnoopAPI.Processing?
-    @Published private(set) var processingError: String?
-    @Published private(set) var uploadStats = Uploader.Stats()
-    @Published private(set) var queueError: String?
-    @Published private(set) var isUploading = false
+@Observable
+final class AppModel {
+    private(set) var queued = 0
+    private(set) var heldFrames = 0
+    private(set) var processing: SnoopAPI.Processing?
+    private(set) var processingError: String?
+    private(set) var uploadStats = Uploader.Stats()
+    private(set) var queueError: String?
+    private(set) var isUploading = false
     /// Frames accepted by the most recent successful upload, for the status line.
-    @Published private(set) var lastBatchAccepted = 0
+    private(set) var lastBatchAccepted = 0
 
     let strap = StrapManager()
     let battery = BatteryMonitor()
@@ -22,73 +23,60 @@ final class AppModel: ObservableObject {
     let activity = WorkoutStore()
     let sleep = SleepStore()
     let health = HealthCoordinator()
-    @Published var analysisRevision = 0
-    @Published private(set) var analysisUpdating = false
+    var analysisRevision = 0
+    private(set) var analysisUpdating = false
     private static let analysisRefreshAttempts = 120
     private static let analysisRefreshDelay: Duration = .seconds(2)
     private var analysisRefresh: Task<Void, Never>?
-    private let queue: FrameQueue?
-    private let uploader: Uploader?
+    private let storage = FrameStorage()
+    private var uploader: Uploader?
+    private var storageReady = false
+    private var startRequested = false
+    private var analysisRequest = UUID()
     private var writer: FrameWriter?
     private var flushTimer: Timer?
-    private var cancellables: Set<AnyCancellable> = []
+    private var capturedSinceFlush = 0
+    private var flushScheduled = false
+    // Explicit, one-launch recovery after the owner of a pre-v2 backlog is confirmed.
+    private var recoverLegacyOnNextBinding = ProcessInfo.processInfo.arguments.contains("-recoverLegacyFrames")
 
     static let flushInterval: TimeInterval = 60
     static let onboardedKey = "onboarded"
 
-    var isOnboarded: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.onboardedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: Self.onboardedKey); objectWillChange.send() }
+    var isOnboarded = UserDefaults.standard.bool(forKey: AppModel.onboardedKey) {
+        didSet { UserDefaults.standard.set(isOnboarded, forKey: Self.onboardedKey) }
     }
 
-    init() {
-        do {
-            let queue = try FrameQueue(path: try FrameQueue.defaultPath())
-            self.queue = queue
-            uploader = Uploader(queue: queue)
-            queued = (try? queue.count()) ?? 0
-        } catch {
-            queue = nil
-            uploader = nil
-            queueError = "queue unavailable: \(error)"
-        }
-
-        if let queue {
-            writer = FrameWriter(save: { bytes, channel, at in
-                try queue.enqueue(bytes, channel: channel, receivedAt: at)
-            }, onFailure: { [weak self] error in
-                self?.queueError = "Storage paused: \(error.localizedDescription)"
-                self?.strap.pauseHistoryForStorage()
-            }, onRecovery: { [weak self] in
-                self?.queueError = nil
-                self?.strap.resumeHistoryAfterStorage()
-            })
-        }
+    init(servicesEnabled: Bool = true) {
+        guard servicesEnabled else { return }
+        Task { await openStorage() }
         strap.onFrame = { [weak self] bytes, channel, saved in
             guard let self, let writer = self.writer else {
                 self?.strap.pauseHistoryForStorage()
                 return
             }
-            writer.enqueue(bytes, channel: channel) { [weak self] in
+            writer.enqueue(bytes, channel: channel, sourceID: self.strap.storageOwner) { [weak self] in
                 saved()
                 guard let self else { return }
                 self.queued += 1
-                if self.queued - self.heldFrames >= Uploader.batchSize { Task { await self.flush() } }
+                self.capturedSinceFlush += 1
+                if self.capturedSinceFlush >= Uploader.batchSize, !self.flushScheduled, !self.isUploading {
+                    self.flushScheduled = true
+                    Task { await self.flush(); self.flushScheduled = false }
+                }
             }
         }
-        strap.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        battery.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        health.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        sleep.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        activity.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
-        workouts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
-        // Sessions are keyed by the strap serial, the id every upload and read uses.
-        strap.$serial
-            .filter { !$0.isEmpty }
-            .removeDuplicates()
-            .sink { [weak self] serial in self?.workouts.activate(device: serial); self?.health.activate(serial) }
-            .store(in: &cancellables)
+        strap.onSerial = { [weak self] serial in
+            guard let self else { return }
+            self.workouts.activate(device: serial)
+            self.health.activate(serial)
+            Task { await self.bindCurrentDevice() }
+        }
+        if !strap.serial.isEmpty {
+            workouts.activate(device: strap.serial)
+            health.activate(strap.serial)
+        }
         strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
         strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
         strap.onPackInfo = { [weak self] info, at, live, cached in
@@ -101,54 +89,117 @@ final class AppModel: ObservableObject {
             Task { @MainActor in await self?.flush() }
         }
 
-        if isOnboarded { strap.start() }
     }
 
-    /// Refresh projections after reset without creating a detection notification.
+    private func openStorage() async {
+        do {
+            let queue = try await storage.open()
+            uploader = Uploader(queue: queue)
+            writer = FrameWriter(save: { bytes, channel, at, source in
+                try queue.enqueue(bytes, channel: channel, receivedAt: at, sourceID: source)
+            }, onFailure: { [weak self] error in
+                self?.queueError = "Storage paused: \(error.localizedDescription)"
+                self?.strap.pauseHistoryForStorage()
+            }, onRecovery: { [weak self] in
+                self?.queueError = nil
+                self?.strap.resumeHistoryAfterStorage()
+            })
+            storageReady = true
+            await updateQueueCounts()
+            await bindCurrentDevice()
+            if isOnboarded || startRequested { strap.start() }
+        } catch { queueError = "queue unavailable: \(error)" }
+    }
+
+    func startStrap() {
+        startRequested = true
+        if storageReady { strap.start() }
+    }
+
+    private func bindCurrentDevice() async {
+        guard storageReady, let source = strap.storageOwner, !strap.serial.isEmpty else { return }
+        let recover = recoverLegacyOnNextBinding
+        recoverLegacyOnNextBinding = false
+        do {
+            try await storage.bind(sourceID: source, deviceID: strap.serial, adoptLegacy: recover)
+            if recover {
+                queueError = nil
+                await updateQueueCounts()
+                Task { await self.flush() }
+            }
+        } catch { queueError = error.localizedDescription }
+    }
+
+    private func updateQueueCounts() async {
+        guard let counts = try? await storage.counts() else { return }
+        queued = counts.queued; heldFrames = counts.held
+        if counts.unassigned > 0 { queueError = "\(counts.unassigned) older frames have no recorded device identity and are safely retained." }
+    }
+
+    /// Poll a small status response; reload complete projections only after analysis.
     func refreshAnalysis() {
         analysisRefresh?.cancel()
         sleep.dismissNotice(); activity.dismissNotice()
-        analysisUpdating = true
-        analysisRevision += 1
-        let device = strap.serial
+        analysisUpdating = true; analysisRevision += 1
+        let request = UUID(); analysisRequest = request
+        let device = strap.serial, connection = Settings.connectionID
         analysisRefresh = Task { [weak self] in
-            for _ in 0..<Self.analysisRefreshAttempts {
-                guard let self, !Task.isCancelled, self.strap.serial == device else { return }
-                try? await self.sleep.reload(device: device)
-                try? await self.activity.reload(device: device)
-                if let status = try? await SnoopAPI.processing(deviceId: device), status.pendingAnalysis == 0 {
-                    self.analysisUpdating = false
-                    self.analysisRevision += 1
-                    self.health.checkSoon()
-                    return
-                }
-                do { try await Task.sleep(for: Self.analysisRefreshDelay) } catch { return }
+            defer {
+                if let self, self.analysisRequest == request { self.analysisUpdating = false }
             }
+            guard let self else { return }
+            do {
+                let ready = try await RefreshPoller.wait(attempts: Self.analysisRefreshAttempts, delay: Self.analysisRefreshDelay) {
+                    guard self.strap.serial == device, Settings.connectionID == connection, self.analysisRequest == request else { throw CancellationError() }
+                    do { return try await SnoopAPI.processing(deviceId: device).pendingAnalysis == 0 }
+                    catch is CancellationError { throw CancellationError() }
+                    catch { self.processingError = error.localizedDescription; return false }
+                }
+                guard !Task.isCancelled, self.analysisRequest == request, self.strap.serial == device, Settings.connectionID == connection else { return }
+                guard ready else { self.processingError = "Analysis is still refreshing. Try again shortly."; return }
+                await SnoopAPI.invalidateReads()
+                async let nights: () = self.sleep.reload(device: device)
+                async let sessions: () = self.activity.reload(device: device)
+                _ = try await (nights, sessions)
+                guard !Task.isCancelled, self.analysisRequest == request else { return }
+                self.processingError = nil; self.analysisRevision += 1
+                self.health.checkSoon()
+            } catch is CancellationError { }
+            catch { if self.analysisRequest == request { self.processingError = error.localizedDescription } }
+
         }
     }
 
     func flush() async {
         writer?.retry()
-        guard let uploader, let queue, let baseURL = Settings.serverURL, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
+        guard let uploader, let baseURL = Settings.serverURL, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
+        let device = strap.serial, connection = Settings.connectionID
+        let token = Settings.ingestToken, model = strap.model, firmware = strap.firmware
+        await bindCurrentDevice()
+        guard !isUploading, strap.serial == device, Settings.connectionID == connection else { return }
+        capturedSinceFlush = 0
         isUploading = true
         defer { isUploading = false }
         let before = uploadStats.accepted
         let previousDuplicates = uploadStats.duplicates
-        uploadStats = await uploader.flush(deviceId: strap.serial, model: strap.model, firmware: strap.firmware, baseURL: baseURL, token: Settings.ingestToken)
+        let stats = await uploader.flush(deviceId: device, model: model, firmware: firmware, baseURL: baseURL, token: token)
+        guard strap.serial == device, Settings.connectionID == connection else { return }
+        uploadStats = stats
         lastBatchAccepted = uploadStats.accepted - before
         if lastBatchAccepted > 0 || uploadStats.duplicates > previousDuplicates { workouts.checkSoon() }
-        queued = (try? queue.count()) ?? queued
-        heldFrames = (try? queue.heldCount()) ?? heldFrames
+        await updateQueueCounts()
         do {
-            processing = try await SnoopAPI.processing(deviceId: strap.serial)
+            let status = try await SnoopAPI.processing(deviceId: device)
+            guard strap.serial == device, Settings.connectionID == connection else { return }
+            processing = status
             processingError = nil
-        } catch { processingError = error.localizedDescription }
+        } catch { if strap.serial == device, Settings.connectionID == connection { processingError = error.localizedDescription } }
         health.activate(strap.serial)
         health.checkSoon()
     }
 
     func retryHeldFrames() async {
-        do { try queue?.retryHeld(); await flush() }
+        do { try await storage.retryHeld(); await flush() }
         catch { queueError = error.localizedDescription }
     }
 

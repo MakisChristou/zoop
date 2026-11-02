@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import Foundation
 import OSLog
 import SnoopBattery
@@ -6,15 +6,16 @@ import UserNotifications
 
 /// Keeps battery observations and notification deduplication across app launches.
 @MainActor
-final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    @Published private(set) var state = BatteryState()
-    @Published private(set) var pack = PackBatteryState()
-    @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
-    @Published private(set) var notificationError: String?
-    @Published var openBattery = false
+@Observable
+final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
+    private(set) var state = BatteryState()
+    private(set) var pack = PackBatteryState()
+    private(set) var authorization: UNAuthorizationStatus = .notDetermined
+    private(set) var notificationError: String?
+    var openBattery = false
     /// Set from a tapped session notification; the Activity tab clears it once shown.
-    @Published var openWorkout: Int64?
-    @Published var openWeightScope: String?
+    var openWorkout: Int64?
+    var openWeightScope: String?
 
     private let defaults: UserDefaults
     private let center: UNUserNotificationCenter
@@ -236,16 +237,20 @@ final class BatteryMonitor: NSObject, ObservableObject, UNUserNotificationCenter
         completionHandler([.banner, .list, .sound])
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        Task { @MainActor in
-            let info = response.notification.request.content.userInfo
-            switch info["destination"] as? String {
-            case "battery": openBattery = true
-            case "weight": openWeightScope = info["scope"] as? String
-            case "workout": openWorkout = (info["id"] as? NSNumber)?.int64Value
-            default: break
-            }
-            completionHandler()
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let info = response.notification.request.content.userInfo
+        let destination = info["destination"] as? String
+        let scope = info["scope"] as? String
+        let id = (info["id"] as? NSNumber)?.int64Value
+        await openNotification(destination: destination, scope: scope, id: id)
+    }
+
+    private func openNotification(destination: String?, scope: String?, id: Int64?) {
+        switch destination {
+        case "battery": openBattery = true
+        case "weight": openWeightScope = scope
+        case "workout": openWorkout = id
+        default: break
         }
     }
 }

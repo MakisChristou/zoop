@@ -1,7 +1,7 @@
 import XCTest
 
 /// Uses only the isolated fake UI-REVIEW readings from the backend fixture.
-final class SleepCorrectionsTests: XCTestCase {
+@MainActor final class SleepCorrectionsTests: XCTestCase {
     private func launch(device: String = "UI-REVIEW") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", device, "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28472", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "sleep"]

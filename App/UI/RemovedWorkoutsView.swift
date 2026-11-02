@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RemovedWorkoutsView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var rows: [SnoopAPI.Workout] = []
     @State private var loading = true
     @State private var restoring: Int64?

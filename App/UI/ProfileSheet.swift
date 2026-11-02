@@ -7,7 +7,7 @@ struct ProfileSheet: View {
         case body, device, advanced, server, diagnostics, health
     }
 
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var path: [Page] = []
     private let open: Page?

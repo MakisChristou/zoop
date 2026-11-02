@@ -2,7 +2,7 @@ import SwiftUI
 import SnoopHealth
 
 struct AppleHealthView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var steps = false
     @State private var importWeight = true
     @State private var exportWeight = false

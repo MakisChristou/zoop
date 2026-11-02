@@ -2,7 +2,7 @@ import SwiftUI
 import SnoopHealth
 
 struct WeightHistoryView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var editing: WeightReading?
     @State private var removing: WeightReading?

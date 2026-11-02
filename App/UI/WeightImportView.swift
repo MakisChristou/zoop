@@ -8,7 +8,7 @@ struct WeightImportView: View {
         let namespace: String
         let retry: Int
     }
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var all = true

@@ -12,7 +12,7 @@ public final class FrameQueue: @unchecked Sendable {
         public let receivedAt: Date
         public let bytes: [UInt8]
     }
-    public struct Resolution {
+    public struct Resolution: Sendable {
         public let rowId: Int64
         public let holdReason: String?
         public init(rowId: Int64, holdReason: String? = nil) { self.rowId = rowId; self.holdReason = holdReason }
@@ -46,6 +46,14 @@ public final class FrameQueue: @unchecked Sendable {
                     try exec("PRAGMA user_version=1;")
                 }
             }
+            if try scalar("PRAGMA user_version") < 2 {
+                try transaction {
+                    try exec("ALTER TABLE frames ADD COLUMN source_id TEXT;")
+                    try exec("CREATE TABLE device_bindings(source_id TEXT PRIMARY KEY,device_id TEXT NOT NULL);")
+                    try exec("CREATE INDEX frames_source_pending ON frames(source_id,id) WHERE held_reason IS NULL;")
+                    try exec("PRAGMA user_version=2;")
+                }
+            }
         } catch { sqlite3_close(db); closed = true; throw error }
     }
     deinit { if !closed { sqlite3_close(db) } }
@@ -56,28 +64,35 @@ public final class FrameQueue: @unchecked Sendable {
     }
 
     @discardableResult
-    public func enqueue(_ bytes: [UInt8], channel: Int, receivedAt: Date = Date()) throws -> Int64 {
+    public func enqueue(_ bytes: [UInt8], channel: Int, receivedAt: Date = Date(), sourceID: String? = nil) throws -> Int64 {
         lock.lock(); defer { lock.unlock() }
         return try transaction {
             try exec("UPDATE counters SET value=value+1 WHERE name='client_seq'")
             let seq = try scalar("SELECT value FROM counters WHERE name='client_seq'")
-            let stmt = try prepare("INSERT INTO frames(client_seq,channel,received_at,bytes,upload_id) VALUES(?,?,?,?,?)")
+            let stmt = try prepare("INSERT INTO frames(client_seq,channel,received_at,bytes,upload_id,source_id) VALUES(?,?,?,?,?,?)")
             defer { sqlite3_finalize(stmt) }
             sqlite3_bind_int64(stmt, 1, seq)
             sqlite3_bind_int(stmt, 2, Int32(channel))
             sqlite3_bind_double(stmt, 3, receivedAt.timeIntervalSince1970)
             _ = bytes.withUnsafeBytes { sqlite3_bind_blob(stmt, 4, $0.baseAddress, Int32($0.count), transient) }
             sqlite3_bind_text(stmt, 5, UUID().uuidString.lowercased(), -1, transient)
+            if let sourceID { sqlite3_bind_text(stmt, 6, sourceID, -1, transient) }
             try done(stmt)
             return seq
         }
     }
 
-    public func peek(limit: Int) throws -> [Row] {
+    public func peek(limit: Int, deviceID: String? = nil) throws -> [Row] {
         lock.lock(); defer { lock.unlock() }
-        let stmt = try prepare("SELECT id,client_seq,channel,received_at,bytes,upload_id FROM frames WHERE held_reason IS NULL ORDER BY id LIMIT ?")
+        let sql = deviceID == nil
+            ? "SELECT id,client_seq,channel,received_at,bytes,upload_id FROM frames WHERE held_reason IS NULL ORDER BY id LIMIT ?"
+            : "SELECT id,client_seq,channel,received_at,bytes,upload_id FROM frames WHERE held_reason IS NULL AND source_id IN (SELECT source_id FROM device_bindings WHERE device_id=?) ORDER BY id LIMIT ?"
+        let stmt = try prepare(sql)
         defer { sqlite3_finalize(stmt) }
-        sqlite3_bind_int(stmt, 1, Int32(limit))
+        if let deviceID {
+            sqlite3_bind_text(stmt, 1, deviceID, -1, transient)
+            sqlite3_bind_int(stmt, 2, Int32(limit))
+        } else { sqlite3_bind_int(stmt, 1, Int32(limit)) }
         var rows: [Row] = []
         while true {
             let step = sqlite3_step(stmt)
@@ -92,6 +107,31 @@ public final class FrameQueue: @unchecked Sendable {
                 channel: Int(sqlite3_column_int(stmt, 2)),
                 receivedAt: Date(timeIntervalSince1970: sqlite3_column_double(stmt, 3)), bytes: bytes))
         }
+    }
+
+    /// A peripheral identity is bound once to its reported serial. Never relabel a backlog.
+    public func bind(sourceID: String, deviceID: String, adoptLegacy: Bool = false) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard !sourceID.isEmpty, !deviceID.isEmpty else { throw QueueError.sql("Missing frame owner") }
+        try transaction {
+            let insert = try prepare("INSERT INTO device_bindings(source_id,device_id) VALUES(?,?) ON CONFLICT DO NOTHING")
+            defer { sqlite3_finalize(insert) }
+            sqlite3_bind_text(insert, 1, sourceID, -1, transient); sqlite3_bind_text(insert, 2, deviceID, -1, transient)
+            try done(insert)
+            let check = try prepare("SELECT device_id FROM device_bindings WHERE source_id=?")
+            defer { sqlite3_finalize(check) }; sqlite3_bind_text(check, 1, sourceID, -1, transient)
+            guard sqlite3_step(check) == SQLITE_ROW, let value = sqlite3_column_text(check, 0), String(cString: value) == deviceID else {
+                throw QueueError.sql("Saved frames belong to a different WHOOP")
+            }
+            if adoptLegacy {
+                let update = try prepare("UPDATE frames SET source_id=? WHERE source_id IS NULL")
+                defer { sqlite3_finalize(update) }; sqlite3_bind_text(update, 1, sourceID, -1, transient); try done(update)
+            }
+        }
+    }
+    public func unassignedCount() throws -> Int {
+        lock.lock(); defer { lock.unlock() }
+        return Int(try scalar("SELECT count(*) FROM frames WHERE source_id IS NULL"))
     }
 
     /// All receipts from one validated response are applied atomically. Held rows

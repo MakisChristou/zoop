@@ -1,9 +1,10 @@
+import SnoopData
 import Foundation
 
 /// Read side of the snoop-api server: nights, days, minutes, sessions, steps and the
 /// body profile. Every call is one request helper plus a decodable type.
 enum SnoopAPI {
-    struct Processing: Decodable {
+    struct Processing: Decodable, Sendable {
         let pendingDecode: Int
         let decodeFailures: Int
         let pendingAnalysis: Int
@@ -18,8 +19,8 @@ enum SnoopAPI {
         try await get("v1/devices/\(deviceId)/processing")
     }
 
-    struct Night: Decodable, Identifiable {
-        struct Window: Decodable {
+    struct Night: Decodable, Identifiable, Sendable {
+        struct Window: Decodable, Sendable {
             let onset: Date
             let offset: Date
             let timeInBedS: Int
@@ -30,7 +31,7 @@ enum SnoopAPI {
             let disturbances: Int
         }
 
-        struct Physiology: Decodable {
+        struct Physiology: Decodable, Sendable {
             let restingHr: Double?
             let hrvRmssdMs: Double?
             let hrvWindows: Int
@@ -40,7 +41,7 @@ enum SnoopAPI {
             let spo2Windows: Int
         }
 
-        struct StageSummary: Decodable {
+        struct StageSummary: Decodable, Sendable {
             let wakeS: Int
             let lightS: Int
             let deepS: Int
@@ -51,18 +52,18 @@ enum SnoopAPI {
             let epochsWithCardiac: Int
         }
 
-        struct Metrics: Decodable {
+        struct Metrics: Decodable, Sendable {
             let window: Window
             let physiology: Physiology
             let stages: StageSummary?
             let naps: [Window]
         }
 
-        enum Stage: String, Decodable {
+        enum Stage: String, Decodable, Sendable {
             case wake, light, deep, rem
         }
 
-        struct Segment: Decodable {
+        struct Segment: Decodable, Sendable {
             let stage: Stage
             let start: Date
             let end: Date
@@ -78,7 +79,7 @@ enum SnoopAPI {
         var id: String { "\(nightOf)-\(algoVersion)" }
     }
 
-    struct Day: Decodable, Identifiable {
+    struct Day: Decodable, Identifiable, Sendable {
         let day: String
         let steps: Int?
         let stepsWalking: Int?
@@ -99,7 +100,7 @@ enum SnoopAPI {
         var id: String { day }
     }
 
-    struct Minute: Decodable, Identifiable {
+    struct Minute: Decodable, Identifiable, Sendable {
         let ts: Date
         let hr: Int?
         let hrMin: Int?
@@ -112,7 +113,7 @@ enum SnoopAPI {
         var id: Date { ts }
     }
 
-    struct Epoch: Decodable, Identifiable {
+    struct Epoch: Decodable, Identifiable, Sendable {
         let start: Date
         let hr: Double?
         let hrVariability: Double?
@@ -125,7 +126,7 @@ enum SnoopAPI {
 
     /// A detected session. `kind` is the user's label when one exists, otherwise the
     /// detector's `detectedKind`.
-    struct Workout: Decodable, Identifiable, Hashable {
+    struct Workout: Decodable, Identifiable, Hashable, Sendable {
         let id: Int64
         let startTs: Date
         let endTs: Date
@@ -157,8 +158,8 @@ enum SnoopAPI {
     }
 
     /// Steps through one local day.
-    struct StepsDay: Decodable {
-        struct Bout: Decodable, Identifiable {
+    struct StepsDay: Decodable, Sendable {
+        struct Bout: Decodable, Identifiable, Sendable {
             let start: Date
             let end: Date
             let durationS: Int
@@ -178,7 +179,7 @@ enum SnoopAPI {
     }
 
     /// Body profile for calories and zones, and the home time zone days are cut in.
-    struct Profile: Codable {
+    struct Profile: Codable, Sendable {
         var sex: String?
         var birthYear: Int?
         var weightKg: Double?
@@ -188,8 +189,8 @@ enum SnoopAPI {
         static var empty: Profile { Profile(sex: nil, birthYear: nil, weightKg: nil, heightCm: nil, tz: TimeZone.current.identifier) }
     }
 
-    private struct ErrorResponse: Decodable {
-        struct Detail: Decodable { let message: String }
+    private struct ErrorResponse: Decodable, Sendable {
+        struct Detail: Decodable, Sendable { let message: String }
         let error: Detail
     }
 
@@ -216,15 +217,15 @@ enum SnoopAPI {
 
     /// Minute buckets for one local calendar day.
     static func minutes(deviceId: String, day: Date) async throws -> [Minute] {
-        try await get("v1/devices/\(deviceId)/days/\(dayString(day))", query: ["tz": TimeZone.current.identifier])
+        try await get("v1/devices/\(deviceId)/days/\(dayString(day))", query: ["tz": TimeZone.current.identifier], maxAge: 10)
     }
 
     static func days(deviceId: String, limit: Int = 14) async throws -> [Day] {
-        try await get("v1/devices/\(deviceId)/days", query: ["limit": String(limit), "tz": TimeZone.current.identifier])
+        try await get("v1/devices/\(deviceId)/days", query: ["limit": String(limit), "tz": TimeZone.current.identifier], maxAge: 10)
     }
 
-    static func nights(deviceId: String, limit: Int = 14) async throws -> [Night] {
-        try await get("v1/devices/\(deviceId)/sleeps", query: ["limit": String(limit)])
+    static func nights(deviceId: String, limit: Int = 14, summary: Bool = false) async throws -> [Night] {
+        try await get("v1/devices/\(deviceId)/sleeps", query: ["limit": String(limit), "summary": String(summary)], maxAge: 10)
     }
 
     /// Detected sessions, newest first.
@@ -264,7 +265,7 @@ enum SnoopAPI {
 
     /// Hourly steps and walking bouts for one local day.
     static func steps(deviceId: String, day: Date) async throws -> StepsDay {
-        try await get("v1/devices/\(deviceId)/days/\(dayString(day))/steps", query: ["tz": TimeZone.current.identifier])
+        try await get("v1/devices/\(deviceId)/days/\(dayString(day))/steps", query: ["tz": TimeZone.current.identifier], maxAge: 10)
     }
 
     /// The body profile, or nil when none has been entered yet.
@@ -278,8 +279,8 @@ enum SnoopAPI {
 
     // MARK: - Plumbing
 
-    static func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
-        try await perform(request(path, query: query))
+    static func get<T: Decodable>(_ path: String, query: [String: String] = [:], maxAge: TimeInterval = 0) async throws -> T {
+        try await perform(request(path, query: query), maxAge: maxAge)
     }
 
     static func send<T: Decodable, B: Encodable>(_ path: String, method: String, body: B) async throws -> T {
@@ -290,7 +291,15 @@ enum SnoopAPI {
         encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.dateEncodingStrategy = .iso8601
         request.httpBody = try encoder.encode(body)
-        return try await perform(request)
+        await reads.invalidate(cancelInFlight: false)
+        do {
+            let value: T = try await perform(request)
+            await reads.invalidate(cancelInFlight: false)
+            return value
+        } catch {
+            await reads.invalidate(cancelInFlight: false)
+            throw error
+        }
     }
 
     private static func request(_ path: String, query: [String: String] = [:]) throws -> URLRequest {
@@ -305,8 +314,19 @@ enum SnoopAPI {
         return request
     }
 
-    private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
+    private static let reads = ReadClient()
+    static func invalidateReads() async { await reads.invalidate(cancelInFlight: false) }
+
+    private static func perform<T: Decodable>(_ request: URLRequest, maxAge: TimeInterval = 0) async throws -> T {
+        let data: Data
+        let response: URLResponse
+        if request.httpMethod == nil || request.httpMethod == "GET" {
+            let result = try await reads.data(for: request, maxAge: maxAge)
+            data = result.data; response = result.response
+        } else {
+            (data, response) = try await URLSession.shared.data(for: request)
+        }
+        try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if let body = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
@@ -314,31 +334,8 @@ enum SnoopAPI {
             }
             throw Failure.http(status)
         }
-        return try decoder().decode(T.self, from: data)
+        return try PerformanceTrace.measure("API decode") { try APIDateCoding.decoder().decode(T.self, from: data) }
     }
 
-    private static func dayString(_ day: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: day)
-    }
-
-    private static func decoder() -> JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let text = try decoder.singleValueContainer().decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: text) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            guard let date = formatter.date(from: text) else {
-                throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "bad date \(text)")
-            }
-            return date
-        }
-        return decoder
-    }
+    private static func dayString(_ day: Date) -> String { DayKey.string(day) }
 }

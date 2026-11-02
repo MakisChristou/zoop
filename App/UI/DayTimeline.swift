@@ -97,9 +97,6 @@ struct DayTimeline: View {
                     .foregroundStyle(SnoopStyle.heartRate)
                     .lineStyle(StrokeStyle(lineWidth: 1.2))
             }
-            if let now {
-                RuleMark(x: .value("Now", now)).foregroundStyle(.secondary.opacity(0.4)).lineStyle(StrokeStyle(dash: [3, 3]))
-            }
             if let m = selected {
                 RuleMark(x: .value("Scrub", m.ts)).foregroundStyle(.primary.opacity(0.6))
                 if let hr = m.hr {
@@ -114,6 +111,16 @@ struct DayTimeline: View {
         .frame(height: 150)
         .chartOverlay { proxy in
             GeometryReader { geo in
+                if now != nil, let plot = proxy.plotFrame {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        if let x = proxy.position(forX: context.date) {
+                            Path { path in
+                                path.move(to: CGPoint(x: geo[plot].minX + x, y: geo[plot].minY))
+                                path.addLine(to: CGPoint(x: geo[plot].minX + x, y: geo[plot].maxY))
+                            }.stroke(.secondary.opacity(0.4), style: StrokeStyle(dash: [3, 3]))
+                        }
+                    }.allowsHitTesting(false)
+                }
                 Rectangle().fill(.clear).contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 0)

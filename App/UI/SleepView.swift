@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SleepView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Binding var selected: SnoopAPI.Night?
     @State private var selectedDay = Date()
     @State private var editor: SleepEditorMode?

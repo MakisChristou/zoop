@@ -5,22 +5,23 @@ import Foundation
 /// A failed write keeps that frame and everything behind it pending for retry.
 public final class FrameWriter: @unchecked Sendable {
     private struct Pending {
-        let bytes: [UInt8]; let channel: Int; let at: Date; let completion: () -> Void
+        let bytes: [UInt8]; let channel: Int; let at: Date; let sourceID: String?; let completion: @MainActor @Sendable () -> Void
     }
     private let worker = DispatchQueue(label: "snoop.frame-writer")
-    private let save: ([UInt8], Int, Date) throws -> Void
-    private let onFailure: (Error) -> Void
-    private let onRecovery: () -> Void
+    private let save: @Sendable ([UInt8], Int, Date, String?) throws -> Void
+    private let onFailure: @MainActor @Sendable (Error) -> Void
+    private let onRecovery: @MainActor @Sendable () -> Void
     private var pending: [Pending] = []
     private var paused = false
+    private var head = 0
 
-    public init(save: @escaping ([UInt8], Int, Date) throws -> Void,
-                onFailure: @escaping (Error) -> Void, onRecovery: @escaping () -> Void) {
+    public init(save: @escaping @Sendable ([UInt8], Int, Date, String?) throws -> Void,
+                onFailure: @escaping @MainActor @Sendable (Error) -> Void, onRecovery: @escaping @MainActor @Sendable () -> Void) {
         self.save = save; self.onFailure = onFailure; self.onRecovery = onRecovery
     }
-    public func enqueue(_ bytes: [UInt8], channel: Int, at: Date = Date(), completion: @escaping () -> Void) {
+    public func enqueue(_ bytes: [UInt8], channel: Int, at: Date = Date(), sourceID: String? = nil, completion: @escaping @MainActor @Sendable () -> Void) {
         worker.async {
-            self.pending.append(Pending(bytes: bytes, channel: channel, at: at, completion: completion))
+            self.pending.append(Pending(bytes: bytes, channel: channel, at: at, sourceID: sourceID, completion: completion))
             if !self.paused { self.drain() }
         }
     }
@@ -33,15 +34,17 @@ public final class FrameWriter: @unchecked Sendable {
         }
     }
     private func drain() {
-        while let frame = pending.first {
-            do { try save(frame.bytes, frame.channel, frame.at) }
+        while head < pending.count {
+            let frame = pending[head]
+            do { try save(frame.bytes, frame.channel, frame.at, frame.sourceID) }
             catch {
                 paused = true
                 DispatchQueue.main.async { self.onFailure(error) }
                 return
             }
-            pending.removeFirst()
+            head += 1
             DispatchQueue.main.async(execute: frame.completion)
         }
+        pending.removeAll(keepingCapacity: true); head = 0
     }
 }

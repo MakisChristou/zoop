@@ -2,7 +2,7 @@ import Foundation
 
 /// Ships queued frames to snoop-api in batches. Rows leave the queue only after a matching stored or duplicate receipt.
 public actor Uploader {
-    public struct Stats: Equatable {
+    public struct Stats: Equatable, Sendable {
         public var accepted = 0
         public var duplicates = 0
         public var rejected = 0
@@ -72,7 +72,7 @@ public actor Uploader {
 
         while true {
             let rows: [FrameQueue.Row]
-            do { rows = try queue.peek(limit: Self.batchSize) } catch {
+            do { rows = try queue.peek(limit: Self.batchSize, deviceID: deviceId) } catch {
                 stats.lastError = "queue: \(error)"
                 return stats
             }

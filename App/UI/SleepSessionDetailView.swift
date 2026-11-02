@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SleepSessionDetailView: View {
     let initial: SnoopAPI.SleepSession
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var snapshot: SnoopAPI.SleepSession?
     @State private var editor: SleepEditorMode?
     @State private var reset = false

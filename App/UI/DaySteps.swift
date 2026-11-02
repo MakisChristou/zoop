@@ -8,7 +8,8 @@ struct DaySteps: View {
     private var workouts: [SnoopAPI.Workout] { model.activity.items }
     var refreshID = 0
 
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
+    @State private var loadID = UUID()
     @State private var state: Loadable = .loading
     @State private var selectedHour: Double?
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
@@ -113,7 +114,15 @@ struct DaySteps: View {
     private func load() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { state = .failed; return }
         if case .failed = state { state = .loading }
-        do { state = .loaded(try await SnoopAPI.steps(deviceId: model.strap.serial, day: day)) }
-        catch { state = .failed }
+        let request = UUID(); loadID = request
+        let serial = model.strap.serial, connection = Settings.connectionID, date = day
+        do {
+            let rows = try await SnoopAPI.steps(deviceId: serial, day: date)
+            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
+            state = .loaded(rows)
+        } catch {
+            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
+            state = .failed
+        }
     }
 }

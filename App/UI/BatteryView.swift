@@ -4,7 +4,7 @@ import SwiftUI
 import UserNotifications
 
 struct BatteryView: View {
-    @EnvironmentObject private var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let refresh = Timer.publish(every: 30, on: .main, in: .common).autoconnect()

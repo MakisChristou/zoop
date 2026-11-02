@@ -1,14 +1,15 @@
 import Foundation
+import SnoopData
 
 /// One server-calculated brief and the measurements behind it.
-struct MorningInsights: Decodable {
-    struct Point: Decodable, Identifiable {
+struct MorningInsights: Decodable, Sendable {
+    struct Point: Decodable, Identifiable, Sendable {
         let day: String
         let value: Double?
         var id: String { day }
-        var date: Date { StepsView.day(day) ?? .distantPast }
+        var date: Date { DayKey.date(day) ?? .distantPast }
     }
-    struct Baseline: Decodable {
+    struct Baseline: Decodable, Sendable {
         let state: String
         let count: Int
         let from: String
@@ -24,18 +25,18 @@ struct MorningInsights: Decodable {
             }
         }
     }
-    struct Week: Decodable {
+    struct Week: Decodable, Sendable {
         let count: Int
         let average: Double?
         let previousAverage: Double?
     }
-    struct Outlook: Decodable {
+    struct Outlook: Decodable, Sendable {
         let state: String
         let level: Int?
         let baselineCount: Int
         let baselineRequired: Int
     }
-    struct Comparison: Decodable {
+    struct Comparison: Decodable, Sendable {
         let delta: Double
         let unit: String
         let signal: String?
@@ -59,7 +60,7 @@ struct MorningInsights: Decodable {
             }
         }
     }
-    struct Metric: Decodable, Identifiable {
+    struct Metric: Decodable, Identifiable, Sendable {
         let key: String
         let value: Double?
         let quality: String
@@ -99,7 +100,7 @@ struct MorningInsights: Decodable {
             }
         }
     }
-    struct Timing: Decodable {
+    struct Timing: Decodable, Sendable {
         let count: Int
         let asleepSdMin: Double?
         let wakeSdMin: Double?
