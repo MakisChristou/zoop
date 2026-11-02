@@ -7,83 +7,24 @@ import SwiftUI
 /// Sections say what they need instead of drawing a line through one point.
 struct TrendsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var nights: [SnoopAPI.Night] = []
-    @State private var days: [SnoopAPI.Day] = []
-    @State private var error: String?
-    @State private var requestID = UUID()
-    @State private var series: [Metric: TrendSeries] = [:]
-    @State private var sleepByDay: [Date: Double] = [:]
-    @State private var metric: Metric = .sleep
-    @State private var range: Range = .month
+    @State private var history = TrendStore()
+    @State private var metric: TrendMetric = .sleep
+    @State private var range: TrendRange = .month
     @State private var detailDay: Date?
     @State private var detailNight: SnoopAPI.Night?
     @State private var showNight = false
-
-    enum Range: String, CaseIterable, Identifiable {
-        case week = "7 days", month = "30 days", quarter = "90 days", all = "Year"
-        var id: String { rawValue }
-        var days: Int {
-            switch self {
-            case .week: 7
-            case .month: 30
-            case .quarter: 90
-            case .all: 365
-            }
-        }
-    }
-
-    enum Metric: String, CaseIterable, Identifiable {
-        case sleep = "Sleep", restingHr = "Resting HR", hrv = "HRV", breathing = "Breathing", skinTemp = "Skin temp", steps = "Steps", efficiency = "Efficiency"
-        var id: String { rawValue }
-        var unit: String {
-            switch self {
-            case .sleep: "h"
-            case .restingHr: "bpm"
-            case .hrv: "ms"
-            case .breathing: "/min"
-            case .skinTemp: "°C"
-            case .steps: ""
-            case .efficiency: "%"
-            }
-        }
-        var decimals: Int {
-            switch self {
-            case .sleep, .breathing, .skinTemp: 1
-            default: 0
-            }
-        }
-        var color: Color {
-            switch self {
-            case .sleep: SnoopStyle.sleep
-            case .restingHr: SnoopStyle.heartRate
-            case .hrv: SnoopStyle.sleep
-            case .breathing: SnoopStyle.steps
-            case .skinTemp: SnoopStyle.temperature
-            case .steps: SnoopStyle.steps
-            case .efficiency: SnoopStyle.sleep
-            }
-        }
-        /// Whether a higher value is good, for the delta colour.
-        var higherIsBetter: Bool? {
-            switch self {
-            case .sleep, .hrv, .efficiency: true
-            case .restingHr: false
-            default: nil
-            }
-        }
-    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     chips
-                    TrendChartCard(metric: metric, series: series[metric] ?? TrendSeries([]), open: openReading)
-                        .id("\(metric.rawValue)-\(range.rawValue)")
-                    sleepHeatStrip
+                    TrendChartCard(metric: metric, range: range, series: history.snapshot.series(metric, range: range), open: openReading)
+                    TrendSleepHeatStrip(byDay: sleepByDay, nightCount: nights.count, today: Calendar.current.startOfDay(for: Date()), calendar: .current).equatable()
                     weekdayPattern
-                    if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                    if let error = history.error { Text(error).font(.footnote).foregroundStyle(.red) }
                 }
                 .padding(.horizontal, SnoopStyle.gutter)
                 .padding(.bottom, 24)
@@ -98,50 +39,17 @@ struct TrendsView: View {
             }
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .refreshable { await SnoopAPI.invalidateReads(); await load() }
-            .task(id: "\(model.strap.serial)-\(range.rawValue)-\(model.sleep.changeToken)-\(model.analysisRevision)") { await load() }
-        }
-    }
-
-    // MARK: - Data shaping
-
-    private var points: [TrendPoint] { series[metric]?.points ?? [] }
-
-    /// One preparation per data/range change; chart updates only read these values.
-    private func prepare() {
-        PerformanceTrace.measure("Trend preparation") { prepareSeries() }
-    }
-
-    private func prepareSeries() {
-        let calendar = Calendar.current
-        let cutoff = calendar.date(byAdding: .day, value: -range.days, to: Date())!
-        var result: [Metric: TrendSeries] = [:]
-        for metric in Metric.allCases {
-            let points: [TrendPoint]
-            if metric == .steps {
-                points = days.compactMap { day in
-                    guard let date = DayKey.date(day.day), date >= cutoff, let value = day.stepsWalking else { return nil }
-                    return TrendPoint(date: date, value: Double(value))
-                }
-            } else {
-                points = nights.compactMap { night in
-                    guard night.endTs >= cutoff else { return nil }
-                    let value: Double? = switch metric {
-                    case .sleep: Double(night.metrics.window.asleepS) / 3600
-                    case .restingHr: night.metrics.physiology.restingHr
-                    case .hrv: night.metrics.physiology.hrvRmssdMs
-                    case .breathing: night.metrics.physiology.respiratoryRate
-                    case .skinTemp: night.metrics.physiology.skinTempC
-                    case .efficiency: night.metrics.window.efficiency * 100
-                    case .steps: nil
-                    }
-                    return value.map { TrendPoint(date: night.endTs, value: $0) }
-                }
+            .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
+                if scenePhase == .active { await load() }
             }
-            result[metric] = TrendSeries(points, calendar: calendar)
         }
-        series = result
-        sleepByDay = Dictionary(nights.map { (calendar.startOfDay(for: $0.endTs), Double($0.metrics.window.asleepS) / 3600) }, uniquingKeysWith: { a, _ in a })
     }
+
+    // All ranges come from one prepared snapshot. A picker tap only selects a value.
+    private var nights: [SnoopAPI.Night] { history.snapshot.nights }
+    private var days: [SnoopAPI.Day] { history.snapshot.days }
+    private var points: [TrendPoint] { history.snapshot.series(metric, range: range).points }
+    private var sleepByDay: [Date: Double] { history.snapshot.sleepByDay }
 
     // MARK: - Sections
 
@@ -149,7 +57,7 @@ struct TrendsView: View {
         VStack(alignment: .leading, spacing: 10) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Metric.allCases) { m in
+                    ForEach(TrendMetric.allCases) { m in
                         Button { metric = m } label: {
                             Text(m.rawValue)
                                 .font(.subheadline.weight(.medium))
@@ -164,60 +72,10 @@ struct TrendsView: View {
                 }
             }
             Picker("Range", selection: $range) {
-                ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
         }
-    }
-
-    /// Eight weeks of sleep duration, one cell per night, Monday-first columns.
-    private var sleepHeatStrip: some View {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let weeks = 8
-        let startOfThisWeek = cal.dateInterval(of: .weekOfYear, for: today)!.start
-        let gridStart = cal.date(byAdding: .weekOfYear, value: -(weeks - 1), to: startOfThisWeek)!
-        let byDay = sleepByDay
-        let symbols = cal.veryShortStandaloneWeekdaySymbols
-        let first = cal.firstWeekday
-        let labels = (0..<7).map { symbols[($0 + first - 1) % 7] }
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Sleep, last \(weeks) weeks").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-                Spacer()
-                HStack(spacing: 3) {
-                    Text("<5h").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-                    ForEach(0..<5) { i in RoundedRectangle(cornerRadius: 2).fill(SnoopStyle.sleep.opacity(0.15 + Double(i) * 0.2)).frame(width: 10, height: 10) }
-                    Text("8h+").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-                }
-            }
-            HStack(spacing: 4) {
-                ForEach(0..<7, id: \.self) { col in
-                    VStack(spacing: 4) {
-                        Text(labels[col]).font(.caption2).foregroundStyle(SnoopStyle.secondary)
-                        ForEach(0..<weeks, id: \.self) { row in
-                            let date = cal.date(byAdding: .day, value: row * 7 + col, to: gridStart)!
-                            let hours = byDay[date]
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(cell(hours, future: date > today))
-                                .frame(height: 14)
-                        }
-                    }
-                }
-            }
-            if nights.count < 7 {
-                Text("Fills in night by night. \(nights.count) so far.").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-            }
-        }
-        .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-    }
-
-    private func cell(_ hours: Double?, future: Bool) -> Color {
-        if future { return .clear }
-        guard let hours else { return Color.secondary.opacity(0.08) }
-        let t = min(max((hours - 4) / 4.5, 0), 1)
-        return SnoopStyle.sleep.opacity(0.15 + t * 0.8)
     }
 
     /// Average of the metric by weekday, once a fortnight of data exists.
@@ -227,7 +85,7 @@ struct TrendsView: View {
         let symbols = cal.shortStandaloneWeekdaySymbols
         let order = (0..<7).map { ($0 + cal.firstWeekday - 1) % 7 + 1 }
         let bars: [(String, Double)] = order.compactMap { wd in
-            guard let value = series[metric]?.weekdays[wd] else { return nil }
+            guard let value = history.snapshot.series(metric, range: range).weekdays[wd] else { return nil }
             return (symbols[wd - 1], value)
         }
         return VStack(alignment: .leading, spacing: 8) {
@@ -270,22 +128,9 @@ struct TrendsView: View {
     }
 
     private func load() async {
-        let serial = model.strap.serial, selectedRange = range, connection = Settings.connectionID
-        let request = UUID(); requestID = request
-        guard !serial.isEmpty else { error = "Connect your WHOOP to load trends."; return }
-        prepare()
-        do {
-            async let n = SnoopAPI.nights(deviceId: serial, limit: max(selectedRange.days, 56), summary: true)
-            async let d = SnoopAPI.days(deviceId: serial, limit: selectedRange.days)
-            let (loadedNights, loadedDays) = try await (n, d)
-            guard !Task.isCancelled, requestID == request, model.strap.serial == serial,
-                  range == selectedRange, Settings.connectionID == connection else { return }
-            nights = loadedNights; days = loadedDays
-            prepare(); error = nil
-        } catch is CancellationError { }
-        catch {
-            guard !Task.isCancelled, requestID == request else { return }
-            self.error = error.localizedDescription
+        let device = model.strap.serial, connection = Settings.connectionID
+        await history.reload(device: device, connection: connection) {
+            model.strap.serial == device && Settings.connectionID == connection
         }
     }
 }

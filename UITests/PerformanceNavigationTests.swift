@@ -23,7 +23,7 @@ import XCTest
         app.buttons["HRV"].tap()
         shot(app,"Trends HRV")
         let options = XCTMeasureOptions(); options.iterationCount = 3
-        measure(metrics: [XCTOSSignpostMetric.scrollDecelerationMetric, XCTCPUMetric(), XCTMemoryMetric()], options: options) {
+        measure(metrics: [XCTOSSignpostMetric.scrollDecelerationMetric, XCTCPUMetric(application: app), XCTMemoryMetric(application: app)], options: options) {
             app.swipeUp(); app.swipeDown()
         }
         app.tabBars.buttons["Today"].tap()

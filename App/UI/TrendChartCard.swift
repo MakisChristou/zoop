@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Selection stays local to this card; scrubbing does not rebuild the other trends.
 struct TrendChartCard: View {
-    let metric: TrendsView.Metric
+    let metric: TrendMetric
+    let range: TrendRange
     let series: TrendSeries
     let open: (TrendPoint) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -12,8 +13,10 @@ struct TrendChartCard: View {
     @GestureState private var horizontalDrag: Bool?
     private var points: [TrendPoint] { series.points }
     private var rolling: [TrendPoint] { series.rolling }
+    @State private var selectedMetric: TrendMetric?
+    @State private var selectedRange: TrendRange?
     private var selected: TrendPoint? {
-        guard let date = selectedDate, let index = series.nearestIndex(to: date), points[index].date == date else { return nil }
+        guard selectedMetric == metric, selectedRange == range, let date = selectedDate, let index = series.nearestIndex(to: date), points[index].date == date else { return nil }
         return points[index]
     }
     private var displayed: TrendPoint? { selected ?? points.last }
@@ -93,6 +96,8 @@ struct TrendChartCard: View {
         }
         .padding()
         .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .onChange(of: metric) { _, _ in selectedDate = nil }
+        .onChange(of: range) { _, _ in selectedDate = nil }
         .onChange(of: points) { _, new in
             if let selectedDate, !new.contains(where: { $0.date == selectedDate }) { self.selectedDate = nil }
         }
@@ -186,11 +191,13 @@ struct TrendChartCard: View {
     private func select(_ location: CGPoint, plot: CGRect, proxy: ChartProxy) {
         guard plot.contains(location), let date: Date = proxy.value(atX: location.x - plot.minX),
               let index = series.nearestIndex(to: date) else { return }
+        selectedMetric = metric; selectedRange = range
         selectedDate = points[index].date
     }
     private func moveSelection(_ step: Int) {
         guard !points.isEmpty else { return }
         let index = selectedDate.flatMap { series.nearestIndex(to: $0) } ?? points.count - 1
+        selectedMetric = metric; selectedRange = range
         selectedDate = points[min(max(index + step, 0), points.count - 1)].date
     }
     private func openReading() { if let point = displayed { open(point) } }

@@ -80,8 +80,8 @@ personal data and credentials out of traces attached to public issues.
 - Original and updated Trends screenshots match pixel-for-pixel below the status
   bar for the same synthetic fixture.
 - Trends range switching, scrolling, tab return, Yesterday navigation, and Weight
-  period swipes pass in the simulator. Idle-scroll CPU was approximately 0.08 s
-  per measured sequence in both versions; this does not prove a phone speedup.
+  period swipes pass in the simulator. The original idle-scroll CPU measurement
+  targeted the UI-test runner, so it is not app CPU evidence; the follow-up benchmark below corrects that target.
 - Physical iPhone check: user confirmed smooth Trends scrolling/range switching
   and unchanged charts while connected to the strap. No phone screen capture or
   debugger attachment was used.
@@ -111,3 +111,36 @@ screen is pixel-identical below the status bar to the performance build. Tests c
 vertical scrolling over the chart, selection/reset without layout movement, detail
 navigation/back, metric/range changes and the largest text size in dark appearance.
 VoiceOver actions are implemented; physical VoiceOver interaction is not yet verified.
+
+## Range-switch follow-up
+
+Changing 7/30/90/Year previously changed the chart identity, prepared every metric
+before and after a range-specific reload, and discarded wider day history when
+loading a smaller range. A tap could therefore show an interim range and render
+again when its response arrived.
+
+Trends now fetches at most one year of compact summaries and prepares all four
+ranges off the UI executor in one immutable snapshot. Picker changes select an
+already-prepared series and clear only inspection state. The chart keeps its
+identity, and the unchanged sleep heat map is an equatable child. Refresh, tab
+entry, foreground return and analysis/correction changes update history; ranges do
+not trigger requests. Source/request/cancellation guards still fence stale results.
+The initial compact read is larger for accounts with extensive history, bounded to
+365 summaries of each kind, to keep subsequent range changes local.
+
+`TrendRangePerformanceTests` measures the app process explicitly. In the same
+Release simulator and synthetic fixture, six 7/30-day changes averaged 12.45 billion
+retired CPU instructions before and 8.66 billion after (30% less); cycles fell from
+4.55 billion to 3.31 billion (27% less). CPU time averaged 1.65 s versus 1.47 s, but
+varied more. XCTest's tap/idle waits dominate wall-clock duration, and simulator
+hitch recording is unsupported: these figures do not establish physical frame rate.
+The final comparison used no profiler attached. The unselected month screenshot
+matched pixel-for-pixel below the status bar.
+
+Twelve app tests and six affected UI tests passed, including calendar cutoffs, absent
+steps, all metrics, retained larger ranges, source changes, cancellation, selection,
+detail/back navigation, vertical scrolling and largest text. Both range and scroll
+CPU/memory metrics now target the app instead of the UI-test runner.
+
+The range-switch follow-up is built for the phone; physical confirmation remains
+pending until the device is reconnected.
