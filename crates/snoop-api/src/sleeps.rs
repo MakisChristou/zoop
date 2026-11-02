@@ -12,6 +12,8 @@ use crate::{AppState, error::ApiError};
 pub(crate) struct SleepsQuery {
     #[serde(default = "default_limit")]
     limit: i64,
+    #[serde(default)]
+    summary: bool,
 }
 
 const fn default_limit() -> i64 {
@@ -25,10 +27,16 @@ pub(crate) async fn sleeps(
     Query(query): Query<SleepsQuery>,
 ) -> Result<Json<Vec<SleepRow>>, ApiError> {
     let limit = query.limit.clamp(1, 365);
-    Ok(Json(
+    let nights = if query.summary {
+        state
+            .store
+            .list_sleep_summaries(&device_id, ALGO_VERSION, limit)
+            .await?
+    } else {
         state
             .store
             .list_sleeps(&device_id, ALGO_VERSION, limit)
-            .await?,
-    ))
+            .await?
+    };
+    Ok(Json(nights))
 }

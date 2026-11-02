@@ -9,7 +9,8 @@ mod frame_store;
 mod health_store;
 mod insight_store;
 pub use health_store::{
-    HealthExport, HealthInfo, HealthPage, HealthPreparation, WeightInput, WeightReading,
+    HealthExport, HealthInfo, HealthPage, HealthPreparation, WeightChanges, WeightInput,
+    WeightReading,
 };
 mod label_store;
 pub use insight_store::{InsightNight, InsightSnapshot};

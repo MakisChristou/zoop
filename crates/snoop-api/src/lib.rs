@@ -49,6 +49,10 @@ pub fn build_router(state: AppState) -> Router {
             post(health::prepare),
         )
         .route(
+            "/v1/devices/{deviceId}/weight-changes",
+            get(health::weight_changes),
+        )
+        .route(
             "/v1/devices/{deviceId}/weights",
             get(health::weights).put(health::save_weight),
         )

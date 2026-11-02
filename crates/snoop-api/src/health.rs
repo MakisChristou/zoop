@@ -6,7 +6,9 @@ use axum::{
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Deserialize;
-use snoop_storage::{HealthInfo, HealthPage, HealthPreparation, WeightInput, WeightReading};
+use snoop_storage::{
+    HealthInfo, HealthPage, HealthPreparation, WeightChanges, WeightInput, WeightReading,
+};
 #[derive(Debug, Deserialize)]
 pub(crate) struct Page {
     #[serde(default)]
@@ -36,6 +38,17 @@ pub(crate) async fn exports(
                 q.snapshot,
                 q.limit.unwrap_or(200),
             )
+            .await?,
+    ))
+}
+pub(crate) async fn weight_changes(
+    State(s): State<AppState>,
+    Path(d): Path<String>,
+    Query(q): Query<Page>,
+) -> Result<Json<WeightChanges>, ApiError> {
+    Ok(Json(
+        s.store
+            .weight_changes(&d, q.cursor, q.watermark, q.limit.unwrap_or(250))
             .await?,
     ))
 }

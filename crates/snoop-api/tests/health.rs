@@ -301,3 +301,82 @@ async fn wake_reminder_needs_sustained_recent_awake_samples_and_automatic_main()
             .is_none()
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn weight_delta_pages_updates_tombstones_and_auth() {
+    let db = Db::new().await;
+    assert_eq!(
+        request(&db, "GET", "weight-changes", json!(null), false)
+            .await
+            .0,
+        401
+    );
+    let mut inputs = Vec::new();
+    for n in 0..3 {
+        let input = json!({"id":format!("health:reading-{n}"),"measured_at":"2025-01-01T08:00:00Z","kg":80.0+n as f64,"source":"health","source_name":"Test","version":0,"removed":false});
+        let (status, saved) = request(&db, "PUT", "weights", input, true).await;
+        assert_eq!(status, 200);
+        inputs.push(saved);
+    }
+    let (status, first) = request(
+        &db,
+        "GET",
+        "weight-changes?cursor=0&limit=1",
+        json!(null),
+        true,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(first["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(first["done"], false);
+    let watermark = first["watermark"].as_i64().unwrap();
+    // A not-yet-read row changes beyond this pass's watermark. Next pass must recover it.
+    inputs[2]["kg"] = json!(90.0);
+    assert_eq!(
+        request(&db, "PUT", "weights", inputs[2].clone(), true)
+            .await
+            .0,
+        200
+    );
+    let path = format!(
+        "weight-changes?cursor={}&watermark={watermark}",
+        first["next_cursor"]
+    );
+    let (_, rest) = request(&db, "GET", &path, json!(null), true).await;
+    assert_eq!(rest["done"], true);
+    assert_eq!(rest["next_cursor"], watermark);
+    let (_, next) = request(
+        &db,
+        "GET",
+        &format!("weight-changes?cursor={watermark}"),
+        json!(null),
+        true,
+    )
+    .await;
+    assert_eq!(next["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(next["rows"][0]["kg"], 90.0);
+    let cursor = next["next_cursor"].as_i64().unwrap();
+    inputs[0]["removed"] = json!(true);
+    assert_eq!(
+        request(&db, "PUT", "weights", inputs[0].clone(), true)
+            .await
+            .0,
+        200
+    );
+    let (_, deleted) = request(
+        &db,
+        "GET",
+        &format!("weight-changes?cursor={cursor}"),
+        json!(null),
+        true,
+    )
+    .await;
+    assert_eq!(deleted["rows"][0]["removed"], true);
+    assert_eq!(
+        request(&db, "GET", "weight-changes?cursor=-1", json!(null), true)
+            .await
+            .0,
+        400
+    );
+}

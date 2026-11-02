@@ -59,22 +59,18 @@ impl PostgresStore {
         algo_version: i32,
     ) -> StorageResult<Vec<DayRow>> {
         sqlx::query_as(
-            "WITH s AS (
-               SELECT (ts AT TIME ZONE $2)::date AS day, ts, hr, steps, activity, skin_temp_c, band_state,
-                      steps - lag(steps) OVER (ORDER BY ts) AS inc
-               FROM samples WHERE device_id = $1
-             ), d AS (
-               SELECT day,
-                      sum(inc) FILTER (WHERE inc BETWEEN 0 AND $4)::int AS steps,
-                      sum(inc) FILTER (WHERE inc BETWEEN 0 AND $4 AND activity IN (1, 2))::bigint AS steps_walking,
-                      count(*) FILTER (WHERE activity IN (1, 2))::bigint AS walking_s,
-                      min(hr) FILTER (WHERE hr > 0) AS hr_min,
-                      avg(hr) FILTER (WHERE hr > 0)::real AS hr_avg,
-                      max(hr) AS hr_max,
-                      avg(skin_temp_c)::real AS skin_temp_avg,
-                      count(*) FILTER (WHERE band_state = 2)::bigint AS asleep_s,
-                      count(*)::bigint AS samples
-               FROM s GROUP BY day ORDER BY day DESC LIMIT $3
+            "WITH candidate_days AS MATERIALIZED (
+               SELECT DISTINCT g::date AS day FROM sample_days m
+               CROSS JOIN LATERAL generate_series(
+                 ((m.day::timestamp AT TIME ZONE 'UTC') AT TIME ZONE $2)::date::timestamp,
+                 (((m.day+1)::timestamp AT TIME ZONE 'UTC'-interval '1 microsecond') AT TIME ZONE $2)::date::timestamp,
+                 interval '1 day') g WHERE m.device_id=$1
+             ), recent AS MATERIALIZED (
+               SELECT day FROM candidate_days WHERE EXISTS(
+                 SELECT 1 FROM samples WHERE device_id=$1 AND ts>=(day::timestamp AT TIME ZONE $2)
+                 AND ts<((day+1)::timestamp AT TIME ZONE $2)) ORDER BY day DESC LIMIT $3
+             ), d AS MATERIALIZED (
+               SELECT summary.* FROM recent CROSS JOIN LATERAL refresh_day_summary($1,$2,recent.day) summary
              )
              SELECT d.day, d.steps, d.steps_walking, d.walking_s, d.hr_min, d.hr_avg, d.hr_max,
                     d.skin_temp_avg, d.asleep_s, d.samples,
@@ -82,17 +78,35 @@ impl PostgresStore {
              FROM d LEFT JOIN strains st
                ON st.device_id = $1 AND st.day = d.day AND st.algo_version = coalesce(
                  (SELECT max(j.algo_version) FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='workout'
-                  AND j.day=d.day AND j.tz=$2 AND j.completed_generation>0 AND j.algo_version<=$5),1)
+                  AND j.day=d.day AND j.tz=$2 AND j.completed_generation>0 AND j.algo_version<=$4),1)
              ORDER BY d.day",
         )
         .bind(device_id)
         .bind(tz)
         .bind(limit)
-        .bind(MAX_STEP_INCREMENT_PER_S)
         .bind(algo_version)
         .fetch_all(self.pool())
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::ListDays, source))
+    }
+
+    /// Warms the rebuildable daily projection after analysis; reads also refresh dirty days.
+    /// # Errors
+    /// Database failure or an invalid timezone.
+    pub async fn refresh_day_summary(
+        &self,
+        device: &str,
+        day: NaiveDate,
+        tz: &str,
+    ) -> StorageResult<()> {
+        sqlx::query("SELECT refresh_day_summary($1,$2,$3)")
+            .bind(device)
+            .bind(tz)
+            .bind(day)
+            .execute(self.pool())
+            .await
+            .map_err(|source| StorageError::unavailable(StoreOperation::ListDays, source))?;
+        Ok(())
     }
 
     /// Steps per local hour of one day, hours with no steps omitted. The increment of

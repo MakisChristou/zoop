@@ -181,6 +181,24 @@ impl PostgresStore {
         .map_err(|source| StorageError::unavailable(StoreOperation::ListSleeps, source))
     }
 
+    /// Lightweight nights for Trends, with the same measurements and no stage trace.
+    /// # Errors
+    /// Database failure.
+    pub async fn list_sleep_summaries(
+        &self,
+        device_id: &str,
+        algo_version: i32,
+        limit: i64,
+    ) -> StorageResult<Vec<SleepRow>> {
+        sqlx::query_as("SELECT DISTINCT ON (night_of) night_of,algo_version,start_ts,end_ts,'[]'::jsonb AS stages,
+            jsonb_build_object('window',metrics->'window','physiology',metrics->'physiology',
+              'stages',metrics->'stages','naps',coalesce(metrics->'naps','[]'::jsonb)) AS metrics
+            FROM effective_sleep_read WHERE device_id=$1 AND algo_version<=$2
+            ORDER BY night_of DESC,algo_version DESC LIMIT $3")
+            .bind(device_id).bind(algo_version).bind(limit).fetch_all(self.pool()).await
+            .map_err(|source| StorageError::unavailable(StoreOperation::ListSleeps, source))
+    }
+
     /// Main sleep windows overlapping `[from, to)`, from the newest algorithm version
     /// that analysed each night, so a version bump does not leave the day's workouts
     /// without a night to exclude.

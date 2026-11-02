@@ -47,6 +47,20 @@ pub struct WeightReading {
     pub version: i64,
     pub removed: bool,
 }
+/// Incremental weight page. Apply by identity/version before durably advancing the cursor.
+#[derive(Debug, Serialize)]
+pub struct WeightChanges {
+    pub rows: Vec<WeightReading>,
+    pub next_cursor: i64,
+    pub watermark: i64,
+    pub done: bool,
+}
+#[derive(Debug, FromRow)]
+struct SequencedWeight {
+    change_seq: i64,
+    #[sqlx(flatten)]
+    reading: WeightReading,
+}
 /// Retriable weight edit; equal payload retries are acknowledged without revision churn.
 #[derive(Debug, Deserialize)]
 pub struct WeightInput {
@@ -180,6 +194,55 @@ impl PostgresStore {
         sqlx::query_as("SELECT id,measured_at,kg,source,source_name,version,removed FROM weight_readings WHERE device_id=$1 AND measured_at>=$2 AND measured_at<$3 AND id>$4 ORDER BY id LIMIT 250")
    .bind(device).bind(from).bind(to).bind(after).fetch_all(self.pool()).await.map_err(fail)
     }
+    /// Returns changed weights without repeatedly downloading the full history.
+    /// Concurrent updates beyond the watermark are picked up by the next pass.
+    /// # Errors
+    /// Invalid cursor, unknown device, or database failure.
+    pub async fn weight_changes(
+        &self,
+        device: &str,
+        after: i64,
+        through: Option<i64>,
+        limit: i64,
+    ) -> StorageResult<WeightChanges> {
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM devices WHERE id=$1)")
+            .bind(device)
+            .fetch_one(self.pool())
+            .await
+            .map_err(fail)?;
+        if !exists {
+            return Err(StorageError::CorrectionNotFound);
+        }
+        let current: i64 = sqlx::query_scalar(
+            "SELECT coalesce((SELECT cursor FROM weight_cursors WHERE device_id=$1),0)",
+        )
+        .bind(device)
+        .fetch_one(self.pool())
+        .await
+        .map_err(fail)?;
+        let watermark = through.unwrap_or(current);
+        if after < 0 || watermark < after || watermark > current || !(1..=500).contains(&limit) {
+            return Err(StorageError::InvalidQuery(
+                "Choose a valid weight history cursor.".into(),
+            ));
+        }
+        let mut rows: Vec<SequencedWeight> = sqlx::query_as("SELECT change_seq,id,measured_at,kg,source,source_name,version,removed FROM weight_readings WHERE device_id=$1 AND change_seq>$2 AND change_seq<=$3 ORDER BY change_seq LIMIT $4")
+            .bind(device).bind(after).bind(watermark).bind(limit+1).fetch_all(self.pool()).await.map_err(fail)?;
+        let done = rows.len() <= usize::try_from(limit).unwrap_or(0);
+        rows.truncate(usize::try_from(limit).unwrap_or(0));
+        let next_cursor = if done {
+            watermark
+        } else {
+            rows.last().map_or(after, |r| r.change_seq)
+        };
+        Ok(WeightChanges {
+            rows: rows.into_iter().map(|r| r.reading).collect(),
+            next_cursor,
+            watermark,
+            done,
+        })
+    }
+
     /// Saves one measured weight with optimistic concurrency and immutable provenance.
     /// # Errors
     /// Invalid value/identity, conflicting edit, or storage failure.

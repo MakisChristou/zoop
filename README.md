@@ -273,3 +273,35 @@ Health suite covers sleep gaps, pending metrics, removal/undo, concurrent public
 step correction, weight retries/source boundaries and recent-awake reminder gating.
 Physical Health permission, syncing, and notification delivery require separate iPhone
 acceptance; simulator and database tests cannot prove those behaviors.
+
+### Read performance and incremental weights
+
+Migrations 0010 and 0011 add rebuildable daily summaries and a per-device weight
+change cursor. They preserve raw samples, analysis versions, correction identities,
+Health export ownership and the existing endpoint formats. Deploy the matching
+server binary and run `snoop migrate` before restarting it. Migration 0010 scans
+existing sample timestamps once to build day markers; allow for that initial cost
+on a large history. A warm day read uses cached aggregates. A dirty/missing day
+reads only that local day and its predecessor sample, preserving counter behavior.
+
+Sample writes invalidate affected local-day projections and the next counter's
+day, even across a recording gap. A per-device transaction advisory lock fences
+first cache creation against concurrent writes. A competing reader computes an
+uncached snapshot instead of waiting. Cold cache publication can briefly delay
+sample decoding; raw-frame ingestion is unaffected. The history worker warms the
+projection on normal analysis passes. Nothing advances an analysis version here.
+
+`GET /v1/devices/{device}/sleeps?summary=true` omits the stage trace while retaining
+all summary measurements and version selection. The default response is unchanged.
+`GET /v1/devices/{device}/weight-changes?cursor=0&limit=250` returns rows,
+next_cursor, watermark and done. Continue with the returned watermark until done,
+then begin the next pass at next_cursor. Merge by identity/version and retain
+removal tombstones; absence is not deletion. The cursor is transaction-ordered per
+device and survives idempotent retries and updates during pagination.
+
+`just test-db` now includes projection equivalence (the original query is the
+reference), DST, sample replay/deletion, concurrent cache filling and weight
+cursor upgrades. It requires an explicitly supplied development database and
+creates fresh schemas. `tools/performance-fixture.sql` is a synthetic-only fixture
+for a fresh development database: 1,022,000 samples, 365 nights and 730 weigh-ins.
+Keep history analysis disabled while comparing UI screenshots from that fixture.

@@ -133,6 +133,9 @@ impl HistoryWorker {
                 zones_min: r.load.zones.minutes().to_vec(),
                 kcal: r.kcal.map(|v| v as f32),
             });
+            self.store
+                .refresh_day_summary(&job.device_id, job.day, &job.tz)
+                .await?;
             self.store.publish_day_sessions(job,snoop_storage::DayPublication {from,to,workouts:&workouts,strain:strain.as_ref(),inputs:json!({"proto_version":snoop_proto::PROTO_VERSION,
                 "workout_version":WORKOUT_ALGO_VERSION,"tz":job.tz,"profile":profile,"physiology":result.as_ref().map(|r|&r.physiology),
                 "params":result.as_ref().map(|r|&r.params),"calculated_at":Utc::now()}),sessions:Some(result.as_ref().map_or(&[],|r|r.sessions.as_slice()))}).await?;
