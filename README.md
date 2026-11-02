@@ -221,7 +221,7 @@ The database-backed suite includes correction operations and worker races (`just
 
 Sleep supports stable main-sleep and nap records, time/type edits, additions, merges,
 removal/restoration, and undo. Full-day analysis and coverage-aware staging use sleep
-version 3; downstream workout/day Load uses version 4. Existing nights remain visible
+version 4; downstream workout/day Load uses version 4. Existing nights remain visible
 through backfill. [Sleep and reset contract](docs/SLEEP_CORRECTIONS.md) documents the
 routes, saved time-zone semantics, missing-data reporting, and reversible resets for
 sleep, workouts, date ranges, or all recorded history.

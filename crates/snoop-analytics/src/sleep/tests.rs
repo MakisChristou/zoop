@@ -87,3 +87,47 @@ fn night_metrics_are_computed_over_the_window() {
 fn empty_input_yields_nothing() {
     assert!(detect_sleep(&[], &SleepParams::default()).is_empty());
 }
+
+#[test]
+fn a_return_to_sleep_after_32_minutes_stays_in_one_episode() {
+    let wake_s = 32 * 60 + 30;
+    let samples = night(3600, 9 * 3600, 10 * 3600, &[(6 * 3600, 6 * 3600 + wake_s)]);
+    let windows = detect_sleep(&samples, &SleepParams::default());
+    assert_eq!(windows.len(), 1);
+    let window = &windows[0];
+    assert_eq!(window.time_in_bed_s, 8 * 3600);
+    assert_eq!(window.asleep_s, 8 * 3600 - wake_s);
+    assert_eq!(
+        window.waso_s, wake_s,
+        "joining never reclassifies wake as sleep"
+    );
+    assert_eq!(window.disturbances, 1);
+}
+
+#[test]
+fn a_longer_awake_interval_still_separates_sleep_episodes() {
+    let samples = night(3600, 9 * 3600, 10 * 3600, &[(6 * 3600, 6 * 3600 + 50 * 60)]);
+    let windows = detect_sleep(&samples, &SleepParams::default());
+    assert_eq!(windows.len(), 2);
+    assert!(windows[0].offset < windows[1].onset);
+    assert_eq!(
+        windows.iter().map(|w| w.asleep_s).sum::<i64>(),
+        8 * 3600 - 50 * 60
+    );
+}
+
+#[test]
+fn joining_across_missing_readings_never_invents_sleep_or_awake_seconds() {
+    let mut samples = night(3600, 9 * 3600, 10 * 3600, &[]);
+    let first = samples[0].ts;
+    let missing_s = 32 * 60 + 30;
+    samples.retain(|s| {
+        let second = (s.ts - first).num_seconds();
+        !(6 * 3600..6 * 3600 + missing_s).contains(&second)
+    });
+    let windows = detect_sleep(&samples, &SleepParams::default());
+    assert_eq!(windows.len(), 1);
+    assert_eq!(windows[0].waso_s, 0);
+    assert_eq!(windows[0].asleep_s, 8 * 3600 - missing_s);
+    assert_eq!(windows[0].time_in_bed_s - windows[0].coverage_s, missing_s);
+}

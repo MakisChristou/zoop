@@ -43,7 +43,7 @@ The top-level `sleep.efficiency` is null with over two minutes missing or no cov
 legacy numeric window fields remain readable. This is a coverage/reporting change,
 not a new validated sleep classifier.
 
-Sleep version 3 and workout/day-load version 4 recompute saved history automatically.
+Sleep version 4 and workout/day-load version 4 recompute saved history automatically.
 Migration promotes existing nights/naps into stable records before backfill, so
 older nights remain readable. The legacy `/sleeps` API projects effective main
 sleep and naps. Changed sleep invalidates dependent workout/day Load and resting-HR
@@ -83,3 +83,12 @@ full-day naps, both-domain reset, undo after recompute, and raw-data preservatio
 Use the synthetic `tools/ui-fixture.sql` for simulator tests; never run fixture
 writes against a production database. Rehearse migration on a private restored
 backup and verify original raw data and fixed edits before deployment.
+
+
+Automatic sleep episodes now bridge recorded awakenings shorter than 45 minutes.
+This is an explicit episode-grouping heuristic, not a clinical sleep/wake threshold:
+the raw band flags still determine asleep and awake seconds, and missing readings
+remain unknown. Longer gaps still split episodes. Version 4 replaces the earlier
+30-minute tolerance, which could split a night when the band returned to its sleep
+flag slowly after a brief awakening. Explicit edits and removed intervals retain
+their existing boundaries.

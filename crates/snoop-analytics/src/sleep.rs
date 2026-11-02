@@ -42,6 +42,7 @@ impl Sample {
 pub struct SleepParams {
     /// Centred majority-vote window over the per-second sleep flag.
     pub smooth_s: i64,
+    /// Episode-grouping tolerance, not a sleep/wake classifier threshold.
     /// Awakenings shorter than this stay inside the window, as wake after sleep onset.
     pub merge_gap_s: i64,
     /// Candidate windows shorter than this are not sleep.
@@ -56,7 +57,9 @@ impl Default for SleepParams {
     fn default() -> Self {
         Self {
             smooth_s: 300,
-            merge_gap_s: 1800,
+            // Allow a delayed return of the band sleep flag after a brief waking.
+            // Recorded wake and missing seconds remain separate from sleep time.
+            merge_gap_s: 45 * 60,
             min_duration_s: 1200,
             hr_confirm_ratio: 1.05,
             hr_confirm_min_samples: 600,
