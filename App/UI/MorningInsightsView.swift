@@ -3,10 +3,12 @@ import SwiftUI
 struct MorningInsightsView: View {
     let day: Date
     @Environment(AppModel.self) private var model
-    @State private var insights: MorningInsights?
-    @State private var error = false
-    @State private var loading = false
-    @State private var requestID = UUID()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var visible = false
+    @State private var morning = MorningInsightsStore()
+    private var insights: MorningInsights? { morning.value(for: scope) }
+    private var error: Bool { morning.failed(for: scope) }
+    private var loading: Bool { morning.loading }
     @State private var showMethod = false
     var body: some View {
         ScrollView {
@@ -34,12 +36,14 @@ struct MorningInsightsView: View {
             }
         }
         .sheet(isPresented: $showMethod) { InsightMethodView() }
-        .task(id: "\(model.strap.serial)-\(day.timeIntervalSince1970)") { await load() }
-        .task {
-            while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(30)) } catch { return }
-                if insights?.state != "ready" || error { await load() }
+        .onAppear { visible = true }
+        .onDisappear { visible = false; morning.stop() }
+        .task(id: MorningInsightsStore.FollowKey(scope: scope, active: visible && scenePhase == .active)) {
+            guard visible, scenePhase == .active, Settings.isConfigured else {
+                morning.stop(clear: !Settings.isConfigured); return
             }
+            let request = scope
+            await morning.follow(request) { visible && scenePhase == .active && scope == request }
         }
         .refreshable { await load() }
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
@@ -76,18 +80,11 @@ struct MorningInsightsView: View {
         }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
     }
     private func load() async {
-        guard Settings.isConfigured, !model.strap.serial.isEmpty else { return }
-        let serial = model.strap.serial
-        let token = UUID(); requestID = token; loading = true
-        defer { if requestID == token { loading = false } }
-        do {
-            let value = try await SnoopAPI.morningInsights(deviceId: serial, day: day)
-            guard !Task.isCancelled, requestID == token, serial == model.strap.serial else { return }
-            insights = value; error = false
-        } catch {
-            guard !Task.isCancelled, requestID == token else { return }
-            // Never present a previous result as a newly completed calculation.
-            insights = nil; self.error = true
-        }
+        guard Settings.isConfigured else { morning.stop(clear: true); return }
+        let request = scope
+        await morning.reload(request) { visible && scenePhase == .active && scope == request }
+    }
+    private var scope: MorningInsightsStore.Scope {
+        .init(device: model.strap.serial, day: day, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
     }
 }

@@ -7,6 +7,8 @@ struct TodayView: View {
     let openActivity: (Date) -> Void
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var visible = false
     @State private var now = Date()
     /// Nil follows today across midnight; a chosen past day stays fixed.
     @State private var selectedDay: Date?
@@ -20,8 +22,9 @@ struct TodayView: View {
     @State private var steps: SnoopAPI.StepsDay?
     @State private var path = NavigationPath()
     @State private var historyFailed = false
-    @State private var insights: MorningInsights?
-    @State private var insightsFailed = false
+    @State private var morning = MorningInsightsStore()
+    private var insights: MorningInsights? { morning.value(for: insightScope) }
+    private var insightsFailed: Bool { morning.failed(for: insightScope) }
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -32,9 +35,9 @@ struct TodayView: View {
                                    previousLabel: "Previous day", nextLabel: "Next day",
                                    previous: { stepDay(-1) }, next: { stepDay(1) },
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
-                    if loadedDay == viewedDay, let insights {
+                    if let insights {
                         MorningBriefView(insights: insights, day: viewedDay)
-                    } else if insightsFailed && loadedDay == viewedDay {
+                    } else if insightsFailed {
                         Button("Couldn’t update morning insights. Retry") { Task { await loadHistory() } }
                             .font(.footnote).frame(minHeight: 44)
                     }
@@ -65,6 +68,8 @@ struct TodayView: View {
                 .padding(.bottom, 24)
             }
             .mainScreenChrome(screenTitle)
+            .onAppear { visible = true }
+            .onDisappear { visible = false; morning.stop() }
             .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0, day: viewedDay) }
             .onAppear(perform: applyDemoRoute)
@@ -75,6 +80,13 @@ struct TodayView: View {
         .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
         .onReceive(clock) { if !Calendar.current.isDate(now, inSameDayAs: $0) { now = $0 } }
         .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
+        .task(id: MorningInsightsStore.FollowKey(scope: insightScope, active: visible && scenePhase == .active)) {
+            guard visible, scenePhase == .active, Settings.isConfigured else {
+                morning.stop(clear: !Settings.isConfigured); return
+            }
+            let scope = insightScope
+            await morning.follow(scope) { visible && scenePhase == .active && insightScope == scope }
+        }
         .task {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
@@ -226,13 +238,14 @@ struct TodayView: View {
         loadID = requestID
         loading = true
         defer { if loadID == requestID { loading = false } }
-        async let brief = SnoopAPI.morningInsights(deviceId: serial, day: day)
+        let scope = insightScope
+        async let brief: Void = morning.reload(scope) { insightScope == scope && visible && scenePhase == .active }
         async let d = SnoopAPI.days(deviceId: serial, limit: 30)
         async let n = SnoopAPI.nights(deviceId: serial, limit: 30)
         async let m = SnoopAPI.minutes(deviceId: serial, day: day)
         async let w: Void = model.activity.reload(device: serial, from: day, to: Calendar.current.date(byAdding: .day, value: 1, to: day))
         async let s = SnoopAPI.steps(deviceId: serial, day: day)
-        let fetchedInsights = try? await brief
+        await brief
         let fetchedDays = try? await d
         let fetchedNights = try? await n
         let fetchedMinutes = try? await m
@@ -243,8 +256,6 @@ struct TodayView: View {
         if let fetchedDays { days = fetchedDays }
         if let fetchedNights { nights = fetchedNights }
 
-        insights = fetchedInsights
-        insightsFailed = fetchedInsights == nil
         minutes = fetchedMinutes ?? []
         steps = fetchedSteps
         loadedDay = day
@@ -253,6 +264,9 @@ struct TodayView: View {
     }
 
     private var viewedDay: Date { selectedDay ?? Calendar.current.startOfDay(for: now) }
+    private var insightScope: MorningInsightsStore.Scope {
+        .init(device: model.strap.serial, day: viewedDay, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
+    }
     private var isViewingToday: Bool { Calendar.current.isDate(viewedDay, inSameDayAs: now) }
     private var currentMinutes: [SnoopAPI.Minute] { loadedDay == viewedDay ? minutes : [] }
 

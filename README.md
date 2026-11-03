@@ -227,6 +227,19 @@ from the information button. No new notification permission or setup is required
 and large text using the synthetic `INSIGHT-REVIEW` fixture on a development API.
 Set `SNOOP_UI_SERVER_URL` for that API; the default test loopback port is 28473.
 
+The brief and detail refresh independently of the other Today feeds. While visible
+and foregrounded they recheck recalculation every five seconds, awaiting-sync every
+30 seconds, errors every 15 seconds and settled results every five minutes. Returning
+to the screen refreshes immediately; an upload or correction that returns Updating
+interrupts a longer settled wait. Failed requests replace stale Updating with Retry.
+Date, device and connection changes fence off older requests.
+
+`MorningInsightsStoreTests` covers refresh, retry, cancellation and stale results.
+For the automatic screen transition test, run `python3 tools/morning-refresh-server.py`
+and then the `SnoopUITests/MorningRefreshTests` test on a simulator. Its loopback API
+on port 28479 returns Updating for eight seconds and then Learning, while unrelated
+Today endpoints fail. It uses synthetic data and does not require a backend database.
+
 Morning outlook uses a neutral Headline card above the daily overview. Only its
 status and individual comparison deltas carry green, amber or red. The backend
 supplies the classification; mixed signals stay mixed and incomplete/early data
