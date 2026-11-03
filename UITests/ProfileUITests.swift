@@ -58,6 +58,12 @@ import XCTest
         cancel.tap()
         XCTAssertTrue(app.navigationBars["Profile photo"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["saveProfilePhoto"].exists)
+        for _ in 0..<2 {
+            app.buttons["chooseProfilePhoto"].tap()
+            XCTAssertTrue(cancel.waitForExistence(timeout: 8))
+            cancel.tap()
+            XCTAssertTrue(app.buttons["chooseProfilePhoto"].waitForExistence(timeout: 5))
+        }
     }
     func testLargeTextProfileControlsRemainReachable() {
         let app = launch(large: true)
