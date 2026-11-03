@@ -71,6 +71,7 @@ struct MainScreenChrome: ViewModifier {
         case "profile": request = Request(page: nil)
         case "device": request = Request(page: .device)
         case "editprofile": request = Request(page: .body)
+        case "ecg": request = Request(page: .ecg)
         default: break
         }
         #endif

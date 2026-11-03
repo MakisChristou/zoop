@@ -17,7 +17,8 @@ final class AppModel {
     /// Frames accepted by the most recent successful upload, for the status line.
     private(set) var lastBatchAccepted = 0
 
-    let strap = StrapManager()
+    let strap: StrapManager
+    let ecg: ECGRecorder
     let battery = BatteryMonitor()
     let workouts = WorkoutNotifier()
     let activity = WorkoutStore()
@@ -48,7 +49,14 @@ final class AppModel {
     }
 
     init(servicesEnabled: Bool = true) {
+        let strap = StrapManager()
+        self.strap = strap
+        ecg = ECGRecorder(transport: strap)
         guard servicesEnabled else { return }
+        strap.onECGFrame = { [weak self] bytes, at, uptime in self?.ecg.receive(bytes, at: at, uptime: uptime) }
+        strap.onECGInvalidFrame = { [weak self] in self?.ecg.invalidFrame() }
+        strap.onECGAvailability = { [weak self] in self?.ecg.connectionChanged() }
+        ecg.connectionChanged()
         Task { await openStorage() }
         strap.onFrame = { [weak self] bytes, channel, saved in
             guard let self, let writer = self.writer else {
@@ -71,6 +79,7 @@ final class AppModel {
             guard let self else { return }
             self.workouts.activate(device: serial)
             self.health.activate(serial)
+            self.ecg.connectionChanged()
             Task { await self.bindCurrentDevice() }
         }
         if !strap.serial.isEmpty {

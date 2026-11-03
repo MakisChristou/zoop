@@ -329,3 +329,29 @@ loads only when its detail page opens.
 
 See [performance and concurrency](docs/PERFORMANCE.md) for the internal architecture,
 regression checks, synthetic UI fixture and physical-device validation boundaries.
+
+### Manual ECG (experimental)
+
+Profile → ECG offers guided, user-initiated WHOOP MG recordings with the existing
+OS bond. The recorder acknowledges wrist selection, enables raw and filtered live
+outputs, and starts generation once. Its 30-second phone capture window starts only
+on a validated, nonempty filtered live record. Historical ECG, empty buffers and
+exact duplicates do not advance it. A timeout or a gap prevents a success result.
+Counted zero samples and unknown status codes remain intact; there is no inferred
+contact-quality score, ECG heart-rate average, sample rate, voltage calibration or
+rhythm diagnosis. CSV sharing uses sample indices and native counts.
+
+Cancellation, backgrounding and disconnects stop the attempt. A durable cleanup
+ledger is written before mutating requests; reconnect/relaunch performs cleanup for
+the same strap without automatically starting another recording. Failed cleanup
+blocks another start. Completed recordings are saved atomically in Application
+Support/ECG and can be reopened offline. They are local to this iPhone; original
+frames still use the normal durable upload queue and backend ECG decoder. There is
+no new backend API or migration in this slice. `latest-attempt.json` contains only
+command outcomes/counts for targeted troubleshooting, not waveforms or device IDs.
+
+Run `swift test --package-path Packages/SnoopProtocol` and
+`swift test --package-path Packages/SnoopECG`, plus `ECGRecorderTests` and
+`ECGUITests` in the app's test scheme. Synthetic tests exercise malformed records,
+refusal, no data, cancellation, lost connection, device isolation and restart cleanup.
+A real clasp-contact recording remains the hardware acceptance check.

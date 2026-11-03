@@ -55,6 +55,7 @@ struct RootView: View {
         .onChange(of: model.sleep.changeToken) { _, _ in model.health.checkSoon() }
         .onChange(of: model.activity.changeToken) { _, _ in model.health.checkSoon() }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .background { model.ecg.cancel() }
             if phase == .active { model.health.activate(model.strap.serial); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
         .onAppear(perform: applyDemoRoute)

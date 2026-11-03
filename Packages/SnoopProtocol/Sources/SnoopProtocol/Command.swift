@@ -13,6 +13,7 @@ public enum Command: Equatable {
     case getAdvertisingName
     case getHello
     case getClock
+    case ecgWrist, ecgGeneration, ecgSaveRaw, ecgRawLive, ecgSaveFiltered, ecgFilteredLive
 
     public var code: UInt8 {
         switch self {
@@ -26,6 +27,12 @@ public enum Command: Equatable {
         case .getAdvertisingName: 141
         case .getHello: 145
         case .getClock: 147
+        case .ecgWrist: 123
+        case .ecgGeneration: 124
+        case .ecgSaveRaw: 125
+        case .ecgRawLive: 126
+        case .ecgSaveFiltered: 127
+        case .ecgFilteredLive: 139
         }
     }
 

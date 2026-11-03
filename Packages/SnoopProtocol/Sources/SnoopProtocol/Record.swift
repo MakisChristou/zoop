@@ -192,6 +192,13 @@ public struct ECGStrip: Equatable {
     public let samples: [Int32]
     /// R16 only: per-sample flag bit 6.
     public let sampleFlags: [Bool]
+    /// R16 flag 7 has slower, unresolved contact/lead timing. It is not a quality score.
+    public let leadFlags: [Bool]
+    public let reservedSampleBits: [UInt8]
+    /// Preserve the packed status verbatim; classifier and HR fields are not diagnoses.
+    public let packedStatus: [UInt8]
+    public let leadDiagnosticI: [UInt16]
+    public let leadDiagnosticQ: [UInt16]
 
     static let sampleCountOffset = 32
     static let sampleOffset = 34
@@ -204,6 +211,7 @@ public struct ECGStrip: Equatable {
         classifierState = try frame.u8(at: 24)
         progress = try frame.u8(at: 25)
         declaredCount = try frame.u16(at: Self.sampleCountOffset)
+        packedStatus = Array(try frame.bytes(at: 21, count: 13))
         let (capacity, width) = header.layout == .ecgRaw ? (500, 3) : (100, 2)
         let count = Int(declaredCount)
         guard count <= capacity else {
@@ -211,6 +219,8 @@ public struct ECGStrip: Equatable {
         }
         var samples: [Int32] = []
         var flags: [Bool] = []
+        var leads: [Bool] = []
+        var reserved: [UInt8] = []
         samples.reserveCapacity(count)
         for i in 0..<count {
             let offset = Self.sampleOffset + i * width
@@ -221,10 +231,25 @@ public struct ECGStrip: Equatable {
                 let raw18 = Int32(b[0] & 0x03) << 16 | Int32(b[1]) << 8 | Int32(b[2])
                 samples.append(raw18 >= 1 << 17 ? raw18 - (1 << 18) : raw18)
                 flags.append((b[0] >> 6) & 1 == 1)
+                leads.append(b[0] & 0x80 != 0)
+                reserved.append(b[0] & 0x3C)
             }
         }
         self.samples = samples
         sampleFlags = flags
+        leadFlags = leads
+        reservedSampleBits = reserved
+        if header.layout == .ecgRaw {
+            let count = Int(try frame.u8(at: 1534))
+            guard count <= 11 else {
+                throw ProtocolError.recordLength(layout: header.layout.byte, expected: 11, actual: count)
+            }
+            leadDiagnosticI = try (0..<count).map { try frame.u16(at: 1535 + $0 * 2) }
+            leadDiagnosticQ = try (0..<count).map { try frame.u16(at: 1557 + $0 * 2) }
+        } else {
+            leadDiagnosticI = []
+            leadDiagnosticQ = []
+        }
     }
 }
 

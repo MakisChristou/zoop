@@ -16,6 +16,8 @@ settings:
     DEVELOPMENT_TEAM: $(SNOOP_TEAM_ID)
     PRODUCT_BUNDLE_IDENTIFIER: $(SNOOP_BUNDLE_ID)
 packages:
+  SnoopECG:
+    path: Packages/SnoopECG
   SnoopData:
     path: Packages/SnoopData
   SnoopHealth:
@@ -38,6 +40,7 @@ targets:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.background-delivery: true
     dependencies:
+      - package: SnoopECG
       - package: SnoopData
       - package: SnoopHealth
       - package: SnoopSync

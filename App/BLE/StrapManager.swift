@@ -57,6 +57,9 @@ final class StrapManager: NSObject {
     var onPackInfo: ((BatteryPackInfo, Date, Bool, Bool) -> Void)?
     var onPackPresence: ((Bool, Date, Bool) -> Void)?
     var onBatteryDisconnect: (() -> Void)?
+    var onECGFrame: ((Data, Date, TimeInterval) -> Void)?
+    var onECGInvalidFrame: (() -> Void)?
+    var onECGAvailability: (() -> Void)?
 
     static let restoreIdentifier = "snoop.strap"
     private let log = Logger(subsystem: "snoop", category: "ble")
@@ -70,6 +73,8 @@ final class StrapManager: NSObject {
     private var connectionEpoch = UUID()
     private var storagePaused = false
     private var sequence: UInt8 = 1
+    private var ecgRequest: ECGCommandRequest?
+    private static let ecgCommandTimeout: Duration = .seconds(8)
     private var offloadTimer: Timer?
     private var lastBatteryRequest: Date = .distantPast
     private var packRequest: (sequence: UInt8, at: Date)?
@@ -209,22 +214,28 @@ final class StrapManager: NSObject {
     private func handle(frame: [UInt8], channel: Int) {
         framesReceived += 1
         let epoch = connectionEpoch
+        let receivedAt = Date(), uptime = ProcessInfo.processInfo.systemUptime
         onFrame?(frame, channel) { [weak self] in
             guard let self, self.connectionEpoch == epoch else { return }
-            self.handleSaved(frame: frame, channel: channel)
+            self.handleSaved(frame: frame, channel: channel, receivedAt: receivedAt, uptime: uptime)
         }
     }
 
-    private func handleSaved(frame: [UInt8], channel: Int) {
+    private func handleSaved(frame: [UInt8], channel: Int, receivedAt: Date, uptime: TimeInterval) {
         let decoded: Decoded
         do { decoded = try FrameDecoder.decode(frame) } catch {
             log.error("frame on channel \(channel) failed to decode: \(String(describing: error))")
+            if frame.count > 9, frame[8] == PacketType.realtimeRawDataByte, [16, 17].contains(frame[9]) {
+                onECGInvalidFrame?()
+            }
             return
         }
         if framesReceived <= 20 || framesReceived % 500 == 0 {
             log.info("frame #\(self.framesReceived) ch\(channel) type \(frame[8]) len \(frame.count)")
         }
         switch decoded {
+        case .ecg:
+            if frame[8] == PacketType.realtimeRawDataByte { onECGFrame?(Data(frame), receivedAt, uptime) }
         case let .realtimeHeartRate(hr):
             recordLive(hr.heartRate, rr: hr.rrMilliseconds)
         case let .biometric(b):
@@ -258,6 +269,13 @@ final class StrapManager: NSObject {
                 send(Command.abortHistoricalTransmits(sequence: nextSequence()))
             }
         case let .commandResponse(response):
+            if channel == 3, let pending = ecgRequest,
+               response.command == pending.command, response.originSequence == pending.sequence,
+               response.result != .pending {
+                log.info("ECG ack command=\(response.command) result=\(String(describing: response.result), privacy: .public)")
+                if response.result == .success { finishECGRequest(id: pending.id, result: .success(())) }
+                else { finishECGRequest(id: pending.id, result: .failure(ECGTransportError.refused(response.command, String(describing: response.result)))) }
+            }
             if response.command == Command.getBatteryPackInfo.code,
                let request = packRequest, response.originSequence == request.sequence,
                channel == 3, Date().timeIntervalSince(request.at) <= Self.packRequestTimeout {
@@ -280,6 +298,7 @@ final class StrapManager: NSObject {
             }
             if response.command == Command.getHello.code, response.result == .success {
                 state = .ready
+                onECGAvailability?()
                 // The handshake has passed the persistence barrier; history can start.
                 requestOffload()
             }
@@ -296,13 +315,17 @@ extension StrapManager: @preconcurrency CBCentralManagerDelegate {
         switch central.state {
         case .poweredOn: log.info("bluetooth on"); connect()
         case .poweredOff:
+            ecgDisconnected()
             onBatteryDisconnect?()
             lastBatteryRequest = .distantPast
             log.warning("bluetooth off")
             state = .bluetoothOff
+            onECGAvailability?()
         case .unauthorized:
+            ecgDisconnected()
             onBatteryDisconnect?()
             state = .failed("Bluetooth permission denied")
+            onECGAvailability?()
         default: break
         }
     }
@@ -351,6 +374,8 @@ extension StrapManager: @preconcurrency CBCentralManagerDelegate {
         lastBatteryRequest = .distantPast
         log.warning("disconnected: \(error?.localizedDescription ?? "clean")")
         state = .connecting
+        ecgDisconnected()
+        onECGAvailability?()
         realtimeStreaming = false
         offloadTimer?.invalidate()
         central.connect(peripheral, options: nil) // iOS retries this until the strap is in range again
@@ -358,6 +383,48 @@ extension StrapManager: @preconcurrency CBCentralManagerDelegate {
 
     private func scheduleReconnect() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.connect() }
+    }
+}
+
+extension StrapManager: ECGTransport {
+    var ecgDevice: ECGDevice? {
+        guard state == .ready, !serial.isEmpty else { return nil }
+        return .init(serial: serial, firmware: firmware,
+                     isMG: model.uppercased().contains("MG") || serial.hasPrefix(GATT.serialPrefixMG))
+    }
+
+    func performECG(_ operation: ECGOperation) async throws {
+        try Task.checkCancellation()
+        guard ecgDevice != nil, peripheral != nil, commandCharacteristic != nil else { throw ECGTransportError.disconnected }
+        guard ecgRequest == nil else { throw ECGTransportError.busy }
+        let isCleanup = operation == .generation(false) || operation == .rawLive(false) || operation == .filteredLive(false)
+        guard !storagePaused || isCleanup else { throw ECGTransportError.storage }
+        let id = UUID(), sequence = nextSequence()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let pending = ECGCommandRequest(id: id, command: operation.command.code, sequence: sequence, continuation: continuation)
+                ecgRequest = pending
+                pending.timeout = Task { [weak self] in
+                    do { try await Task.sleep(for: Self.ecgCommandTimeout) } catch { return }
+                    self?.finishECGRequest(id: id, result: .failure(ECGTransportError.timeout(operation.command.code)))
+                }
+                log.info("ECG request command=\(operation.command.code)")
+                send(operation.frame(sequence: sequence))
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.finishECGRequest(id: id, result: .failure(CancellationError())) }
+        }
+    }
+
+    private func finishECGRequest(id: UUID, result: Result<Void, Error>) {
+        guard let pending = ecgRequest, pending.id == id else { return }
+        ecgRequest = nil
+        pending.timeout?.cancel()
+        pending.continuation.resume(with: result)
+    }
+
+    private func ecgDisconnected() {
+        if let pending = ecgRequest { finishECGRequest(id: pending.id, result: .failure(ECGTransportError.disconnected)) }
     }
 }
 
