@@ -33,6 +33,7 @@ final class HealthCoordinator {
     private var followUp: Task<Void, Never>?
     private var observation: HKObserverQuery?
     private var activeReminder: String?
+    private var unlockObserver: NSObjectProtocol?
     private let center = UNUserNotificationCenter.current()
     var connected: Bool { journal.connectedAt != nil }
     private(set) var rows: [WeightReading] = []
@@ -46,6 +47,9 @@ final class HealthCoordinator {
     var canRemind: Bool { journal.remindWeight }
 
     init() {
+        unlockObserver = NotificationCenter.default.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.checkSoon() }
+        }
         // Health changes and notification taps must work before Bluetooth reconnects.
         if let lastDevice = UserDefaults.standard.string(forKey: "health.lastDevice") { activate(lastDevice) }
     }
@@ -141,12 +145,13 @@ final class HealthCoordinator {
         persistSettings(); status = paused ? "Paused" : "Ready to sync"; if !paused { checkSoon() }
     }
     func setReminder(_ enabled: Bool) {
+        if enabled && !journal.remindWeight { journal.reminderEnabledAt = Date() }
         journal.remindWeight = enabled
         persistSettings()
         if !enabled { cancelReminder() } else { checkSoon() }
     }
     func openReminder(scope: String) {
-        guard scope == self.scope else { return }
+        guard scope == self.scope, today == nil else { return }
         showWeightEntry = true
     }
     func checkSoon() {
@@ -175,7 +180,10 @@ final class HealthCoordinator {
         activate(device)
         guard file != nil else { throw SnoopAPI.Failure.notConfigured }
         journal.pendingWeights.removeAll { $0.id == row.id }; journal.pendingWeights.append(row)
-        refreshRows(); try await persist(); cancelReminder(); showWeightEntry = false
+        refreshRows(); try await persist()
+        // Editing or adding an older reading must not cancel today’s check-in.
+        if today != nil { cancelReminder() }
+        showWeightEntry = false
         checkSoon()
     }
     func sync() async {
@@ -195,6 +203,11 @@ final class HealthCoordinator {
             guard journal.namespace.isEmpty || journal.namespace == info.namespace else { throw HealthAdapter.Failure.newerVersion }
             journal.namespace = info.namespace; earliest = info.earliest
             guard journal.cursor <= info.cursor else { throw HealthAdapter.Failure.newerVersion }
+            // A successful response can revoke a previously eligible wake.
+            if journal.lastConfirmedWake != info.wakeAt { journal.lastConfirmedWake = info.wakeAt; try await persist() }
+            try await loadWeights(generation)
+            // A long import/export or a failed pending upload must not block the reminder.
+            try await remind(wake: journal.lastConfirmedWake, generation: generation)
             // Persist every local measurement before asking Health to mirror it.
             for row in journal.pendingWeights {
                 try valid(generation)
@@ -205,8 +218,7 @@ final class HealthCoordinator {
             if connected && !journal.paused && journal.importWeight && adapter.available && UIApplication.shared.isProtectedDataAvailable {
                 try await importWeights(generation)
             }
-            try await loadWeights(generation)
-            try await remind(wake: info.wakeAt, generation: generation)
+            if today != nil { cancelReminder() }
             guard connected, !journal.paused else { status = connected ? "Paused" : "Not connected"; return }
             guard UIApplication.shared.isProtectedDataAvailable else { status = "Waiting to unlock"; return }
             // Bootstrap only consented periods, in small server transactions.
@@ -248,7 +260,11 @@ final class HealthCoordinator {
             status = journal.deferred.isEmpty ? "Up to date" : "Some exports are waiting"
         } catch is CancellationError { }
         catch {
-            if generation == epoch { self.error = error.localizedDescription; status = "Sync paused · retry available" }
+            if generation == epoch {
+                self.error = error.localizedDescription; status = "Sync paused · retry available"
+                // A fresh confirmed wake can finish after unlocking even if the network is now unavailable.
+                try? await remind(wake: journal.lastConfirmedWake, generation: generation)
+            }
         }
     }
     private func export(_ record: HealthRecord, generation: Int) async throws {
@@ -345,12 +361,18 @@ final class HealthCoordinator {
         let identifier = "snoop.weight.\(scope).\(key)"
         let content = UNMutableNotificationContent(); content.title = "Good morning"; content.body = "Ready to log your weight?"; content.sound = .default
         content.threadIdentifier = "snoop.weight"; content.userInfo = ["destination": "weight", "scope": scope, "day": key]
-        // Save deduplication before scheduling. A crash can skip one reminder, never
-        // multiply it. Scheduling failure rolls the receipt back for a later retry.
-        journal.remindedDays.insert(key); try await persist()
+        // Recover an accepted request if the app stopped before persisting its receipt.
+        let pending = await center.pendingNotificationRequests(); try valid(generation)
+        let delivered = await center.deliveredNotifications(); try valid(generation)
+        if pending.contains(where: { $0.identifier == identifier }) || delivered.contains(where: { $0.request.identifier == identifier }) {
+            journal.remindedDays.insert(key); try await persist(); return
+        }
+        guard journal.remindWeight, today == nil else { cancelReminder(); return }
         do {
             try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, delivery.timeIntervalSinceNow), repeats: false)))
             try valid(generation); activeReminder = identifier
+            if today != nil || !journal.remindWeight { cancelReminder() }
+            journal.remindedDays.insert(key); try await persist()
         } catch {
             center.removePendingNotificationRequests(withIdentifiers: [identifier])
             if generation == epoch { journal.remindedDays.remove(key); try await persist() }

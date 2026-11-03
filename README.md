@@ -235,19 +235,25 @@ descriptive outlook, not a validated readiness score or a training recommendatio
 
 ## Apple Health and weight
 
-Today’s compact Weight card opens a dedicated chart with 7D/30D/90D/All ranges.
-These are rolling local calendar days including today, with exact start/end dates
-shown. The line shows actual measurements, without averaging or smoothing.
-The headline shows the latest measurement in the selected range; tapping a point
-shows that exact value, timestamp and source. Health readings take priority over
-Snoop readings on the same date, with all distinct Health readings retained.
-Missing days are never zero-filled and gaps of a week or more break the line.
-Units and wake reminders live in Weight’s options menu.
+Today’s Quiet check-in offers a direct Log button until a weight is recorded for the
+local day, then shows a completed state. Apple Health readings count too. The weekly
+row counts recorded days, never the direction of weight change. Tapping the card
+opens Weight; entry is seeded with the latest reading and still requires Save.
+
+Weight uses calendar Week/Month/3 months/All pages. Weeks follow the device calendar;
+months start on the first, and three-month pages contain three complete months.
+Swipe to the previous/next period, tap a recorded point, or hold then drag to inspect
+readings without paging. Latest returns to the current period. Raw measurements
+remain the default; an optional 7-day moving average lives in Weight options.
+Health readings take priority over Snoop readings on the same date, with all distinct
+Health readings retained. Missing days are never zero-filled and gaps of a week or
+more break the line. Recent weigh-ins link to the complete editable/source-aware list.
 
 Apple Health connection and export controls remain in Profile & settings. Connecting
 asks for sleep and workout write access, optional steps/weight export and optional
 weight import. Automatic sharing starts at connection time. Weight → Import weight
-history previews Health readings automatically after choosing All history or dates.
+history previews Health readings automatically with All available history enabled;
+turning it off reveals a date range.
 It imports only weights, reports existing readings separately, and never enrolls
 sleep/workout/steps exports. Export older Snoop history is a separate consent action
 in Apple Health settings. Legacy combined selections retain both original consents;
@@ -269,12 +275,6 @@ weight takes precedence in the daily summary; imported values are never re-expor
 The weight history is separate from the body profile used for analytics. Historical
 imports do not replace that profile or invent measurements for missing days.
 
-Weight opens from Today. Its chart shows actual measurements over 7, 30 or 90 local
-dates, or all recorded history. Swipe horizontally to browse older dates, tap a
-point to inspect it, and use Latest to return to the current window. Browsing stops
-at the earliest recorded date and today; changing the window size keeps the browsed
-end date where history allows. All weigh-ins opens the full list with sources and
-Snoop-entry editing. Units, reminders and import stay in the options menu.
 
 Weight export skips visible existing external measurements on the same local date.
 If another source arrives later, Snoop removes only its own redundant Health copy.
@@ -288,12 +288,18 @@ Health consent and progress live in a protected, backup-excluded local journal.
 Wake-up reminders are local notifications, enabled by default with the app's normal
 notification permission. The server requires an automatic main sleep, at least 25
 minutes of awake readings in the following 30 minutes, and recent awake coverage.
-The phone then schedules one reminder five minutes later. A current-day weight
+Recent coverage is the newest five-minute sample window, no more than 15 minutes
+old, so normal batched uploads do not disqualify it. The phone then schedules one
+reminder five minutes later. A current-day weight
 (or a visible Health weight) cancels it. Naps, edited sleep, wakes before reminders
 were enabled, and wakes more than three hours old do not alert. Tapping opens Log
 weight, including after a cold launch. BLE/Health background opportunities and
-foreground refresh drive checks; iOS suspension, locked Health storage, or delayed
-uploads can delay or prevent a reminder. No APNs service or guaranteed delivery time.
+foreground refresh drive checks. Unlocking retries a deferred check. A fresh
+server-confirmed wake is retained for network recovery; an explicit server revocation
+clears it. A long Health import/export does not precede reminder evaluation. Scheduling
+receipts follow acceptance by iOS; pending/delivered requests recover interrupted
+receipt writes. Editing older weights does not cancel today’s reminder. iOS suspension
+and locked Health storage can still delay or prevent a reminder. No APNs service or guaranteed delivery time.
 
 Deploy backend migration 0009 before installing this app. HealthKit and background
 Health delivery require an enabled App ID, suitable provisioning profile, and current

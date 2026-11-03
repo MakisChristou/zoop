@@ -42,12 +42,19 @@ struct WeightImportView: View {
                         }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
-                            Label("Apple Health → Snoop", systemImage: "heart").font(.headline)
-                            Text("Bring your past weigh-ins into your weight chart.")
+                            Image(systemName: "heart").font(.title).foregroundStyle(SnoopStyle.load)
+                            Text("Your history,\nall together.").font(.title.weight(.semibold))
+                            Text("Add past weigh-ins from Apple Health.")
                                 .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                         }
                         if enabled {
-                            HistoryRangePicker(all: $all, from: $from, to: $to).disabled(importing)
+                            VStack(spacing: 16) {
+                                Toggle("All available history", isOn: $all)
+                                if !all {
+                                    DatePicker("From", selection: $from, in: ...to, displayedComponents: .date)
+                                    DatePicker("Through", selection: $to, in: from...Date(), displayedComponents: .date)
+                                }
+                            }.snoopCard().disabled(importing)
                             if importing {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text("Importing weigh-ins…").font(.headline)
@@ -68,7 +75,7 @@ struct WeightImportView: View {
                                 if preview == nil { Button("Try again") { retry += 1 } }
                             }.snoopCard()
                         }
-                        Text("Apple Health originals stay unchanged. This imports weight only.")
+                        Label("Originals in Apple Health stay unchanged.", systemImage: "checkmark.shield")
                             .font(.footnote).foregroundStyle(SnoopStyle.secondary)
                     }
                 }.padding(SnoopStyle.gutter)
@@ -106,12 +113,16 @@ struct WeightImportView: View {
         if error != nil && preview != nil { return "Retry import" }
         guard let preview else { return loading ? "Checking history…" : "Import weigh-ins" }
         if preview.total == 0 { return "No weigh-ins to import" }
-        return preview.toImport == 0 ? "Up to date" : "Import \(preview.toImport) \(preview.toImport == 1 ? "weigh-in" : "weigh-ins")"
+        return preview.toImport == 0 ? "Up to date" : "Add \(preview.toImport) \(preview.toImport == 1 ? "weigh-in" : "weigh-ins")"
     }
     private func previewCard(_ preview: WeightImportPreview) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(preview.total == 0 ? "No weigh-ins found" : preview.toImport == 0 ? "All weigh-ins are already saved" : "\(preview.toImport) \(preview.toImport == 1 ? "weigh-in" : "weigh-ins") ready to import")
-                .font(.headline)
+            if preview.toImport > 0 {
+                MetricValue(String(preview.toImport), size: 46)
+                Text(preview.toImport == 1 ? "weigh-in to add" : "weigh-ins to add").font(.headline)
+            } else {
+                Text(preview.total == 0 ? "No weigh-ins found" : "All weigh-ins are already saved").font(.headline)
+            }
             if let first = preview.first, let last = preview.last {
                 Text(first.formatted(date: .abbreviated, time: .omitted) + " – " + last.formatted(date: .abbreviated, time: .omitted))
                     .font(.subheadline).foregroundStyle(SnoopStyle.secondary)

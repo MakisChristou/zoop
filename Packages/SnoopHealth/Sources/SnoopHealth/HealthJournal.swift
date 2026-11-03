@@ -36,6 +36,8 @@ public struct HealthJournal: Codable, Sendable {
     public var importStart: Date?
     public var remindedDays: Set<String> = []
     public var lastSync: Date?
+    /// A server-confirmed wake retained while Health data is locked. Never inferred locally.
+    public var lastConfirmedWake: Date?
     public init() {}
     public func eligible(_ record: HealthRecord) -> Bool {
         if versions[record.id] != nil { return true }

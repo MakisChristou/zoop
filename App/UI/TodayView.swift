@@ -38,9 +38,9 @@ struct TodayView: View {
                         Button("Couldn’t update morning insights. Retry") { Task { await loadHistory() } }
                             .font(.footnote).frame(minHeight: 44)
                     }
+                    if isViewingToday { WeightCheckIn() }
                     overview
                     stepsCard
-                    if isViewingToday { WeightCheckIn() }
                     TodayLiveMetric(kind: .heartRate, isViewingToday: isViewingToday, summary: selectedSummary, history: [])
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {

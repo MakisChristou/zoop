@@ -5,7 +5,7 @@ import XCTest
 @MainActor final class HealthWeightTests: XCTestCase {
     private func launch(large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28474", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]
+        app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
@@ -29,9 +29,9 @@ import XCTest
     }
     func testWeightRangesOptionsAndImportNavigation() {
         let app = launch(); openWeight(app)
-        XCTAssertTrue(app.segmentedControls.buttons["30D"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.segmentedControls.buttons["Month"].waitForExistence(timeout: 10))
         let monthDates = app.staticTexts["weightChartDates"].label
-        app.segmentedControls.buttons["7D"].tap()
+        app.segmentedControls.buttons["Week"].tap()
         XCTAssertNotEqual(app.staticTexts["weightChartDates"].label, monthDates)
         app.segmentedControls.buttons["All"].tap()
         XCTAssertTrue(app.segmentedControls.buttons["All"].isSelected)
@@ -43,6 +43,8 @@ import XCTest
         app.buttons["weightChartLatest"].tap()
         XCTAssertFalse(app.buttons["weightChartLatest"].exists)
         app.buttons["Weight options"].tap()
+        XCTAssertTrue(app.switches["weightMovingAverage"].waitForExistence(timeout: 5))
+        app.switches["weightMovingAverage"].tap()
         let importAction = app.buttons["Import weight history"]
         XCTAssertTrue(importAction.waitForExistence(timeout: 5))
         importAction.press(forDuration: 0.1)
@@ -50,14 +52,15 @@ import XCTest
         XCTAssertTrue(app.buttons["confirmWeightImport"].exists)
         shot(app, "Weight import setup")
         app.buttons["Close"].tap()
+        app.buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
     }
     func testSwipingHistoryAndReturningToLatest() {
         let app = launch(); openWeight(app)
-        XCTAssertTrue(app.segmentedControls.buttons["30D"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.segmentedControls.buttons["Month"].waitForExistence(timeout: 10))
         let dates = app.staticTexts["weightChartDates"]
         let latestDates = dates.label
-        XCTAssertTrue(app.staticTexts["weightChartValue"].label.contains("kg"))
+        XCTAssertTrue(app.descendants(matching: .any)["weightChartValue"].firstMatch.label.contains("kg"))
         shot(app, "Current weight period")
         let chart = app.descendants(matching: .any)["Weight chart"].firstMatch
         chart.swipeRight()
@@ -65,9 +68,9 @@ import XCTest
         let olderDates = dates.label
         XCTAssertTrue(app.buttons["weightChartLatest"].exists)
         shot(app, "Earlier weight period")
-        app.segmentedControls.buttons["7D"].tap()
-        XCTAssertEqual(dates.label.components(separatedBy: " – ").last, olderDates.components(separatedBy: " – ").last)
-        app.segmentedControls.buttons["30D"].tap()
+        app.segmentedControls.buttons["Week"].tap()
+        XCTAssertTrue(dates.label.contains(" – "))
+        app.segmentedControls.buttons["Month"].tap()
         XCTAssertEqual(dates.label, olderDates)
         chart.swipeLeft()
         XCTAssertNotEqual(dates.label, olderDates)
@@ -77,17 +80,22 @@ import XCTest
         XCTAssertEqual(dates.label, latestDates)
         chart.tap()
         XCTAssertTrue(app.buttons["weightChartLatest"].waitForExistence(timeout: 5))
-        shot(app, "Tap selection after scrolling")
+        let left = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+        let right = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5))
+        left.press(forDuration: 0.35, thenDragTo: right)
+        XCTAssertEqual(app.staticTexts["weightChartHeadline"].label, "Selected weigh-in")
+        XCTAssertEqual(dates.label, latestDates)
+        shot(app, "Held finger inspects without paging")
         app.buttons["weightChartLatest"].tap()
         XCTAssertFalse(app.buttons["weightChartLatest"].exists)
-        app.segmentedControls.buttons["7D"].tap()
+        app.segmentedControls.buttons["Week"].tap()
         let week = dates.label
         chart.swipeRight()
         XCTAssertNotEqual(dates.label, week)
         app.buttons["weightChartLatest"].tap()
         XCTAssertEqual(dates.label, week)
-        app.segmentedControls.buttons["90D"].tap()
-        shot(app, "Ninety day weight window")
+        app.segmentedControls.buttons["3 months"].tap()
+        shot(app, "Three calendar months")
         app.buttons["weightHistory"].tap()
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
     }
@@ -97,7 +105,7 @@ import XCTest
         app.buttons["logWeight"].tap()
         let field = app.textFields["weightInput"]; XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap()
         if let value = field.value as? String, value != "Weight", !value.isEmpty { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
-        field.typeText("81.4"); app.buttons["saveWeight"].tap()
+        field.typeText("81.4"); shot(app, "Focused weight entry"); app.buttons["saveWeight"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
         app.buttons["weightHistory"].tap()
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
@@ -105,6 +113,8 @@ import XCTest
         shot(app, "Weight history")
         app.navigationBars["All weigh-ins"].buttons.element(boundBy: 0).tap()
         app.navigationBars["Weight"].buttons.element(boundBy: 0).tap()
+        XCTAssertFalse(app.buttons["todayLogWeight"].exists)
+        XCTAssertTrue(app.buttons["todayWeight"].firstMatch.label.contains("81.4"))
         profile(app)
         XCTAssertFalse(app.buttons["Weight"].exists)
         app.buttons["Apple Health"].tap()
@@ -119,6 +129,11 @@ import XCTest
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["logWeight"].isHittable)
         shot(app, "Weight accessibility text")
+        app.buttons["logWeight"].tap()
+        XCTAssertTrue(app.textFields["weightInput"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["saveWeight"].isHittable)
+        shot(app, "Weight entry accessibility text")
+        app.buttons["Cancel"].tap()
         let history = app.buttons["weightHistory"]
         for _ in 0..<8 { if history.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(history.isHittable)

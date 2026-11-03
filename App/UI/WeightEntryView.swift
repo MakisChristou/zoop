@@ -4,48 +4,76 @@ import SnoopHealth
 struct WeightEntryView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var value = ""
     @State private var measuredAt = Date()
+    @State private var choosingDate = false
     @State private var saving = false
     @State private var error: String?
     @State private var identity = "snoop:" + UUID().uuidString
+    @FocusState private var focused: Bool
+    @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 56.0
     var editing: WeightReading?
     private var kg: Double? {
-        let formatter = NumberFormatter(); formatter.numberStyle = .decimal
-        guard let number = formatter.number(from: value)?.doubleValue else { return nil }
+        let separator = Locale.current.decimalSeparator ?? "."
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: separator, with: ".")
+        guard let number = Double(normalized) else { return nil }
         let result = unit == "lb" ? number / 2.2046226218 : number
         return result.isFinite && (20...400).contains(result) ? result : nil
     }
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        TextField("Weight", text: $value).keyboardType(.decimalPad).font(.largeTitle.weight(.semibold)).monospacedDigit()
-                            .accessibilityIdentifier("weightInput")
-                        Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }.fixedSize()
+            ScrollView {
+                VStack(spacing: 24) {
+                    Text(editing == nil ? "What did the scale say?" : "Edit your weigh-in")
+                        .font(.title2.weight(.semibold)).multilineTextAlignment(.center).padding(.top, 12)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        TextField("Weight", text: $value).keyboardType(.decimalPad)
+                            .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
+                            .multilineTextAlignment(.center).focused($focused).accessibilityLabel("Weight").accessibilityIdentifier("weightInput")
+                            .padding(.bottom, 8).overlay(alignment: .bottom) { Rectangle().fill(SnoopStyle.load).frame(height: 2) }
+                            .frame(maxWidth: 240)
+                        Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }
+                            .pickerStyle(.menu).fixedSize().accessibilityLabel("Weight unit")
                     }
-                    DatePicker("Measured", selection: $measuredAt, in: ...Date())
-                } footer: { Text("Enter an actual weigh-in. Missing days stay empty.") }
-                if let error { Section { Text(error).foregroundStyle(SnoopStyle.unfavourable) } }
-                Section {
-                    Button("Save weight") {
-                        guard let kg else { return }; saving = true; error = nil
-                        let row = WeightReading(id: editing?.id ?? identity, measuredAt: measuredAt, kg: kg, version: editing?.version ?? 0)
-                        Task { do { try await model.health.save(row); dismiss() } catch { self.error = "Couldn’t save weight. Try again." }; saving = false }
-                    }.disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
-                    if saving { ProgressView() }
-                }
+                    if let previous = model.health.lastWeight {
+                        Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
+                            .font(.subheadline).foregroundStyle(SnoopStyle.secondary).multilineTextAlignment(.center)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { focused = false; choosingDate.toggle() } label: {
+                            ViewThatFits(in: .horizontal) {
+                                HStack { Text("Measured").foregroundStyle(SnoopStyle.secondary); Spacer(); measuredLabel }
+                                VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(SnoopStyle.secondary); measuredLabel }
+                            }.font(.subheadline).frame(minHeight: 44).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityIdentifier("weightMeasuredDate")
+                        if choosingDate {
+                            DatePicker("Measured", selection: $measuredAt, in: ...Date()).datePickerStyle(.compact)
+                                .labelsHidden().accessibilityLabel("Measurement date and time")
+                        }
+                    }.padding(.top, 4)
+                    if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
+                }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
             }
-            .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
-            .navigationTitle(editing == nil ? "Log weight" : "Edit weight").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .safeAreaInset(edge: .bottom) {
+                Button(action: save) {
+                    HStack { if saving { ProgressView() }; Text(editing == nil ? "Save weight" : "Save changes").font(.headline) }
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
+                }.buttonStyle(.borderedProminent).disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
+                    .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+            }
+            .snoopScreen().tint(SnoopStyle.load)
+            .navigationTitle(editing == nil ? "Today’s weigh-in" : "Edit weight").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) } }
+            .interactiveDismissDisabled(saving)
             .onAppear {
                 if let row = editing ?? model.health.lastWeight {
-                    value = (unit == "lb" ? row.kg * 2.2046226218 : row.kg).formatted(.number.precision(.fractionLength(1)))
+                    value = display(row.kg)
                     if editing != nil { measuredAt = row.measuredAt }
                 }
+                focused = true
             }
             .onChange(of: unit) { old, new in
                 let formatter = NumberFormatter(); formatter.numberStyle = .decimal
@@ -53,6 +81,22 @@ struct WeightEntryView: View {
                     value = (old == "kg" && new == "lb" ? number * 2.2046226218 : number / 2.2046226218).formatted(.number.precision(.fractionLength(1)))
                 }
             }
-        }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+        }.presentationDetents([.large]).presentationDragIndicator(.visible)
+    }
+    private var measuredLabel: some View {
+        HStack(spacing: 5) {
+            Text(Calendar.current.isDateInToday(measuredAt) ? "Today, \(measuredAt.formatted(date: .omitted, time: .shortened))" : measuredAt.formatted(date: .abbreviated, time: .shortened))
+            Image(systemName: "chevron.down").font(.caption)
+        }.foregroundStyle(SnoopStyle.load)
+    }
+    private func display(_ kg: Double) -> String { (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) }
+    private func save() {
+        guard let kg else { return }; saving = true; error = nil
+        let row = WeightReading(id: editing?.id ?? identity, measuredAt: measuredAt, kg: kg, version: editing?.version ?? 0)
+        Task {
+            do { try await model.health.save(row); UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() }
+            catch { self.error = "Couldn’t save weight. Try again." }
+            saving = false
+        }
     }
 }
