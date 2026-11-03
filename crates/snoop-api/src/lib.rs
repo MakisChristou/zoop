@@ -10,6 +10,7 @@ mod ingest;
 mod insights;
 mod processing;
 mod profile;
+mod profile_photo;
 mod query;
 mod sleep_sessions;
 mod sleeps;
@@ -124,6 +125,15 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/v1/devices/{deviceId}/profile",
             get(get_profile).put(put_profile),
+        )
+        .route(
+            "/v1/devices/{deviceId}/profile/photo",
+            get(profile_photo::get)
+                .put(profile_photo::put)
+                .delete(profile_photo::delete)
+                .layer(axum::extract::DefaultBodyLimit::max(
+                    profile_photo::MAX_BYTES,
+                )),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),

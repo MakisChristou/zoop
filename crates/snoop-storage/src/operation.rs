@@ -34,6 +34,7 @@ pub enum StoreOperation {
     UpsertStrain,
     GetProfile,
     UpsertProfile,
+    ProfilePhoto,
 }
 
 impl fmt::Display for StoreOperation {
@@ -70,6 +71,7 @@ impl fmt::Display for StoreOperation {
             Self::UpsertStrain => "upsert strain",
             Self::GetProfile => "read profile",
             Self::UpsertProfile => "upsert profile",
+            Self::ProfilePhoto => "store profile photo",
         };
         f.write_str(name)
     }

@@ -107,3 +107,5 @@ test-db:
     cargo test -p snoop-api --test sleep_corrections -- --ignored
     cargo test -p snoop-api --test insights -- --ignored
     cargo test -p snoop-api --test health -- --ignored
+    cargo test -p snoop-storage --test profile_weights -- --ignored
+    cargo test -p snoop-api --test profile_photo -- --ignored

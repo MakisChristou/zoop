@@ -120,8 +120,9 @@ and sample rate are not yet established.
 
 The iOS manual recorder follows the revision-1 interface described in the
 [public ECG protocol research](https://github.com/ryanbr/noop/blob/main/docs/PROTOCOL_ECG.md).
-These control encodings are interoperability findings, not yet a validated end-to-end
-measurement on our hardware. All payloads below follow the command code and include
+A hardware smoke check confirmed command acknowledgements, nonempty live samples,
+local recording storage and successful stop/cleanup. Sample calibration and diagnostic
+equivalence remain unvalidated. All payloads below follow the command code and include
 the revision byte:
 
 | Code | Purpose | Payload |

@@ -1,5 +1,23 @@
 # snoop-api
 
+## Profile measurements and photos
+
+Profile weight follows the most recent non-removed measurement by local date,
+preferring Apple Health within that date. Historical imports cannot roll current
+weight backward. A manual profile weight is only the fallback before any measurement.
+Profile responses include `weight_measured_at`, `weight_source` and
+`weight_source_name`; older clients can ignore these fields. Historical analytics
+resolve the most recent measurement before that day's end, never a future weight.
+Weight edits and removals requeue affected workout days through the existing worker.
+
+Authenticated `GET`, `PUT` and `DELETE /v1/devices/{deviceId}/profile/photo` read,
+replace or remove one private photo. PUT accepts `image/jpeg`, at most 256 KiB and
+512 pixels per dimension. The API decodes with bounded resources and re-encodes to
+strip metadata. GET/PUT return the normalized JPEG; absent photos return 404 and
+DELETE is idempotent (204). Images are stored as Postgres `BYTEA`; no object storage
+or public image URLs are used. Apply migrations 0012 and 0013 before starting this
+version. Profile photo tests and measured-weight regressions run in `just test-db`.
+
 **Your WHOOP data, on your own server.**
 
 snoop-api is a self-hosted backend for WHOOP 5.0 and WHOOP MG straps. A companion

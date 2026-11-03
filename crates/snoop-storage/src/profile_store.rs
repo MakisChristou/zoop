@@ -25,18 +25,30 @@ pub struct ProfileRow {
     pub height_cm: Option<f32>,
     pub tz: String,
     pub updated_at: DateTime<Utc>,
+    /// Provenance of the measured weight, absent for a manual fallback.
+    #[serde(default)]
+    #[sqlx(default)]
+    pub weight_measured_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    #[sqlx(default)]
+    pub weight_source: Option<String>,
+    #[serde(default)]
+    #[sqlx(default)]
+    pub weight_source_name: Option<String>,
 }
 
 impl PostgresStore {
     pub async fn get_profile(&self, device_id: &str) -> StorageResult<Option<ProfileRow>> {
-        sqlx::query_as(
+        let profile = sqlx::query_as(
             "SELECT sex, birth_year, weight_kg, height_cm, tz, updated_at FROM profiles
              WHERE device_id = $1",
         )
         .bind(device_id)
         .fetch_optional(self.pool())
         .await
-        .map_err(|source| StorageError::unavailable(StoreOperation::GetProfile, source))
+        .map_err(|source| StorageError::unavailable(StoreOperation::GetProfile, source))?;
+        self.with_measured_weight(profile, device_id, Utc::now())
+            .await
     }
 
     pub async fn upsert_profile(&self, profile: &NewProfile<'_>) -> StorageResult<()> {
@@ -54,7 +66,9 @@ impl PostgresStore {
              VALUES ($1, $2, $3, $4, $5, $6, now())
              ON CONFLICT (device_id) DO UPDATE SET
                sex = EXCLUDED.sex, birth_year = EXCLUDED.birth_year,
-               weight_kg = EXCLUDED.weight_kg, height_cm = EXCLUDED.height_cm,
+               weight_kg = CASE WHEN EXISTS(SELECT 1 FROM weight_readings WHERE device_id=$1 AND NOT removed AND measured_at<=now())
+                 THEN profiles.weight_kg ELSE EXCLUDED.weight_kg END,
+               height_cm = EXCLUDED.height_cm,
                tz = EXCLUDED.tz, updated_at = now()",
         )
         .bind(profile.device_id)
@@ -83,9 +97,39 @@ impl PostgresStore {
     ) -> StorageResult<Option<ProfileRow>> {
         let value:Option<serde_json::Value>=sqlx::query_scalar("SELECT profile FROM profile_revisions WHERE device_id=$1 AND effective_at<$2 ORDER BY effective_at DESC,id DESC LIMIT 1")
             .bind(device).bind(cutoff).fetch_optional(self.pool()).await.map_err(|e|StorageError::unavailable(StoreOperation::GetProfile,e))?;
-        value
+        let profile = value
             .map(serde_json::from_value)
             .transpose()
-            .map_err(|e| StorageError::invalid_data(StoreOperation::GetProfile, e.to_string()))
+            .map_err(|e| StorageError::invalid_data(StoreOperation::GetProfile, e.to_string()))?;
+        self.with_measured_weight(profile, device, cutoff).await
+    }
+
+    /// Resolve weight by measurement time, not import time. Health wins within the
+    /// latest local date; old backfills and future readings cannot replace today.
+    async fn with_measured_weight(
+        &self,
+        profile: Option<ProfileRow>,
+        device: &str,
+        cutoff: DateTime<Utc>,
+    ) -> StorageResult<Option<ProfileRow>> {
+        let Some(mut profile) = profile else {
+            return Ok(None);
+        };
+        let reading: Option<(f64, DateTime<Utc>, String, String)> = sqlx::query_as(
+            "SELECT kg,measured_at,source,source_name FROM weight_readings
+             WHERE device_id=$1 AND NOT removed AND measured_at<$2 AND measured_at<=now()
+             ORDER BY (measured_at AT TIME ZONE $3)::date DESC,(source='health') DESC,measured_at DESC,id DESC LIMIT 1"
+        ).bind(device).bind(cutoff).bind(&profile.tz).fetch_optional(self.pool()).await
+          .map_err(|e| StorageError::unavailable(StoreOperation::GetProfile,e))?;
+        if let Some((kg, at, source, name)) = reading {
+            #[allow(clippy::cast_possible_truncation)]
+            {
+                profile.weight_kg = Some(kg as f32);
+            }
+            profile.weight_measured_at = Some(at);
+            profile.weight_source = Some(source);
+            profile.weight_source_name = Some(name);
+        }
+        Ok(Some(profile))
     }
 }

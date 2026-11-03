@@ -15,6 +15,7 @@ pub(crate) enum ApiError {
     Conflict(String),
     Storage(StorageError),
     Projection(serde_json::Error),
+    PhotoProcessing,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +54,11 @@ impl From<snoop_core::CoreError> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
+            Self::PhotoProcessing => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "photo_unavailable",
+                "Photo processing is unavailable. Try again.".to_owned(),
+            ),
             Self::Projection(source) => {
                 error!(%source,"invalid sleep projection");
                 (

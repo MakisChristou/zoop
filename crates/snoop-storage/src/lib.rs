@@ -15,6 +15,7 @@ pub use health_store::{
 mod label_store;
 pub use insight_store::{InsightNight, InsightSnapshot};
 mod operation;
+mod profile_photo_store;
 mod profile_store;
 mod reset;
 mod sample_store;
