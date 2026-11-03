@@ -1,4 +1,5 @@
 import SwiftUI
+import SnoopHealth
 
 /// Body profile rows for a `List`: sex, birth year, weight, height, and the save
 /// button. Stored on the server with the phone's time zone so calories, zones and
@@ -11,6 +12,18 @@ struct BodyProfileSection: View {
     @State private var birthYearText = ""
     @State private var weightText = ""
     @State private var heightText = ""
+    @AppStorage("weightUnit") private var unit = "kg"
+    @State private var loadID = UUID()
+    @State private var loaded = false
+    @State private var loading = false
+    @State private var loadFailed = false
+    private var measuredWeight: WeightReading? {
+        var readings = model.health.lastWeight.map { [$0] } ?? []
+        if let at = profile.weightMeasuredAt, let kg = profile.weightKg {
+            readings.append(.init(id: "profile", measuredAt: at, kg: kg, source: profile.weightSource ?? "health", sourceName: profile.weightSourceName ?? "Apple Health"))
+        }
+        return WeightReading.latest(readings)
+    }
 
     var body: some View {
         Section {
@@ -23,12 +36,22 @@ struct BodyProfileSection: View {
                 TextField("1990", text: $birthYearText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                     .accessibilityLabel("Birth year")
             }
-            LabeledContent("Weight") {
+            if let weight = measuredWeight {
+                NavigationLink { WeightView() } label: {
+                    VStack(alignment: .leading, spacing: 5) {
+                        LabeledContent("Weight", value: "\((unit == "lb" ? weight.kg * 2.2046226218 : weight.kg).formatted(.number.precision(.fractionLength(1)))) \(unit)")
+                        Text("\(weight.measuredAt.formatted(date: .abbreviated, time: .omitted)) · \(weight.source == "health" ? "Apple Health" : "Snoop")")
+                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    }
+                }.accessibilityIdentifier("profileLatestWeight")
+            } else {
+              LabeledContent("Weight") {
                 HStack(spacing: 4) {
                     TextField("75", text: $weightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         .accessibilityLabel("Weight in kilograms")
                     Text("kg").foregroundStyle(SnoopStyle.secondary)
                 }
+              }
             }
             LabeledContent("Height") {
                 HStack(spacing: 4) {
@@ -46,33 +69,59 @@ struct BodyProfileSection: View {
                     if saving { ProgressView() } else if let status { Text(status).foregroundStyle(SnoopStyle.secondary) }
                 }
             }
-            .disabled(saving || !Settings.isConfigured || model.strap.serial.isEmpty)
+            .disabled(saving || loading || !loaded || !Settings.isConfigured || model.strap.serial.isEmpty)
+            if loadFailed {
+                Button("Couldn’t load profile. Retry") { Task { await load() } }
+            }
         } header: {
             Text("Body")
         } footer: {
             Text("Used to estimate calories and heart-rate zones. Time zone: \(TimeZone.current.identifier).")
+            if measuredWeight != nil { Text("Weight updates from your latest weigh-in.") }
         }
-        .task(id: model.strap.serial) { await load() }
+        .task(id: "\(model.strap.serial)|\(Settings.connectionID)") { await load() }
+        .onChange(of: model.health.lastWeight) { _, _ in Task { await load(preserveEdits: true) } }
     }
 
-    private func load() async {
+    private func load(preserveEdits: Bool = false) async {
         guard Settings.isConfigured, !model.strap.serial.isEmpty else { return }
-        guard let fetched = try? await SnoopAPI.profile(deviceId: model.strap.serial) else { return }
+        let serial = model.strap.serial, connection = Settings.connectionID, request = UUID()
+        loadID = request; loading = true
+        defer { if loadID == request { loading = false } }
+        let fetched: SnoopAPI.Profile
+        do { fetched = try await SnoopAPI.profile(deviceId: serial) ?? .empty }
+        catch {
+            if loadID == request, !Task.isCancelled { loadFailed = true }
+            return
+        }
+        guard !Task.isCancelled, loadID == request, serial == model.strap.serial, connection == Settings.connectionID else { return }
+        loadFailed = false
+        if preserveEdits && loaded {
+            profile.weightKg = fetched.weightKg; profile.weightMeasuredAt = fetched.weightMeasuredAt
+            profile.weightSource = fetched.weightSource; profile.weightSourceName = fetched.weightSourceName
+            return
+        }
         profile = fetched
         birthYearText = profile.birthYear.map(String.init) ?? ""
         weightText = profile.weightKg.map { $0.formatted(.number.precision(.fractionLength(0...1))) } ?? ""
         heightText = profile.heightCm.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? ""
+        loaded = true
     }
 
     private func save() async {
         saving = true
         defer { saving = false }
         profile.birthYear = Int(birthYearText.trimmingCharacters(in: .whitespaces))
-        profile.weightKg = Double(weightText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
+        if measuredWeight == nil {
+            profile.weightKg = Double(weightText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
+        }
         profile.heightCm = Double(heightText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
         profile.tz = TimeZone.current.identifier
         do {
-            profile = try await SnoopAPI.saveProfile(deviceId: model.strap.serial, profile)
+            let serial = model.strap.serial, connection = Settings.connectionID
+            let saved = try await SnoopAPI.saveProfile(deviceId: serial, profile)
+            guard serial == model.strap.serial, connection == Settings.connectionID else { return }
+            profile = saved
             status = "Saved"
         } catch {
             status = "Not saved: \(error.localizedDescription)"

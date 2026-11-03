@@ -8,6 +8,7 @@ struct AppleHealthView: View {
     @State private var exportWeight = false
     @State private var connecting = false
     @State private var showBackfill = false
+    @State private var showWeightImport = false
     @State private var confirmRemoval = false
     private var health: HealthCoordinator { model.health }
     var body: some View {
@@ -31,6 +32,8 @@ struct AppleHealthView: View {
             }
             Section {
                 Toggle("Import weight", isOn: $importWeight)
+                Button("Import weight history") { showWeightImport = true }
+                    .accessibilityIdentifier("healthWeightImport")
             } header: { Text("Weight") } footer: {
                 Text("Imported weights are saved to your Snoop server with their date and source. Other apps’ records stay unchanged.")
             }
@@ -59,6 +62,7 @@ struct AppleHealthView: View {
         .navigationTitle("Apple Health").navigationBarTitleDisplayMode(.inline)
         .onAppear { if health.connected { steps = health.journal.exportSteps; importWeight = health.journal.importWeight; exportWeight = health.journal.exportWeight } }
         .sheet(isPresented: $showBackfill) { HealthBackfillView() }
+        .sheet(isPresented: $showWeightImport) { WeightImportView() }
         .confirmationDialog("Remove Snoop exports from Health?", isPresented: $confirmRemoval) {
             Button("Remove Snoop exports", role: .destructive) { Task { await health.removeExports() } }
         } message: { Text("Removes only exports from this Snoop connection and disconnects Health. Your Snoop history and other apps’ records stay unchanged.") }

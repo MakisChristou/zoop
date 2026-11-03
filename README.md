@@ -285,8 +285,25 @@ Weight entries are saved durably on the phone before upload, with kg/lb entry,
 history of actual measurements. Imported readings
 retain their date, identity and source and are read-only in Snoop. A visible external
 weight takes precedence in the daily summary; imported values are never re-exported.
-The weight history is separate from the body profile used for analytics. Historical
-imports do not replace that profile or invent measurements for missing days.
+The profile follows the newest actual weigh-in by local date, with Apple Health
+preferred within that day. The weight row opens Weight and refreshes after sync;
+editing other profile fields cannot overwrite a measured weight. A manual profile
+weight is only a fallback before measurements exist. Historical imports cannot move
+current weight backward, and historical analytics use measurements before that day's
+end. No measurements are invented for missing days.
+
+Weight has a direct Import weight history action below its recent readings, also
+available in Apple Health settings and Weight options. Import remains available
+after an earlier import; the preview skips readings already saved.
+
+Profile photos can be chosen, replaced or removed from the profile header. The native
+Photos picker shares only the selected image; the app downsamples to at most 512 px,
+applies orientation and strips source metadata before upload. A protected Postgres
+endpoint stores one small JPEG per profile, with a scoped on-device cache for offline
+display. Failed uploads keep the old photo and the draft available for retry.
+`ProfilePhotoTests` covers image preparation, cache persistence, failure and scope
+isolation. `ProfileUITests` uses `python3 tools/profile-test-server.py` on loopback
+port 28480 for profile, import and native-picker navigation, including large text.
 
 
 Weight export skips visible existing external measurements on the same local date.

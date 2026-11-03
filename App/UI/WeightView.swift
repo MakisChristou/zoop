@@ -29,6 +29,13 @@ struct WeightView: View {
                             if row.id != rows.prefix(3).last?.id { Divider().overlay(SnoopStyle.separator) }
                         }
                     }
+                    Button { importing = true } label: {
+                        HStack {
+                            Label("Import weight history", systemImage: "heart")
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        }.font(.subheadline).frame(minHeight: 44)
+                    }.accessibilityIdentifier("openWeightImport")
                 }
                 if !model.health.journal.pendingWeights.isEmpty {
                     Label("Saved on this iPhone · waiting to sync", systemImage: "icloud.and.arrow.up").font(.footnote).foregroundStyle(SnoopStyle.secondary)
@@ -40,7 +47,7 @@ struct WeightView: View {
                     }.snoopCard()
                 }
             }.padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
-        }.snoopScreen().tint(SnoopStyle.load)
+        }.accessibilityIdentifier("weightScroll").snoopScreen().tint(SnoopStyle.load)
         .navigationTitle("Weight").navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

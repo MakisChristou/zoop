@@ -19,6 +19,13 @@ public struct WeightReading: Codable, Equatable, Identifiable, Sendable {
                 return a.measuredAt > b.measuredAt
             }.first
     }
+    /// Latest real measurement, with the same Health-first rule as the daily card.
+    /// Import order, deleted rows and future dates do not replace the current value.
+    public static func latest(_ rows: [Self], now: Date = Date(), calendar: Calendar = .current) -> Self? {
+        let valid = rows.filter { !$0.removed && $0.measuredAt <= now && $0.kg.isFinite && (20...400).contains($0.kg) }
+        guard let day = valid.map(\.measuredAt).max() else { return nil }
+        return preferred(valid, on: day, calendar: calendar)
+    }
     /// One actual observation per date; never invent missing days or average duplicate sources.
     public static func trend(_ rows: [Self], ending day: Date, calendar: Calendar = .current) -> Double? {
         let values = (0..<7).compactMap { offset -> Double? in

@@ -10,6 +10,8 @@ struct ProfileSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var path: [Page] = []
+    @State private var editingPhoto = false
+    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.strap.serial, connection: Settings.connectionID) }
     private let open: Page?
 
     init(open: Page? = nil) {
@@ -21,10 +23,12 @@ struct ProfileSheet: View {
             List {
                 Section {
                     HStack(spacing: 12) {
-                        Image(systemName: "person.crop.circle").font(.largeTitle).foregroundStyle(SnoopStyle.secondary)
+                        Button { editingPhoto = true } label: { ProfileAvatar(size: 64) }
+                            .buttonStyle(.plain).accessibilityLabel("Edit profile photo")
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Personal profile").font(.headline)
-                            Text("Body measurements").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                            Button(model.photo.image(for: photoScope) == nil ? "Add photo" : "Change photo") { editingPhoto = true }
+                                .font(.subheadline).frame(minHeight: 44).accessibilityIdentifier("editProfilePhoto")
                         }
                     }
                     .padding(.vertical, 8)
@@ -78,6 +82,8 @@ struct ProfileSheet: View {
                 }
             }
             .task { await model.battery.refreshAuthorization() }
+            .task(id: photoScope) { await model.photo.load(photoScope) }
+            .sheet(isPresented: $editingPhoto) { ProfilePhotoView(scope: photoScope) }
             .onAppear { if let open, path.isEmpty { path = [open] } }
         }
         .tint(SnoopStyle.text)

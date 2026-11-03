@@ -185,6 +185,9 @@ enum SnoopAPI {
         var weightKg: Double?
         var heightCm: Double?
         var tz: String
+        var weightMeasuredAt: Date? = nil
+        var weightSource: String? = nil
+        var weightSourceName: String? = nil
 
         static var empty: Profile { Profile(sex: nil, birthYear: nil, weightKg: nil, heightCm: nil, tz: TimeZone.current.identifier) }
     }
@@ -302,7 +305,7 @@ enum SnoopAPI {
         }
     }
 
-    private static func request(_ path: String, query: [String: String] = [:]) throws -> URLRequest {
+    static func request(_ path: String, query: [String: String] = [:]) throws -> URLRequest {
         guard let base = Settings.serverURL, !Settings.ingestToken.isEmpty else { throw Failure.notConfigured }
         var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty {

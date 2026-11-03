@@ -96,7 +96,7 @@ struct WeightImportView: View {
             }
             .snoopScreen().tint(SnoopStyle.load)
             .navigationTitle("Import weight history").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(importing) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(importing).accessibilityIdentifier("closeWeightImport") } }
             .task(id: key) { await refreshPreview() }
             .interactiveDismissDisabled(importing)
             .sheet(isPresented: $showConnection, onDismiss: { retry += 1 }) {

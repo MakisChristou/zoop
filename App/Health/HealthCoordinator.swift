@@ -43,7 +43,7 @@ final class HealthCoordinator {
         if rows != result { rows = result }
     }
     var today: WeightReading? { WeightReading.preferred(rows, on: Date()) }
-    var lastWeight: WeightReading? { rows.first }
+    var lastWeight: WeightReading? { WeightReading.latest(rows) }
     var canRemind: Bool { journal.remindWeight }
 
     init() {

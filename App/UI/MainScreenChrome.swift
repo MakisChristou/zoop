@@ -10,12 +10,17 @@ struct MainScreenChrome: ViewModifier {
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppModel.self) private var model
     @State private var request: Request?
 
     func body(content: Content) -> some View {
         chrome(content)
             .sheet(item: $request) { ProfileSheet(open: $0.page) }
             .onAppear(perform: applyDemoRoute)
+            .task(id: PhotoRefresh(scope: photoScope, active: scenePhase == .active)) {
+                if scenePhase == .active { await model.photo.load(photoScope) }
+            }
     }
 
     @ViewBuilder private func chrome(_ content: Content) -> some View {
@@ -29,8 +34,9 @@ struct MainScreenChrome: ViewModifier {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         ConnectionStatusLabel(compact: true) { request = Request(page: .device) }
                         Button { request = Request(page: nil) } label: {
-                            Label("Profile and settings", systemImage: "person")
+                            ProfileAvatar()
                         }
+                        .accessibilityLabel("Profile and settings")
                         .accessibilityIdentifier("openProfile")
                     }
                 }
@@ -48,9 +54,7 @@ struct MainScreenChrome: ViewModifier {
                     HStack(spacing: 10) {
                         ConnectionStatusLabel { request = Request(page: .device) }
                         Button { request = Request(page: nil) } label: {
-                            Image(systemName: "person").font(.body.weight(.medium))
-                                .frame(width: 44, height: 44)
-                                .background(SnoopStyle.surface, in: Circle())
+                            ProfileAvatar()
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Profile and settings")
@@ -76,6 +80,8 @@ struct MainScreenChrome: ViewModifier {
         }
         #endif
     }
+    private struct PhotoRefresh: Equatable { let scope: ProfilePhotoStore.Scope; let active: Bool }
+    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.strap.serial, connection: Settings.connectionID) }
 }
 
 extension View {

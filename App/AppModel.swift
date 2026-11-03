@@ -24,6 +24,7 @@ final class AppModel {
     let activity = WorkoutStore()
     let sleep = SleepStore()
     let health = HealthCoordinator()
+    let photo = ProfilePhotoStore()
     var analysisRevision = 0
     private(set) var analysisUpdating = false
     private static let analysisRefreshAttempts = 120
