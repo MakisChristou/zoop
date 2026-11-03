@@ -380,3 +380,83 @@ async fn weight_delta_pages_updates_tombstones_and_auth() {
         400
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn wake_reminder_accepts_batched_uploads_but_rejects_stale_or_sleeping_windows() {
+    let db = Db::new().await;
+    let raw = db.raw(1).await;
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind) VALUES('TEST-RELIABILITY',now()-interval '8 hours',now()-interval '50 minutes','main','main')").await;
+    // Samples arrived together, six minutes behind wall-clock time. The newest
+    // five minutes still contain a full awake window; no instant upload is required.
+    sqlx::query("INSERT INTO samples(device_id,ts,band_state,raw_frame_id) SELECT $1,now()-interval '50 minutes'+n*interval '1 second',0,$2 FROM generate_series(0,2640)n")
+        .bind(DEVICE).bind(raw).execute(&db.pool).await.unwrap();
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_some()
+    );
+    db.sql("UPDATE samples SET band_state=2 WHERE ts>now()-interval '7 minutes'")
+        .await;
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_none()
+    );
+    db.sql(
+        "UPDATE samples SET band_state=0; DELETE FROM samples WHERE ts>now()-interval '16 minutes'",
+    )
+    .await;
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_none()
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn wake_reminder_rejects_sparse_batches_and_unfinished_sleep_analysis() {
+    let db = Db::new().await;
+    let raw = db.raw(1).await;
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind) VALUES('TEST-RELIABILITY',now()-interval '8 hours',now()-interval '50 minutes','main','main')").await;
+    sqlx::query("INSERT INTO samples(device_id,ts,band_state,raw_frame_id) SELECT $1,now()-interval '50 minutes'+n*interval '1 second',0,$2 FROM generate_series(0,1800)n UNION ALL SELECT $1,now()-interval '6 minutes',0,$2")
+        .bind(DEVICE).bind(raw).execute(&db.pool).await.unwrap();
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_none()
+    );
+    sqlx::query("INSERT INTO samples(device_id,ts,band_state,raw_frame_id) SELECT $1,now()-interval '11 minutes'+n*interval '1 second',0,$2 FROM generate_series(0,298)n")
+        .bind(DEVICE).bind(raw).execute(&db.pool).await.unwrap();
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_some()
+    );
+    db.sql("UPDATE sleep_sessions SET metrics_pending=true")
+        .await;
+    assert!(
+        db.store
+            .health_info(DEVICE)
+            .await
+            .unwrap()
+            .wake_at
+            .is_none()
+    );
+}

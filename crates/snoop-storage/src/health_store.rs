@@ -4,6 +4,9 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::FromRow;
+
+// The app uploads batches: judge the newest complete sample window, with a bounded age.
+const WAKE_SAMPLE_MAX_AGE_SECONDS: i64 = 15 * 60;
 fn fail(e: sqlx::Error) -> StorageError {
     StorageError::unavailable(StoreOperation::HealthSync, e)
 }
@@ -97,14 +100,16 @@ impl PostgresStore {
             .execute(self.pool())
             .await
             .map_err(fail)?;
-        sqlx::query_as(r#"SELECT namespace::text,cursor,
+        sqlx::query_as(r#"WITH latest AS (SELECT max(ts) ts FROM samples WHERE device_id=$1 AND ts<=now())
+   SELECT namespace::text,cursor,
     (SELECT min(t) FROM (SELECT min(ts) t FROM samples WHERE device_id=$1 UNION ALL SELECT min(measured_at) t FROM weight_readings WHERE device_id=$1) dates) earliest,
     (SELECT max(end_ts) FROM sleep_sessions s WHERE s.device_id=$1 AND kind='main' AND status='active' AND NOT metrics_pending AND NOT edited AND auto_detected
      AND end_ts BETWEEN now()-interval '3 hours' AND now()-interval '30 minutes'
      AND NOT EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='sleep' AND j.tz=s.timezone AND j.day=(s.end_ts AT TIME ZONE s.timezone)::date AND generation>completed_generation)
      AND (SELECT count(*) FILTER(WHERE band_state IN(0,3))>=1500 FROM samples WHERE device_id=$1 AND ts>=s.end_ts AND ts<s.end_ts+interval '30 minutes')
-     AND (SELECT count(*) FILTER(WHERE band_state=2)=0 AND count(*)>=240 FROM samples WHERE device_id=$1 AND ts>=now()-interval '5 minutes')) wake_at
-   FROM health_datasets WHERE device_id=$1"#).bind(device).fetch_one(self.pool()).await.map_err(fail)
+     AND (SELECT ts>=now()-$2::bigint*interval '1 second' FROM latest)
+     AND (SELECT count(*) FILTER(WHERE band_state=2)=0 AND count(*)>=240 FROM samples,latest WHERE device_id=$1 AND samples.ts>latest.ts-interval '5 minutes' AND samples.ts<=latest.ts)) wake_at
+   FROM health_datasets WHERE device_id=$1"#).bind(device).bind(WAKE_SAMPLE_MAX_AGE_SECONDS).fetch_one(self.pool()).await.map_err(fail)
     }
     /// Pages immutable events; snapshot mode selects only the latest event per identity.
     /// # Errors

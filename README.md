@@ -241,6 +241,11 @@ Authenticated endpoints:
 
 - `GET /v1/devices/{deviceId}/health`: namespace, committed cursor, earliest data and
   a recently confirmed automatic main-sleep wake for optional weight reminders.
+  Confirmation requires settled sleep analysis, at least 25 awake minutes in the
+  first 30 minutes after waking, and a complete recent awake window (at least 240
+  samples in the newest five minutes, none asleep). That window may be up to
+  15 minutes behind wall-clock time to accommodate batched uploads; stale or
+  sparse data cannot qualify. The app still suppresses reminders after a weigh-in.
 - `GET /v1/devices/{deviceId}/health/exports?cursor=0&snapshot=true`: latest export
   per identity at a captured watermark. Continue using `next_cursor` and `watermark`.
   Once done, use `snapshot=false` after that watermark for changes. Pages are bounded;
