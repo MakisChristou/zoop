@@ -115,6 +115,51 @@ i16 samples. R16 (1584 bytes) holds up to 500 18-bit two's-complement samples pa
 3 bytes (`((b0 & 3) << 16) | (b1 << 8) | b2`), with flag bits in `b0`. Physical scale
 and sample rate are not yet established.
 
+
+#### Manual ECG capture contract (experimental)
+
+The iOS manual recorder follows the revision-1 interface described in the
+[public ECG protocol research](https://github.com/ryanbr/noop/blob/main/docs/PROTOCOL_ECG.md).
+These control encodings are interoperability findings, not yet a validated end-to-end
+measurement on our hardware. All payloads below follow the command code and include
+the revision byte:
+
+| Code | Purpose | Payload |
+|---|---|---|
+| 123 | Wrist | `01 01` right, `01 02` left |
+| 124 | ECG generation | `01 02` start, `01 01` stop |
+| 125 | Save raw history | `01 01` on, `01 00` off |
+| 126 | Raw live output | `01 01` on, `01 00` off |
+| 127 | Save filtered history | `01 01` on, `01 00` off |
+| 139 | Filtered live output | `01 01` on, `01 00` off |
+
+Select and acknowledge the wrist, enable explicit live gates, then request generation.
+Match replies by command and origin sequence. Success acknowledges handling; it does
+not prove that initialization succeeded or samples exist. Never automatically repeat
+start: repeated starts can lose ownership of accompanying optical/IMU collection.
+Do not change `enable_raw_data_w_ecg` as an authorization workaround. Stop generation
+and disable only gates attempted by the recorder, including after cancellation,
+disconnect or app restart. Persist cleanup intent before each mutating request.
+
+Only CRC-valid type-43 R16/R17 records belong to a live session. Type-47 history may
+arrive concurrently and must not advance the live recording timer. The ECG timestamp
+words are retained without assuming Unix units; use phone receipt time for the capture
+window. Deduplicate exact frames, not shared sequence/timestamp pairs across layouts.
+
+R17 samples occupy `[34,234)`; `[234,236)` is alignment. Reject counts above 100.
+R16 has 500 fixed waveform slots, then a diagnostic count at 1534, 11 I halfwords at
+1535, 11 Q halfwords at 1557, and alignment at 1579. Reject counts above capacity.
+Keep both flag bits 6 and 7 and reserved bits 2–5 separately from signed 18-bit samples.
+Preserve packed status bytes `[21,34)`, including unknown quality/classifier codes.
+Presence is bit 3 of byte 22; it is not a validated contact-quality or diagnostic label.
+
+The first app slice retains complete frames in its normal upload queue and stores a
+local recording manifest with exact frames and receipt times. A 30-second capture
+window is a product duration, not an inferred firmware completion or sampling rate.
+Show native sample counts and uncalibrated waveform amplitude; do not invent mV,
+sample frequency, average ECG heart rate, AFib or normal-rhythm results. Missing data,
+rejected commands and cleanup failures remain distinct from a saved recording.
+
 ### Not yet decoded
 
 R20 optical blocks (2140 bytes), R21 six-axis IMU (1244 bytes), R22 high-rate channels,
