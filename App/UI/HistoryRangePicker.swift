@@ -7,8 +7,8 @@ struct HistoryRangePicker: View {
     @Binding var to: Date
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            choice("All history", detail: "Everything available", selected: all) { all = true }
-            choice("Choose dates", detail: "Import a specific period", selected: !all) { all = false }
+            choice("All history", selected: all) { all = true }
+            choice("Choose dates", selected: !all) { all = false }
             if !all {
                 VStack(spacing: 12) {
                     DatePicker("From", selection: $from, in: ...to, displayedComponents: .date)
@@ -18,13 +18,10 @@ struct HistoryRangePicker: View {
             }
         }
     }
-    private func choice(_ title: String, detail: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func choice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                }
+                Text(title).font(.headline)
                 Spacer()
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .font(.title3).foregroundStyle(selected ? SnoopStyle.load : SnoopStyle.secondary)

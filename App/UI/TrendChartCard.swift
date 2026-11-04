@@ -100,7 +100,7 @@ struct TrendChartCard: View {
                 }
                 .tint(SnoopStyle.secondary).accessibilityIdentifier("trendComparisons")
             } else {
-                unlock(pts.isEmpty ? "No values in this range yet." : "One value so far. The chart appears with the second \(metric == .steps ? "day" : "night").")
+                unlock(pts.isEmpty ? "No readings in this range." : "1 \(metric == .steps ? "day" : "night") recorded.")
                     .frame(height: 120)
             }
         }

@@ -78,8 +78,7 @@ struct WeightView: View {
     private var empty: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "chart.xyaxis.line").font(.largeTitle).foregroundStyle(SnoopStyle.load)
-            Text("Your weight.\nYour own timeline.").font(.title.weight(.semibold))
-            Text("Start with a weigh-in, or bring your readings from Apple Health.").foregroundStyle(SnoopStyle.secondary)
+            Text("No weigh-ins yet").font(.title.weight(.semibold))
             Button { adding = true } label: {
                 Text("Log your weight").font(.headline).frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
             }.buttonStyle(.borderedProminent).accessibilityIdentifier("logWeight")

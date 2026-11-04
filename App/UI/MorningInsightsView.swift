@@ -21,10 +21,6 @@ struct MorningInsightsView: View {
                 }
                 if let insights {
                     MorningOutlookView(insights: insights, showsChanges: false)
-                    if insights.isLearning {
-                        Text("These early comparisons become more personal as you record more nights.")
-                            .font(.footnote).foregroundStyle(SnoopStyle.secondary)
-                    }
                     ForEach(insights.metrics) { InsightMetricView(metric: $0) }
                     DisclosureGroup {
                         weekly(insights)

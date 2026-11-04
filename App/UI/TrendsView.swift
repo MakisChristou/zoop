@@ -100,7 +100,7 @@ struct TrendsView: View {
                 .chartYAxis(.hidden)
                 .frame(height: 120)
             } else if range == .week {
-                Text("Choose a longer range to compare weekdays.")
+                Text("Needs 14 \(metric == .steps ? "days" : "nights").")
                     .font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 Button("View 30 days") { range = .month }
                     .font(.subheadline.weight(.medium)).frame(minHeight: 44)

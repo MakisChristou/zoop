@@ -128,7 +128,7 @@ struct StepsView: View {
             if with.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("No days yet", systemImage: "calendar").font(.headline)
-                    Text("Days fill in as the strap syncs. Come back after the first full day.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Text("Waiting for a full day of data.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()

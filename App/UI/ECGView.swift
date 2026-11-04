@@ -65,10 +65,7 @@ struct ECGView: View {
             Image(systemName: "waveform.path.ecg")
                 .font(.system(size: 64, weight: .light)).foregroundStyle(SnoopStyle.heartRate)
                 .frame(maxWidth: .infinity, minHeight: 140).snoopCard().accessibilityHidden(true)
-            VStack(spacing: 10) {
-                Button("Record ECG") { preparing = true }.buttonStyle(ECGActionStyle()).accessibilityIdentifier("recordECG")
-                Text("Sit comfortably. Keep a light touch.").font(.caption).foregroundStyle(SnoopStyle.secondary)
-            }
+            Button("Record ECG") { preparing = true }.buttonStyle(ECGActionStyle()).accessibilityIdentifier("recordECG")
             history
             DisclosureGroup("About this measurement") {
                 Text("Use a WHOOP MG and an ECG-compatible clasp. Snoop saves the electrical signal without a rhythm assessment. Waveform timing and amplitude are not calibrated. Recording history is stored on this iPhone.")
@@ -116,7 +113,6 @@ struct ECGView: View {
                 ECGWaveform(samples: recorder.samples, label: "Live ECG")
                 ProgressView(value: Double(30 - recorder.secondsRemaining), total: 30).tint(SnoopStyle.load)
                     .accessibilityLabel("Recording progress")
-                Text("You can relax your hand when the recording finishes.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             } else { ProgressView().frame(maxWidth: .infinity).padding(.vertical, 35) }
             if recorder.phase != .finishing {
                 Button("Cancel recording") { recorder.cancel(); preparing = false }.buttonStyle(ECGActionStyle(primary: false))
@@ -145,7 +141,7 @@ struct ECGView: View {
                 Text(error).font(.footnote).foregroundStyle(SnoopStyle.secondary)
                 Button("Reload recordings") { Task { await recorder.reloadHistory() } }
             } else if recorder.recordings.isEmpty {
-                Text("Your recordings will appear here.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("No recordings yet").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             }
             ForEach(Array(recorder.recordings.prefix(showAll ? recorder.recordings.count : 3))) { item in
                 NavigationLink { ECGHistoryDetail(id: item.id) } label: {

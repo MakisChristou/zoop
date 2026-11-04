@@ -113,7 +113,7 @@ struct WorkoutDetailView: View {
                 if workout.edited {
                     Text(workout.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(SnoopStyle.secondary)
                 } else if kind == .activity {
-                    Text("Choose an activity type").font(.caption).foregroundStyle(kind.color)
+                    Text("Unclassified").font(.caption).foregroundStyle(kind.color)
                 }
             }
             Spacer(minLength: 0)

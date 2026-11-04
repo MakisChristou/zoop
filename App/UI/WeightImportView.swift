@@ -43,9 +43,7 @@ struct WeightImportView: View {
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
                             Image(systemName: "heart").font(.title).foregroundStyle(SnoopStyle.load)
-                            Text("Your history,\nall together.").font(.title.weight(.semibold))
-                            Text("Add past weigh-ins from Apple Health.")
-                                .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                            Text("Apple Health").font(.title2.weight(.semibold))
                         }
                         if enabled {
                             VStack(spacing: 16) {
@@ -66,7 +64,7 @@ struct WeightImportView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading).snoopCard()
                             } else if let preview { previewCard(preview) }
                         } else {
-                            Text("Enable weight imports in your Apple Health connection to get started.")
+                            Text(health.connected ? "Weight imports are off." : "Connect Apple Health to import weigh-ins.")
                                 .font(.subheadline).foregroundStyle(SnoopStyle.secondary).snoopCard()
                         }
                         if let error {

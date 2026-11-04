@@ -23,13 +23,11 @@ struct HeightEntryView: View {
                             .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
                             .multilineTextAlignment(.center).frame(maxWidth: 240)
                             .accessibilityLabel("Height in centimetres").accessibilityIdentifier("heightInput")
+                            .accessibilityHint("Tap to type a height")
                         Text("cm").foregroundStyle(SnoopStyle.secondary)
                     }
-                    VStack(spacing: 4) {
-                        MeasurementRuler(value: rulerValue, range: 40...250, step: 1, unit: "cm", label: "Height ruler", onEditing: { focused = false })
-                            .accessibilityIdentifier("heightRuler")
-                        Text("Swipe to adjust · Tap the number to type").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }
+                    MeasurementRuler(value: rulerValue, range: 40...250, step: 1, unit: "cm", label: "Height ruler", onEditing: { focused = false })
+                        .accessibilityIdentifier("heightRuler")
                 }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
             }
             .safeAreaInset(edge: .bottom) {

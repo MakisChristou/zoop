@@ -40,6 +40,25 @@ Analysis happens on the server; the app shows live values and sync status.
 - Background mode `bluetooth-central` with state restoration is mandatory. Test on a
   real device.
 
+## UI and UX
+
+- **Let clear controls explain themselves.** Do not add visible tutorial copy for
+  obvious interactions, such as "Swipe to adjust" or "Tap the number to type".
+  Use familiar controls, clear labels, and visual affordances instead. Keep useful
+  interaction guidance in accessibility hints.
+- Give each screen one clear purpose and primary action. Remove sentences that
+  repeat a heading, button, picker choice, or already-visible status. Empty states
+  should state what is missing briefly, with an action when one is useful.
+- Show explanatory copy only when it changes a decision or is needed to complete
+  the task: measurement technique, data quality, permission/privacy consequences,
+  destructive actions, or error recovery. Put optional methods and technical
+  details behind a named disclosure or an About screen.
+- Polish within the existing navigation and feature set unless the slice explicitly
+  changes them. Prefer less clutter over extra knobs, instructions, and decoration.
+- Review actual rendered screens, including a small phone and large text. Preserve
+  accessible labels, hints, adjustable controls, and adequate touch targets even
+  when removing visible words.
+
 ## Workflow
 
 ```sh

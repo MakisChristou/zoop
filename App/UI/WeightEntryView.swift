@@ -41,13 +41,9 @@ struct WeightEntryView: View {
                         Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }
                             .pickerStyle(.menu).fixedSize().accessibilityLabel("Weight unit")
                     }
-                    VStack(spacing: 4) {
-                        MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
-                                         step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
-                            .accessibilityIdentifier("weightRuler")
-                        Text("Swipe to adjust · Tap the number to type")
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }
+                    MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
+                                     step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
+                        .accessibilityIdentifier("weightRuler")
                     if let previous = model.health.lastWeight {
                         Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
                             .font(.subheadline).foregroundStyle(SnoopStyle.secondary).multilineTextAlignment(.center)

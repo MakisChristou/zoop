@@ -35,7 +35,7 @@ struct AppleHealthView: View {
                 Button("Import weight history") { showWeightImport = true }
                     .accessibilityIdentifier("healthWeightImport")
             } header: { Text("Weight") } footer: {
-                Text("Imported weights are saved to your Snoop server with their date and source. Other apps’ records stay unchanged.")
+                Text("Imported weights sync to your Snoop server. Originals in Health stay unchanged.")
             }
             if exportWeight {
                 Section {

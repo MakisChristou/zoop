@@ -137,7 +137,12 @@ private struct RulerSurface: UIViewRepresentable {
                 context.strokePath()
                 if major {
                     let text = value.formatted(.number.precision(.fractionLength(0))) as NSString
-                    text.draw(at: CGPoint(x: x - text.size(withAttributes: attributes).width / 2, y: 47), withAttributes: attributes)
+                    let width = text.size(withAttributes: attributes).width
+                    // A clipped "80" must not look like a separate "0" reading.
+                    // Keep edge ticks, but draw labels only when the whole number fits.
+                    if x - width / 2 >= 0, x + width / 2 <= bounds.width {
+                        text.draw(at: CGPoint(x: x - width / 2, y: 47), withAttributes: attributes)
+                    }
                 }
             }
         }

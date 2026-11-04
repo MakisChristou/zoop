@@ -110,7 +110,7 @@ struct OnboardingView: View {
         case let .failed(reason):
             return "Could not connect: \(reason)"
         default:
-            return "Takes a few seconds. If nothing happens, make sure the official WHOOP app is fully closed and the strap is on your wrist. You can also continue and connect later."
+            return "Keep your WHOOP nearby and close the WHOOP app."
         }
     }
 
@@ -125,7 +125,7 @@ struct OnboardingView: View {
             } header: {
                 Text("Your snoop-api server")
             } footer: {
-                Text("Where the strap's data goes. Frames are queued on the phone until the server accepts them, so you can skip this and add it in Settings later.")
+                Text("A server syncs and analyses your recordings. Until then, recordings stay on this iPhone.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -133,7 +133,7 @@ struct OnboardingView: View {
 
     private var done: some View {
         Page(symbol: "checkmark.seal", title: "All set",
-             body: "snoop pulls new data from the strap every ten minutes and uploads it in the background. Wear the strap tonight; sleep analysis appears after your first full night.")
+             body: "Wear your WHOOP tonight. Your sleep analysis will appear after syncing.")
     }
 }
 

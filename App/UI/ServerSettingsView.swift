@@ -30,7 +30,7 @@ struct ServerSettingsView: View {
             } header: {
                 Text("snoop-api")
             } footer: {
-                Text("Frames are queued on this phone and uploaded in batches. Nothing leaves the device until a server is configured.")
+                Text("Recordings stay on this iPhone until a server is configured.")
             }
             Section("Setup") {
                 Button("Show the welcome guide again") {

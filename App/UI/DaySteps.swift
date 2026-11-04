@@ -40,7 +40,7 @@ struct DaySteps: View {
                     Button("Try again") { Task { await load() } }.frame(minHeight: 44)
                 }.snoopCard()
             } else if noData {
-                Text("No data for this day. Steps will appear after your WHOOP syncs.")
+                Text("No step data for this day.")
                     .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             } else {
                 chart

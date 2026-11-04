@@ -171,9 +171,8 @@ struct ActivityView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(loaded ? (selectedDay == nil ? "No activities yet" : "No workouts this day") : "Loading…").font(.headline)
-            Text("Wear your WHOOP for a walk or workout. Detected activities appear here after syncing.")
-                .font(.footnote).foregroundStyle(SnoopStyle.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
         .padding(.horizontal)

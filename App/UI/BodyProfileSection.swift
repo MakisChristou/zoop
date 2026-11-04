@@ -81,7 +81,6 @@ struct BodyProfileSection: View {
             Text("Body")
         } footer: {
             Text("Used to estimate calories and heart-rate zones. Time zone: \(TimeZone.current.identifier).")
-            if measuredWeight != nil { Text("Weight updates from your latest weigh-in.") }
         }
         .task(id: "\(model.strap.serial)|\(Settings.connectionID)") { await load() }
         .onChange(of: model.health.lastWeight) { _, _ in Task { await load(preserveEdits: true) } }
