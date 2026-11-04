@@ -20,6 +20,10 @@ final class AppModel {
     let strap: StrapManager
     let ecg: ECGRecorder
     let battery = BatteryMonitor()
+    let reminders = DailyReminderScheduler()
+    let offBody = OffBodyMonitor()
+    @ObservationIgnored private var reminderSettingsObserver: NSObjectProtocol?
+    @ObservationIgnored private var reminderConnection = Settings.connectionID
     let workouts = WorkoutNotifier()
     let activity = WorkoutStore()
     let sleep = SleepStore()
@@ -54,6 +58,17 @@ final class AppModel {
         self.strap = strap
         ecg = ECGRecorder(transport: strap)
         guard servicesEnabled else { return }
+        health.onReminderChange = { [weak self] in self?.refreshReminders() }
+        ecg.onHistoryChanged = { [weak self] in self?.refreshReminders() }
+        reminderSettingsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.reminderConnection != Settings.connectionID else { return }
+                self.reminderConnection = Settings.connectionID
+                self.health.activate(self.strap.serial)
+                self.refreshReminders()
+            }
+        }
+
         strap.onECGFrame = { [weak self] bytes, at, uptime in self?.ecg.receive(bytes, at: at, uptime: uptime) }
         strap.onECGInvalidFrame = { [weak self] in self?.ecg.invalidFrame() }
         strap.onECGAvailability = { [weak self] in self?.ecg.connectionChanged() }
@@ -78,6 +93,7 @@ final class AppModel {
         strap.onBatteryDevice = { [weak self] id in self?.battery.activate(device: id) }
         strap.onSerial = { [weak self] serial in
             guard let self else { return }
+            self.offBody.invalidate()
             self.workouts.activate(device: serial)
             self.health.activate(serial)
             self.ecg.connectionChanged()
@@ -93,12 +109,19 @@ final class AppModel {
             self?.battery.receivePack(percent: info.percent, identifier: info.identifier, present: info.present, at: at, live: live, cached: cached)
         }
         strap.onPackPresence = { [weak self] present, at, live in self?.battery.receivePackPresence(present, at: at, live: live) }
-        strap.onBatteryDisconnect = { [weak self] in self?.battery.disconnected() }
+        strap.onWearEvent = { [weak self] code, at, live in self?.offBody.receive(code: code, at: at, live: live) }
+        strap.onBatteryDisconnect = { [weak self] in self?.battery.disconnected(); self?.offBody.invalidate() }
 
         flushTimer = Timer.scheduledTimer(withTimeInterval: Self.flushInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.flush() }
         }
 
+    }
+
+    func refreshReminders() {
+        guard isOnboarded, let scope = health.reminderScope else { reminders.update(nil); return }
+        let ecgDays = Set(ecg.recordings.filter { $0.device == health.reminderDevice && $0.sampleCount > 0 }.map { DayKey.string($0.startedAt) })
+        reminders.update(.init(scope: scope, weightEnabled: health.canRemind, weightDays: health.reminderWeightDays, ecgDays: ecgDays))
     }
 
     private func openStorage() async {

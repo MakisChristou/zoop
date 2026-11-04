@@ -11,18 +11,7 @@ struct WeightOptionsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Morning reminder", isOn: Binding(get: { model.health.canRemind }, set: { enabled in
-                        model.health.setReminder(enabled)
-                        if enabled { Task { await model.battery.requestNotificationsIfNeeded(); model.health.checkSoon() } }
-                    }))
-                    if model.battery.authorization == .denied {
-                        Text("Notifications are off for Snoop.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
-                        Button("Open iPhone Settings") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
-                    } else if model.battery.authorization == .notDetermined {
-                        Button("Allow notifications") { Task { await model.battery.requestNotificationsIfNeeded(); model.health.checkSoon() } }
-                    }
-                } footer: {
-                    Text("After your wake-up is confirmed. Skipped when today’s weight is recorded.")
+                    NavigationLink("Reminders") { NotificationSettingsView() }
                 }
                 Section("Chart") {
                     Toggle("7-day moving average", isOn: $showAverage).accessibilityIdentifier("weightMovingAverage")

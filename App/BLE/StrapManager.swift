@@ -56,6 +56,7 @@ final class StrapManager: NSObject {
     var onCharging: ((Bool, Date, Bool) -> Void)?
     var onPackInfo: ((BatteryPackInfo, Date, Bool, Bool) -> Void)?
     var onPackPresence: ((Bool, Date, Bool) -> Void)?
+    var onWearEvent: ((UInt8, Date, Bool) -> Void)?
     var onBatteryDisconnect: (() -> Void)?
     var onECGFrame: ((Data, Date, TimeInterval) -> Void)?
     var onECGInvalidFrame: (() -> Void)?
@@ -244,6 +245,7 @@ final class StrapManager: NSObject {
         case let .event(event):
             let at = Date(timeIntervalSince1970: event.timestamp)
             let live = channel == 4
+            onWearEvent?(event.code, at, live)
             if case let .batteryLevel(level) = event.payload {
                 // Stored events replay in offload order; keep the newest reading.
                 if level.stateOfChargeTenths <= 1000, at <= Date().addingTimeInterval(60), batteryUpdatedAt.map({ at >= $0 }) ?? true {

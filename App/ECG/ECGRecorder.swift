@@ -11,6 +11,7 @@ import SnoopProtocol
     private(set) var phase: Phase = .idle
     private(set) var samples: [Int32] = []
     private(set) var secondsRemaining = 30
+    var onHistoryChanged: (() -> Void)?
     private(set) var recordings: [ECGRecordingSummary] = []
     private(set) var savedRecording: ECGRecording?
     private(set) var error: String?
@@ -200,7 +201,7 @@ import SnoopProtocol
         do {
             let values = try await journal.summaries(device: serial)
             guard historyDevice == serial else { return }
-            recordings = values; historyError = nil
+            recordings = values; historyError = nil; onHistoryChanged?()
         } catch { if historyDevice == serial { historyError = "Couldn’t load recordings. \(error.localizedDescription)" } }
     }
 

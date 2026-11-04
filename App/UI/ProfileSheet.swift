@@ -4,7 +4,7 @@ import UserNotifications
 /// A compact settings hub; the body form is a separate destination inside the sheet.
 struct ProfileSheet: View {
     enum Page: Hashable {
-        case body, device, advanced, server, diagnostics, health, ecg
+        case body, device, advanced, server, diagnostics, health, ecg, notifications
     }
 
     @Environment(AppModel.self) private var model
@@ -67,6 +67,7 @@ struct ProfileSheet: View {
                 case .body: BodyProfileView()
                 case .health: AppleHealthView()
                 case .ecg: ECGView()
+                case .notifications: NotificationSettingsView()
                 case .device: DeviceView()
                 case .advanced: AdvancedSettingsView()
                 case .server: ServerSettingsView()
@@ -92,25 +93,13 @@ struct ProfileSheet: View {
     }
 
     private var notificationRow: some View {
-        Button {
-            Task {
-                if model.battery.authorization == .notDetermined {
-                    await model.battery.requestNotificationsIfNeeded()
-                } else if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
-                    await UIApplication.shared.open(url)
-                }
-            }
-        } label: {
+        NavigationLink(value: Page.notifications) {
             HStack {
                 Label("Notifications", systemImage: "bell")
                 Spacer()
                 Text(authorizationText).foregroundStyle(SnoopStyle.secondary)
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
             }
-        }
-        .foregroundStyle(.primary)
-        .accessibilityLabel("Notifications, \(authorizationText)")
-        .accessibilityHint(model.battery.authorization == .notDetermined ? "Asks for permission" : "Opens iOS Settings")
+        }.accessibilityIdentifier("openNotifications")
     }
 
     private var authorizationText: String {

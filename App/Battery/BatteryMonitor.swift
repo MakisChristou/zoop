@@ -16,6 +16,10 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
     /// Set from a tapped session notification; the Activity tab clears it once shown.
     var openWorkout: Int64?
     var openWeightScope: String?
+    var openECGScope: String?
+    var alertsEnabled: Bool {
+        didSet { defaults.set(alertsEnabled, forKey: "battery.alertsEnabled"); if alertsEnabled { evaluateSoon() } }
+    }
 
     private let defaults: UserDefaults
     private let center: UNUserNotificationCenter
@@ -31,6 +35,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
     init(defaults: UserDefaults = .standard, center: UNUserNotificationCenter = .current()) {
         self.defaults = defaults
         self.center = center
+        alertsEnabled = defaults.object(forKey: "battery.alertsEnabled") as? Bool ?? true
         super.init()
         center.delegate = self
         if let key = defaults.string(forKey: "battery.lastDevice") { activate(device: key) }
@@ -145,7 +150,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
 
     private func evaluate() async {
         await refreshAuthorization()
-        guard !Task.isCancelled,
+        guard alertsEnabled, !Task.isCancelled,
               authorization == .authorized || authorization == .provisional else { return }
         let key = deviceKey
         var next = policy
@@ -160,8 +165,8 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
                 body = "Battery is at \(Int((state.percent ?? 0).rounded(.down)))%. Slide on the battery pack to keep recording."
                 kind = "low"
             case .charged:
-                title = "WHOOP is fully charged"
-                body = "Your strap is at 100%. Remove the battery pack and recharge it for next time."
+                title = "WHOOP is charged"
+                body = "Remove the pack and recharge it for next time."
                 kind = "full"
             }
             guard await notify(title: title, body: body, kind: kind), key == deviceKey else { return }
@@ -205,6 +210,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func notify(title: String, body: String, kind: String) async -> Bool {
+        guard alertsEnabled, !Task.isCancelled else { return false }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -249,6 +255,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
         switch destination {
         case "battery": openBattery = true
         case "weight": openWeightScope = scope
+        case "ecg": openECGScope = scope
         case "workout": openWorkout = id
         default: break
         }

@@ -48,29 +48,29 @@ Enter your snoop-api URL and bearer token during setup, or later under Profile �
 
 ## Navigation
 
-Five tabs: Today, Activity, Sleep, Trends and Battery. Every tab shows the strap's
+Four tabs: Today, Activity, Sleep and Trends. Every tab shows the strap's
 connection state in its header and a profile button that opens a sheet with the body
 profile, the device page (strap identity, history sync, the raw latest record), the
-notification permission, and, under Advanced, the server connection and upload
+notification settings, and, under Advanced, the server connection and upload
 diagnostics. Today keeps the overview; the Steps tile opens steps by hour and by day,
 and a banner at the top says what to do whenever the strap is not connected.
 
 ## Battery
 
-The Battery tab shows separate strap and pack percentages, charging animations,
+My WHOOP, opened from the connection status or Profile, shows strap and pack percentages, charging animations,
 and reminders to recharge either battery. Pack readings come from live WHOOP 5/MG
 event 109. Command 151 provides a cached fallback when supported; cached readings
 never trigger notifications. Disconnecting or removing the pack ends its live state.
 Snoop asks for notification permission once, after setup. Alerts are enabled by
 default at 20%, 10% and 5%, at 100%, and after removing the pack. Change notification
-permission in iOS Settings.
+preferences in Profile → Notifications, with a link to iPhone notification settings.
 
 These are local iOS notifications driven by fresh Bluetooth readings, including
 background Bluetooth updates. Replayed history cannot trigger alerts. Keep Bluetooth
 on and do not force-quit Snoop if you want background reminders. Charging status uses
 the strap's charger-on/off events. After reconnecting mid-charge, sustained rising
 readings can also detect charging; the screen labels this inference. Query and event
-readings are compared separately to avoid rounding artifacts. The tab shows both
+readings are compared separately to avoid rounding artifacts. The page shows both
 batteries and power flowing from pack to strap, with green above 20%, yellow at
 6–20%, and red at 5% or below. The pack keeps a grey last-known level when detached
 or stale. Its level changes indicate charging or discharging; presence alone does
@@ -78,7 +78,7 @@ not establish power flow. Pack events carry tenths of a percent, corroborated by
 our recorded MG charging sessions. Pack alerts use the same 20/10/5 and 100% policy;
 no pack alerts are possible while it is disconnected and not reporting through
 the strap. Battery level is queried when connecting and every 30 seconds while
-viewing Battery. A rejected pack query stops until reconnect; pushed events continue.
+viewing My WHOOP. A rejected pack query stops until reconnect; pushed events continue.
 
 Battery policy tests run independently:
 
@@ -375,26 +375,36 @@ Health data. Removing Snoop exports is a separate confirmed action scoped to the
 selected backend dataset; other sources and the Snoop server history are untouched.
 Health consent and progress live in a protected, backup-excluded local journal.
 
-Wake-up reminders are local notifications, enabled by default with the app's normal
-notification permission. The server requires an automatic main sleep, at least 25
-minutes of awake readings in the following 30 minutes, and recent awake coverage.
-Recent coverage is the newest five-minute sample window, no more than 15 minutes
-old, so normal batched uploads do not disqualify it. The phone then schedules one
-reminder five minutes later. A current-day weight
-(or a visible Health weight) cancels it. Naps, edited sleep, wakes before reminders
-were enabled, and wakes more than three hours old do not alert. Tapping opens Log
-weight, including after a cold launch. BLE/Health background opportunities and
-foreground refresh drive checks. Unlocking retries a deferred check. A fresh
-server-confirmed wake is retained for network recovery; an explicit server revocation
-clears it. A long Health import/export does not precede reminder evaluation. Scheduling
-receipts follow acceptance by iOS; pending/delivered requests recover interrupted
-receipt writes. Editing older weights does not cancel today’s reminder. iOS suspension
-and locked Health storage can still delay or prevent a reminder. No APNs service or guaranteed delivery time.
+Daily check-ins use local notifications configured in Profile → Notifications.
+Weigh-in defaults to 09:00 and preserves the previous reminder on/off preference;
+ECG is opt-in, defaulting to 20:00. No wake analysis or network round-trip is needed
+to deliver an already scheduled reminder. Times use the phone's local calendar.
+A known weigh-in cancels that day's weight request, including visible Apple Health
+measurements; a saved ECG with samples cancels that day's ECG request. Changes from
+other apps can only cancel a reminder after Snoop observes them. Locked Health
+storage can delay this, and HealthKit does not disclose denied read access.
+
+The app maintains 28 days of one-shot requests (at most 56 across both check-ins),
+refreshed on app/background activity, settings changes and significant time changes.
+Without another app wake, reminders stop when that horizon expires. Completion,
+disabling reminders, and account changes reconcile pending requests. Old wake-based
+requests are removed. Scheduled-at receipts prevent a second same-day reminder if
+the time is moved after it was due; they do not prove delivery. There is no late
+catch-up when opening Snoop after the selected time. Taps open the weight entry or
+ECG page, including after a cold launch. iOS permission, Focus and notification
+settings still govern presentation; there is no APNs service or guaranteed delivery.
+
+Battery alerts remain driven by fresh live device readings and can be disabled in
+Notifications. The off-body implementation waits ten minutes after a fresh live
+removal event, cancels on reattachment or loss of continuity, and alerts once per
+removal. It never uses missing heart rate, rest/motion, or disconnection as removal
+evidence. **Its candidate event mapping is gated off, and its settings row hidden,
+until controlled hardware removal/reattachment validation.**
 
 Deploy backend migration 0009 before installing this app. HealthKit and background
 Health delivery require an enabled App ID, suitable provisioning profile, and current
 Apple Developer agreements. On-device acceptance must verify permissions, actual
-Health entries, edits/removals, backfill repetition and a real post-wake reminder.
+Health entries, edits/removals, backfill repetition and a real scheduled reminder.
 Simulator UI tests and backend checks do not establish physical Health delivery.
 
 ```sh

@@ -5,7 +5,6 @@ import Foundation
 import HealthKit
 import SnoopHealth
 import UIKit
-import UserNotifications
 
 /// Serialized, disk-backed reconciliation. A cancelled/failed pass retains its cursor,
 /// pending measurements and per-type work; consent is scoped to server and strap.
@@ -32,15 +31,27 @@ final class HealthCoordinator {
     private var epoch = 0
     private var followUp: Task<Void, Never>?
     private var observation: HKObserverQuery?
-    private var activeReminder: String?
+    var onReminderChange: (() -> Void)?
+    private var knownHealthWeightDay: String?
+    var reminderScope: String? {
+        guard file != nil, Settings.isConfigured else { return nil }
+        let input = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
+        return SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined() == scope ? scope : nil
+    }
+    var reminderDevice: String { device }
+    var reminderWeightDays: Set<String> {
+        var days = Set(rows.map { Self.dayKey($0.measuredAt) })
+        if let knownHealthWeightDay { days.insert(knownHealthWeightDay) }
+        return days
+    }
     private var unlockObserver: NSObjectProtocol?
-    private let center = UNUserNotificationCenter.current()
     var connected: Bool { journal.connectedAt != nil }
     private(set) var rows: [WeightReading] = []
     private func refreshRows() {
         let pending = Set(journal.pendingWeights.map(\.id))
         let result = (journal.weights.filter { !$0.removed && !pending.contains($0.id) } + journal.pendingWeights.filter { !$0.removed }).sorted { $0.measuredAt > $1.measuredAt }
         if rows != result { rows = result }
+        onReminderChange?()
     }
     var today: WeightReading? { WeightReading.preferred(rows, on: Date()) }
     var lastWeight: WeightReading? { WeightReading.latest(rows) }
@@ -48,7 +59,7 @@ final class HealthCoordinator {
 
     init() {
         unlockObserver = NotificationCenter.default.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.checkSoon() }
+            Task { @MainActor [weak self] in await self?.refreshReminderCompletion(); self?.checkSoon() }
         }
         // Health changes and notification taps must work before Bluetooth reconnects.
         if let lastDevice = UserDefaults.standard.string(forKey: "health.lastDevice") { activate(lastDevice) }
@@ -60,9 +71,9 @@ final class HealthCoordinator {
         guard next != scope else { return }
         epoch += 1; activation?.cancel(); scheduledSync?.cancel(); scheduledSync = nil; syncRequested = false; followUp?.cancel(); followUp = nil; busy = false; importingWeightHistory = false
         if let observation { adapter.store.stop(observation) }; observation = nil
-        if let activeReminder { center.removePendingNotificationRequests(withIdentifiers: [activeReminder]) }; activeReminder = nil
+        knownHealthWeightDay = nil
         scope = next; self.device = device; journal = HealthJournal(); error = nil
-        file = nil; rows = []
+        file = nil; rows = []; onReminderChange?()
         let generation = epoch
         activation = Task { [weak self] in
             guard let self else { return }
@@ -75,7 +86,7 @@ final class HealthCoordinator {
                 self.file = file; self.journal = saved; self.refreshRows()
                 self.status = self.connected ? (self.journal.paused ? "Paused" : "Ready to sync") : "Not connected"
                 UserDefaults.standard.set(device, forKey: "health.lastDevice")
-                self.installObserver(); self.checkSoon()
+                self.installObserver(); await self.refreshReminderCompletion(); self.checkSoon()
             } catch is CancellationError { }
             catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Snoop to try again." } }
         }
@@ -148,10 +159,10 @@ final class HealthCoordinator {
         if enabled && !journal.remindWeight { journal.reminderEnabledAt = Date() }
         journal.remindWeight = enabled
         persistSettings()
-        if !enabled { cancelReminder() } else { checkSoon() }
+        onReminderChange?()
     }
     func openReminder(scope: String) {
-        guard scope == self.scope, today == nil else { return }
+        guard scope == reminderScope, !reminderWeightDays.contains(Self.dayKey(Date())) else { return }
         showWeightEntry = true
     }
     func checkSoon() {
@@ -206,8 +217,7 @@ final class HealthCoordinator {
             // A successful response can revoke a previously eligible wake.
             if journal.lastConfirmedWake != info.wakeAt { journal.lastConfirmedWake = info.wakeAt; try await persist() }
             try await loadWeights(generation)
-            // A long import/export or a failed pending upload must not block the reminder.
-            try await remind(wake: journal.lastConfirmedWake, generation: generation)
+            await refreshReminderCompletion()
             // Persist every local measurement before asking Health to mirror it.
             for row in journal.pendingWeights {
                 try valid(generation)
@@ -262,8 +272,7 @@ final class HealthCoordinator {
         catch {
             if generation == epoch {
                 self.error = error.localizedDescription; status = "Sync paused · retry available"
-                // A fresh confirmed wake can finish after unlocking even if the network is now unavailable.
-                try? await remind(wake: journal.lastConfirmedWake, generation: generation)
+                await refreshReminderCompletion()
             }
         }
     }
@@ -346,43 +355,21 @@ final class HealthCoordinator {
             if !changes.more { journal.pendingWeightImport = nil; try await persist(); return }
         } while true
     }
-    private func remind(wake: Date?, generation: Int) async throws {
-        if today != nil || !journal.remindWeight { cancelReminder(); return }
-        // Even without importing history, use visible Health weight to suppress the
-        // prompt when weight sharing was enabled. Locked reads wait for another wake.
-        if connected && (journal.importWeight || journal.exportWeight) {
-            guard UIApplication.shared.isProtectedDataAvailable else { return }
-            if !(try await adapter.existingWeight(on: Date())).isEmpty { try valid(generation); cancelReminder(); return }
+    /// Runs independently of the backend so visible Health measurements can cancel
+    /// today's scheduled reminder even during an API outage.
+    func refreshReminderCompletion() async {
+        let generation = epoch
+        if connected && (journal.importWeight || journal.exportWeight), UIApplication.shared.isProtectedDataAvailable {
+            do {
+                let queriedDay = Date()
+                let values = try await adapter.existingWeight(on: queriedDay)
+                try valid(generation)
+                knownHealthWeightDay = values.isEmpty ? nil : Self.dayKey(queriedDay)
+            } catch { /* Keep known completion while Health is temporarily unavailable. */ }
         }
-        let key = Self.dayKey(Date())
-        guard journal.remindWeight, let delivery = WeightReminderPolicy.delivery(now: Date(), confirmedWake: wake, enabledAt: journal.reminderEnabledAt, hasWeight: today != nil, alreadyReminded: journal.remindedDays.contains(key)) else { return }
-        let settings = await center.notificationSettings(); try valid(generation)
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-        let identifier = "snoop.weight.\(scope).\(key)"
-        let content = UNMutableNotificationContent(); content.title = "Good morning"; content.body = "Ready to log your weight?"; content.sound = .default
-        content.threadIdentifier = "snoop.weight"; content.userInfo = ["destination": "weight", "scope": scope, "day": key]
-        // Recover an accepted request if the app stopped before persisting its receipt.
-        let pending = await center.pendingNotificationRequests(); try valid(generation)
-        let delivered = await center.deliveredNotifications(); try valid(generation)
-        if pending.contains(where: { $0.identifier == identifier }) || delivered.contains(where: { $0.request.identifier == identifier }) {
-            journal.remindedDays.insert(key); try await persist(); return
-        }
-        guard journal.remindWeight, today == nil else { cancelReminder(); return }
-        do {
-            try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, delivery.timeIntervalSinceNow), repeats: false)))
-            try valid(generation); activeReminder = identifier
-            if today != nil || !journal.remindWeight { cancelReminder() }
-            journal.remindedDays.insert(key); try await persist()
-        } catch {
-            center.removePendingNotificationRequests(withIdentifiers: [identifier])
-            if generation == epoch { journal.remindedDays.remove(key); try await persist() }
-            throw error
-        }
+        if generation == epoch { onReminderChange?() }
     }
-    private func cancelReminder() {
-        let identifier = "snoop.weight.\(scope).\(Self.dayKey(Date()))"
-        center.removePendingNotificationRequests(withIdentifiers: [identifier]); center.removeDeliveredNotifications(withIdentifiers: [identifier]); activeReminder = nil
-    }
+    private func cancelReminder() { onReminderChange?() }
     static func dayKey(_ date: Date) -> String { DayKey.string(date) }
     private func installObserver() {
         guard connected, (journal.importWeight || journal.exportWeight), adapter.available, observation == nil else { return }
@@ -390,7 +377,7 @@ final class HealthCoordinator {
         let query = HKObserverQuery(sampleType: HealthAdapter.weightType, predicate: nil) { [weak self] _, completion, error in
             let done = CompletionOnce(completion)
             Task { @MainActor in
-                if error == nil, let self, self.epoch == generation { await self.sync() }
+                if error == nil, let self, self.epoch == generation { await self.refreshReminderCompletion(); await self.sync() }
                 done.call()
             }
         }

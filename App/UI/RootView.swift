@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var showDevice = false
+    @State private var showECG = false
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?
     @State private var selectedActivityDay: Date?
@@ -39,6 +40,7 @@ struct RootView: View {
             if UserDefaults.standard.string(forKey: "demoScreen") != nil { return }
             #endif
             await model.battery.requestNotificationsIfNeeded()
+            model.refreshReminders()
         }
         .onChange(of: model.battery.openBattery, initial: true) { _, open in
             if open { showDevice = true; model.battery.openBattery = false }
@@ -46,18 +48,37 @@ struct RootView: View {
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
         }
+        .sheet(isPresented: $showECG) { ProfileSheet(open: .ecg) }
+        .onChange(of: model.battery.openECGScope, initial: true) { _, scope in
+            openCheckInNotification()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in model.refreshReminders() }
         .sheet(isPresented: $showDevice) { ProfileSheet(open: .device) }
         .sheet(isPresented: Binding(get: { model.health.showWeightEntry }, set: { model.health.showWeightEntry = $0 })) { WeightEntryView() }
         .onChange(of: model.battery.openWeightScope, initial: true) { _, scope in
-            if let scope { selection = .today; model.health.openReminder(scope: scope); model.battery.openWeightScope = nil }
+            openCheckInNotification()
         }
+        .onChange(of: model.health.reminderScope) { _, _ in openCheckInNotification() }
         .onChange(of: model.sleep.changeToken) { _, _ in model.health.checkSoon() }
         .onChange(of: model.activity.changeToken) { _, _ in model.health.checkSoon() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { model.ecg.cancel() }
-            if phase == .active { model.health.activate(model.strap.serial); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
+            if phase == .active { model.refreshReminders(); Task { await model.health.refreshReminderCompletion() }; model.health.activate(model.strap.serial); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
         .onAppear(perform: applyDemoRoute)
+    }
+
+    // A cold-launch tap can arrive before the account journal has loaded.
+    private func openCheckInNotification() {
+        guard let current = model.health.reminderScope else { return }
+        if let scope = model.battery.openECGScope {
+            if scope == current { showECG = true }
+            model.battery.openECGScope = nil
+        }
+        if let scope = model.battery.openWeightScope {
+            if scope == current { selection = .today; model.health.openReminder(scope: scope) }
+            model.battery.openWeightScope = nil
+        }
     }
 
     /// Simulator builds can be launched on a given tab for screenshots
