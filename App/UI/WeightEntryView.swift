@@ -22,6 +22,10 @@ struct WeightEntryView: View {
         let result = unit == "lb" ? number / 2.2046226218 : number
         return result.isFinite && (20...400).contains(result) ? result : nil
     }
+    private var rulerValue: Binding<Double> {
+        Binding(get: { kg.map { unit == "lb" ? $0 * 2.2046226218 : $0 } ?? (unit == "lb" ? 165 : 75) },
+                set: { value = $0.formatted(.number.precision(.fractionLength(1))) })
+    }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -32,10 +36,17 @@ struct WeightEntryView: View {
                         TextField("Weight", text: $value).keyboardType(.decimalPad)
                             .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
                             .multilineTextAlignment(.center).focused($focused).accessibilityLabel("Weight").accessibilityIdentifier("weightInput")
-                            .padding(.bottom, 8).overlay(alignment: .bottom) { Rectangle().fill(SnoopStyle.load).frame(height: 2) }
+                            .accessibilityHint("Tap to type a weight")
                             .frame(maxWidth: 240)
                         Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }
                             .pickerStyle(.menu).fixedSize().accessibilityLabel("Weight unit")
+                    }
+                    VStack(spacing: 4) {
+                        MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
+                                         step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
+                            .accessibilityIdentifier("weightRuler")
+                        Text("Swipe to adjust · Tap the number to type")
+                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
                     }
                     if let previous = model.health.lastWeight {
                         Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
@@ -73,7 +84,6 @@ struct WeightEntryView: View {
                     value = display(row.kg)
                     if editing != nil { measuredAt = row.measuredAt }
                 }
-                focused = true
             }
             .onChange(of: unit) { old, new in
                 let formatter = NumberFormatter(); formatter.numberStyle = .decimal

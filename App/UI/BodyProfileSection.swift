@@ -12,6 +12,7 @@ struct BodyProfileSection: View {
     @State private var birthYearText = ""
     @State private var weightText = ""
     @State private var heightText = ""
+    @State private var editingHeight = false
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var loadID = UUID()
     @State private var loaded = false
@@ -53,13 +54,16 @@ struct BodyProfileSection: View {
                 }
               }
             }
-            LabeledContent("Height") {
-                HStack(spacing: 4) {
-                    TextField("175", text: $heightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                        .accessibilityLabel("Height in centimetres")
-                    Text("cm").foregroundStyle(SnoopStyle.secondary)
-                }
-            }
+            Button { editingHeight = true } label: {
+                HStack {
+                    Text("Height").foregroundStyle(SnoopStyle.text)
+                    Spacer()
+                    Text(heightText.isEmpty ? "Not set" : "\(heightText) cm").foregroundStyle(SnoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                }.frame(minHeight: 44)
+            }.accessibilityIdentifier("editHeight")
+                .disabled(loading || !loaded)
+                .sheet(isPresented: $editingHeight) { HeightEntryView(height: $heightText) }
             Button {
                 Task { await save() }
             } label: {
