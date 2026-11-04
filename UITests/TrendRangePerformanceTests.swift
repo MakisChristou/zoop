@@ -8,7 +8,7 @@ import XCTest
         app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "trends"]
         app.launch()
         XCTAssertTrue(app.otherElements["trendsChart"].waitForExistence(timeout: 20))
-        let week = app.segmentedControls.buttons["7 days"], month = app.segmentedControls.buttons["30 days"]
+        let week = app.segmentedControls.buttons["Week"], month = app.segmentedControls.buttons["Month"]
         week.tap(); month.tap()
         let options = XCTMeasureOptions(); options.iterationCount = 3
         measure(metrics: [XCTCPUMetric(application: app), XCTMemoryMetric(application: app), XCTClockMetric()], options: options) {

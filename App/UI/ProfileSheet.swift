@@ -46,7 +46,7 @@ struct ProfileSheet: View {
                             Text(statusText).font(.caption).foregroundStyle(SnoopStyle.secondary)
                         }
                     }
-                    .accessibilityLabel("Device, \(statusText)")
+                    .accessibilityLabel("My WHOOP, \(statusText)").accessibilityIdentifier("openDevice")
                     notificationRow
                 }
                 .listRowBackground(SnoopStyle.surface)
@@ -61,17 +61,9 @@ struct ProfileSheet: View {
             .snoopScreen()
             .navigationTitle("Profile & settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark").font(.body.weight(.medium))
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .accessibilityLabel("Close")
-                }
-            }
+            .toolbar { closeControl }
             .navigationDestination(for: Page.self) { page in
-                switch page {
+                Group { switch page {
                 case .body: BodyProfileView()
                 case .health: AppleHealthView()
                 case .ecg: ECGView()
@@ -79,7 +71,7 @@ struct ProfileSheet: View {
                 case .advanced: AdvancedSettingsView()
                 case .server: ServerSettingsView()
                 case .diagnostics: DiagnosticsView()
-                }
+                } }.toolbar { closeControl }
             }
             .task { await model.battery.refreshAuthorization() }
             .task(id: photoScope) { await model.photo.load(photoScope) }
@@ -89,6 +81,14 @@ struct ProfileSheet: View {
         .tint(SnoopStyle.text)
         .presentationDragIndicator(.visible)
         .presentationBackground(SnoopStyle.background)
+    }
+
+    private var closeControl: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.body.weight(.medium)).frame(minWidth: 44, minHeight: 44)
+            }.accessibilityLabel("Close")
+        }
     }
 
     private var notificationRow: some View {

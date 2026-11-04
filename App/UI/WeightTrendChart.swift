@@ -155,7 +155,7 @@ struct WeightTrendChart: View {
             GeometryReader { geometry in
                 if let plotFrame = proxy.plotFrame {
                     let plot = geometry[plotFrame]
-                    WeightChartGesture(select: { location in
+                    CalendarChartGesture(select: { location in
                         guard plot.contains(location), let date: Date = proxy.value(atX: location.x - plot.minX), !visible.isEmpty else { return }
                         let index = SortedWindow.lowerBound(points, value: date.timeIntervalSince1970) { $0.date.timeIntervalSince1970 }
                         let right = min(max(index, bounds.lowerBound), bounds.upperBound - 1), left = max(bounds.lowerBound, right - 1)

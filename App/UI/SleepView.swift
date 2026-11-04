@@ -8,6 +8,8 @@ struct SleepView: View {
     @State private var resetTarget: SnoopAPI.SleepSession?
     @State private var error: String?
     @State private var loading = false
+    @State private var loadID = UUID()
+    @State private var comparisons: MorningInsights?
     @Environment(\.dynamicTypeSize) private var typeSize
     private var timezone: String { model.sleep.items.first?.timezone ?? TimeZone.current.identifier }
     private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: timezone) ?? .current; return c }
@@ -55,6 +57,12 @@ struct SleepView: View {
             .refreshable { await load() }
             .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
             .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
+            .task(id: "\(model.strap.serial)-\(selectedDay)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(Settings.connectionID)") {
+                comparisons = nil
+                guard !model.strap.serial.isEmpty else { return }
+                let next = try? await SnoopAPI.morningInsights(deviceId: model.strap.serial, day: selectedDay)
+                if !Task.isCancelled { comparisons = next }
+            }
             .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         }
         .sheet(item: $editor) { SleepEditorView(mode: $0) }
@@ -63,9 +71,17 @@ struct SleepView: View {
     private func step(_ delta: Int) { selected = nil; selectedDay = calendar.date(byAdding: .day, value: delta, to: selectedDay) ?? selectedDay }
     private func load() async {
         guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to load sleep."; return }
-        loading = true; defer { loading = false }
-        do { try await model.sleep.reload(device: model.strap.serial); error = nil }
-        catch { self.error = error.localizedDescription }
+        let request = UUID(); loadID = request
+        loading = true; error = nil
+        defer { if loadID == request { loading = false } }
+        do {
+            try await model.sleep.reload(device: model.strap.serial)
+        } catch {
+            // Tab changes and superseded refreshes cancel reads intentionally.
+            guard !Task.isCancelled, loadID == request, !(error is CancellationError),
+                  (error as? URLError)?.code != .cancelled else { return }
+            self.error = error.localizedDescription
+        }
     }
     private func content(_ night: SnoopAPI.Night, record: SnoopAPI.SleepSession) -> some View {
         let w = night.metrics.window
@@ -137,10 +153,10 @@ struct SleepView: View {
                 }
 
                 LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    Stat("Efficiency", record.sleep?.efficiency.map(pct) ?? "—", "Sleep period spent asleep")
+                    Stat("Efficiency", record.sleep?.efficiency.map(pct) ?? "—", "Sleep period spent asleep", delta: SleepMetricDelta.efficiency(record: record, history: model.sleep.items, baseline: comparison(for: "sleep", record: record)?.baseline, calendar: calendar))
                     Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")")
-                    Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm")
-                    Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep")
+                    Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "resting_hr", record: record)))
+                    Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "hrv", record: record)))
                     Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", "breaths / min")
                     Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep")
                     Stat("Skin temperature", p.skinTempC.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—", "Nightly average")
@@ -176,6 +192,11 @@ struct SleepView: View {
             .padding(.bottom, 4)
     }
 
+    private func comparison(for key: String, record: SnoopAPI.SleepSession) -> MorningInsights.Metric? {
+        guard let comparisons, comparisons.day == SnoopAPI.SleepSession.day(selectedDay, timezone: timezone),
+              comparisons.sleepId == record.id, comparisons.sleepRevision == record.revision, !record.metricsPending else { return nil }
+        return comparisons.metrics.first { $0.key == key && $0.quality == "good" }
+    }
     private func duration(_ seconds: Int) -> String {
         let h = seconds / 3600, m = (seconds % 3600) / 60
         return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
@@ -269,17 +290,27 @@ private struct Stat: View {
     let title: String
     let value: String
     let caption: String
+    let delta: SleepMetricDelta?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    init(_ title: String, _ value: String, _ caption: String) {
+    init(_ title: String, _ value: String, _ caption: String, delta: SleepMetricDelta? = nil) {
         self.title = title
         self.value = value
         self.caption = caption
+        self.delta = delta
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-            Text(value).font(.system(.title2, design: .default).weight(.semibold)).monospacedDigit()
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
+            layout {
+                Text(value).font(.title2.weight(.semibold)).monospacedDigit()
+                if let delta {
+                    Text(delta.text).font(.caption.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(InsightTone.color(delta.signal)).accessibilityLabel(delta.accessibility)
+                }
+            }
             Text(caption).font(.caption2).foregroundStyle(SnoopStyle.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

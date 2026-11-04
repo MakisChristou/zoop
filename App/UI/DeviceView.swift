@@ -8,6 +8,8 @@ struct DeviceView: View {
 
     var body: some View {
         List {
+            Section { BatteryView().listRowInsets(EdgeInsets()).listRowBackground(Color.clear) }
+
             Section("Strap") {
                 HStack {
                     Circle().fill(statusColor).frame(width: 10, height: 10)
@@ -28,47 +30,49 @@ struct DeviceView: View {
                 if let battery = model.strap.batteryPercent {
                     LabeledContent("Battery", value: battery.formatted(.number.precision(.fractionLength(0))) + " %")
                 }
-            }
+            }.listRowBackground(SnoopStyle.surface)
 
             Section {
-                LabeledContent("Frames received", value: model.strap.framesReceived.formatted())
-                LabeledContent("History chunks acknowledged", value: model.strap.offloadChunks.formatted())
-                if let range = model.strap.lastDataRange, let behind = range.pagesBehind {
-                    LabeledContent("Pages still on strap", value: behind.formatted())
+                DisclosureGroup("Sync details") {
+                    LabeledContent("Frames received", value: model.strap.framesReceived.formatted())
+                    LabeledContent("History chunks acknowledged", value: model.strap.offloadChunks.formatted())
+                    if let range = model.strap.lastDataRange, let behind = range.pagesBehind {
+                        LabeledContent("Pages still on strap", value: behind.formatted())
+                    }
+                    Button {
+                        model.strap.requestOffload()
+                    } label: {
+                        Label("Fetch history now", systemImage: "arrow.down.circle")
+                    }
+                    .disabled(model.strap.state != .ready)
                 }
-                Button {
-                    model.strap.requestOffload()
-                } label: {
-                    Label("Fetch history now", systemImage: "arrow.down.circle")
-                }
-                .disabled(model.strap.state != .ready)
             } header: {
                 Text("Sync")
-            } footer: {
-                Text("The strap keeps its own history and hands it over in chunks whenever the app is connected.")
-            }
+            }.listRowBackground(SnoopStyle.surface)
 
-            Section("Latest record") {
-                if let b = model.strap.lastBiometric {
-                    LabeledContent("Heart rate", value: "\(b.heartRate) bpm")
-                    LabeledContent("Strap says", value: bandStateText(b.bandState))
-                    LabeledContent("Step counter", value: b.steps.formatted())
-                    LabeledContent("R-R intervals", value: b.rrMilliseconds.isEmpty ? "none" : b.rrMilliseconds.map(String.init).joined(separator: ", ") + " ms")
-                    if let skin = b.skinTemperatureC {
-                        LabeledContent("Skin temp", value: skin.formatted(.number.precision(.fractionLength(2))) + " °C")
+            Section {
+                DisclosureGroup("Latest record") {
+                    if let b = model.strap.lastBiometric {
+                        LabeledContent("Heart rate", value: "\(b.heartRate) bpm")
+                        LabeledContent("Strap says", value: bandStateText(b.bandState))
+                        LabeledContent("Step counter", value: b.steps.formatted())
+                        LabeledContent("R-R intervals", value: b.rrMilliseconds.isEmpty ? "none" : b.rrMilliseconds.map(String.init).joined(separator: ", ") + " ms")
+                        if let skin = b.skinTemperatureC {
+                            LabeledContent("Skin temp", value: skin.formatted(.number.precision(.fractionLength(2))) + " °C")
+                        }
+                        if let spo2 = b.spo2Percent {
+                            LabeledContent("SpO₂", value: "\(spo2) %")
+                        }
+                        LabeledContent("Recorded", value: Date(timeIntervalSince1970: TimeInterval(b.header.unixSeconds)).formatted(date: .omitted, time: .standard))
+                    } else {
+                        Text("No records yet.").foregroundStyle(SnoopStyle.secondary)
                     }
-                    if let spo2 = b.spo2Percent {
-                        LabeledContent("SpO₂", value: "\(spo2) %")
-                    }
-                    LabeledContent("Recorded", value: Date(timeIntervalSince1970: TimeInterval(b.header.unixSeconds)).formatted(date: .omitted, time: .standard))
-                } else {
-                    Text("No records yet.").foregroundStyle(SnoopStyle.secondary)
                 }
-            }
+            }.listRowBackground(SnoopStyle.surface)
         }
         .scrollContentBackground(.hidden)
         .snoopScreen()
-        .navigationTitle("My device")
+        .navigationTitle("My WHOOP")
         .navigationBarTitleDisplayMode(.inline)
     }
 

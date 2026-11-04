@@ -3,7 +3,7 @@ import UIKit
 
 /// One recognizer resolves intent before claiming a touch. A vertical movement
 /// fails immediately, leaving the containing scroll view in charge.
-struct WeightChartGesture: UIViewRepresentable {
+struct CalendarChartGesture: UIViewRepresentable {
     var select: (CGPoint) -> Void
     var page: (Int) -> Void
     func makeUIView(context: Context) -> Surface { Surface() }

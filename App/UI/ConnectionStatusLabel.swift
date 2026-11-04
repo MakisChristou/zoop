@@ -21,7 +21,7 @@ struct ConnectionStatusLabel: View {
         .buttonStyle(.plain)
         .accessibilityLabel("WHOOP, \(status)")
         .accessibilityValue(model.strap.state == .ready ? model.battery.state.percent.map { "\(Int($0.rounded(.down))) percent battery" } ?? "" : "")
-        .accessibilityHint("Opens device settings")
+        .accessibilityHint("Opens device settings").accessibilityIdentifier("openDeviceShortcut")
         .accessibilityShowsLargeContentViewer()
     }
 

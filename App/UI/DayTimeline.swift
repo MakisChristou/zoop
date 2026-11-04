@@ -62,17 +62,24 @@ struct DayTimeline: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
-            Spacer()
+        Group {
             if let m = selected {
-                Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(SnoopStyle.secondary)
-                Text(m.hr.map { "\($0) bpm" } ?? "—").font(.caption.weight(.semibold)).monospacedDigit()
-                if let t = m.skinTempC { Text("\(t.formatted(.number.precision(.fractionLength(1)))) °C").font(.caption).foregroundStyle(SnoopStyle.secondary) }
-            } else if let range = hrRange {
-                Text("\(range.lowerBound)–\(range.upperBound) bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Heart rate").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    Spacer()
+                    Text(m.hr.map { "\($0) bpm" } ?? "—").font(.title3.weight(.semibold)).monospacedDigit()
+                    Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                }.accessibilityElement(children: .combine)
+            } else if now != nil {
+                TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: nil, history: [])
+            } else {
+                HStack {
+                    Text("Heart rate").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    Spacer()
+                    if let range = hrRange { Text("\(range.lowerBound)–\(range.upperBound) bpm").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                }
             }
-        }
+        }.frame(minHeight: 44)
     }
 
     private var hrRange: ClosedRange<Int>? {

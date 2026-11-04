@@ -29,9 +29,6 @@ struct WeightCheckIn: View {
                             Text(summary.latest.map { "\(display($0.kg)) \(unit) · \(dateLabel($0.measuredAt))" } ?? "Log your first weight")
                                 .font(.caption).foregroundStyle(SnoopStyle.secondary)
                         }
-                        Text("\(summary.count) \(summary.count == 1 ? "weigh-in" : "weigh-ins") this week")
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                            .accessibilityIdentifier("weightWeekCompletion")
                     }.frame(maxWidth: .infinity, minHeight: 50, alignment: .leading).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("todayWeight").accessibilityHint("Opens your weight chart and history")
                 if summary.today == nil {
@@ -47,8 +44,10 @@ struct WeightCheckIn: View {
                             .frame(width: 100, height: 44).accessibilityHidden(true)
                     }.buttonStyle(.plain).accessibilityLabel("View weight chart")
                 }
-            }.snoopCard()
-        }.tint(SnoopStyle.load)
+            }
+            WeightWeekView(summary: summary, showsCount: false)
+        }.snoopCard()
+        .tint(SnoopStyle.load)
         .sheet(isPresented: $adding) { WeightEntryView() }
         .onChange(of: model.health.rows, initial: true) { _, _ in prepare() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { prepare() } }

@@ -34,7 +34,7 @@ import XCTest
         app.buttons["trendLatest"].tap()
         XCTAssertEqual(app.staticTexts["trendReadingDate"].label, originalDate)
         chart.tap()
-        app.segmentedControls.buttons["7 days"].tap()
+        app.segmentedControls.buttons["Week"].tap()
         XCTAssertFalse(app.buttons["trendLatest"].exists)
         chart.tap()
         app.buttons["HRV"].tap()
@@ -48,8 +48,10 @@ import XCTest
         let chart = app.otherElements["trendsChart"]
         XCTAssertTrue(chart.waitForExistence(timeout: 10))
         chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)).tap()
+        app.buttons["trendPreviousPeriod"].tap()
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)).tap()
         let earlier = chart.value as? String
-        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)).press(forDuration: 0.05, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)))
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)).press(forDuration: 0.3, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)))
         XCTAssertNotEqual(chart.value as? String, earlier)
         XCTAssertTrue(app.buttons["trendOpenDetail"].exists)
         shot(app, "Steps reading selected")

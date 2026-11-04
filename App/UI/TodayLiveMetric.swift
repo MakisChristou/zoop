@@ -45,7 +45,7 @@ struct TodayLiveMetric: View {
                 Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
             }
         }
-        .padding(.vertical, 10)
+        .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
     }
 

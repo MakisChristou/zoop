@@ -31,6 +31,22 @@ enum TrendMetric: String, CaseIterable, Identifiable, Sendable {
         case .efficiency: SnoopStyle.sleep
         }
     }
+    func formatted(_ value: Double) -> String {
+        guard value.isFinite else { return "—" }
+        if self == .sleep {
+            let minutes = Int((value * 60).rounded())
+            return "\(minutes / 60)h \(minutes % 60)m"
+        }
+        return value.formatted(.number.precision(.fractionLength(decimals)))
+    }
+    func axisLabel(_ value: Double) -> String {
+        if self == .sleep {
+            let minutes = Int((value * 60).rounded())
+            return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h\(minutes % 60)m"
+        }
+        return value.formatted(.number.precision(.fractionLength(0...1)))
+    }
+    var readoutUnit: String { self == .sleep ? "" : unit }
     /// Whether a higher value is good, for the delta colour.
     var higherIsBetter: Bool? {
         switch self {

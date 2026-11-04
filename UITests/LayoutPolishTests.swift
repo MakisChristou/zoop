@@ -46,17 +46,15 @@ import XCTest
         shot(app, "Simplified Trends")
         let comparison = app.buttons["trendComparisons"].firstMatch
         XCTAssertTrue(comparison.exists); comparison.tap()
-        XCTAssertTrue(app.staticTexts["Solid: daily readings · Dashed: 7-day average · Dotted: period average"].exists)
+        XCTAssertTrue(app.staticTexts["7-day average"].exists)
         comparison.tap()
-        app.segmentedControls.buttons["7 days"].tap()
-        let longer = app.buttons["weekdayLongerRange"]
-        reveal(longer, in: app)
-        let cells = app.descendants(matching: .any).matching(identifier: "sleepHeatmapDay")
+        app.segmentedControls.buttons["Week"].tap()
+        XCTAssertFalse(app.buttons["weekdayLongerRange"].exists)
+        let cells = app.buttons.matching(identifier: "sleepHeatmapDay")
+        for _ in 0..<4 where !cells.element(boundBy: 35).isHittable { app.swipeUp() }
         XCTAssertGreaterThan(cells.count, 40)
-        XCTAssertTrue(cells.allElementsBoundByIndex.contains { ($0.value as? String ?? "").contains("minutes asleep") })
-        shot(app, "Accessible heatmap and honest short-range prompt")
-        longer.tap()
-        XCTAssertTrue(app.segmentedControls.buttons["30 days"].isSelected)
+        XCTAssertTrue(cells.allElementsBoundByIndex.contains { ($0.value as? String ?? "").contains("asleep") })
+        shot(app, "Interactive sleep heatmap")
     }
     func testLearningDetailKeepsComparisonsAvailable() {
         let app = launch()
@@ -65,7 +63,7 @@ import XCTest
         XCTAssertTrue(app.staticTexts["Learning"].exists)
         XCTAssertFalse(app.staticTexts["Early comparisons"].exists)
         brief.tap()
-        let detail = app.buttons["insightComparison_sleep"].firstMatch
+        let detail = app.buttons["trendComparisons"].firstMatch
         reveal(detail, in: app)
         XCTAssertFalse(app.staticTexts["Early baseline · 11 nights"].exists)
         detail.tap()

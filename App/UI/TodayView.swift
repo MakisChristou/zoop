@@ -44,7 +44,6 @@ struct TodayView: View {
                     if isViewingToday { WeightCheckIn() }
                     overview
                     stepsCard
-                    TodayLiveMetric(kind: .heartRate, isViewingToday: isViewingToday, summary: selectedSummary, history: [])
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
                             Label("Couldn’t update your day. Retry", systemImage: "arrow.clockwise")
@@ -57,6 +56,8 @@ struct TodayView: View {
                         DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? now : nil,
                                     sessions: selectedWorkouts, walkingHours: currentSteps?.walkingHours)
                             .id(viewedDay)
+                    } else if isViewingToday {
+                        TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: selectedSummary, history: []).snoopCard()
                     }
                     if loading && loadedDay != viewedDay {
                         ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading day")

@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Five tabs. Each main screen carries the strap status and the profile button in its
+/// Four tabs. Each main screen carries the strap status and the profile button in its
 /// own header; the device page lives behind both.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showDevice = false
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?
     @State private var selectedActivityDay: Date?
@@ -12,7 +13,7 @@ struct RootView: View {
     @State private var sleepRequest = UUID()
 
     enum Tab: Hashable {
-        case today, activity, sleep, trends, battery
+        case today, activity, sleep, trends
     }
 
     var body: some View {
@@ -29,9 +30,6 @@ struct RootView: View {
             TrendsView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.trends)
-            BatteryView()
-                .tabItem { Label("Battery", systemImage: "battery.100percent") }
-                .tag(Tab.battery)
         }
         .tint(SnoopStyle.load)
         .foregroundStyle(SnoopStyle.text)
@@ -43,11 +41,12 @@ struct RootView: View {
             await model.battery.requestNotificationsIfNeeded()
         }
         .onChange(of: model.battery.openBattery, initial: true) { _, open in
-            if open { selection = .battery; model.battery.openBattery = false }
+            if open { showDevice = true; model.battery.openBattery = false }
         }
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
         }
+        .sheet(isPresented: $showDevice) { ProfileSheet(open: .device) }
         .sheet(isPresented: Binding(get: { model.health.showWeightEntry }, set: { model.health.showWeightEntry = $0 })) { WeightEntryView() }
         .onChange(of: model.battery.openWeightScope, initial: true) { _, scope in
             if let scope { selection = .today; model.health.openReminder(scope: scope); model.battery.openWeightScope = nil }
@@ -70,7 +69,7 @@ struct RootView: View {
         case "activity": selection = .activity
         case "sleep": selection = .sleep
         case "trends": selection = .trends
-        case "battery": selection = .battery
+        case "battery": showDevice = true
         default: break
         }
         #endif

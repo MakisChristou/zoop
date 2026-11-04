@@ -22,5 +22,12 @@ final class TrendSelectionTests: XCTestCase {
         XCTAssertEqual(series.nearestIndex(to: dates[0].addingTimeInterval(1800)), 0)
         XCTAssertEqual(series.nearestIndex(to: dates[0].addingTimeInterval(1801)), 1)
     }
+    func testLineBreaksAtMissingDaysAcrossDaylightSaving() throws {
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let dates = try APIDateCoding.decoder().decode([Date].self, from: Data("[\"2026-10-24T08:00:00+02:00\",\"2026-10-25T08:00:00+01:00\",\"2026-10-27T08:00:00+01:00\"]".utf8))
+        let series = TrendSeries(dates.map { TrendPoint(date: $0, value: 8) }, calendar: calendar)
+        XCTAssertEqual(series.segmentByDate[dates[0]], series.segmentByDate[dates[1]])
+        XCTAssertNotEqual(series.segmentByDate[dates[1]], series.segmentByDate[dates[2]])
+    }
     private func point(_ time: Double, _ value: Double) -> TrendPoint { .init(date: Date(timeIntervalSince1970: time), value: value) }
 }

@@ -10,6 +10,11 @@ struct MorningInsightsView: View {
     private var error: Bool { morning.failed(for: scope) }
     private var loading: Bool { morning.loading }
     @State private var showMethod = false
+    @State private var history = TrendStore()
+    @State private var metric: TrendMetric = .sleep
+    @State private var detailNight: SnoopAPI.Night?
+    @State private var showNight = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -20,14 +25,26 @@ struct MorningInsightsView: View {
                         .frame(minHeight: 44).accessibilityIdentifier("retryInsights")
                 }
                 if let insights {
-                    MorningOutlookView(insights: insights, showsChanges: false)
-                    ForEach(insights.metrics) { InsightMetricView(metric: $0) }
-                    DisclosureGroup {
-                        weekly(insights)
-                        timing(insights)
-                    } label: {
-                        Text("Weekly comparisons").font(.subheadline.weight(.medium)).frame(minHeight: 44)
-                    }.tint(SnoopStyle.secondary).snoopCard()
+                    HStack {
+                        Text(insights.outlookTitle).font(.headline).foregroundStyle(InsightTone.color(insights.outlook?.state))
+                            .accessibilityIdentifier("morningOutlookStatus")
+                        Spacer()
+                        if insights.isLearning, let outlook = insights.outlook {
+                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        }
+                    }
+                    let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+                    layout {
+                        ForEach(insights.metrics) { reading in
+                            InsightMetricView(metric: reading, selected: metric == reading.trendMetric) { metric = reading.trendMetric }
+                        }
+                    }
+                    TrendHistoryView(snapshot: history.snapshot, metric: metric, initialDay: day, insights: insights, initialRange: .week) { point in
+                        detailNight = history.snapshot.nights.first { $0.endTs == point.date }; showNight = detailNight != nil
+                    }
+                    if history.error != nil {
+                        Button("Couldn’t update history. Retry") { Task { await loadHistory() } }.frame(minHeight: 44)
+                    }
                 } else if loading {
                     ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading morning insights")
                 }
@@ -38,6 +55,10 @@ struct MorningInsightsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showMethod = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About morning insights")
             }
+        }
+        .navigationDestination(isPresented: $showNight) { if let detailNight { TrendSleepDetailView(summary: detailNight) } }
+        .task(id: "\(scope)-\(model.analysisRevision)-\(model.sleep.changeToken)-\(scenePhase)") {
+            if scenePhase == .active { await loadHistory() }
         }
         .sheet(isPresented: $showMethod) { InsightMethodView() }
         .onAppear { visible = true }
@@ -53,35 +74,9 @@ struct MorningInsightsView: View {
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
     }
-    private func weekly(_ insights: MorningInsights) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Past 7 days").font(.headline)
-            ForEach(insights.metrics) { metric in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(metric.title).font(.subheadline.weight(.medium))
-                    if let average = metric.week.average {
-                        Text("\(metric.formatted(average)) \(metric.unit) average · \(metric.week.count) nights").font(.subheadline)
-                        if let previous = metric.week.previousAverage {
-                            Text("Previous week: \(metric.formatted(previous)) \(metric.unit)").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                        }
-                    } else {
-                        Text("\(metric.week.count)/5 recorded nights").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }
-                }
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
-    }
-    private func timing(_ insights: MorningInsights) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Sleep timing").font(.headline)
-            if let asleep = insights.timing.asleepSdMin, let wake = insights.timing.wakeSdMin {
-                Text("Falling asleep varied by about \(Int(asleep.rounded())) min; waking up by \(Int(wake.rounded())) min.")
-                    .font(.subheadline)
-                Text("Across \(insights.timing.count) nights this week").font(.caption).foregroundStyle(SnoopStyle.secondary)
-            } else {
-                Text("Needs five recorded nights in the same time zone.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
+    private func loadHistory() async {
+        let device = model.strap.serial, connection = Settings.connectionID
+        await history.reload(device: device, connection: connection) { model.strap.serial == device && Settings.connectionID == connection }
     }
     private func load() async {
         guard Settings.isConfigured else { morning.stop(clear: true); return }

@@ -23,7 +23,7 @@ for i in range(120):
     start = end - timedelta(hours=7.5 + math.sin(i) / 2)
     seconds = int((end - start).total_seconds())
     window = dict(onset=stamp(start), offset=stamp(end), time_in_bed_s=seconds,
-                  asleep_s=seconds-300, waso_s=300, efficiency=.97, coverage_s=seconds, disturbances=1)
+                  asleep_s=seconds-300, waso_s=300, efficiency=.98 if i == 0 else .97, coverage_s=seconds, disturbances=1)
     physiology = dict(resting_hr=55+math.sin(i)*3, hrv_rmssd_ms=65+math.cos(i)*10,
                       hrv_windows=120, respiratory_rate=14.3, skin_temp_c=33.4, spo2_pct=98, spo2_windows=60)
     stages = dict(wake_s=300, light_s=seconds-9600, deep_s=4200, rem_s=5100,
@@ -37,7 +37,7 @@ for i in range(120):
                          kind='main', edited=False, auto_detected=True, revision=1, status='active',
                          replacements=[], metrics_pending=False, timezone='UTC',
                          sleep=dict(window=window, physiology=physiology, stages=stages,
-                                    segments=segments, algo_version=2, efficiency=.97)))
+                                    segments=segments, algo_version=2, efficiency=.98 if i == 0 else .97)))
     days.append(dict(day=day.date().isoformat(), steps=9000+i*10, steps_walking=8200+i*10,
                      walking_s=3600, hr_min=51, hr_avg=69, hr_max=132, skin_temp_avg=33.4,
                      asleep_s=seconds-300, samples=80000, load=8.4, trimp=40, kcal=360, zones_min=[20,15,4,1,0]))
@@ -54,7 +54,7 @@ def insight(day, mature=False, early_count=11):
     for key, value, delta, unit in [('sleep', 28020, 2520, 'seconds'), ('hrv', 72, 18, 'percent'), ('resting_hr', 54, -3, 'bpm')]:
         metrics.append(dict(key=key, value=value, quality='good', relation='similar' if mature else None,
                             baseline=dict(state='established' if mature else 'early', count=count,
-                                          **{'from': (today-timedelta(days=count)).date().isoformat(), 'to': day},
+                                          **{'from': (today-timedelta(days=count)).date().isoformat(), 'to': (datetime.fromisoformat(day).date()-timedelta(days=1)).isoformat()},
                                           average=value*.95, lower=value*.9, upper=value*1.1),
                             comparison=dict(delta=delta, unit=unit, signal='favourable' if mature else None),
                             history=[dict(day=(today-timedelta(days=i)).date().isoformat(), value=value*(1+.03*math.sin(i))) for i in reversed(range(14))],

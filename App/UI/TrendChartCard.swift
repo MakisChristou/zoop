@@ -2,233 +2,181 @@ import Charts
 import SnoopData
 import SwiftUI
 
-/// Selection stays local to this card; scrubbing does not rebuild the other trends.
+/// Selection stays inside the card; inspecting never rebuilds the history snapshot.
 struct TrendChartCard: View {
     let metric: TrendMetric
     let range: TrendRange
+    let interval: DateInterval
+    let calendar: Calendar
     let series: TrendSeries
+    var pattern: TrendSeries?
+    var insights: MorningInsights?
+    let canGoBack: Bool
+    let canGoForward: Bool
+    let page: (Int) -> Void
     let open: (TrendPoint) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selectedDate: Date?
     @State private var showComparisons = false
-    @GestureState private var horizontalDrag: Bool?
-    private var points: [TrendPoint] { series.points }
-    private var rolling: [TrendPoint] { series.rolling }
-    @State private var selectedMetric: TrendMetric?
-    @State private var selectedRange: TrendRange?
-    private var selected: TrendPoint? {
-        guard selectedMetric == metric, selectedRange == range, let date = selectedDate, let index = series.nearestIndex(to: date), points[index].date == date else { return nil }
-        return points[index]
-    }
-    private var displayed: TrendPoint? { selected ?? points.last }
-    private var selectionDescription: String {
+    private var selected: TrendPoint? { selectedDate.flatMap { date in series.points.first { $0.date == date } } }
+    private var displayed: TrendPoint? { selected ?? series.points.last }
+    private var description: String {
         guard let point = displayed else { return "No readings" }
-        return "\(format(point.value)) \(metric.unit), \(point.date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))"
+        return "\(metric.formatted(point.value)) \(metric.readoutUnit), \(point.date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))"
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            periodNavigation
+            readout
+            chart
+            if !series.points.isEmpty {
+                DisclosureGroup(isExpanded: $showComparisons) {
+                    comparisonDetails.padding(.top, 8)
+                } label: {
+                    Text(insights == nil ? "Comparisons" : "Comparison details")
+                        .font(.subheadline).frame(minHeight: 44)
+                }.tint(SnoopStyle.secondary).accessibilityIdentifier("trendComparisons")
+            }
+        }
+        .snoopCard()
+        .onChange(of: metric) { _, _ in selectedDate = nil }
+        .onChange(of: interval) { _, _ in selectedDate = nil }
+        .onChange(of: series.points) { _, points in
+            if let selectedDate, !points.contains(where: { $0.date == selectedDate }) { self.selectedDate = nil }
+        }
+    }
+    private var periodNavigation: some View {
+        HStack(spacing: 4) {
+            Button { page(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                .disabled(!canGoBack).accessibilityLabel("Previous period").accessibilityIdentifier("trendPreviousPeriod")
+            Text(range.title(interval, calendar: calendar))
+                .font(.subheadline.weight(.medium)).multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity).accessibilityIdentifier("trendPeriod")
+            Button { page(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                .disabled(!canGoForward).accessibilityLabel("Next period").accessibilityIdentifier("trendNextPeriod")
+        }.buttonStyle(.plain)
     }
     private var readout: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 5) {
-                Text(metric.rawValue)
-                if selected != nil { Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).accessibilityHidden(true) }
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+        return layout {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Text(metric.rawValue)
+                    if selected != nil { Image(systemName: "chevron.right").font(.caption2).accessibilityHidden(true) }
+                }.font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                MetricValue(displayed.map { metric.formatted($0.value) } ?? "—", unit: metric.readoutUnit, size: 36)
+                    .foregroundStyle(metric.color).accessibilityIdentifier("trendReadingValue")
+                Text(displayed.map { $0.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()) } ?? "No readings")
+                    .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("trendReadingDate")
             }
-            .font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-            MetricValue(displayed.map { format($0.value) } ?? "—", unit: metric.unit, size: 40)
-                .foregroundStyle(metric.color).accessibilityIdentifier("trendReadingValue")
-            if let point = displayed {
-                Text(selected == nil
-                     ? "as of " + point.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                     : point.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()))
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    .accessibilityIdentifier("trendReadingDate")
-            }
-        }
-        .frame(minHeight: 44, alignment: .leading)
-    }
-
-    var body: some View {
-        let pts = points
-        let avg = series.average
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
-        return VStack(alignment: .leading, spacing: 10) {
-            layout {
-                readout
-                    .accessibilityHidden(selected != nil)
-                    .overlay {
-                        if selected != nil {
-                            Button { openReading() } label: { Color.clear.contentShape(Rectangle()) }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("View \(metric == .steps ? "steps" : "sleep") details")
-                                .accessibilityValue(selectionDescription)
-                                .accessibilityIdentifier("trendOpenDetail")
-                        }
-                    }
-                if !typeSize.isAccessibilitySize { Spacer() }
-                Group {
-                    if showComparisons, let last = pts.last, let avg, pts.count >= 3 {
-                        delta(last.value - avg)
-                            .opacity(selected == nil ? 1 : 0).accessibilityHidden(selected != nil)
-                    } else { Color.clear.frame(width: 0, height: 0) }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if selected != nil {
-                        Button("Latest") { selectedDate = nil }
-                            .font(.subheadline.weight(.medium))
-                            .buttonStyle(.bordered).buttonBorderShape(.capsule)
-                            .frame(minHeight: 44).fixedSize()
-                            .accessibilityIdentifier("trendLatest")
-                    }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .accessibilityHidden(selected != nil)
+            .overlay {
+                if selected != nil {
+                    Button { openReading() } label: { Color.clear.contentShape(Rectangle()) }
+                        .buttonStyle(.plain).accessibilityLabel("View \(metric == .steps ? "steps" : "sleep") details")
+                        .accessibilityValue(description).accessibilityIdentifier("trendOpenDetail")
                 }
             }
-
-            if pts.count >= 2 {
-                chart
-                DisclosureGroup(isExpanded: $showComparisons) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Solid: daily readings · Dashed: 7-day average · Dotted: period average")
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
-                            stat("Min", series.minimum)
-                            stat("Average", avg)
-                            stat("Max", series.maximum)
-                            stat("Days", Double(pts.count), decimals: 0)
-                        }
-                    }.padding(.top, 8)
-                } label: {
-                    Text("Comparisons").font(.subheadline).frame(minHeight: 44)
-                }
-                .tint(SnoopStyle.secondary).accessibilityIdentifier("trendComparisons")
-            } else {
-                unlock(pts.isEmpty ? "No readings in this range." : "1 \(metric == .steps ? "day" : "night") recorded.")
-                    .frame(height: 120)
-            }
-        }
-        .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-        .onChange(of: metric) { _, _ in selectedDate = nil }
-        .onChange(of: range) { _, _ in selectedDate = nil }
-        .onChange(of: points) { _, new in
-            if let selectedDate, !new.contains(where: { $0.date == selectedDate }) { self.selectedDate = nil }
+            Button("Latest") { selectedDate = nil }
+                .font(.subheadline.weight(.medium)).buttonStyle(.bordered).buttonBorderShape(.capsule)
+                .frame(minHeight: 44).opacity(selected == nil ? 0 : 1)
+                .allowsHitTesting(selected != nil).accessibilityHidden(selected == nil)
+                .accessibilityIdentifier("trendLatest")
         }
     }
-
     private var chart: some View {
         Chart {
-            ForEach(showComparisons ? rolling : []) { p in
-                AreaMark(x: .value("Date", p.date), y: .value("7-day", p.value))
-                    .foregroundStyle(metric.color.opacity(0.12))
-                    .interpolationMethod(.monotone)
-                LineMark(x: .value("Date", p.date), y: .value("7-day", p.value))
-                    .foregroundStyle(metric.color.opacity(0.45))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                    .interpolationMethod(.monotone)
+            if showComparisons {
+                ForEach(series.rolling) { point in
+                    LineMark(x: .value("Date", point.date), y: .value("7-day average", point.value), series: .value("Series", "mean-\(series.segmentByDate[point.date] ?? 0)"))
+                        .foregroundStyle(metric.color.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                }
+                if let average = series.average {
+                    RuleMark(y: .value("Period average", average))
+                        .foregroundStyle(SnoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                }
             }
-            ForEach(points) { p in
-                LineMark(x: .value("Date", p.date), y: .value(metric.rawValue, p.value), series: .value("s", "daily"))
-                    .foregroundStyle(metric.color)
-                    .interpolationMethod(.monotone)
-                PointMark(x: .value("Date", p.date), y: .value(metric.rawValue, p.value))
-                    .foregroundStyle(metric.color)
-                    .symbolSize(28)
+            ForEach(series.points) { point in
+                LineMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value), series: .value("Series", "daily-\(series.segmentByDate[point.date] ?? 0)"))
+                    .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 2))
+                PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
+                    .foregroundStyle(metric.color).symbolSize(range == .week ? 24 : range == .all ? 5 : 12)
             }
             if let selected {
-                RuleMark(x: .value("Selected date", selected.date))
-                    .foregroundStyle(SnoopStyle.secondary.opacity(0.45))
+                RuleMark(x: .value("Selected date", selected.date)).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
                 PointMark(x: .value("Date", selected.date), y: .value(metric.rawValue, selected.value))
-                    .foregroundStyle(metric.color).symbolSize(90)
-            }
-            if showComparisons, let avg = series.average {
-                RuleMark(y: .value("avg", avg))
-                    .foregroundStyle(.secondary.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
-                    .annotation(position: .top, alignment: .trailing) {
-                        Text("avg \(format(avg))").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-                    }
+                    .foregroundStyle(metric.color).symbolSize(65)
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false))
-        .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
-        .frame(height: 180)
-        .chartOverlay { proxy in selectionOverlay(proxy) }
+        .chartXScale(domain: interval.start...interval.end.addingTimeInterval(-1))
+        .chartYScale(domain: yDomain)
+        .chartLegend(.hidden)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: range == .week ? 7 : 4)) { value in
+                AxisGridLine().foregroundStyle(SnoopStyle.separator)
+                if let date = value.as(Date.self) {
+                    AxisValueLabel { Text(date.formatted(range == .week ? .dateTime.weekday(.narrow) : range == .all ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated))) }
+                }
+            }
+        }
+        .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+            AxisGridLine().foregroundStyle(SnoopStyle.separator)
+            AxisValueLabel { if let number = value.as(Double.self) { Text(metric.axisLabel(number)) } }
+        } }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .frame(height: 210)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                if let anchor = proxy.plotFrame {
+                    let plot = geo[anchor]
+                    CalendarChartGesture(select: { point in
+                        guard plot.contains(point), let date: Date = proxy.value(atX: point.x - plot.minX), let index = series.nearestIndex(to: date) else { return }
+                        selectedDate = series.points[index].date
+                    }, page: page)
+                }
+            }
+        }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(metric.rawValue) trend chart")
-        .accessibilityValue(selectionDescription)
-        .accessibilityHint("Swipe up or down to inspect readings. Use the view details action to open the selected day.")
-        .accessibilityAdjustableAction { direction in moveSelection(direction == .increment ? 1 : -1) }
-        .accessibilityAction(named: metric == .steps ? "View steps details" : "View sleep details") { openReading() }
+        .accessibilityLabel("\(metric.rawValue) trend chart").accessibilityValue(description)
+        .accessibilityHint("Swipe up or down to inspect readings. Use the actions to change period or view details.")
+        .accessibilityAdjustableAction { moveSelection($0 == .increment ? 1 : -1) }
+        .accessibilityAction(named: "Previous period") { if canGoBack { page(-1) } }
+        .accessibilityAction(named: "Next period") { if canGoForward { page(1) } }
+        .accessibilityAction(named: "View \(metric == .steps ? "steps" : "sleep") details", openReading)
         .accessibilityAction(named: "Latest reading") { selectedDate = nil }
         .accessibilityIdentifier("trendsChart")
     }
-
-    private func delta(_ d: Double) -> some View {
-        let good: Bool? = metric.higherIsBetter.map { $0 ? d >= 0 : d <= 0 }
-        return VStack(alignment: .trailing, spacing: 2) {
-            Text((d >= 0 ? "+" : "") + format(d)).font(.headline).monospacedDigit()
-                .foregroundStyle(deltaColor(good))
-            Text("vs period average").font(.caption2).foregroundStyle(SnoopStyle.secondary)
-        }
+    private var yDomain: ClosedRange<Double> {
+        guard let low = series.minimum, let high = series.maximum else { return 0...1 }
+        let minimumPadding: Double = metric == .sleep ? 0.5 : metric == .skinTemp ? 0.2 : metric == .steps ? 500 : 1
+        let padding = max((high - low) * 0.15, minimumPadding)
+        return max(0, low - padding)...(high + padding)
     }
-
-    private func deltaColor(_ good: Bool?) -> Color {
-        switch good {
-        case nil: .secondary
-        case true?: .green
-        case false?: .orange
-        }
-    }
-
-    private func selectionOverlay(_ proxy: ChartProxy) -> some View {
-        GeometryReader { geometry in
-            if let anchor = proxy.plotFrame {
-                let plot = geometry[anchor]
-                Color.clear.contentShape(Rectangle())
-                    .onTapGesture { location in select(location, plot: plot, proxy: proxy) }
-                    // Simultaneous recognition leaves vertical page scrolling intact.
-                    // Lock the direction at the start so a scroll cannot become a scrub.
-                    .simultaneousGesture(DragGesture(minimumDistance: 16)
-                        .updating($horizontalDrag) { value, horizontal, _ in
-                            if horizontal == nil { horizontal = abs(value.translation.width) > abs(value.translation.height) }
-                        }
-                        .onChanged { value in
-                            guard horizontalDrag ?? (abs(value.translation.width) > abs(value.translation.height)),
-                                  plot.contains(value.startLocation) else { return }
-                            select(CGPoint(x: min(max(value.location.x, plot.minX), plot.maxX), y: plot.midY), plot: plot, proxy: proxy)
-                        })
+    private var comparisonDetails: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let insights { InsightComparisonDetails(insights: insights, metric: metric) }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
+                stat("Min", series.minimum); stat("Average", series.average); stat("Max", series.maximum)
+                VStack(alignment: .leading, spacing: 4) { Text("Days").font(.caption2); Text(series.points.count.formatted()).font(.subheadline.weight(.medium)) }
             }
+            HStack(spacing: 12) {
+                Label("7-day average", systemImage: "line.diagonal").symbolRenderingMode(.hierarchical)
+                Label("Period average", systemImage: "ellipsis")
+            }.font(.caption2).foregroundStyle(SnoopStyle.secondary).fixedSize(horizontal: false, vertical: true)
+            if let pattern { TrendWeekdayPattern(metric: metric, series: pattern, calendar: calendar) }
         }
     }
-    private func select(_ location: CGPoint, plot: CGRect, proxy: ChartProxy) {
-        guard plot.contains(location), let date: Date = proxy.value(atX: location.x - plot.minX),
-              let index = series.nearestIndex(to: date) else { return }
-        selectedMetric = metric; selectedRange = range
-        selectedDate = points[index].date
-    }
-    private func moveSelection(_ step: Int) {
-        guard !points.isEmpty else { return }
-        let index = selectedDate.flatMap { series.nearestIndex(to: $0) } ?? points.count - 1
-        selectedMetric = metric; selectedRange = range
-        selectedDate = points[min(max(index + step, 0), points.count - 1)].date
-    }
-    private func openReading() { if let point = displayed { open(point) } }
-
-    private func unlock(_ text: String) -> some View {
-        HStack {
-            Image(systemName: "lock.open").foregroundStyle(SnoopStyle.secondary)
-            Text(text).font(.footnote).foregroundStyle(SnoopStyle.secondary)
-            Spacer()
+    private func stat(_ title: String, _ value: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+            Text(value.map(metric.formatted) ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
         }
     }
-
-    private func stat(_ label: String, _ value: Double?, decimals: Int? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2).foregroundStyle(SnoopStyle.secondary)
-            Text(value.map { $0.formatted(.number.precision(.fractionLength(decimals ?? metric.decimals))) } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
-        }
+    private func openReading() { if let displayed { open(displayed) } }
+    private func moveSelection(_ delta: Int) {
+        guard !series.points.isEmpty else { return }
+        let index = selected.flatMap { series.nearestIndex(to: $0.date) } ?? series.points.count - 1
+        selectedDate = series.points[min(max(index + delta, 0), series.points.count - 1)].date
     }
-
-    private func format(_ v: Double) -> String {
-        v.formatted(.number.precision(.fractionLength(metric.decimals)))
-    }
-
 }

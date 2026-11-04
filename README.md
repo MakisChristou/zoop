@@ -132,6 +132,35 @@ project.yml              XcodeGen spec
 
 Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
 
+## Calendar charts and daily details
+
+Trends and Morning insights share calendar Week, Month, 3 months (calendar quarter),
+and Year pages. Swipe horizontally to change a period; tap or hold and drag to
+inspect an actual reading. Previous/next buttons and VoiceOver actions provide the
+same navigation. Returning from a reading keeps the selected date and page.
+Calendar arithmetic respects locale week starts, time zones and daylight saving.
+History is prepared off the main executor; switching or paging does not fetch it
+again. Missing days break lines, and sleep readouts use hours and minutes.
+
+The eight-week sleep heatmap opens a themed summary and the complete sleep record.
+Typical weekday comparisons stay inside Comparisons and appear only after at least
+two readings for every weekday within the past eight weeks. Learning detail uses
+one chart selected by its three metric cards, opening on the selected week; baseline and weekly details remain
+inside the chart disclosure.
+
+Today restores the seven weigh-in circles and puts live heart rate inside the daily
+timeline. Battery, including both pack and strap, lives under Profile → My WHOOP;
+the header shortcut and battery notifications open that page. The four tabs are
+Today, Activity, Sleep and Trends.
+
+Sleep adds compact comparisons without changing its layout. HRV/resting-HR deltas
+come from Morning insights and must match the displayed sleep revision. Efficiency
+uses eligible main sleeps in the API’s preceding 28-calendar-day baseline window
+(inclusive from/to), at least seven distinct nights, no pending metrics and at most
+120 seconds of unknown recording per night. It excludes the displayed night and
+uses percentage points, not relative percentages. Missing and rounded-zero deltas
+are omitted. This display calculation does not modify stored analysis.
+
 ## Focused layout validation
 
 Today keeps the morning assessment and weight check-in compact. In Trends and
@@ -149,7 +178,8 @@ xcodegen generate
 TEST_RUNNER_SNOOP_UI_SERVER_URL=http://127.0.0.1:28476 xcodebuild \
   -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
   CODE_SIGNING_ALLOWED=NO -parallel-testing-enabled NO \
-  -only-testing:SnoopTests -only-testing:SnoopUITests/LayoutPolishTests \
+  -only-testing:SnoopTests -only-testing:SnoopUITests/CalendarNavigationTests \
+  -only-testing:SnoopUITests/LayoutPolishTests \
   -only-testing:SnoopUITests/MeasurementEntryTests \
   -only-testing:SnoopUITests/HealthWeightTests \
   -only-testing:SnoopUITests/TrendSelectionTests \

@@ -10,34 +10,22 @@ struct BatteryView: View {
     private let refresh = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        NavigationStack {
-            TimelineView(.periodic(from: .now, by: 30)) { context in
-                ScrollView {
-                    VStack(spacing: 20) {
-                        batteries(now: context.date)
-                        if model.battery.authorization == .denied {
-                            Button("Turn on notifications") {
-                                if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
-                                    UIApplication.shared.open(url)
-                                }
-                            }
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary).frame(minHeight: 44)
-                        }
-                    }
-                    .padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            VStack(spacing: 12) {
+                batteries(now: context.date)
+                if model.battery.authorization == .denied {
+                    Button("Turn on notifications") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    }.font(.caption).foregroundStyle(SnoopStyle.secondary).frame(minHeight: 44)
                 }
             }
-            .navigationTitle("Battery")
-            .mainScreenChrome("Battery")
-            .task(id: scenePhase) {
-                guard scenePhase == .active else { return }
-                await model.battery.refreshAuthorization()
-                model.strap.requestBattery()
-            }
-            .onReceive(refresh) { _ in
-                if scenePhase == .active { model.strap.requestBattery() }
-            }
         }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await model.battery.refreshAuthorization(); model.strap.requestBattery()
+        }
+        .onReceive(refresh) { _ in if scenePhase == .active { model.strap.requestBattery() } }
+        .accessibilityIdentifier("deviceBatteries")
     }
 
     private func batteries(now: Date) -> some View {

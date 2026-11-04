@@ -16,8 +16,20 @@ public struct TrendSeries: Sendable {
     public let minimum: Double?
     public let maximum: Double?
     public let weekdays: [Int: Double]
+    /// Lines stop at missing calendar days instead of implying a measurement.
+    public let segmentByDate: [Date: Int]
     public init(_ values: [TrendPoint], calendar: Calendar = .current) {
         points = values.sorted { $0.date < $1.date }
+        var segments: [Date: Int] = [:]
+        var previous: Date?
+        var segment = 0
+        for point in points {
+            if let previous, calendar.dateComponents([.day], from: calendar.startOfDay(for: previous), to: calendar.startOfDay(for: point.date)).day ?? 0 <= 1 {
+                segments[point.date] = segment
+            } else { segment += 1; segments[point.date] = segment }
+            previous = point.date
+        }
+        segmentByDate = segments
         var lower = 0, upper = 0, sum = 0.0
         var means: [TrendPoint] = []; means.reserveCapacity(points.count)
         for point in points {

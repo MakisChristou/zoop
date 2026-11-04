@@ -18,16 +18,16 @@ private actor TrendTestServer {
 }
 
 @MainActor final class TrendStoreTests: XCTestCase {
-    private let now = ISO8601DateFormatter().date(from: "2026-11-02T12:00:00Z")!
-    private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Berlin")!; return c }
+    private let now = ISO8601DateFormatter().date(from: "2026-11-01T12:00:00Z")!
+    private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Berlin")!; c.firstWeekday = 2; return c }
 
     func testEveryRangeKeepsRecordedValuesAndExistingRollingSemantics() {
         let nights = ["2025-10-01", "2025-11-03", "2026-08-01", "2026-08-05", "2026-10-01", "2026-10-15", "2026-10-26", "2026-10-27", "2026-11-01"].map { Self.night(day: $0) }
         let days = [Self.day("2026-10-15", steps: 1200), Self.day("2026-10-27", steps: nil), Self.day("2026-11-01", steps: 2300)]
         let snapshot = TrendSnapshot(nights: nights, days: days, now: now, calendar: calendar)
-        XCTAssertEqual(TrendRange.allCases.map { snapshot.series(.sleep, range: $0).points.count }, [2, 4, 6, 8])
+        XCTAssertEqual(TrendRange.allCases.map { snapshot.series(.sleep, range: $0).points.count }, [3, 1, 5, 7])
         XCTAssertEqual(snapshot.series(.steps, range: .week).points.map(\.value), [2300])
-        XCTAssertEqual(snapshot.series(.steps, range: .month).points.map(\.value), [1200, 2300])
+        XCTAssertEqual(snapshot.series(.steps, range: .month).points.map(\.value), [2300])
         let expected: [TrendMetric: Double] = [.sleep: 7.5, .restingHr: 52, .hrv: 66, .breathing: 14.5, .skinTemp: 32.2, .efficiency: 90]
         for range in TrendRange.allCases {
             for (metric, value) in expected {
@@ -46,7 +46,7 @@ private actor TrendTestServer {
         await store.reload(device: "new", connection: "one", now: now, calendar: calendar)
         for _ in 0..<100 {
             XCTAssertEqual(store.snapshot.series(.steps, range: .week).points.count, 1)
-            XCTAssertEqual(store.snapshot.series(.steps, range: .month).points.count, 2)
+            XCTAssertEqual(store.snapshot.series(.steps, range: .month).points.count, 1)
         }
         let calls = await server.count()
         XCTAssertEqual(calls, 1)
@@ -96,7 +96,7 @@ private actor TrendTestServer {
         XCTAssertNil(store.error)
     }
 
-    nonisolated fileprivate static func night(day: String) -> SnoopAPI.Night {
+    nonisolated static func night(day: String) -> SnoopAPI.Night {
         let wake = DayKey.date(day, timeZone: TimeZone(secondsFromGMT: 0)!)!.addingTimeInterval(9 * 3600)
         let start = wake.addingTimeInterval(-8 * 3600)
         return .init(nightOf: day, algoVersion: 2, startTs: start, endTs: wake, stages: [], metrics: .init(window: .init(onset: start, offset: wake, timeInBedS: 28800, asleepS: 27000, wasoS: 1800, efficiency: 0.9, coverageS: 28800, disturbances: 1), physiology: .init(restingHr: 52, hrvRmssdMs: 66, hrvWindows: 40, respiratoryRate: 14.5, skinTempC: 32.2, spo2Pct: nil, spo2Windows: 0), stages: nil, naps: []))

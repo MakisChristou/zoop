@@ -16,7 +16,7 @@ import XCTest
         XCTAssertTrue(app.buttons["HRV"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'as of '")).firstMatch.waitForExistence(timeout: 15))
         shot(app,"Trends initial")
-        for range in ["90 days","Year","30 days"] {
+        for range in ["3 months","Year","Month"] {
             let choice = app.segmentedControls.buttons[range]
             XCTAssertTrue(choice.exists); choice.tap()
         }
