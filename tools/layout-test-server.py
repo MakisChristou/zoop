@@ -1,0 +1,124 @@
+"""Loopback-only, generated history for layout/gesture tests. No real health data.
+
+Run alongside SnoopUITests on a simulator. The default test URL is port 28476.
+All mutations are in memory and disappear when the process exits.
+"""
+import json
+import math
+from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
+
+today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def stamp(value):
+    return value.isoformat().replace('+00:00', 'Z')
+
+
+nights, days, sessions, weights = [], [], [], []
+for i in range(120):
+    day = today - timedelta(days=i)
+    end = day + timedelta(hours=8)
+    start = end - timedelta(hours=7.5 + math.sin(i) / 2)
+    seconds = int((end - start).total_seconds())
+    window = dict(onset=stamp(start), offset=stamp(end), time_in_bed_s=seconds,
+                  asleep_s=seconds-300, waso_s=300, efficiency=.97, coverage_s=seconds, disturbances=1)
+    physiology = dict(resting_hr=55+math.sin(i)*3, hrv_rmssd_ms=65+math.cos(i)*10,
+                      hrv_windows=120, respiratory_rate=14.3, skin_temp_c=33.4, spo2_pct=98, spo2_windows=60)
+    stages = dict(wake_s=300, light_s=seconds-9600, deep_s=4200, rem_s=5100,
+                  sleep_latency_s=300, rem_latency_s=5400, epochs=seconds//30, epochs_with_cardiac=seconds//30)
+    segments = [dict(stage='light', start=stamp(start), end=stamp(start+timedelta(hours=2))),
+                dict(stage='deep', start=stamp(start+timedelta(hours=2)), end=stamp(start+timedelta(hours=3))),
+                dict(stage='rem', start=stamp(start+timedelta(hours=3)), end=stamp(end))]
+    nights.append(dict(night_of=day.date().isoformat(), algo_version=2, start_ts=stamp(start), end_ts=stamp(end),
+                       stages=segments, metrics=dict(window=window, physiology=physiology, stages=stages, naps=[])))
+    sessions.append(dict(id=i+1, start_ts=stamp(start), end_ts=stamp(end), duration_s=seconds,
+                         kind='main', edited=False, auto_detected=True, revision=1, status='active',
+                         replacements=[], metrics_pending=False, timezone='UTC',
+                         sleep=dict(window=window, physiology=physiology, stages=stages,
+                                    segments=segments, algo_version=2, efficiency=.97)))
+    days.append(dict(day=day.date().isoformat(), steps=9000+i*10, steps_walking=8200+i*10,
+                     walking_s=3600, hr_min=51, hr_avg=69, hr_max=132, skin_temp_avg=33.4,
+                     asleep_s=seconds-300, samples=80000, load=8.4, trimp=40, kcal=360, zones_min=[20,15,4,1,0]))
+    # Today has a manual reading so the manual-entry test can replace it. Historical
+    # readings exercise Health imports; their Health-first preference is unchanged.
+    source = 'snoop' if i == 0 else 'health'
+    weights.append(dict(id=f'{source}:layout-{i}', measured_at=stamp(day+timedelta(hours=7)),
+                        kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Snoop' if i == 0 else 'Test scale', version=1, removed=False))
+
+
+def insight(day, mature=False, early_count=11):
+    count = 14 if mature else early_count
+    metrics = []
+    for key, value, delta, unit in [('sleep', 28020, 2520, 'seconds'), ('hrv', 72, 18, 'percent'), ('resting_hr', 54, -3, 'bpm')]:
+        metrics.append(dict(key=key, value=value, quality='good', relation='similar' if mature else None,
+                            baseline=dict(state='established' if mature else 'early', count=count,
+                                          **{'from': (today-timedelta(days=count)).date().isoformat(), 'to': day},
+                                          average=value*.95, lower=value*.9, upper=value*1.1),
+                            comparison=dict(delta=delta, unit=unit, signal='favourable' if mature else None),
+                            history=[dict(day=(today-timedelta(days=i)).date().isoformat(), value=value*(1+.03*math.sin(i))) for i in reversed(range(14))],
+                            week=dict(count=7, average=value, previous_average=value*.95)))
+    return dict(outlook=dict(state='good' if mature else 'learning', level=5 if mature else None,
+                             baseline_count=count, baseline_required=14), version=1, day=day, timezone='UTC',
+                state='ready', sleep_id=1, sleep_revision=1, metrics=metrics, observations=[],
+                timing=dict(count=7, asleep_sd_min=25, wake_sd_min=20))
+
+
+class Handler(BaseHTTPRequestHandler):
+    def send(self, body, status=200):
+        data = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        url = urlparse(self.path)
+        parts = url.path.strip('/').split('/')
+        if len(parts) < 4 or parts[:2] != ['v1', 'devices']:
+            return self.send({}, 404)
+        device, route = parts[2], '/'.join(parts[3:])
+        query = parse_qs(url.query)
+        limit = int(query.get('limit', ['120'])[0])
+        if route == 'sleeps': return self.send(nights[:limit])
+        if route == 'days': return self.send(days[:limit])
+        if route == 'workouts': return self.send([])
+        if route == 'sleep-sessions': return self.send(sessions[:limit])
+        if route.endswith('/epochs'): return self.send([])
+        if route.startswith('sleep-sessions/'):
+            return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
+        if route.endswith('/insights'):
+            mature = device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat()
+            return self.send(insight(parts[-2], mature, 13 if device == 'INSIGHT-REVIEW' else 11))
+        if route.endswith('/steps'):
+            hours = [0]*7 + [400, 1600, 0, 200, 800, 0, 0, 2000, 1200, 0, 2000] + [0]*6
+            return self.send(dict(day=parts[-2], hours=hours, walking_hours=hours, total=sum(hours), walking=sum(hours), bouts=[]))
+        if route.startswith('days/'):
+            day = datetime.fromisoformat(parts[4]).replace(tzinfo=timezone.utc)
+            return self.send([dict(ts=stamp(day+timedelta(minutes=m)), hr=65+int(10*math.sin(m/40)), hr_min=55,
+                                   hr_max=85, skin_temp_c=33.4, steps=4, band_state=2 if m<480 else 0, activity=0)
+                              for m in range(0, 1440, 5)])
+        if route == 'profile': return self.send(dict(sex='male', birth_year=1985, height_cm=180, tz='UTC', weight_kg=75.2,
+                                                     weight_measured_at=weights[0]['measured_at'], weight_source='health', weight_source_name='Test scale'))
+        if route == 'health': return self.send(dict(namespace='LAYOUT-UI', cursor=0, earliest=stamp(today-timedelta(days=120)), wake_at=None))
+        if route == 'health/exports': return self.send(dict(namespace='LAYOUT-UI', watermark=0, next_cursor=0, done=True, records=[]))
+        if route == 'weight-changes': return self.send(dict(rows=weights, next_cursor=len(weights), watermark=len(weights), done=True))
+        if route == 'weights': return self.send(weights)
+        if route == 'processing': return self.send(dict(pending_decode=0, decode_failures=0, pending_analysis=0, failed_analysis=0, workers_healthy=True, paused=False))
+        return self.send({'error': {'message': 'Unused synthetic endpoint'}}, 404)
+
+    def do_PUT(self):
+        row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
+        if self.path.endswith('/weights'):
+            row['version'] = row.get('version', 0) + 1
+            weights[:] = [r for r in weights if r['id'] != row['id']]
+            weights.insert(0, row)
+        self.send(row)
+
+    def log_message(self, *_): pass
+
+
+if __name__ == '__main__':
+    ThreadingHTTPServer(('127.0.0.1', 28476), Handler).serve_forever()

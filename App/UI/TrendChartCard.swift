@@ -10,6 +10,7 @@ struct TrendChartCard: View {
     let open: (TrendPoint) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selectedDate: Date?
+    @State private var showComparisons = false
     @GestureState private var horizontalDrag: Bool?
     private var points: [TrendPoint] { series.points }
     private var rolling: [TrendPoint] { series.rolling }
@@ -65,7 +66,7 @@ struct TrendChartCard: View {
                     }
                 if !typeSize.isAccessibilitySize { Spacer() }
                 Group {
-                    if let last = pts.last, let avg, pts.count >= 3 {
+                    if showComparisons, let last = pts.last, let avg, pts.count >= 3 {
                         delta(last.value - avg)
                             .opacity(selected == nil ? 1 : 0).accessibilityHidden(selected != nil)
                     } else { Color.clear.frame(width: 0, height: 0) }
@@ -83,12 +84,21 @@ struct TrendChartCard: View {
 
             if pts.count >= 2 {
                 chart
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
-                    stat("min", series.minimum)
-                    stat("avg", avg)
-                    stat("max", series.maximum)
-                    stat("days", Double(pts.count), decimals: 0)
+                DisclosureGroup(isExpanded: $showComparisons) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Solid: daily readings · Dashed: 7-day average · Dotted: period average")
+                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
+                            stat("Min", series.minimum)
+                            stat("Average", avg)
+                            stat("Max", series.maximum)
+                            stat("Days", Double(pts.count), decimals: 0)
+                        }
+                    }.padding(.top, 8)
+                } label: {
+                    Text("Comparisons").font(.subheadline).frame(minHeight: 44)
                 }
+                .tint(SnoopStyle.secondary).accessibilityIdentifier("trendComparisons")
             } else {
                 unlock(pts.isEmpty ? "No values in this range yet." : "One value so far. The chart appears with the second \(metric == .steps ? "day" : "night").")
                     .frame(height: 120)
@@ -105,7 +115,7 @@ struct TrendChartCard: View {
 
     private var chart: some View {
         Chart {
-            ForEach(rolling) { p in
+            ForEach(showComparisons ? rolling : []) { p in
                 AreaMark(x: .value("Date", p.date), y: .value("7-day", p.value))
                     .foregroundStyle(metric.color.opacity(0.12))
                     .interpolationMethod(.monotone)
@@ -128,7 +138,7 @@ struct TrendChartCard: View {
                 PointMark(x: .value("Date", selected.date), y: .value(metric.rawValue, selected.value))
                     .foregroundStyle(metric.color).symbolSize(90)
             }
-            if let avg = series.average {
+            if showComparisons, let avg = series.average {
                 RuleMark(y: .value("avg", avg))
                     .foregroundStyle(.secondary.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
@@ -213,12 +223,12 @@ struct TrendChartCard: View {
     private func stat(_ label: String, _ value: Double?, decimals: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption2).foregroundStyle(SnoopStyle.secondary)
-            Text(value.map { String(format: "%.\(decimals ?? metric.decimals)f", $0) } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
+            Text(value.map { $0.formatted(.number.precision(.fractionLength(decimals ?? metric.decimals))) } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
         }
     }
 
     private func format(_ v: Double) -> String {
-        String(format: "%.\(metric.decimals)f", v)
+        v.formatted(.number.precision(.fractionLength(metric.decimals)))
     }
 
 }

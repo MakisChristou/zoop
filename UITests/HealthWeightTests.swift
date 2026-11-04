@@ -45,7 +45,7 @@ import XCTest
         app.buttons["Weight options"].tap()
         XCTAssertTrue(app.switches["weightMovingAverage"].waitForExistence(timeout: 5))
         app.switches["weightMovingAverage"].tap()
-        let importAction = app.buttons["Import weight history"]
+        let importAction = app.buttons["importWeightFromOptions"]
         XCTAssertTrue(importAction.waitForExistence(timeout: 5))
         importAction.press(forDuration: 0.1)
         XCTAssertTrue(app.navigationBars["Import weight history"].waitForExistence(timeout: 5))

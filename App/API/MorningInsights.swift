@@ -117,6 +117,7 @@ struct MorningInsights: Decodable, Sendable {
     let timing: Timing
     // Older servers remain readable, without inventing an assessment on the phone.
     private var outlookState: String { outlook?.state ?? (state == "ready" ? "learning" : state) }
+    var isLearning: Bool { outlookState == "learning" }
     var outlookTitle: String {
         switch outlookState {
         case "good": "Good"

@@ -12,6 +12,7 @@ struct DayTimeline: View {
     var walkingHours: [Int]?
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var scrub: Date?
+    @GestureState private var horizontalDrag: Bool?
 
     private var dayStart: Date { Calendar.current.startOfDay(for: day) }
     private var dayEnd: Date { Calendar.current.date(byAdding: .day, value: 1, to: dayStart)! }
@@ -67,7 +68,7 @@ struct DayTimeline: View {
             if let m = selected {
                 Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(SnoopStyle.secondary)
                 Text(m.hr.map { "\($0) bpm" } ?? "—").font(.caption.weight(.semibold)).monospacedDigit()
-                if let t = m.skinTempC { Text(String(format: "%.1f °C", t)).font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                if let t = m.skinTempC { Text("\(t.formatted(.number.precision(.fractionLength(1)))) °C").font(.caption).foregroundStyle(SnoopStyle.secondary) }
             } else if let range = hrRange {
                 Text("\(range.lowerBound)–\(range.upperBound) bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
@@ -122,17 +123,22 @@ struct DayTimeline: View {
                     }.allowsHitTesting(false)
                 }
                 Rectangle().fill(.clear).contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 16)
+                            .updating($horizontalDrag) { value, horizontal, _ in
+                                if horizontal == nil { horizontal = abs(value.translation.width) > abs(value.translation.height) }
+                            }
                             .onChanged { value in
-                                guard let plot = proxy.plotFrame else { return }
-                                let x = value.location.x - geo[plot].origin.x
+                                guard horizontalDrag ?? (abs(value.translation.width) > abs(value.translation.height)),
+                                      let plot = proxy.plotFrame, geo[plot].contains(value.startLocation) else { return }
+                                let x = min(max(value.location.x - geo[plot].minX, 0), geo[plot].width)
                                 scrub = proxy.value(atX: x, as: Date.self)
                             }
                             .onEnded { _ in scrub = nil }
                     )
             }
         }
+        .accessibilityIdentifier("todayHeartRateChart")
     }
 
     private var skinTemperatureChart: some View {

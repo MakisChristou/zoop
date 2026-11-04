@@ -99,9 +99,14 @@ struct TrendsView: View {
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartYAxis(.hidden)
                 .frame(height: 120)
+            } else if range == .week {
+                Text("Choose a longer range to compare weekdays.")
+                    .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                Button("View 30 days") { range = .month }
+                    .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                    .accessibilityIdentifier("weekdayLongerRange")
             } else {
-                unlock("Unlocks after 14 \(metric == .steps ? "days" : "nights"). \(pts.count) so far.")
-                    .frame(height: 70)
+                unlock("Needs 14 \(metric == .steps ? "days" : "nights") in this range. \(pts.count) recorded.")
             }
         }
         .padding()
@@ -117,7 +122,7 @@ struct TrendsView: View {
     }
 
     private func format(_ v: Double) -> String {
-        String(format: "%.\(metric.decimals)f", v)
+        v.formatted(.number.precision(.fractionLength(metric.decimals)))
     }
 
     private func openReading(_ point: TrendPoint) {

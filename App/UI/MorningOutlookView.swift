@@ -9,6 +9,36 @@ struct MorningOutlookView: View {
     @ScaledMetric(relativeTo: .largeTitle) private var headlineSize: CGFloat = 38
 
     var body: some View {
+        if insights.isLearning { learning } else { assessed }
+    }
+
+    private var learning: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Morning outlook").font(.subheadline.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                    Text("Learning").font(.title2.weight(.semibold)).accessibilityIdentifier("morningOutlookStatus")
+                }
+                Spacer(minLength: 0)
+                if showsDisclosure {
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        .foregroundStyle(SnoopStyle.secondary).padding(.top, 6).accessibilityHidden(true)
+                }
+            }
+            if let outlook = insights.outlook, outlook.baselineRequired > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(outlook.baselineCount) of \(outlook.baselineRequired) nights")
+                        .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    ProgressView(value: Double(min(outlook.baselineCount, outlook.baselineRequired)), total: Double(outlook.baselineRequired))
+                        .tint(SnoopStyle.secondary).accessibilityHidden(true)
+                }
+            } else {
+                Text("Building your personal comparison").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard(padding: 20)
+    }
+
+    private var assessed: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {

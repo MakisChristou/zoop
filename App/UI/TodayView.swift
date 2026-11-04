@@ -187,11 +187,8 @@ struct TodayView: View {
     }
 
     private var healthMetrics: some View {
-        let columns = typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
-        return LazyVGrid(columns: columns, spacing: 12) {
-            TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
-                            history: precedingDays.compactMap { $0.skinTempAvg })
-        }
+        TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
+                        history: precedingDays.compactMap { $0.skinTempAvg })
     }
 
     private func metricLabel(_ title: String, icon: String) -> some View {

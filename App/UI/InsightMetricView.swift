@@ -4,6 +4,7 @@ import SwiftUI
 struct InsightMetricView: View {
     let metric: MorningInsights.Metric
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var showComparison = false
     private var color: Color { metric.key == "resting_hr" ? SnoopStyle.heartRate : SnoopStyle.sleep }
     private func chartValue(_ value: Double) -> Double { metric.key == "sleep" ? value / 3600 : value }
     var body: some View {
@@ -24,24 +25,12 @@ struct InsightMetricView: View {
                 MetricValue(metric.formatted(metric.value), size: 32)
                 Text(metric.unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             }.accessibilityElement(children: .combine)
-            Text(metric.status).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-            if let avg = metric.baseline.average {
-                let layout = typeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                    : AnyLayout(HStackLayout())
-                layout {
-                    Text("Recent average")
-                    if !typeSize.isAccessibilitySize { Spacer() }
-                    Text("\(metric.formatted(avg)) \(metric.unit)").monospacedDigit()
-                }.font(.subheadline)
-            }
-            if let lower = metric.baseline.lower, let upper = metric.baseline.upper {
-                Text("Usual range: \(metric.formatted(lower))–\(metric.formatted(upper)) \(metric.unit)")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+            if metric.quality != "good" || metric.relation != nil {
+                Text(metric.status).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             }
             if metric.history.contains(where: { $0.value != nil }) {
                 Chart {
-                    if let average = metric.baseline.average {
+                    if showComparison, let average = metric.baseline.average {
                         RuleMark(y: .value("Recent average", chartValue(average)))
                             .foregroundStyle(SnoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                     }
@@ -60,7 +49,19 @@ struct InsightMetricView: View {
                 .frame(height: 110)
                 .accessibilityLabel("\(metric.title) history")
             }
-            Text(metric.baseline.label).font(.caption).foregroundStyle(SnoopStyle.secondary)
+            DisclosureGroup(isExpanded: $showComparison) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let avg = metric.baseline.average {
+                        Text("Recent average: \(metric.formatted(avg)) \(metric.unit)").monospacedDigit()
+                    }
+                    if let lower = metric.baseline.lower, let upper = metric.baseline.upper {
+                        Text("Usual range: \(metric.formatted(lower))–\(metric.formatted(upper)) \(metric.unit)")
+                    }
+                    Text(metric.baseline.label)
+                }.font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.top, 4)
+            } label: {
+                Text("Comparison details").font(.subheadline).frame(minHeight: 44)
+            }.tint(SnoopStyle.secondary).accessibilityIdentifier("insightComparison_\(metric.key)")
         }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
     }
 }

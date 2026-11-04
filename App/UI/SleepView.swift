@@ -141,9 +141,9 @@ struct SleepView: View {
                     Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")")
                     Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm")
                     Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep")
-                    Stat("Breathing", p.respiratoryRate.map { String(format: "%.1f", $0) } ?? "—", "breaths / min")
+                    Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", "breaths / min")
                     Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep")
-                    Stat("Skin temperature", p.skinTempC.map { String(format: "%.1f °C", $0) } ?? "—", "Nightly average")
+                    Stat("Skin temperature", p.skinTempC.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—", "Nightly average")
                     Stat("Data coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "Recorded during the night")
                 }
 

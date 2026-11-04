@@ -21,9 +21,17 @@ struct MorningInsightsView: View {
                 }
                 if let insights {
                     MorningOutlookView(insights: insights, showsChanges: false)
+                    if insights.isLearning {
+                        Text("These early comparisons become more personal as you record more nights.")
+                            .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    }
                     ForEach(insights.metrics) { InsightMetricView(metric: $0) }
-                    weekly(insights)
-                    timing(insights)
+                    DisclosureGroup {
+                        weekly(insights)
+                        timing(insights)
+                    } label: {
+                        Text("Weekly comparisons").font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                    }.tint(SnoopStyle.secondary).snoopCard()
                 } else if loading {
                     ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading morning insights")
                 }
@@ -65,7 +73,7 @@ struct MorningInsightsView: View {
                     }
                 }
             }
-        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
     }
     private func timing(_ insights: MorningInsights) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -77,7 +85,7 @@ struct MorningInsightsView: View {
             } else {
                 Text("Needs five recorded nights in the same time zone.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             }
-        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
     }
     private func load() async {
         guard Settings.isConfigured else { morning.stop(clear: true); return }

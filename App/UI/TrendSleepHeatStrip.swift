@@ -29,13 +29,19 @@ struct TrendSleepHeatStrip: View, Equatable {
             HStack(spacing: 4) {
                 ForEach(0..<7, id: \.self) { col in
                     VStack(spacing: 4) {
-                        Text(labels[col]).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                        Text(labels[col]).font(.caption2).foregroundStyle(SnoopStyle.secondary).accessibilityHidden(true)
                         ForEach(0..<weeks, id: \.self) { row in
                             let date = cal.date(byAdding: .day, value: row * 7 + col, to: gridStart)!
                             let hours = byDay[date]
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(cell(hours, future: date > today))
                                 .frame(height: 14)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
+                                .accessibilityValue(hours.map { duration($0) } ?? "No sleep recorded")
+                                .accessibilityHidden(date > today)
+                                .accessibilitySortPriority(Double(weeks * 7 - row * 7 - col))
+                                .accessibilityIdentifier("sleepHeatmapDay")
                         }
                     }
                 }
@@ -53,6 +59,11 @@ struct TrendSleepHeatStrip: View, Equatable {
         guard let hours else { return Color.secondary.opacity(0.08) }
         let t = min(max((hours - 4) / 4.5, 0), 1)
         return SnoopStyle.sleep.opacity(0.15 + t * 0.8)
+    }
+
+    private func duration(_ hours: Double) -> String {
+        let minutes = Int((hours * 60).rounded())
+        return "\(minutes / 60) hours, \(minutes % 60) minutes asleep"
     }
 
 }

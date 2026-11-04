@@ -132,6 +132,36 @@ project.yml              XcodeGen spec
 
 Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
 
+## Focused layout validation
+
+Today keeps the morning assessment and weight check-in compact. In Trends and
+Morning insights, comparison statistics remain available through disclosures.
+Weight entry and profile height support a scrolling ruler, numeric typing, and
+VoiceOver adjustment. Height edits remain part of the profile draft until Save
+profile; weight still requires Save weight. No analysis or sync rules change.
+
+Run `python3 tools/layout-test-server.py` for generated, loopback-only history on
+port 28476. It accepts in-memory test weigh-ins and never contacts a real backend.
+Use a clean simulator install when switching from another fixture namespace.
+
+```sh
+xcodegen generate
+TEST_RUNNER_SNOOP_UI_SERVER_URL=http://127.0.0.1:28476 xcodebuild \
+  -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
+  CODE_SIGNING_ALLOWED=NO -parallel-testing-enabled NO \
+  -only-testing:SnoopTests -only-testing:SnoopUITests/LayoutPolishTests \
+  -only-testing:SnoopUITests/MeasurementEntryTests \
+  -only-testing:SnoopUITests/HealthWeightTests \
+  -only-testing:SnoopUITests/TrendSelectionTests \
+  -only-testing:SnoopUITests/MorningInsightsTests test
+```
+
+These checks cover vertical scrolling over charts, horizontal paging and held
+inspection, heatmap accessibility values, comparison disclosures, centered date
+navigation, ruler/keyboard entry, cancel semantics, and large-text reachability.
+Review light appearance and a small-screen simulator too. Physical screenshots
+and test result bundles belong outside the repository.
+
 ## Acknowledgements
 
 The wire protocol was understood from public interoperability research, notably the

@@ -29,6 +29,11 @@ struct WeightView: View {
                             if row.id != rows.prefix(3).last?.id { Divider().overlay(SnoopStyle.separator) }
                         }
                     }
+                    DisclosureGroup {
+                        WeightWeekView(summary: WeightCheckInSummary(rows)).padding(.vertical, 8)
+                    } label: {
+                        Text("This week’s check-ins").font(.subheadline).frame(minHeight: 44)
+                    }.tint(SnoopStyle.secondary)
                     Button { importing = true } label: {
                         HStack {
                             Label("Import weight history", systemImage: "heart")

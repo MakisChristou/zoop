@@ -19,6 +19,7 @@ struct DateNavigation: View {
                 Text(title).font(.subheadline).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("dayNavigationTitle")
                 HStack {
                     Button(action: previous) {
                         Image(systemName: "chevron.left").font(.system(size: 22, weight: .medium))
@@ -50,7 +51,11 @@ struct DateNavigation: View {
             .disabled(!canGoBack).accessibilityLabel(previousLabel)
             Spacer(minLength: 4)
             HStack(spacing: 6) {
-                Text(title).font(.subheadline).multilineTextAlignment(.center)
+                if reset != nil {
+                    Text("Today").font(.footnote.weight(.medium)).frame(minWidth: 44, minHeight: 44)
+                        .hidden().accessibilityHidden(true)
+                }
+                Text(title).font(.subheadline).multilineTextAlignment(.center).accessibilityIdentifier("dayNavigationTitle")
                 if let reset {
                     Button("Today", action: reset)
                         .font(.footnote.weight(.medium))

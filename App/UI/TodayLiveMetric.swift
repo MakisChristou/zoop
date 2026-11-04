@@ -17,8 +17,18 @@ struct TodayLiveMetric: View {
     @ViewBuilder private func content(now: Date) -> some View {
         if kind == .heartRate { heartRate(now: now) }
         else {
-            Tile(title: "Skin temperature", value: skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C",
-                 caption: isViewingToday ? freshness(now: now) : "Day average", history: history, color: SnoopStyle.temperature)
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(spacing: 20))
+            layout {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Skin temperature").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                    MetricValue(skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C", size: 28)
+                    Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Sparkline(values: history, color: SnoopStyle.temperature)
+                    .frame(width: typeSize.isAccessibilitySize ? nil : 110, height: 32).accessibilityHidden(true)
+            }.snoopCard().accessibilityElement(children: .combine)
         }
     }
     private func heartRate(now: Date) -> some View {

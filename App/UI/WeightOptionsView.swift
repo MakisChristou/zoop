@@ -30,6 +30,7 @@ struct WeightOptionsView: View {
                 }
                 Section {
                     Button { importing = true } label: { Label("Import weight history", systemImage: "heart") }
+                        .accessibilityIdentifier("importWeightFromOptions")
                 }
             }
             .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)

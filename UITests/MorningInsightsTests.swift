@@ -28,7 +28,9 @@ import XCTest
         XCTAssertLessThan(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY)
         shot(app, "Today neutral headline")
         open(app)
-        XCTAssertTrue(app.staticTexts["Based on 14 nights"].firstMatch.waitForExistence(timeout: 15))
+        let comparison = app.buttons["insightComparison_sleep"].firstMatch
+        XCTAssertTrue(comparison.waitForExistence(timeout: 15)); comparison.tap()
+        XCTAssertTrue(app.staticTexts["Based on 14 nights"].firstMatch.exists)
         shot(app, "Morning comparisons")
         app.buttons["About morning insights"].tap()
         XCTAssertTrue(app.navigationBars["About insights"].waitForExistence(timeout: 5))
@@ -37,6 +39,7 @@ import XCTest
         app.buttons["Previous day"].tap()
         XCTAssertTrue(app.staticTexts["Yesterday"].waitForExistence(timeout: 5))
         open(app)
+        XCTAssertTrue(comparison.waitForExistence(timeout: 15)); comparison.tap()
         XCTAssertTrue(app.staticTexts["Early baseline · 13 nights"].firstMatch.waitForExistence(timeout: 15))
         shot(app, "Yesterday early baseline")
     }
@@ -47,7 +50,10 @@ import XCTest
         open(app)
         XCTAssertTrue(app.staticTexts["morningOutlookStatus"].firstMatch.waitForExistence(timeout: 10))
         shot(app, "Morning insights large text")
-        for _ in 0..<8 { if app.staticTexts["Sleep timing"].isHittable { break }; app.swipeUp() }
+        let weekly = app.buttons["Weekly comparisons"]
+        for _ in 0..<8 { if weekly.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(weekly.isHittable); weekly.tap()
+        for _ in 0..<4 { if app.staticTexts["Sleep timing"].isHittable { break }; app.swipeUp() }
         XCTAssertTrue(app.staticTexts["Sleep timing"].exists)
         shot(app, "Weekly insights large text")
     }
