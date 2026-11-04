@@ -121,4 +121,30 @@ import XCTest
         try await Task.sleep(for: .milliseconds(10)); cancelled.cancel(); await cancelled.value
         XCTAssertNil(store.value)
     }
+
+    func testCancelledSupersedingRequestDoesNotSettleAnEmptyBrief() async throws {
+        let ready = try response("ready")
+        let firstStarted = expectation(description: "Monitor fetch started")
+        let secondStarted = expectation(description: "History refresh superseded it")
+        var calls = 0, delays: [Duration] = []
+        let store = MorningInsightsStore(fetch: { _, _ in
+            calls += 1
+            if calls == 1 {
+                firstStarted.fulfill()
+                try await Task.sleep(for: .milliseconds(100))
+            } else {
+                secondStarted.fulfill()
+                try await Task.sleep(for: .seconds(5))
+            }
+            return ready
+        }, sleep: { delays.append($0); throw CancellationError() })
+        let monitor = Task { await store.follow(self.scope()) }
+        await fulfillment(of: [firstStarted], timeout: 1)
+        let refresh = Task { await store.reload(self.scope()) }
+        await fulfillment(of: [secondStarted], timeout: 1)
+        refresh.cancel(); await refresh.value; await monitor.value
+        XCTAssertNil(store.value)
+        XCTAssertEqual(delays, [.seconds(15)])
+        XCTAssertFalse(store.loading)
+    }
 }

@@ -93,7 +93,9 @@ import Observation
     }
 
     private var refreshDelay: Duration {
-        if failed { return Cadence.retry }
+        // A superseding request can be cancelled before either response publishes.
+        // An empty brief is not a settled result; retry it promptly while visible.
+        if failed || value == nil { return Cadence.retry }
         switch value?.state {
         case "updating": return Cadence.updating
         case "awaiting_sync": return Cadence.awaitingSync
