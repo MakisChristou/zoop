@@ -93,10 +93,12 @@ class Handler(BaseHTTPRequestHandler):
                 ('walking', 142, 114, [114]*4+[142]*4, 3),
                 ('strength', 2, 2, [2]*8, 3)]:
                 count = 28 if required == 21 else 4
-                metrics.append(dict(key=key, current=current, previous=None if sparse else previous,
-                                    change=None if sparse else current-previous, current_count=5 if sparse else count,
+                sparse_count = 5 if required == 21 else 0
+                visible_current = None if sparse and sparse_count == 0 else current
+                metrics.append(dict(key=key, current=visible_current, previous=None if sparse else previous,
+                                    change=None if sparse else current-previous, current_count=sparse_count if sparse else count,
                                     previous_count=0 if sparse else count, required_count=required,
-                                    weeks=[None]*7+[current] if sparse else weeks))
+                                    weeks=[None]*7+[visible_current] if sparse else weeks))
             return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
                                   previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))
         if route == 'days': return self.send(days[:limit])
