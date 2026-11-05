@@ -17,8 +17,11 @@ import XCTest
         let app = open()
         shot(app, "Progress standard overview")
         app.buttons["progressCard-sleep"].tap()
-        XCTAssertTrue(app.staticTexts["Wake-time consistency"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Wake-time variation"].waitForExistence(timeout: 5))
         shot(app, "Progress sleep details")
+        app.buttons["About sleep progress"].tap()
+        XCTAssertTrue(app.staticTexts["Comparisons need 21 nights in each period."].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let activity = app.buttons["progressCard-steps"]
         for _ in 0..<4 where !activity.isHittable { app.swipeUp() }
@@ -30,6 +33,10 @@ import XCTest
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["openProgress"].waitForExistence(timeout: 5))
+        let sparse = open(sparse: true)
+        sparse.buttons["progressCard-sleep"].tap()
+        XCTAssertTrue(sparse.staticTexts["Wake-time variation"].waitForExistence(timeout: 5))
+        shot(sparse, "Progress clean sleep with partial history")
     }
     func testLargeTextAndMissingHistory() {
         let app = open(large: true, sparse: true)

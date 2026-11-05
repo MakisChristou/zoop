@@ -64,11 +64,14 @@ private enum ProgressKind: String, CaseIterable, Identifiable {
 
 private struct ProgressDates: View {
     let summary: SnoopAPI.ProgressSummary
+    var showComparison = true
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(summary.current.label(timeZone: summary.timeZone)).font(.subheadline.weight(.medium))
-            Text("Compared with \(summary.previous.label(timeZone: summary.timeZone))")
-                .font(.caption).foregroundStyle(SnoopStyle.secondary)
+            if showComparison {
+                Text("Compared with \(summary.previous.label(timeZone: summary.timeZone))")
+                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+            }
         }.fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -166,10 +169,11 @@ private struct ProgressBars: View {
 private struct ProgressDetailView: View {
     let summary: SnoopAPI.ProgressSummary
     let kind: ProgressKind
+    @State private var showInfo = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ProgressDates(summary: summary)
+                ProgressDates(summary: summary, showComparison: kind.keys.contains { summary.metric($0)?.previous != nil })
                 ForEach(kind.keys, id: \.self) { key in
                     if let metric = summary.metric(key) { ProgressMetricRow(metric: metric) }
                 }
@@ -177,29 +181,31 @@ private struct ProgressDetailView: View {
         }
         .navigationTitle(kind.title).navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar).snoopScreen()
+        .toolbar { ToolbarItem(placement: .topBarTrailing) {
+            Button { showInfo = true } label: { Image(systemName: "info.circle") }
+                .accessibilityLabel("About \(kind.title.lowercased()) progress")
+        } }
+        .sheet(isPresented: $showInfo) { ProgressDetailInfo(summary: summary, kind: kind) }
     }
 }
 
 private struct ProgressMetricRow: View {
     let metric: SnoopAPI.ProgressSummary.Metric
-    private var weekly: Bool { ["walking", "strength"].contains(metric.key) }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(ProgressFormat.title(metric.key)).font(.headline)
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 24) { period(previous: true); period(previous: false) }
-                VStack(alignment: .leading, spacing: 16) { period(previous: true); period(previous: false) }
+            if metric.previous != nil {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 24) { period(previous: true); period(previous: false) }
+                    VStack(alignment: .leading, spacing: 16) { period(previous: true); period(previous: false) }
+                }
+            } else {
+                Text(ProgressFormat.value(metric.current, key: metric.key))
+                    .font(.largeTitle.weight(.semibold)).monospacedDigit()
             }
             if let change = metric.change {
                 Text(ProgressFormat.delta(change, key: metric.key)).font(.headline)
                     .foregroundStyle(ProgressFormat.color(change, key: metric.key))
-            }
-            Text(ProgressFormat.definition(metric.key)).font(.footnote).foregroundStyle(SnoopStyle.secondary)
-            Text("\(metric.previousCount) → \(metric.currentCount) \(weekly ? "complete weeks" : metric.key == "steps" ? "recorded days" : "recorded nights")")
-                .font(.caption).foregroundStyle(SnoopStyle.secondary)
-            if metric.change == nil {
-                Text("Comparison needs \(metric.requiredCount) \(weekly ? "complete weeks" : "recordings") in each period.")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).snoopCard(padding: 20)
     }
@@ -209,6 +215,37 @@ private struct ProgressMetricRow: View {
             Text(ProgressFormat.value(previous ? metric.previous : metric.current, key: metric.key))
                 .font(.title2.weight(.semibold)).monospacedDigit().fixedSize()
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Definitions and recording coverage are available on demand, once per screen.
+private struct ProgressDetailInfo: View {
+    let summary: SnoopAPI.ProgressSummary
+    let kind: ProgressKind
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    ForEach(kind.keys, id: \.self) { key in
+                        if let metric = summary.metric(key) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(ProgressFormat.title(key)).font(.headline)
+                                Text(ProgressFormat.definition(key)).font(.subheadline)
+                                let unit = ["walking", "strength"].contains(key) ? "weeks" : key == "steps" ? "days" : "nights"
+                                Text("Recorded \(unit): \(metric.previousCount) previous · \(metric.currentCount) latest")
+                                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                            }
+                        }
+                    }
+                    Text(kind == .sleep ? "Comparisons need 21 nights in each period." : "Comparisons need 21 days in each period, or 3 complete weeks for weekly totals.")
+                        .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(SnoopStyle.gutter)
+            }
+            .navigationTitle("About \(kind.title.lowercased()) progress").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .snoopScreen()
+        }
     }
 }
 
@@ -253,7 +290,7 @@ enum ProgressFormat {
         return SnoopStyle.secondary
     }
     static func title(_ key: String) -> String {
-        switch key { case "sleep": "Time asleep"; case "wake_variation": "Wake-time consistency"; case "steps": "Steps per day"; case "walking": "Walking per week"; default: "Strength days per week" }
+        switch key { case "sleep": "Average sleep"; case "wake_variation": "Wake-time variation"; case "steps": "Steps per day"; case "walking": "Walking per week"; default: "Strength days per week" }
     }
     static func definition(_ key: String) -> String {
         switch key {

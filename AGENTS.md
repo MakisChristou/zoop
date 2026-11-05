@@ -53,6 +53,17 @@ Analysis happens on the server; the app shows live values and sync status.
   the task: measurement technique, data quality, permission/privacy consequences,
   destructive actions, or error recovery. Put optional methods and technical
   details behind a named disclosure or an About screen.
+- **Numbers first; explanations on demand.** Metric cards show a short label,
+  value with units, and an available comparison. Do not append definitions,
+  methodology paragraphs, sample-count transitions, or eligibility thresholds to
+  each card. Put those behind one clearly labelled info button for the screen.
+- Do not fill a missing comparison with an empty Previous column or repeated
+  eligibility messages. Show the available measurement; explain missing data in
+  the info view. If a status is necessary, show one short status for the screen.
+- Before shipping UI copy, remove any sentence that merely narrates the UI or
+  explains an obvious label. Use precise labels (e.g. "Wake-time variation") instead
+  of adding a paragraph. Keep decision-critical safety, permissions and errors
+  visible; this rule is not permission to hide them.
 - Polish within the existing navigation and feature set unless the slice explicitly
   changes them. Prefer less clutter over extra knobs, instructions, and decoration.
 - Review actual rendered screens, including a small phone and large text. Preserve
