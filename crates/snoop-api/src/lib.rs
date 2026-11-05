@@ -11,6 +11,7 @@ mod insights;
 mod processing;
 mod profile;
 mod profile_photo;
+mod progress;
 mod query;
 mod sleep_sessions;
 mod sleeps;
@@ -40,6 +41,7 @@ use crate::{
 
 pub fn build_router(state: AppState) -> Router {
     let protected = Router::new()
+        .route("/v1/devices/{deviceId}/progress", get(progress::progress))
         .route("/v1/devices/{deviceId}/health", get(health::info))
         .route(
             "/v1/devices/{deviceId}/health/exports",

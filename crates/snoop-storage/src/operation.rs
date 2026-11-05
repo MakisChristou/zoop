@@ -6,6 +6,7 @@ pub enum StoreOperation {
     HealthSync,
     Analysis,
     MorningInsights,
+    Progress,
     CorrectWorkout,
     Connect,
     Migrate,
@@ -41,6 +42,7 @@ impl fmt::Display for StoreOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::CorrectWorkout => "correct workout",
+            Self::Progress => "read progress",
             Self::MorningInsights => "read morning insights",
             Self::HealthSync => "synchronize health records",
             Self::Analysis => "process analysis work",

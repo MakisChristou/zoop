@@ -15,3 +15,6 @@ pub use error::{CoreError, CoreResult};
 pub use history::HistoryWorker;
 pub use night::{NightResult, analyze_night, night_epochs};
 pub use workouts::{BoutOut, DayResult, DaySteps, analyze_day, day_steps};
+
+mod progress;
+pub use progress::{Period, Progress, ProgressMetric, progress};

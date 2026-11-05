@@ -3,6 +3,8 @@
 
 mod analysis_store;
 mod day_store;
+mod progress_store;
+pub use progress_store::ProgressDay;
 mod decode_store;
 mod error;
 mod frame_store;

@@ -109,3 +109,8 @@ test-db:
     cargo test -p snoop-api --test health -- --ignored
     cargo test -p snoop-storage --test profile_weights -- --ignored
     cargo test -p snoop-api --test profile_photo -- --ignored
+
+# Descriptive progress integration contracts against an isolated development schema.
+test-progress-db:
+    test -n "$SNOOP_TEST_DATABASE_URL"
+    cargo test -p snoop-api --test progress -- --ignored
