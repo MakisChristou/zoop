@@ -49,6 +49,7 @@ impl PostgresStore {
         from: NaiveDate,
         until: NaiveDate,
         tz: &str,
+        workout_version: i32,
     ) -> StorageResult<Vec<ProgressDay>> {
         sqlx::query_as(r#"
 WITH dates AS (SELECT $2::date + n AS day FROM generate_series(0, ($3::date-$2::date)-1) n),
@@ -60,11 +61,11 @@ SELECT d.day,d.samples, d.steps_walking AS steps,d.walking_s,
  extract(epoch FROM (((d.day+1)::timestamp AT TIME ZONE $4)-(d.day::timestamp AT TIME ZONE $4)))::float8 AS day_seconds,
  EXISTS(SELECT 1 FROM workout_sessions w WHERE w.device_id=$1 AND w.status='active' AND w.kind='resistance'
  AND w.start_ts>=d.day::timestamp AT TIME ZONE $4 AND w.start_ts<(d.day+1)::timestamp AT TIME ZONE $4) AS strength,
- (EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='workout' AND j.day=d.day AND j.tz=$4 AND j.generation>j.completed_generation)
+ (EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='workout' AND j.day=d.day AND j.tz=$4 AND j.algo_version=$5 AND j.generation>j.completed_generation)
  OR EXISTS(SELECT 1 FROM workout_sessions w WHERE w.device_id=$1 AND w.status='active' AND w.metrics_pending
  AND w.start_ts<(d.day+1)::timestamp AT TIME ZONE $4 AND w.end_ts>d.day::timestamp AT TIME ZONE $4)) AS pending
 FROM summaries d ORDER BY d.day
-"#).bind(device).bind(from).bind(until).bind(tz).fetch_all(self.pool()).await
+"#).bind(device).bind(from).bind(until).bind(tz).bind(workout_version).fetch_all(self.pool()).await
         .map_err(|e| StorageError::unavailable(StoreOperation::Progress, e))
     }
 }

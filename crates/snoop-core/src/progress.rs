@@ -4,7 +4,7 @@
 use crate::CoreResult;
 use chrono::{Duration, NaiveDate};
 use serde::Serialize;
-use snoop_analytics::ALGO_VERSION;
+use snoop_analytics::{ALGO_VERSION, WORKOUT_ALGO_VERSION};
 use snoop_storage::{InsightNight, PostgresStore, ProgressDay};
 const PERIOD_DAYS: i64 = 28;
 const MIN_DAYS: usize = 21;
@@ -70,7 +70,9 @@ pub async fn progress(
     else {
         return Ok(None);
     };
-    let days = store.progress_days(device, from, today, tz).await?;
+    let days = store
+        .progress_days(device, from, today, tz, WORKOUT_ALGO_VERSION)
+        .await?;
     Ok(Some(calculate(today, tz, &nights.nights, &days)))
 }
 fn mean(values: &[f64]) -> Option<f64> {

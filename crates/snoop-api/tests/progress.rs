@@ -83,6 +83,7 @@ async fn local_dst_days_and_removed_sessions() {
             day("2025-03-30"),
             day("2025-03-31"),
             "Europe/Berlin",
+            snoop_analytics::WORKOUT_ALGO_VERSION,
         )
         .await
         .unwrap();
@@ -92,4 +93,20 @@ async fn local_dst_days_and_removed_sessions() {
     let r = result(&db).await;
     assert!(r["metrics"][0]["current"].is_null());
     assert_eq!(r["metrics"][4]["current"], 0.0);
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn superseded_jobs_do_not_hide_strength_but_current_jobs_do() {
+    let db = fixture().await;
+    let version = snoop_analytics::WORKOUT_ALGO_VERSION;
+    for v in [version - 1, version] {
+        sqlx::query("INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version) VALUES($1,'workout','2025-02-01','UTC',$2)")
+            .bind(DEVICE).bind(v).execute(&db.pool).await.unwrap();
+        let r = result(&db).await;
+        assert_eq!(
+            r["metrics"][4]["current_count"],
+            if v == version { 3 } else { 4 }
+        );
+    }
 }
