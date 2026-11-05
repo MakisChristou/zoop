@@ -60,7 +60,7 @@ impl Default for SleepParams {
             // Allow a delayed return of the band sleep flag after a brief waking.
             // Recorded wake and missing seconds remain separate from sleep time.
             merge_gap_s: 45 * 60,
-            min_duration_s: 1200,
+            min_duration_s: 10 * 60,
             hr_confirm_ratio: 1.05,
             hr_confirm_min_samples: 600,
         }

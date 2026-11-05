@@ -27,12 +27,15 @@ Inputs available at 1 Hz from R18: heart rate, R-R intervals, dynamic accelerati
 gravity vector, skin temperature, the strap's band state (wake / still / sleep / up),
 and SpO₂ windows. R21 IMU records add six-axis motion when needed.
 
-**Sleep window (v1).** The band state is WHOOP's own on-device rest flag and is the
+**Sleep window (v5).** The band state is WHOOP's own on-device rest flag and is the
 best available anchor for sleep/wake boundaries. Per-second sleep flags are
-majority-smoothed over a 5-minute window, gaps up to 10 minutes are merged, and
-periods under 20 minutes are discarded. Each window is confirmed cardiac-wise: mean HR
-inside must sit below the day's awake baseline. Naps are windows outside the main
-night that pass the same tests with stricter minimums.
+majority-smoothed over a 5-minute window, gaps up to 45 minutes are merged, and
+windows under 10 minutes are discarded. This cutoff is a product choice, not a
+clinical definition. With at least 600 heart-rate readings in a window, mean HR
+must not exceed 1.05 times the awake median. Naps pass the same checks as overnight
+sleep; the longest automatic window is main sleep unless a user-confirmed main
+sleep takes precedence. Short naps can still be missed if the strap marks sleep
+late. Raw samples and manual corrections are preserved during versioned reanalysis.
 
 **Per-night metrics (v1).** Time in bed, total sleep time, latency, wake after sleep
 onset, efficiency; resting HR as the lowest sustained 5-minute mean; HRV as the mean of

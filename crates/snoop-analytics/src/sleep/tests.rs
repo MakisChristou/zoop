@@ -56,8 +56,8 @@ fn detects_one_night_and_keeps_short_awakenings_inside() {
 
 #[test]
 fn ignores_short_rests_and_elevated_hr() {
-    // A 10-minute "sleep" flag in the afternoon is not a nap.
-    let samples = night(2 * 3600, 2 * 3600 + 600, 4 * 3600, &[]);
+    // A sleep flag lasting less than ten minutes remains too short.
+    let samples = night(2 * 3600, 2 * 3600 + 599, 4 * 3600, &[]);
     assert!(detect_sleep(&samples, &SleepParams::default()).is_empty());
 
     // Flagged asleep for 2 h but heart rate is higher than when awake: not confirmed.
@@ -130,4 +130,45 @@ fn joining_across_missing_readings_never_invents_sleep_or_awake_seconds() {
     assert_eq!(windows[0].waso_s, 0);
     assert_eq!(windows[0].asleep_s, 8 * 3600 - missing_s);
     assert_eq!(windows[0].time_in_bed_s - windows[0].coverage_s, missing_s);
+}
+
+#[test]
+fn detects_a_ten_minute_nap_at_the_cutoff() {
+    let samples = night(3600, 3600 + 600, 3 * 3600, &[]);
+    let windows = detect_sleep(&samples, &SleepParams::default());
+    assert_eq!(windows.len(), 1);
+    assert_eq!(windows[0].time_in_bed_s, 600);
+    assert_eq!(windows[0].asleep_s, 600);
+    assert_eq!(windows[0].waso_s, 0);
+}
+
+#[test]
+fn ten_minute_nap_still_requires_cardiac_confirmation() {
+    let mut samples = night(3600, 3600 + 600, 3 * 3600, &[]);
+    for sample in &mut samples {
+        if sample.band_state == Sample::BAND_SLEEP {
+            sample.hr = Some(85);
+        }
+    }
+    assert!(detect_sleep(&samples, &SleepParams::default()).is_empty());
+}
+
+#[test]
+fn quiet_rest_without_a_sleep_flag_is_not_a_nap() {
+    let mut samples = night(3600, 3600 + 1200, 3 * 3600, &[]);
+    for sample in &mut samples {
+        if sample.band_state == Sample::BAND_SLEEP {
+            sample.band_state = 1;
+        }
+    }
+    assert!(detect_sleep(&samples, &SleepParams::default()).is_empty());
+}
+
+#[test]
+fn short_afternoon_nap_stays_separate_from_overnight_sleep() {
+    let samples = night(3600, 14 * 3600 + 600, 16 * 3600, &[(8 * 3600, 14 * 3600)]);
+    let windows = detect_sleep(&samples, &SleepParams::default());
+    assert_eq!(windows.len(), 2);
+    assert_eq!(windows[0].time_in_bed_s, 7 * 3600);
+    assert_eq!(windows[1].time_in_bed_s, 600);
 }
