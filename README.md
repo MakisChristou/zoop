@@ -469,3 +469,19 @@ Run `swift test --package-path Packages/SnoopProtocol` and
 `ECGUITests` in the app's test scheme. Synthetic tests exercise malformed records,
 refusal, no data, cancellation, lost connection, device isolation and restart cleanup.
 A real clasp-contact recording remains the hardware acceptance check.
+
+### Your progress
+
+Trends → Your progress compares the last 28 complete local days with the preceding
+28. Two cards show mean nightly sleep and daily steps with eight weekly bars.
+Tap for wake-time consistency, walking minutes and resistance-training days.
+Definitions and coverage thresholds are under About; this is descriptive progress,
+not a health score. Missing weeks remain gaps, and comparisons appear only with
+enough qualifying history in both periods. The server uses effective corrected
+sleep and workouts. Opening Progress loads its summary; ordinary Trends chart
+selection and range changes do not fetch it.
+
+Backend contract: `/v1/devices/{device}/progress?tz=<IANA zone>` (see the backend's
+`docs/PROGRESS.md`). `ProgressTests` covers formatting, missing data and stale-request
+isolation; `ProgressUITests` covers navigation and large-text layouts using only
+synthetic history from `tools/layout-test-server.py`.

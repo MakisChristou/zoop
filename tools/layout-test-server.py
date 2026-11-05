@@ -83,6 +83,22 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
         if route == 'sleeps': return self.send(nights[:limit])
+        if route == 'progress':
+            sparse = device == 'PROGRESS-SPARSE'
+            metrics = []
+            for key, current, previous, weeks, required in [
+                ('sleep', 26640, 25560, [25020, 26100, 25200, 25920, 26280, 27000, 26400, 26880], 21),
+                ('wake_variation', 24, 44, [44]*4+[24]*4, 21),
+                ('steps', 7800, 6600, [6200, 6900, 6700, 6600, 7300, 8000, 7700, 8200], 21),
+                ('walking', 142, 114, [114]*4+[142]*4, 3),
+                ('strength', 2, 2, [2]*8, 3)]:
+                count = 28 if required == 21 else 4
+                metrics.append(dict(key=key, current=current, previous=None if sparse else previous,
+                                    change=None if sparse else current-previous, current_count=5 if sparse else count,
+                                    previous_count=0 if sparse else count, required_count=required,
+                                    weeks=[None]*7+[current] if sparse else weeks))
+            return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
+                                  previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))
         if route == 'days': return self.send(days[:limit])
         if route == 'workouts': return self.send([])
         if route == 'sleep-sessions': return self.send(sessions[:limit])

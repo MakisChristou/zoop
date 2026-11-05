@@ -20,6 +20,14 @@ struct TrendsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    NavigationLink { HealthProgressView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.fill").foregroundStyle(SnoopStyle.steps)
+                            Text("Your progress").font(.headline)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                        }.foregroundStyle(SnoopStyle.text).snoopCard()
+                    }.buttonStyle(.plain).accessibilityIdentifier("openProgress")
                     chips
                     TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
                     TrendSleepHeatStrip(byDay: sleepByDay, today: Calendar.current.startOfDay(for: Date()), calendar: .current, selected: heatmapNight?.endTs) { date in
