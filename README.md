@@ -153,22 +153,27 @@ timeline. Battery, including both pack and strap, lives under Profile → My WHO
 the header shortcut and battery notifications open that page. The four tabs are
 Today, Activity, Sleep and Trends.
 
-Sleep adds compact comparisons without changing its navigation. HRV/resting-HR
-deltas come from Morning insights and must match the displayed sleep revision.
-Their badge colours follow the change: higher resting HR is red, lower is green;
-HRV uses the opposite direction. This does not change the overall outlook assessment.
-Efficiency, awake time, breathing, SpO₂ and skin temperature use eligible main sleeps
-in the API's baseline window, or the preceding 28 local calendar days when that
-window is unavailable. Each metric requires at least seven distinct prior nights,
-no pending metrics and at most 120 seconds of unknown recording per night. The
-latest revision wins before quality filtering; the selected night and future nights
-never contribute. Efficiency and the other new numeric comparisons use relative
-percentages; temperature uses °C differences. Temperature, breathing and oxygen
-deltas stay neutral because direction alone does not establish a better night.
-Zero changes stay neutral; missing values and zero percentage denominators are
-omitted. Recording coverage remains a data-quality indicator. These presentation
-calculations do not modify stored analysis. Badges wrap below values when needed,
-and use a single-column layout at accessibility text sizes.
+Sleep uses one local comparison snapshot for all metrics, including resting HR,
+HRV, time asleep and stage durations. It does not depend on the separate Morning
+insights request or its revision. Each metric requires seven distinct eligible main
+sleeps within the preceding 28 local calendar days. The selected day and future
+nights are excluded. The latest revision wins before filtering missing/pending
+measurements or recordings with over 120 seconds of unknown data. Calculations
+never alter stored sleep data or the Morning outlook assessment.
+
+Resting HR comparisons use bpm; temperature uses °C. Other comparisons use relative
+percentages. Higher resting HR, awake time and disturbance counts are red; lower is
+green. HRV and efficiency use the opposite direction. Stage durations, time asleep,
+temperature, breathing and oxygen stay neutral because direction alone does not
+establish a better night. Zero changes remain visible and neutral; missing data or
+a positive value over a zero percentage baseline does not invent a comparison.
+
+Every metric card reserves its own comparison line below the reading. Cards align
+within each row and collapse to one column at accessibility text sizes. Recording
+coverage is a compact footer. The stage summary shows REM/deep/light; estimated
+wake segments remain in the hypnogram rather than presenting a competing total
+alongside the window-based Awake metric. The hypnogram, correction menu, awakenings, naps and removed-sleep
+navigation remain available.
 
 ## Focused layout validation
 

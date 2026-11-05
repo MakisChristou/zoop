@@ -90,6 +90,7 @@ class Handler(BaseHTTPRequestHandler):
         if route.startswith('sleep-sessions/'):
             return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):
+            if device == 'SLEEP-COMPARISON': return self.send(dict(error='Synthetic insights unavailable'), 503)
             mature = device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat()
             return self.send(insight(parts[-2], mature, 13 if device == 'INSIGHT-REVIEW' else 11))
         if route.endswith('/steps'):

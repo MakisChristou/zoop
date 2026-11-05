@@ -9,7 +9,6 @@ struct SleepView: View {
     @State private var error: String?
     @State private var loading = false
     @State private var loadID = UUID()
-    @State private var comparisons: MorningInsights?
     @Environment(\.dynamicTypeSize) private var typeSize
     private var timezone: String { model.sleep.items.first?.timezone ?? TimeZone.current.identifier }
     private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: timezone) ?? .current; return c }
@@ -57,12 +56,6 @@ struct SleepView: View {
             .refreshable { await load() }
             .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
             .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
-            .task(id: "\(model.strap.serial)-\(selectedDay)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(Settings.connectionID)") {
-                comparisons = nil
-                guard !model.strap.serial.isEmpty else { return }
-                let next = try? await SnoopAPI.morningInsights(deviceId: model.strap.serial, day: selectedDay)
-                if !Task.isCancelled { comparisons = next }
-            }
             .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         }
         .sheet(item: $editor) { SleepEditorView(mode: $0) }
@@ -86,6 +79,7 @@ struct SleepView: View {
     private func content(_ night: SnoopAPI.Night, record: SnoopAPI.SleepSession) -> some View {
         let w = night.metrics.window
         let p = night.metrics.physiology
+        let deltas = SleepMetricDelta.all(record: record, history: model.sleep.items, calendar: calendar)
         return VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .top) {
@@ -102,10 +96,14 @@ struct SleepView: View {
                     }
                     if record.metricsPending { Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(SnoopStyle.secondary) }
                     else if record.edited { Text(record.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(SnoopStyle.secondary) }
-                    Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                    Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened)) · \(duration(w.timeInBedS)) sleep period")
-                        .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        Spacer()
+                        if let delta = deltas[.asleep] { SleepDeltaLabel(delta: delta, id: "Time asleep") }
+                    }
                     if night.stages.isEmpty {
+                        Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened))")
+                            .font(.footnote).foregroundStyle(SnoopStyle.secondary)
                         NavigationLink { SleepSessionDetailView(initial: record) } label: {
                             Label("Sleep details", systemImage: "chevron.right").font(.footnote).frame(minHeight: 44)
                         }
@@ -140,11 +138,10 @@ struct SleepView: View {
                 if let st = night.metrics.stages, !night.stages.isEmpty {
                     let scored = max(st.lightS + st.deepS + st.remS, 1)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Sleep stages").font(.headline)
-                        StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored))
-                        StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored))
-                        StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored))
-                        StageRow(name: "Awake", color: Hypnogram.color(.wake), seconds: st.wakeS, share: nil)
+                        SleepSectionHeader(title: "Sleep stages", comparison: "vs avg").padding(.bottom, 4)
+                        StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored), delta: deltas[.rem])
+                        StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored), delta: deltas[.deep])
+                        StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored), delta: deltas[.light])
                         Text("Stages are estimates").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -152,15 +149,18 @@ struct SleepView: View {
                     .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
                 }
 
-                LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    Stat("Efficiency", record.sleep?.efficiency.map(pct) ?? "—", "Sleep period spent asleep", delta: SleepMetricDelta.efficiency(record: record, history: model.sleep.items, baseline: comparison(for: "sleep", record: record)?.baseline, calendar: calendar))
-                    Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")", delta: nightlyDelta(.awake, record: record))
-                    Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "resting_hr", record: record)))
-                    Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "hrv", record: record)))
-                    Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", "breaths / min", delta: nightlyDelta(.breathing, record: record))
-                    Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep", delta: nightlyDelta(.oxygen, record: record))
-                    Stat("Skin temperature", p.skinTempC.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—", "Nightly average", delta: nightlyDelta(.temperature, record: record))
-                    Stat("Data coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "Recorded during the night")
+                VStack(alignment: .leading, spacing: 12) {
+                    SleepSectionHeader(title: "Nightly metrics", comparison: "vs your average")
+                    LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
+                        Stat("Efficiency", record.sleep?.efficiency.map { "\(Int(($0 * 100).rounded()))" } ?? "—", unit: "%", delta: deltas[.efficiency])
+                        Stat("Awake", duration(w.wasoS), delta: deltas[.awake])
+                        Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm", delta: deltas[.restingHR])
+                        Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms", delta: deltas[.hrv])
+                        Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "/min", delta: deltas[.breathing])
+                        Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded()))" } ?? "—", unit: "%", delta: deltas[.oxygen])
+                        Stat("Skin temperature", p.skinTempC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C", delta: deltas[.temperature])
+                        Stat("Disturbances", "\(w.disturbances)", delta: deltas[.disturbances])
+                    }
                 }
 
                 let awakenings = night.stages.filter { $0.stage == .wake && $0.start > w.onset && $0.end < w.offset }
@@ -187,21 +187,17 @@ struct SleepView: View {
                         .font(.caption).foregroundStyle(SnoopStyle.secondary)
                 }
 
-                MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
+                HStack {
+                    Text("Recording coverage")
+                    Spacer()
+                    Text(pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1)))).monospacedDigit()
+                }.font(.footnote).foregroundStyle(SnoopStyle.secondary)
+
+                MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. The Awake total uses the strap’s rest signal; chart awakenings are separate stage estimates. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
             .padding(.bottom, 4)
     }
 
-    private func nightlyDelta(_ metric: SleepMetricDelta.Metric, record: SnoopAPI.SleepSession) -> SleepMetricDelta? {
-        SleepMetricDelta.nightly(metric, record: record, history: model.sleep.items,
-                                 baseline: comparison(for: "sleep", record: record)?.baseline, calendar: calendar)
-    }
-
-    private func comparison(for key: String, record: SnoopAPI.SleepSession) -> MorningInsights.Metric? {
-        guard let comparisons, comparisons.day == SnoopAPI.SleepSession.day(selectedDay, timezone: timezone),
-              comparisons.sleepId == record.id, comparisons.sleepRevision == record.revision, !record.metricsPending else { return nil }
-        return comparisons.metrics.first { $0.key == key && $0.quality == "good" }
-    }
     private func duration(_ seconds: Int) -> String {
         let h = seconds / 3600, m = (seconds % 3600) / 60
         return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
@@ -254,35 +250,45 @@ private struct StageRow: View {
     let name: String
     let color: Color
     let seconds: Int
-    let share: Double?
+    let share: Double
+    let delta: SleepMetricDelta?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(name).font(.subheadline.weight(.semibold))
-                Text(hm(seconds) + (share.map { " · \(Int(($0 * 100).rounded()))%" } ?? ""))
-                    .font(.subheadline).monospacedDigit()
-                if let share { ProgressView(value: share).tint(color).accessibilityHidden(true) }
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(name).font(.subheadline.weight(.semibold))
+                    Text(hm(seconds)).font(.subheadline).monospacedDigit()
+                    HStack(alignment: .firstTextBaseline) {
+                        shareLabel
+                        Spacer()
+                        if let delta { SleepDeltaLabel(delta: delta, id: name) }
+                    }
+                    progress
+                }
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name).font(.subheadline.weight(.medium))
+                        shareLabel
+                    }.frame(minWidth: 52, alignment: .leading)
+                    progress.frame(maxWidth: .infinity)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(hm(seconds)).font(.subheadline.weight(.medium)).monospacedDigit()
+                        if let delta { SleepDeltaLabel(delta: delta, id: name) }
+                    }
+                }
             }
-            .padding(.vertical, 8)
-            .accessibilityElement(children: .combine)
-        } else {
-        HStack(spacing: 10) {
-            Circle().fill(color).frame(width: 10, height: 10)
-            Text(name).frame(width: 52, alignment: .leading)
-            GeometryReader { geo in
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(color)
-                    .frame(width: geo.size.width * CGFloat(min(share ?? 0, 1)), height: 8)
-                    .frame(maxHeight: .infinity, alignment: .center)
-            }
-            Text(hm(seconds)).monospacedDigit().frame(width: 62, alignment: .trailing)
-            Text(share.map { "\(Int(($0 * 100).rounded())) %" } ?? "").foregroundStyle(SnoopStyle.secondary).frame(width: 40, alignment: .trailing)
-        }
-        .font(.subheadline)
-        .accessibilityElement(children: .combine)
-        }
+        }.padding(.vertical, 4)
+    }
+
+    private var shareLabel: some View {
+        Text("\(Int((share * 100).rounded()))%")
+            .font(.caption).foregroundStyle(SnoopStyle.secondary).monospacedDigit()
+    }
+    private var progress: some View {
+        ProgressView(value: min(max(share, 0), 1)).tint(color).accessibilityHidden(true)
     }
 
     private func hm(_ s: Int) -> String {
@@ -294,43 +300,60 @@ private struct StageRow: View {
 private struct Stat: View {
     let title: String
     let value: String
-    let caption: String
+    let unit: String
     let delta: SleepMetricDelta?
-    @Environment(\.dynamicTypeSize) private var typeSize
 
-    init(_ title: String, _ value: String, _ caption: String, delta: SleepMetricDelta? = nil) {
+    init(_ title: String, _ value: String, unit: String = "", delta: SleepMetricDelta?) {
         self.title = title
         self.value = value
-        self.caption = caption
+        self.unit = unit
         self.delta = delta
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-            if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 4) { reading }
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) { reading }
-                        .fixedSize(horizontal: true, vertical: false)
-                    VStack(alignment: .leading, spacing: 4) { reading }
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title == "Resting heart rate" ? "Resting HR" : title)
+                .font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value).font(.title2.weight(.semibold)).monospacedDigit()
+                if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
             }
-            Text(caption).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+            if let delta { SleepDeltaLabel(delta: delta, id: title) }
+            else {
+                Text("—").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                    .accessibilityLabel("Comparison not available")
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(16)
         .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
     }
+}
 
-    @ViewBuilder private var reading: some View {
-        Text(value).font(.title2.weight(.semibold)).monospacedDigit()
-        if let delta {
-            Text(delta.text).font(.caption.weight(.semibold)).monospacedDigit()
-                .foregroundStyle(InsightTone.color(delta.signal))
-                .accessibilityLabel(delta.accessibility)
-                .accessibilityIdentifier("sleepDelta-\(title)")
+private struct SleepDeltaLabel: View {
+    let delta: SleepMetricDelta
+    let id: String
+    var body: some View {
+        Text(delta.text).font(.caption.weight(.semibold)).monospacedDigit()
+            .foregroundStyle(InsightTone.color(delta.signal))
+            .accessibilityLabel(delta.accessibility)
+            .accessibilityIdentifier("sleepDelta-\(id)")
+    }
+}
+
+private struct SleepSectionHeader: View {
+    let title: String
+    let comparison: String
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+        layout {
+            Text(title).font(.headline)
+            if !typeSize.isAccessibilitySize { Spacer() }
+            Text(comparison).font(.caption).foregroundStyle(SnoopStyle.secondary)
         }
     }
 }
