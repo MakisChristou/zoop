@@ -154,12 +154,12 @@ struct SleepView: View {
 
                 LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     Stat("Efficiency", record.sleep?.efficiency.map(pct) ?? "—", "Sleep period spent asleep", delta: SleepMetricDelta.efficiency(record: record, history: model.sleep.items, baseline: comparison(for: "sleep", record: record)?.baseline, calendar: calendar))
-                    Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")")
+                    Stat("Awake", duration(w.wasoS), "\(w.disturbances) disturbance\(w.disturbances == 1 ? "" : "s")", delta: nightlyDelta(.awake, record: record))
                     Stat("Resting heart rate", p.restingHr.map { "\(Int($0.rounded()))" } ?? "—", "bpm", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "resting_hr", record: record)))
                     Stat("HRV", p.hrvRmssdMs.map { "\(Int($0.rounded()))" } ?? "—", "ms · during sleep", delta: record.metricsPending ? nil : SleepMetricDelta.comparison(comparison(for: "hrv", record: record)))
-                    Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", "breaths / min")
-                    Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep")
-                    Stat("Skin temperature", p.skinTempC.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—", "Nightly average")
+                    Stat("Breathing", p.respiratoryRate.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", "breaths / min", delta: nightlyDelta(.breathing, record: record))
+                    Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded())) %" } ?? "—", "During sleep", delta: nightlyDelta(.oxygen, record: record))
+                    Stat("Skin temperature", p.skinTempC.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—", "Nightly average", delta: nightlyDelta(.temperature, record: record))
                     Stat("Data coverage", pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1))), "Recorded during the night")
                 }
 
@@ -190,6 +190,11 @@ struct SleepView: View {
                 MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
             .padding(.bottom, 4)
+    }
+
+    private func nightlyDelta(_ metric: SleepMetricDelta.Metric, record: SnoopAPI.SleepSession) -> SleepMetricDelta? {
+        SleepMetricDelta.nightly(metric, record: record, history: model.sleep.items,
+                                 baseline: comparison(for: "sleep", record: record)?.baseline, calendar: calendar)
     }
 
     private func comparison(for key: String, record: SnoopAPI.SleepSession) -> MorningInsights.Metric? {
@@ -303,12 +308,13 @@ private struct Stat: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
-            layout {
-                Text(value).font(.title2.weight(.semibold)).monospacedDigit()
-                if let delta {
-                    Text(delta.text).font(.caption.weight(.semibold)).monospacedDigit()
-                        .foregroundStyle(InsightTone.color(delta.signal)).accessibilityLabel(delta.accessibility)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) { reading }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) { reading }
+                        .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 4) { reading }
                 }
             }
             Text(caption).font(.caption2).foregroundStyle(SnoopStyle.secondary)
@@ -316,5 +322,15 @@ private struct Stat: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+    }
+
+    @ViewBuilder private var reading: some View {
+        Text(value).font(.title2.weight(.semibold)).monospacedDigit()
+        if let delta {
+            Text(delta.text).font(.caption.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(InsightTone.color(delta.signal))
+                .accessibilityLabel(delta.accessibility)
+                .accessibilityIdentifier("sleepDelta-\(title)")
+        }
     }
 }

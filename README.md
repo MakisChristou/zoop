@@ -153,13 +153,22 @@ timeline. Battery, including both pack and strap, lives under Profile → My WHO
 the header shortcut and battery notifications open that page. The four tabs are
 Today, Activity, Sleep and Trends.
 
-Sleep adds compact comparisons without changing its layout. HRV/resting-HR deltas
-come from Morning insights and must match the displayed sleep revision. Efficiency
-uses eligible main sleeps in the API’s preceding 28-calendar-day baseline window
-(inclusive from/to), at least seven distinct nights, no pending metrics and at most
-120 seconds of unknown recording per night. It excludes the displayed night and
-uses percentage points, not relative percentages. Missing and rounded-zero deltas
-are omitted. This display calculation does not modify stored analysis.
+Sleep adds compact comparisons without changing its navigation. HRV/resting-HR
+deltas come from Morning insights and must match the displayed sleep revision.
+Their badge colours follow the change: higher resting HR is red, lower is green;
+HRV uses the opposite direction. This does not change the overall outlook assessment.
+Efficiency, awake time, breathing, SpO₂ and skin temperature use eligible main sleeps
+in the API's baseline window, or the preceding 28 local calendar days when that
+window is unavailable. Each metric requires at least seven distinct prior nights,
+no pending metrics and at most 120 seconds of unknown recording per night. The
+latest revision wins before quality filtering; the selected night and future nights
+never contribute. Efficiency and the other new numeric comparisons use relative
+percentages; temperature uses °C differences. Temperature, breathing and oxygen
+deltas stay neutral because direction alone does not establish a better night.
+Zero changes stay neutral; missing values and zero percentage denominators are
+omitted. Recording coverage remains a data-quality indicator. These presentation
+calculations do not modify stored analysis. Badges wrap below values when needed,
+and use a single-column layout at accessibility text sizes.
 
 ## Focused layout validation
 
