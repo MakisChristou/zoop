@@ -243,12 +243,22 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .list, .sound])
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping @Sendable () -> Void) {
         let info = response.notification.request.content.userInfo
         let destination = info["destination"] as? String
         let scope = info["scope"] as? String
         let id = (info["id"] as? NSNumber)?.int64Value
-        await openNotification(destination: destination, scope: scope, id: id)
+        finishNotificationResponse(destination: destination, scope: scope, id: id, completion: completionHandler)
+    }
+
+    // Keep the UIKit completion on the main thread too. The async delegate bridge
+    // can resume its Objective-C completion on a cooperative executor, where iOS
+    // may assert while saving the app's restoration snapshot after a notification tap.
+    nonisolated func finishNotificationResponse(destination: String?, scope: String?, id: Int64?, completion: @escaping @Sendable () -> Void) {
+        Task { @MainActor in
+            openNotification(destination: destination, scope: scope, id: id)
+            completion()
+        }
     }
 
     private func openNotification(destination: String?, scope: String?, id: Int64?) {
