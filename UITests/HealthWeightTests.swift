@@ -34,6 +34,10 @@ import XCTest
         app.buttons["Apple Health"].tap()
         XCTAssertTrue(app.navigationBars["Apple Health"].waitForExistence(timeout: 5))
         let toggle = app.switches["Export weight"]
+        for _ in 0..<20 {
+            if toggle.exists && toggle.isHittable && toggle.frame.midY < app.frame.maxY - 50 && toggle.frame.minY > 90 { break }
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)))
+        }
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         try XCTSkipIf(toggle.value as? String != "1", "Requires a synthetic connected journal with weight export enabled")
         XCTAssertFalse(app.buttons["Update permissions"].exists)
@@ -45,6 +49,11 @@ import XCTest
         app.terminate()
         let reopened = launch(); profile(reopened)
         reopened.buttons["Apple Health"].tap()
+        for _ in 0..<20 {
+            let control = reopened.switches["Export weight"]
+            if control.exists && control.isHittable && control.frame.midY < reopened.frame.maxY - 50 && control.frame.minY > 90 { break }
+            reopened.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75)).press(forDuration: 0.05, thenDragTo: reopened.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)))
+        }
         XCTAssertTrue(reopened.switches["Export weight"].waitForExistence(timeout: 5))
         XCTAssertEqual(reopened.switches["Export weight"].value as? String, "0")
         XCTAssertFalse(reopened.buttons["Update permissions"].exists)
