@@ -113,15 +113,19 @@ final class HealthCoordinator {
         let current = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
         guard SHA256.hash(data: Data(current.utf8)).map({ String(format: "%02x", $0) }).joined() == scope else { throw CancellationError() }
     }
-    func connect(steps: Bool, importWeight: Bool, exportWeight: Bool) async {
+    func connect(steps: Bool, importWeight: Bool, exportWeight: Bool, resumeSync: Bool = true) async {
         guard adapter.available else { error = "Apple Health is unavailable on this device."; return }
         let generation = epoch
         do {
-            try await adapter.request(steps: steps, importWeight: importWeight, exportWeight: exportWeight)
+            if !connected || (steps && !journal.exportSteps) || (importWeight && !journal.importWeight) || (exportWeight && !journal.exportWeight)
+                || (steps && !adapter.canWrite("steps")) || (exportWeight && !adapter.canWrite("weight")) {
+                try await adapter.request(steps: steps, importWeight: importWeight, exportWeight: exportWeight)
+            }
             try valid(generation)
             if journal.connectedAt == nil { journal.connectedAt = Date(); journal.cursor = 0; journal.pageCursor = 0; journal.snapshot = true }
             if steps != journal.exportSteps || exportWeight != journal.exportWeight { journal.snapshot = true; journal.watermark = nil; journal.pageCursor = 0 }
-            journal.exportSteps = steps; journal.importWeight = importWeight; journal.exportWeight = exportWeight; journal.paused = false
+            journal.exportSteps = steps; journal.importWeight = importWeight; journal.exportWeight = exportWeight
+            if resumeSync { journal.paused = false }
             if journal.importStart == nil { journal.importStart = journal.connectedAt }
             try await persist(); installObserver(); await sync()
         } catch { self.error = error.localizedDescription }

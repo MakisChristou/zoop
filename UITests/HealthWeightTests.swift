@@ -27,6 +27,29 @@ import XCTest
         XCTAssertTrue(card.isHittable); shot(app, "Compact Today weight card"); card.tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
     }
+    /// Seed a synthetic connected HealthSync journal with exportWeight=true on the
+    /// UI-REVIEW simulator before running. Never run against a personal connection.
+    func testConnectedWeightSwitchSavesWithoutConfirmation() throws {
+        let app = launch(); profile(app)
+        app.buttons["Apple Health"].tap()
+        XCTAssertTrue(app.navigationBars["Apple Health"].waitForExistence(timeout: 5))
+        let toggle = app.switches["Export weight"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        try XCTSkipIf(toggle.value as? String != "1", "Requires a synthetic connected journal with weight export enabled")
+        XCTAssertFalse(app.buttons["Update permissions"].exists)
+        XCTAssertTrue(NSPredicate(format: "enabled == true").evaluate(with: toggle))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let saved = expectation(for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
+        wait(for: [saved], timeout: 15)
+        shot(app, "Health switch saved directly")
+        app.terminate()
+        let reopened = launch(); profile(reopened)
+        reopened.buttons["Apple Health"].tap()
+        XCTAssertTrue(reopened.switches["Export weight"].waitForExistence(timeout: 5))
+        XCTAssertEqual(reopened.switches["Export weight"].value as? String, "0")
+        XCTAssertFalse(reopened.buttons["Update permissions"].exists)
+        shot(reopened, "Health switch remains saved after relaunch")
+    }
     func testWeightRangesOptionsAndImportNavigation() {
         let app = launch(); openWeight(app)
         XCTAssertTrue(app.segmentedControls.buttons["Month"].waitForExistence(timeout: 10))
