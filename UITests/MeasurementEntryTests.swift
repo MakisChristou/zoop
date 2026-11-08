@@ -3,7 +3,7 @@ import XCTest
 @MainActor final class MeasurementEntryTests: XCTestCase {
     private func launch(screen: String = "", large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-weightUnit", "kg"]
+        app.launchArguments = ["-demoSerial", "WEIGHT-EMPTY-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-weightUnit", "kg"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
         return app

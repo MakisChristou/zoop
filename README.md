@@ -366,6 +366,12 @@ weight is only a fallback before measurements exist. Historical imports cannot m
 current weight backward, and historical analytics use measurements before that day's
 end. No measurements are invented for missing days.
 
+Once a day has a reading, the Weight screen hides Log weight. Tap the displayed
+weight or a history value to edit that Snoop measurement; imported Health readings
+show their source and remain read-only. Every local save checks the selected
+calendar day, including entries still waiting to upload, and rejects a second
+entry or a move onto an occupied day. Existing imported history is preserved.
+
 Weight has a direct Import weight history action below its recent readings, also
 available in Apple Health settings and Weight options. Import remains available
 after an earlier import; the preview skips readings already saved.

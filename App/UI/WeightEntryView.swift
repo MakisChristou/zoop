@@ -15,6 +15,10 @@ struct WeightEntryView: View {
     @FocusState private var focused: Bool
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 56.0
     var editing: WeightReading?
+    private var entry: WeightReading? {
+        if let editing { return model.health.rows.first { $0.id == editing.id } ?? editing }
+        return WeightReading.preferred(model.health.rows, on: measuredAt)
+    }
     private var kg: Double? {
         let separator = Locale.current.decimalSeparator ?? "."
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: separator, with: ".")
@@ -28,58 +32,74 @@ struct WeightEntryView: View {
     }
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    Text(editing == nil ? "What did the scale say?" : "Edit your weigh-in")
-                        .font(.title2.weight(.semibold)).multilineTextAlignment(.center).padding(.top, 12)
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        TextField("Weight", text: $value).keyboardType(.decimalPad)
-                            .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
-                            .multilineTextAlignment(.center).focused($focused).accessibilityLabel("Weight").accessibilityIdentifier("weightInput")
-                            .accessibilityHint("Tap to type a weight")
-                            .frame(maxWidth: 240)
-                        Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }
-                            .pickerStyle(.menu).fixedSize().accessibilityLabel("Weight unit")
+            Group {
+                if let row = entry, row.source == "health" {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            MetricValue(display(row.kg), unit: unit, size: 52)
+                            Text(row.measuredAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(SnoopStyle.secondary)
+                            Text(row.sourceName).font(.headline)
+                            Text("Edit this measurement in Apple Health.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        }.padding(SnoopStyle.gutter).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
-                                     step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
-                        .accessibilityIdentifier("weightRuler")
-                    if let previous = model.health.lastWeight {
-                        Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
-                            .font(.subheadline).foregroundStyle(SnoopStyle.secondary).multilineTextAlignment(.center)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            Text(entry == nil ? "What did the scale say?" : "Edit your weigh-in")
+                                .font(.title2.weight(.semibold)).multilineTextAlignment(.center).padding(.top, 12)
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                TextField("Weight", text: $value).keyboardType(.decimalPad)
+                                    .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
+                                    .multilineTextAlignment(.center).focused($focused).accessibilityLabel("Weight").accessibilityIdentifier("weightInput")
+                                    .accessibilityHint("Tap to type a weight")
+                                    .frame(maxWidth: 240)
+                                Picker("Unit", selection: $unit) { Text("kg").tag("kg"); Text("lb").tag("lb") }
+                                    .pickerStyle(.menu).fixedSize().accessibilityLabel("Weight unit")
+                            }
+                            MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
+                                             step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
+                                .accessibilityIdentifier("weightRuler")
+                            if entry == nil, let previous = model.health.lastWeight {
+                                Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
+                                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary).multilineTextAlignment(.center)
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button { focused = false; choosingDate.toggle() } label: {
+                                    ViewThatFits(in: .horizontal) {
+                                        HStack { Text("Measured").foregroundStyle(SnoopStyle.secondary); Spacer(); measuredLabel }
+                                        VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(SnoopStyle.secondary); measuredLabel }
+                                    }.font(.subheadline).frame(minHeight: 44).contentShape(Rectangle())
+                                }.buttonStyle(.plain).accessibilityIdentifier("weightMeasuredDate")
+                                if choosingDate {
+                                    DatePicker("Measured", selection: $measuredAt, in: ...Date()).datePickerStyle(.compact)
+                                        .labelsHidden().accessibilityLabel("Measurement date and time")
+                                }
+                            }.padding(.top, 4)
+                            if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
+                        }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
                     }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button { focused = false; choosingDate.toggle() } label: {
-                            ViewThatFits(in: .horizontal) {
-                                HStack { Text("Measured").foregroundStyle(SnoopStyle.secondary); Spacer(); measuredLabel }
-                                VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(SnoopStyle.secondary); measuredLabel }
-                            }.font(.subheadline).frame(minHeight: 44).contentShape(Rectangle())
-                        }.buttonStyle(.plain).accessibilityIdentifier("weightMeasuredDate")
-                        if choosingDate {
-                            DatePicker("Measured", selection: $measuredAt, in: ...Date()).datePickerStyle(.compact)
-                                .labelsHidden().accessibilityLabel("Measurement date and time")
-                        }
-                    }.padding(.top, 4)
-                    if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
-                }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button(action: save) {
-                    HStack { if saving { ProgressView() }; Text(editing == nil ? "Save weight" : "Save changes").font(.headline) }
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-                }.buttonStyle(.borderedProminent).disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
-                    .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+                    .safeAreaInset(edge: .bottom) {
+                        Button(action: save) {
+                            HStack { if saving { ProgressView() }; Text(entry == nil ? "Save weight" : "Save changes").font(.headline) }
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
+                        }.buttonStyle(.borderedProminent).disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
+                            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+                    }
+                }
             }
             .snoopScreen().tint(SnoopStyle.load)
-            .navigationTitle(editing == nil ? "Today’s weigh-in" : "Edit weight").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) } }
+            .navigationTitle(entry?.source == "health" ? "Weight" : entry == nil ? "Today’s weigh-in" : "Edit weight").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(entry?.source == "health" ? "Done" : "Cancel") { dismiss() }.disabled(saving) } }
             .interactiveDismissDisabled(saving)
             .onAppear {
-                if let row = editing ?? model.health.lastWeight {
+                if let row = entry ?? model.health.lastWeight {
                     value = display(row.kg)
-                    if editing != nil { measuredAt = row.measuredAt }
+                    if entry != nil { measuredAt = row.measuredAt }
                 }
+            }
+            .onChange(of: entry?.id) { _, _ in
+                if let row = entry { value = display(row.kg) }
             }
             .onChange(of: unit) { old, new in
                 let formatter = NumberFormatter(); formatter.numberStyle = .decimal
@@ -98,9 +118,11 @@ struct WeightEntryView: View {
     private func display(_ kg: Double) -> String { (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) }
     private func save() {
         guard let kg else { return }; saving = true; error = nil
-        let row = WeightReading(id: editing?.id ?? identity, measuredAt: measuredAt, kg: kg, version: editing?.version ?? 0)
+        guard entry?.source != "health" else { saving = false; error = WeightEntryPolicy.Failure.importedReading.localizedDescription; return }
+        let row = WeightReading(id: entry?.id ?? identity, measuredAt: editing == nil ? (entry?.measuredAt ?? measuredAt) : measuredAt, kg: kg, version: entry?.version ?? 0)
         Task {
             do { try await model.health.save(row); UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() }
+            catch let failure as WeightEntryPolicy.Failure { self.error = failure.localizedDescription }
             catch { self.error = "Couldn’t save weight. Try again." }
             saving = false
         }

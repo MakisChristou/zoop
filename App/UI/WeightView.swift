@@ -6,6 +6,7 @@ struct WeightView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var adding = false
+    @State private var editing: WeightReading?
     @State private var importing = false
     @State private var options = false
     private var rows: [WeightReading] { model.health.rows }
@@ -13,7 +14,7 @@ struct WeightView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if rows.isEmpty { empty } else {
-                    WeightTrendChart(readings: rows, unit: unit, logWeight: { adding = true })
+                    WeightTrendChart(readings: rows, unit: unit, logWeight: { adding = true }, openReading: { editing = $0 })
                     VStack(spacing: 4) {
                         HStack {
                             Text("Recent weigh-ins").font(.headline)
@@ -22,10 +23,12 @@ struct WeightView: View {
                                 .accessibilityIdentifier("weightHistory")
                         }
                         ForEach(Array(rows.prefix(3))) { row in
-                            ViewThatFits(in: .horizontal) {
-                                HStack(spacing: 12) { readingDate(row); Spacer(); readingValue(row) }
-                                VStack(alignment: .leading, spacing: 8) { readingDate(row); readingValue(row) }.frame(maxWidth: .infinity, alignment: .leading)
-                            }.padding(.vertical, 10)
+                            Button { editing = row } label: {
+                                ViewThatFits(in: .horizontal) {
+                                    HStack(spacing: 12) { readingDate(row); Spacer(); readingValue(row) }
+                                    VStack(alignment: .leading, spacing: 8) { readingDate(row); readingValue(row) }.frame(maxWidth: .infinity, alignment: .leading)
+                                }.padding(.vertical, 10).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
                             if row.id != rows.prefix(3).last?.id { Divider().overlay(SnoopStyle.separator) }
                         }
                     }
@@ -61,6 +64,7 @@ struct WeightView: View {
         }
         .refreshable { await model.health.sync() }
         .sheet(isPresented: $adding) { WeightEntryView() }
+        .sheet(item: $editing) { WeightEntryView(editing: $0) }
         .sheet(isPresented: $importing) { WeightImportView() }
         .sheet(isPresented: $options) { WeightOptionsView() }
     }

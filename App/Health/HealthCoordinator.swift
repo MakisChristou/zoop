@@ -194,6 +194,7 @@ final class HealthCoordinator {
     func save(_ row: WeightReading) async throws {
         activate(device)
         guard file != nil else { throw SnoopAPI.Failure.notConfigured }
+        try WeightEntryPolicy.validate(row, existing: rows)
         journal.pendingWeights.removeAll { $0.id == row.id }; journal.pendingWeights.append(row)
         refreshRows(); try await persist()
         // Editing or adding an older reading must not cancel today’s check-in.

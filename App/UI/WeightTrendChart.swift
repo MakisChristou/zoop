@@ -8,6 +8,7 @@ struct WeightTrendChart: View {
     let readings: [WeightReading]
     let unit: String
     var logWeight: () -> Void = {}
+    var openReading: (WeightReading) -> Void = { _ in }
     @AppStorage("weightMovingAverage") private var showAverage = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -62,8 +63,12 @@ struct WeightTrendChart: View {
                     HStack { headlineLabel; Spacer(minLength: 8); logButton }
                     VStack(alignment: .leading, spacing: 10) { headlineLabel; logButton }
                 }
-                MetricValue(displayed.map { display($0.kg).formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: unit, size: 52)
-                    .accessibilityIdentifier("weightChartValue")
+                Button { if let displayed { openReading(displayed.reading) } } label: {
+                    MetricValue(displayed.map { display($0.kg).formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: unit, size: 52)
+                        .accessibilityIdentifier("weightChartValue")
+                }.buttonStyle(.plain).disabled(displayed == nil)
+                    .accessibilityIdentifier("openWeightReading")
+                    .accessibilityHint(displayed?.reading.source == "snoop" ? "Edit this weigh-in" : "View this weigh-in")
                 Text(measurementDate).font(.subheadline).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("weightChartMeasurementDate")
             }.padding(.bottom, 6)
             Picker("Chart range", selection: $period) { ForEach(WeightCalendarPeriod.allCases) { Text($0.rawValue).tag($0) } }
@@ -110,9 +115,11 @@ struct WeightTrendChart: View {
         Text(selected != nil ? "Selected weigh-in" : range == latestRange ? "Latest weigh-in" : "Last in this period")
             .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("weightChartHeadline")
     }
-    private var logButton: some View {
-        Button(action: logWeight) { Label("Log weight", systemImage: "plus").font(.subheadline.weight(.medium)) }
-            .buttonStyle(.bordered).buttonBorderShape(.capsule).frame(minHeight: 44).accessibilityIdentifier("logWeight")
+    @ViewBuilder private var logButton: some View {
+        if WeightReading.preferred(readings, on: now, calendar: calendar) == nil {
+            Button(action: logWeight) { Label("Log weight", systemImage: "plus").font(.subheadline.weight(.medium)) }
+                .buttonStyle(.bordered).buttonBorderShape(.capsule).frame(minHeight: 44).accessibilityIdentifier("logWeight")
+        }
     }
     private func periodButton(_ direction: Int) -> some View {
         Button { move(direction) } label: { Image(systemName: direction < 0 ? "chevron.left" : "chevron.right").font(.footnote.weight(.semibold)).frame(width: 44, height: 44) }

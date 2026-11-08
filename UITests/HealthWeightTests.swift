@@ -87,6 +87,61 @@ import XCTest
         app.buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
     }
+    private func savedWeights(_ serial: String) async throws -> [[String: Any]] {
+        let base = ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476"
+        let (data, _) = try await URLSession.shared.data(from: URL(string: base + "/v1/devices/" + serial + "/weights")!)
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+    }
+    func testLoggedDayOpensExistingWeightForEditing() async throws { try await checkExistingWeightEdit(large: false) }
+    func testLoggedDayEditAtLargeText() async throws { try await checkExistingWeightEdit(large: true) }
+    private func checkExistingWeightEdit(large: Bool) async throws {
+        let serial = "WEIGHT-MANUAL-" + UUID().uuidString
+        let before = try await savedWeights(serial)
+        let app = launch(large: large, serial: serial); openWeight(app)
+        XCTAssertFalse(app.buttons["logWeight"].exists)
+        app.buttons["openWeightReading"].tap()
+        let input = app.textFields["weightInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Edit weight"].exists)
+        input.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        if let value = input.value as? String { input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
+        input.typeText("81.4")
+        app.buttons["saveWeight"].tap()
+        XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["logWeight"].exists)
+        var after = try await savedWeights(serial)
+        for _ in 0..<50 where after.first(where: { $0["id"] as? String == "snoop:layout-0" })?["kg"] as? Double != 81.4 {
+            try await Task.sleep(for: .milliseconds(100)); after = try await savedWeights(serial)
+        }
+        XCTAssertEqual(after.count, before.count)
+        XCTAssertEqual(after.first(where: { $0["id"] as? String == "snoop:layout-0" })?["kg"] as? Double, 81.4)
+        shot(app, "Daily weight edited without an extra log")
+    }
+    func testFirstDailyLogRemovesAddAndImportedDayIsReadOnly() async throws {
+        let serial = "WEIGHT-EMPTY-" + UUID().uuidString
+        let before = try await savedWeights(serial)
+        let app = launch(serial: serial); openWeight(app)
+        XCTAssertTrue(app.buttons["logWeight"].waitForExistence(timeout: 5)); app.buttons["logWeight"].tap()
+        XCTAssertTrue(app.buttons["saveWeight"].waitForExistence(timeout: 5)); app.buttons["saveWeight"].tap()
+        XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["logWeight"].exists)
+        app.buttons["openWeightReading"].tap()
+        XCTAssertTrue(app.navigationBars["Edit weight"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+        var after = try await savedWeights(serial)
+        for _ in 0..<50 where after.count == before.count {
+            try await Task.sleep(for: .milliseconds(100)); after = try await savedWeights(serial)
+        }
+        XCTAssertEqual(after.count, before.count + 1)
+        app.terminate()
+        let imported = launch(serial: "WEIGHT-HEALTH-" + UUID().uuidString); openWeight(imported)
+        XCTAssertFalse(imported.buttons["logWeight"].exists)
+        imported.buttons["openWeightReading"].tap()
+        XCTAssertTrue(imported.staticTexts["Edit this measurement in Apple Health."].waitForExistence(timeout: 5))
+        XCTAssertFalse(imported.buttons["saveWeight"].exists)
+        XCTAssertFalse(imported.textFields["weightInput"].exists)
+        shot(imported, "Imported weight remains owned by Health")
+    }
     func testWeightCSVShareSheet() { checkWeightCSVShareSheet(large: false) }
     func testWeightCSVShareSheetAtLargeText() { checkWeightCSVShareSheet(large: true) }
     private func checkWeightCSVShareSheet(large: Bool) {
@@ -148,7 +203,7 @@ import XCTest
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
     }
     func testWeightEntryHistoryAndHealthSettings() {
-        let app = launch(); openWeight(app)
+        let app = launch(serial: "WEIGHT-EMPTY-" + UUID().uuidString); openWeight(app)
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
         app.buttons["logWeight"].tap()
         let field = app.textFields["weightInput"]; XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap()
@@ -173,7 +228,7 @@ import XCTest
         shot(app, "Health connection")
     }
     func testLargeTextWeightAndConnectionRemainAccessible() {
-        let app = launch(large: true); openWeight(app)
+        let app = launch(large: true, serial: "WEIGHT-EMPTY-" + UUID().uuidString); openWeight(app)
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["logWeight"].isHittable)
         shot(app, "Weight accessibility text")

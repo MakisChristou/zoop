@@ -48,6 +48,19 @@ for i in range(120):
                         kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Snoop' if i == 0 else 'Test scale', version=1, removed=False))
 
 
+# Independent device scopes let entry tests exercise empty and completed days.
+weight_devices = {}
+def weight_rows(device):
+    if device not in weight_devices:
+        rows = [dict(row) for row in weights]
+        if device.startswith('WEIGHT-EMPTY-'):
+            rows = [row for row in rows if row['id'] != 'snoop:layout-0']
+        elif device.startswith('WEIGHT-HEALTH-'):
+            rows[0].update(id='health:layout-0', source='health', source_name='Test scale')
+        weight_devices[device] = rows
+    return weight_devices[device]
+
+
 def insight(day, mature=False, early_count=11):
     count = 14 if mature else early_count
     metrics = []
@@ -123,8 +136,8 @@ class Handler(BaseHTTPRequestHandler):
                                                      weight_measured_at=weights[0]['measured_at'], weight_source='health', weight_source_name='Test scale'))
         if route == 'health': return self.send(dict(namespace='LAYOUT-UI', cursor=0, earliest=stamp(today-timedelta(days=120)), wake_at=None))
         if route == 'health/exports': return self.send(dict(namespace='LAYOUT-UI', watermark=0, next_cursor=0, done=True, records=[]))
-        if route == 'weight-changes': return self.send(dict(rows=weights, next_cursor=len(weights), watermark=len(weights), done=True))
-        if route == 'weights': return self.send(weights)
+        if route == 'weight-changes': return self.send(dict(rows=weight_rows(device), next_cursor=len(weight_rows(device)), watermark=len(weight_rows(device)), done=True))
+        if route == 'weights': return self.send(weight_rows(device))
         if route == 'processing': return self.send(dict(pending_decode=0, decode_failures=0, pending_analysis=0, failed_analysis=0, workers_healthy=True, paused=False))
         return self.send({'error': {'message': 'Unused synthetic endpoint'}}, 404)
 
@@ -132,8 +145,9 @@ class Handler(BaseHTTPRequestHandler):
         row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
         if self.path.endswith('/weights'):
             row['version'] = row.get('version', 0) + 1
-            weights[:] = [r for r in weights if r['id'] != row['id']]
-            weights.insert(0, row)
+            readings = weight_rows(self.path.strip('/').split('/')[2])
+            readings[:] = [r for r in readings if r['id'] != row['id']]
+            readings.insert(0, row)
         self.send(row)
 
     def log_message(self, *_): pass

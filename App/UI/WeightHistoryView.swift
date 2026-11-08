@@ -40,7 +40,9 @@ struct WeightHistoryView: View {
     }
     private func readingValue(_ row: WeightReading) -> some View {
         HStack(spacing: 0) {
-            Text(value(row.kg)).font(.headline).monospacedDigit().fixedSize()
+            Button { editing = row } label: {
+                Text(value(row.kg)).font(.headline).monospacedDigit().fixedSize().frame(minHeight: 44)
+            }.buttonStyle(.plain).accessibilityHint(row.source == "snoop" ? "Edit this weigh-in" : "View this weigh-in")
             if row.source == "snoop" {
                 Menu {
                     Button("Edit weight") { editing = row }
