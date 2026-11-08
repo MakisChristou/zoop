@@ -3,9 +3,9 @@ import XCTest
 /// Uses only the synthetic UI-REVIEW backend. Physical Health permissions and
 /// background wake delivery remain a separate on-device acceptance check.
 @MainActor final class HealthWeightTests: XCTestCase {
-    private func launch(large: Bool = false) -> XCUIApplication {
+    private func launch(large: Bool = false, serial: String = "UI-REVIEW") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]
+        app.launchArguments = ["-demoSerial", serial, "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
@@ -86,6 +86,22 @@ import XCTest
         app.buttons["Close"].tap()
         app.buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
+    }
+    func testWeightCSVShareSheet() { checkWeightCSVShareSheet(large: false) }
+    func testWeightCSVShareSheetAtLargeText() { checkWeightCSVShareSheet(large: true) }
+    private func checkWeightCSVShareSheet(large: Bool) {
+        let app = launch(large: large, serial: "UI-CSV-REVIEW"); openWeight(app)
+        app.buttons["Weight options"].tap()
+        let export = app.buttons["exportWeightCSV"]
+        for _ in 0..<12 {
+            if export.exists && export.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(export.waitForExistence(timeout: 10))
+        shot(app, "Weight CSV export option")
+        export.tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout: 10))
+        shot(app, "Weight CSV share sheet")
     }
     func testSwipingHistoryAndReturningToLatest() {
         let app = launch(); openWeight(app)

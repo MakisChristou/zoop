@@ -370,6 +370,12 @@ Weight has a direct Import weight history action below its recent readings, also
 available in Apple Health settings and Weight options. Import remains available
 after an earlier import; the preview skips readings already saved.
 
+Weight → options → Export CSV shares all non-deleted weigh-ins currently saved on
+the phone, including imported measurements and entries waiting to upload. It is
+independent of the chart range and display unit: each observation keeps its UTC
+timestamp, date in the export time zone, kilograms, source and reading ID. It does
+not average or collapse multiple readings on a day, or change Health records.
+
 Profile photos can be chosen, replaced or removed from the profile header. The native
 Photos picker shares only the selected image; the app downsamples to at most 512 px,
 applies orientation and strips source metadata before upload. A protected Postgres
