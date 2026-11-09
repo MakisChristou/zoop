@@ -59,10 +59,6 @@ struct WeightEntryView: View {
                             MeasurementRuler(value: rulerValue, range: unit == "lb" ? 44.1...881.8 : 20...400,
                                              step: 0.1, unit: unit, label: "Weight ruler", onEditing: { focused = false })
                                 .accessibilityIdentifier("weightRuler")
-                            if entry == nil, let previous = model.health.lastWeight {
-                                Text("Previous · \(display(previous.kg)) \(unit) · \(previous.measuredAt.formatted(.dateTime.day().month(.abbreviated)))")
-                                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary).multilineTextAlignment(.center)
-                            }
                             VStack(alignment: .leading, spacing: 8) {
                                 Button { focused = false; choosingDate.toggle() } label: {
                                     ViewThatFits(in: .horizontal) {
