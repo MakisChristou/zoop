@@ -17,6 +17,7 @@ mod sleep_sessions;
 mod sleeps;
 mod state;
 mod steps;
+mod weight_goal;
 mod workouts;
 
 pub use state::AppState;
@@ -41,6 +42,10 @@ use crate::{
 
 pub fn build_router(state: AppState) -> Router {
     let protected = Router::new()
+        .route(
+            "/v1/devices/{deviceId}/weight-goal",
+            get(weight_goal::get).put(weight_goal::put),
+        )
         .route("/v1/devices/{deviceId}/progress", get(progress::progress))
         .route("/v1/devices/{deviceId}/health", get(health::info))
         .route(

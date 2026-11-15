@@ -96,3 +96,6 @@ impl PostgresStore {
         &self.pool
     }
 }
+
+mod weight_goal_store;
+pub use weight_goal_store::{WeightDay, WeightGoal, WeightGoalInput};

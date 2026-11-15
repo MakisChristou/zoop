@@ -328,3 +328,35 @@ cursor upgrades. It requires an explicitly supplied development database and
 creates fresh schemas. `tools/performance-fixture.sql` is a synthetic-only fixture
 for a fresh development database: 1,022,000 samples, 365 nights and 730 weigh-ins.
 Keep history analysis disabled while comparing UI screenshots from that fixture.
+
+### Weekly weight outlook
+
+`GET /v1/devices/{id}/weight-goal` returns optional goal settings and a read-only
+summary; `PUT` explicitly starts, changes, or pauses a cut with optimistic
+`revision`. Migration 0014 stores settings and immutable settings revisions.
+There is no default enrolment, calorie prescription, or write to weight/Health
+records. An identical save retry returns the original revision. Rate/timezone
+changes reset the comparison period; reminder edits do not. Resuming a paused
+cut starts a new phase, while all past goal revisions remain stored.
+
+Algorithm version 1 uses Monday-Sunday medians of one real reading per local day,
+Health first, then latest timestamp/id. It excludes removed, future and invalid
+weights and bounds reads to 112 days. Sundays show the current week through the
+latest sync; Monday-Saturday show the previous week, except a newly started phase.
+Comparisons require two eligible weeks (four days spanning five calendar dates,
+fully within the current pace period). Three eligible weeks are needed for a
+persistent slow/fast or possible-stall status. Missing weeks never join together.
+A single reversal yields an unclear trend; it never proves a stall.
+
+The target tolerance is max(0.1 kg, 25% of target), capped at 50% of target so a
+small target cannot treat zero progress as on pace. A possible stall requires both
+successive changes to stay within 0.1% of current median weight and below the
+chosen target band. These are product heuristics, not clinically validated
+thresholds. No biological-age, fat-loss, intake or maintenance inference is made.
+Calendar matching is informed by Orsama et al., *Weight Rhythms* (2014),
+https://doi.org/10.1159/000356147; that paper does not validate these classifications.
+
+Pure regression cases run in `just ci`. Database regressions use an isolated schema:
+`SNOOP_TEST_DATABASE_URL=<development-url> cargo test -p snoop-api --test weight_goal -- --ignored`.
+They cover opt-in, authentication, invalid inputs, source priority, DST, deletion,
+revision conflict, idempotent retries, pause, and preservation of measurement rows.

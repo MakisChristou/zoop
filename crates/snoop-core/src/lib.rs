@@ -18,3 +18,6 @@ pub use workouts::{BoutOut, DayResult, DaySteps, analyze_day, day_steps};
 
 mod progress;
 pub use progress::{Period, Progress, ProgressMetric, progress};
+
+mod weight_outlook;
+pub use weight_outlook::{WeightOutlook, WeightWeek, weight_outlook};
