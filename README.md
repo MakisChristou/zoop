@@ -500,3 +500,29 @@ Backend contract: `/v1/devices/{device}/progress?tz=<IANA zone>` (see the backen
 `docs/PROGRESS.md`). `ProgressTests` covers formatting, missing data and stale-request
 isolation; `ProgressUITests` covers navigation and large-text layouts using only
 synthetic history from `tools/layout-test-server.py`.
+
+
+### Weekly weight outlook
+
+Weight options → Start a cut explicitly enables a configurable weekly loss target.
+The setup uses the existing measurement ruler and offers an optional Sunday 20:00
+reminder. The server stores revisioned goal settings; the app caches them per
+account/device, and never changes weight measurements or Health exports to meet a goal.
+The neutral outlook card matches Morning outlook. Week medians and the selected
+pace are separate from the raw Weight chart. An entry appears in Today’s weight
+check-in only while a cut is active. Edit goal supports pausing; restarting starts
+a fresh phase. Reminder day/time changes save with the goal without resetting pace.
+
+Deploy backend migration 0014 and `/weight-goal` before installing. Weekly
+notifications are calendar-based local reminders, scheduled by iOS without needing
+to fetch measurements in the background. They contain neutral copy and open the
+latest available outlook after syncing. The goal timezone is fixed at setup and
+shown in About. Pausing, disabling reminders or changing account removes the old
+local request after reconciliation. Changes made on another device are picked up
+on the next sync; they cannot revoke an offline device's notification immediately.
+
+`WeeklyWeightTests` covers scheduling, permission, pause races, scope changes and
+failed saves. `NotificationResponseTests` includes the weekly route on the main
+thread. Run `python3 tools/weekly-weight-test-server.py` for `WeeklyWeightUITests`;
+its loopback server uses synthetic data only. Backend algorithm and isolated
+Postgres cases cover median robustness, sparse dates, goal changes and stall rules.

@@ -8,10 +8,11 @@ struct MeasurementRuler: View {
     let step: Double
     let unit: String
     let label: String
+    var majorTickEvery = 10
     var onEditing: () -> Void = {}
 
     var body: some View {
-        RulerSurface(value: $value, range: range, step: step, onEditing: onEditing)
+        RulerSurface(value: $value, range: range, step: step, majorTickEvery: majorTickEvery, onEditing: onEditing)
             .frame(height: 92)
             .overlay(alignment: .top) {
                 Capsule().fill(SnoopStyle.load).frame(width: 3, height: 38).allowsHitTesting(false)
@@ -31,13 +32,14 @@ private struct RulerSurface: UIViewRepresentable {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
+    let majorTickEvery: Int
     let onEditing: () -> Void
 
     func makeUIView(context: Context) -> Surface { Surface() }
     func updateUIView(_ view: Surface, context: Context) {
         view.changed = { value = $0 }
         view.editing = onEditing
-        view.configure(value: value, range: range, step: step)
+        view.configure(value: value, range: range, step: step, majorTickEvery: majorTickEvery)
     }
 
     final class Surface: UIView, UIScrollViewDelegate {
@@ -68,7 +70,8 @@ private struct RulerSurface: UIViewRepresentable {
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-        func configure(value: Double, range: ClosedRange<Double>, step: Double) {
+        func configure(value: Double, range: ClosedRange<Double>, step: Double, majorTickEvery: Int) {
+            ticks.majorTickEvery = max(1, majorTickEvery)
             let scaleChanged = self.range != range || self.step != step
             self.range = range; self.step = step
             let clamped = min(max(value, range.lowerBound), range.upperBound)
@@ -116,6 +119,7 @@ private struct RulerSurface: UIViewRepresentable {
 
     private final class Ticks: UIView {
         var start = 0.0, end = 1.0, step = 1.0, offset = 0.0, spacing = 12.0
+        var majorTickEvery = 10
         override func draw(_ rect: CGRect) {
             guard let context = UIGraphicsGetCurrentContext(), step > 0 else { return }
             let first = max(0, Int(floor((offset - bounds.midX) / spacing)))
@@ -128,7 +132,7 @@ private struct RulerSurface: UIViewRepresentable {
             for index in first...last {
                 let value = start + Double(index) * step
                 let tick = Int((value / step).rounded())
-                let major = tick.isMultiple(of: 10)
+                let major = tick.isMultiple(of: majorTickEvery)
                 let x = bounds.midX + Double(index) * spacing - offset
                 context.setStrokeColor(UIColor(major ? SnoopStyle.secondary : SnoopStyle.track).cgColor)
                 context.setLineWidth(1)
@@ -136,7 +140,8 @@ private struct RulerSurface: UIViewRepresentable {
                 context.addLine(to: CGPoint(x: x, y: major ? 34 : tick.isMultiple(of: 5) ? 26 : 18))
                 context.strokePath()
                 if major {
-                    let text = value.formatted(.number.precision(.fractionLength(0))) as NSString
+                    let decimals = Double(majorTickEvery) * step < 1 ? 1 : 0
+                    let text = value.formatted(.number.precision(.fractionLength(decimals))) as NSString
                     let width = text.size(withAttributes: attributes).width
                     // A clipped "80" must not look like a separate "0" reading.
                     // Keep edge ticks, but draw labels only when the whole number fits.

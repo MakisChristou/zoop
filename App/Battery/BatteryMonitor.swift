@@ -16,6 +16,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
     /// Set from a tapped session notification; the Activity tab clears it once shown.
     var openWorkout: Int64?
     var openWeightScope: String?
+    var openWeeklyWeightScope: String?
     var openECGScope: String?
     var alertsEnabled: Bool {
         didSet { defaults.set(alertsEnabled, forKey: "battery.alertsEnabled"); if alertsEnabled { evaluateSoon() } }
@@ -265,6 +266,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
         switch destination {
         case "battery": openBattery = true
         case "weight": openWeightScope = scope
+        case "weeklyWeight": openWeeklyWeightScope = scope
         case "ecg": openECGScope = scope
         case "workout": openWorkout = id
         default: break

@@ -13,6 +13,9 @@ struct WeightView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if model.weeklyWeight.goal?.active == true, let summary = model.weeklyWeight.summary {
+                    NavigationLink { WeeklyWeightView() } label: { WeeklyWeightCard(summary: summary, unit: unit) }.buttonStyle(.plain).accessibilityIdentifier("openWeeklyWeight")
+                }
                 if rows.isEmpty { empty } else {
                     WeightTrendChart(readings: rows, unit: unit, logWeight: { adding = true }, openReading: { editing = $0 })
                     VStack(spacing: 4) {

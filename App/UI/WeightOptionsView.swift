@@ -8,6 +8,7 @@ struct WeightOptionsView: View {
     @AppStorage("weightUnit") private var unit = "kg"
     @AppStorage("weightMovingAverage") private var showAverage = false
     @State private var importing = false
+    @State private var settingGoal = false
     @State private var exportURL: URL?
     @State private var exportError: String?
     var body: some View {
@@ -15,6 +16,18 @@ struct WeightOptionsView: View {
             Form {
                 Section {
                     NavigationLink("Reminders") { NotificationSettingsView() }
+                }
+                Section {
+                    if model.weeklyWeight.goal?.active == true {
+                        NavigationLink("Weekly outlook") { WeeklyWeightView() }.accessibilityIdentifier("weightGoalOptions")
+                    } else {
+                        Button("Start a cut") { settingGoal = true }.accessibilityIdentifier("weightGoalOptions").disabled(!model.weeklyWeight.loaded)
+                    }
+                    if let error = model.weeklyWeight.error {
+                        Text(error).foregroundStyle(SnoopStyle.secondary)
+                        Button("Retry") { Task { await model.weeklyWeight.reload() } }
+                            .disabled(model.weeklyWeight.loading)
+                    }
                 }
                 Section("Chart") {
                     Toggle("7-day moving average", isOn: $showAverage).accessibilityIdentifier("weightMovingAverage")
@@ -38,8 +51,10 @@ struct WeightOptionsView: View {
             .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
             .navigationTitle("Weight options").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .sheet(isPresented: $settingGoal) { WeightGoalSetupView(onSaved: { dismiss() }) }
             .sheet(isPresented: $importing) { WeightImportView() }
             .task { await model.battery.refreshAuthorization() }
+            .task { await model.weeklyWeight.reload() }
             .task(id: model.health.rows) {
                 exportURL = nil; exportError = nil
                 let rows = model.health.rows, timeZone = TimeZone.current

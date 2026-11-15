@@ -7,6 +7,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showDevice = false
     @State private var showECG = false
+    @State private var showWeeklyWeight = false
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?
     @State private var selectedActivityDay: Date?
@@ -48,6 +49,8 @@ struct RootView: View {
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
         }
+        .sheet(isPresented: $showWeeklyWeight) { NavigationStack { WeeklyWeightView() } }
+        .onChange(of: model.battery.openWeeklyWeightScope, initial: true) { _, _ in openCheckInNotification() }
         .sheet(isPresented: $showECG) { ProfileSheet(open: .ecg) }
         .onChange(of: model.battery.openECGScope, initial: true) { _, scope in
             openCheckInNotification()
@@ -75,6 +78,10 @@ struct RootView: View {
             if scope == current { showECG = true }
             model.battery.openECGScope = nil
         }
+        if let scope = model.battery.openWeeklyWeightScope {
+            if scope == current { showWeeklyWeight = true }
+            model.battery.openWeeklyWeightScope = nil
+        }
         if let scope = model.battery.openWeightScope {
             if scope == current { selection = .today; model.health.openReminder(scope: scope) }
             model.battery.openWeightScope = nil
@@ -91,6 +98,7 @@ struct RootView: View {
         case "sleep": selection = .sleep
         case "trends": selection = .trends
         case "battery": showDevice = true
+        case "weekly-weight": showWeeklyWeight = true
         default: break
         }
         #endif

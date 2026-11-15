@@ -46,6 +46,11 @@ struct WeightCheckIn: View {
                 }
             }
             WeightWeekView(summary: summary, showsCount: false)
+            if model.weeklyWeight.goal?.active == true {
+                NavigationLink { WeeklyWeightView() } label: {
+                    HStack { Text("Weekly outlook"); Spacer(); Image(systemName: "chevron.right") }.font(.caption).foregroundStyle(SnoopStyle.secondary).frame(minHeight: 44)
+                }.buttonStyle(.plain).accessibilityIdentifier("todayWeeklyWeight")
+            }
         }.snoopCard()
         .tint(SnoopStyle.load)
         .sheet(isPresented: $adding) { WeightEntryView() }

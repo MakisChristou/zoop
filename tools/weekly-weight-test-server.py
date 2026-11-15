@@ -1,0 +1,37 @@
+"""Loopback-only UI fixture. Every goal and measurement is synthetic."""
+import json
+from datetime import datetime, timezone, timedelta
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
+
+now = datetime.now(timezone.utc)
+stamp = lambda d: d.isoformat().replace('+00:00', 'Z')
+goals = {}
+def goal():
+    return dict(revision=1, active=True, started_at=stamp(now-timedelta(days=28)),
+                pace_started_at=stamp(now-timedelta(days=28)), timezone='UTC', weekly_loss_kg=.3,
+                reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
+def summary(g):
+    end=now.date()-timedelta(days=(now.weekday()+1)%7)
+    weeks=[dict(start=str(end-timedelta(days=6+(3-i)*7)), end=str(end-timedelta(days=(3-i)*7)),
+                median_kg=63.3-.3*i, count=6, eligible=True) for i in range(4)]
+    return dict(algorithm_version=1, start=weeks[-1]['start'], end=weeks[-1]['end'], provisional=False,
+                state='on_pace', reason='within_target', median_kg=62.4, change_kg=-.3,
+                weekly_loss_kg=g['weekly_loss_kg'], count=6, week_number=4, weeks=weeks)
+class Handler(BaseHTTPRequestHandler):
+    def send(self, data, status=200):
+        raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def do_GET(self):
+        path=urlparse(self.path).path;device=path.split('/')[3] if len(path.split('/'))>3 else ''
+        if path.endswith('/weight-goal'):
+            g=goals.setdefault(device,goal());return self.send(dict(goal=g,summary=summary(g) if g['active'] else None))
+        if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))
+        if path.endswith('/weight-changes'):return self.send(dict(rows=[dict(id='health:weekly-test',measured_at=stamp(now),kg=62.4,source='health',source_name='Test scale',version=1,removed=False)],next_cursor=1,watermark=1,done=True))
+        return self.send({},404)
+    def do_PUT(self):
+        data=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))))
+        if self.path.endswith('/weight-goal'):
+            device=self.path.split('/')[3];g=goals.setdefault(device,goal());g.update(data);g['revision']+=1;g['updated_at']=stamp(datetime.now(timezone.utc));return self.send(g)
+        return self.send({},404)
+    def log_message(self,*args):pass
+if __name__=='__main__':ThreadingHTTPServer(('127.0.0.1',28482),Handler).serve_forever()

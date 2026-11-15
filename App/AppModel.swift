@@ -21,6 +21,7 @@ final class AppModel {
     let ecg: ECGRecorder
     let battery = BatteryMonitor()
     let reminders = DailyReminderScheduler()
+    let weeklyWeight = WeeklyWeightStore()
     let offBody = OffBodyMonitor()
     @ObservationIgnored private var reminderSettingsObserver: NSObjectProtocol?
     @ObservationIgnored private var reminderConnection = Settings.connectionID
@@ -119,7 +120,8 @@ final class AppModel {
     }
 
     func refreshReminders() {
-        guard isOnboarded, let scope = health.reminderScope else { reminders.update(nil); return }
+        guard isOnboarded, let scope = health.reminderScope else { reminders.update(nil); weeklyWeight.activate(device: "", scope: nil); return }
+        weeklyWeight.activate(device: health.reminderDevice, scope: scope)
         let ecgDays = Set(ecg.recordings.filter { $0.device == health.reminderDevice && $0.sampleCount > 0 }.map { DayKey.string($0.startedAt) })
         reminders.update(.init(scope: scope, weightEnabled: health.canRemind, weightDays: health.reminderWeightDays, ecgDays: ecgDays))
     }
