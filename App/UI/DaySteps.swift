@@ -34,6 +34,9 @@ struct DaySteps: View {
                 Text("Steps").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
             }
             .accessibilityElement(children: .combine)
+            if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: day) {
+                StepGoalProgress(steps: noData ? nil : loaded?.walking ?? summary?.stepsWalking, target: target)
+            }
             if case .failed = state {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Couldn’t update steps").font(.headline)

@@ -10,7 +10,7 @@ goals = {}
 def goal():
     return dict(revision=1, active=True, started_at=stamp(now-timedelta(days=28)),
                 pace_started_at=stamp(now-timedelta(days=28)), timezone='UTC', weekly_loss_kg=.3,
-                finish_date=str((now+timedelta(days=28)).date()), reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
+                daily_steps_goal=8000, finish_date=str((now+timedelta(days=28)).date()), reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
 def summary(g):
     end=now.date()-timedelta(days=(now.weekday()+1)%7)
     weeks=[dict(start=str(end-timedelta(days=6+(3-i)*7)), end=str(end-timedelta(days=(3-i)*7)),
@@ -27,6 +27,10 @@ class Handler(BaseHTTPRequestHandler):
             g=goals.setdefault(device,goal());return self.send(dict(goal=g,summary=summary(g) if g['active'] else None))
         if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))
         if path.endswith('/weight-changes'):return self.send(dict(rows=[dict(id='health:weekly-test',measured_at=stamp(now),kg=62.4,source='health',source_name='Test scale',version=1,removed=False)],next_cursor=1,watermark=1,done=True))
+        if path.endswith('/steps'):
+            hours=[0]*24;hours[9]=2200;hours[13]=3400
+            return self.send(dict(day=path.split('/')[-2],hours=hours,walking_hours=hours,total=5600,walking=5600,bouts=[]))
+        if path.endswith(('/days','/nights','/minutes','/sessions')):return self.send([])
         return self.send({},404)
     def do_PUT(self):
         data=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))))

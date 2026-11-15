@@ -7,6 +7,7 @@ import SwiftUI
 struct WeightTrendChart: View {
     let readings: [WeightReading]
     let unit: String
+    var target: WeightChartTarget? = nil
     var logWeight: () -> Void = {}
     var openReading: (WeightReading) -> Void = { _ in }
     @AppStorage("weightMovingAverage") private var showAverage = false
@@ -44,13 +45,15 @@ struct WeightTrendChart: View {
     private var scale: (range: ClosedRange<Double>, ticks: [Double]) {
         let rawValues = (visible.isEmpty ? Array(points.suffix(1)) : Array(visible)).map { display($0.kg) }
         let averageValues = showAverage ? averages.filter { $0.date >= range.start && $0.date < range.end }.map { display($0.average) } : []
-        let values = rawValues + averageValues
+        let values = rawValues + averageValues + (targetSegment == nil ? [] : target.map { [display($0.kg)] } ?? [])
         let low = values.min() ?? 80, high = values.max() ?? low, span = max(high - low, unit == "lb" ? 4 : 2)
         let magnitude = pow(10, floor(log10(span / 4)))
         let step = ([1.0, 2, 2.5, 5, 10].first { $0 >= span / 4 / magnitude } ?? 10) * magnitude
         let middle = (low + high) / 2, bottom = floor((middle - span * 0.6) / step) * step, top = ceil((middle + span * 0.6) / step) * step
         return (bottom...top, Array(stride(from: bottom, through: top + step * 0.01, by: step)))
     }
+    private var targetSegment: DateInterval? { target?.segment(in: range) }
+    private var targetLabel: String { target.map { "Target \(display($0.kg).formatted(.number.precision(.fractionLength(1)))) \(unit)" } ?? "" }
     private var ticks: [Date] {
         let count = calendar.dateComponents([.day], from: range.start, to: range.end).day ?? 1
         let offsets = period == .week && !typeSize.isAccessibilitySize ? Array(0..<count) : [0, (count - 1) / 2, count - 1]
@@ -80,9 +83,9 @@ struct WeightTrendChart: View {
             }
             chart.frame(height: min(chartHeight, 320)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .overlay { if visible.isEmpty { Text("No weigh-ins in this period").font(.subheadline).foregroundStyle(SnoopStyle.secondary).allowsHitTesting(false) } }
-                .accessibilityElement(children: .ignore).accessibilityLabel("Weight chart")
-                .accessibilityValue("\(rangeLabel). \(displayed.map { "\(display($0.kg).formatted(.number.precision(.fractionLength(1)))) \(unit). \(measurementDate)" } ?? "No weigh-ins")")
-                .accessibilityHint("Swipe up or down to inspect readings. Previous and next period actions browse history.")
+                .accessibilityElement(children: .ignore).accessibilityLabel("Weight chart").accessibilityIdentifier("weightChart")
+                .accessibilityValue("\(rangeLabel). \(displayed.map { "\(display($0.kg).formatted(.number.precision(.fractionLength(1)))) \(unit). \(measurementDate)" } ?? "No weigh-ins")" + (targetSegment == nil ? "" : ". " + targetLabel))
+                .accessibilityHint((targetSegment == nil ? "" : targetLabel + ". ") + "Swipe up or down to inspect readings. Previous and next period actions browse history.")
                 .accessibilityAdjustableAction { direction in
                     guard !visible.isEmpty else { return }
                     let index = selectedID.flatMap { id in visible.firstIndex { $0.id == id } } ?? bounds.upperBound - 1
@@ -129,6 +132,15 @@ struct WeightTrendChart: View {
     }
     private var chart: some View {
         Chart {
+            if let target, let segment = targetSegment {
+                RuleMark(xStart: .value("Cut start", segment.start), xEnd: .value("Cut finish", segment.end), y: .value("Target weight", display(target.kg)))
+                    .foregroundStyle(SnoopStyle.secondary)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [1, 4]))
+                    .annotation(position: .top, alignment: .trailing) {
+                        Text(targetLabel).font(.caption2).foregroundStyle(SnoopStyle.secondary).padding(.horizontal, 3).background(SnoopStyle.background)
+                            .accessibilityIdentifier("weightChartTarget")
+                    }
+            }
             ForEach(visible) { point in
                 LineMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg)), series: .value("Series", "weight-\(point.segment)"))
                     .foregroundStyle(SnoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))

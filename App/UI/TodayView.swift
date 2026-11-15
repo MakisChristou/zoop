@@ -154,8 +154,12 @@ struct TodayView: View {
                 }
                 MetricValue((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
                     .padding(.top, 4)
-                Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) {
+                    StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
+                } else {
+                    Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
+                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                }
                 if let steps = currentSteps {
                     HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)
                         .frame(height: 72).padding(.top, 8).accessibilityHidden(true)

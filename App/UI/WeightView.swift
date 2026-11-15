@@ -17,7 +17,7 @@ struct WeightView: View {
                     NavigationLink { WeeklyWeightView() } label: { WeeklyWeightCard(summary: summary, unit: unit) }.buttonStyle(.plain).accessibilityIdentifier("openWeeklyWeight")
                 }
                 if rows.isEmpty { empty } else {
-                    WeightTrendChart(readings: rows, unit: unit, logWeight: { adding = true }, openReading: { editing = $0 })
+                    WeightTrendChart(readings: rows, unit: unit, target: CutTargets.weight(goal: model.weeklyWeight.goal, summary: model.weeklyWeight.summary), logWeight: { adding = true }, openReading: { editing = $0 })
                     VStack(spacing: 4) {
                         HStack {
                             Text("Recent weigh-ins").font(.headline)

@@ -536,3 +536,13 @@ The finish date does not restart pace comparisons; resuming a paused cut still d
 Dated reminders schedule up to eight upcoming one-shot weeks, refreshed on app sync,
 so none can fire after the finish date even while offline. Open-ended cuts retain their
 repeating reminder. Backend migration 0015 preserves existing open-ended goals.
+
+The raw Weight chart includes the cut's calculated target as a dotted horizontal
+line, labelled in the selected weight unit. Its axis includes the target, and the
+line is clipped to the cut dates so browsing earlier periods does not imply a goal
+existed then. Paused cuts and unknown targets have no line.
+An optional daily step goal is saved with the cut. Today and the current-day Steps
+page show the measured count against it; missing data remains unknown. It is hidden
+for historical days, paused cuts, and after the finish date. Changing this goal does
+not restart weight comparisons or change sensor measurements. Migration 0016 is
+required for step-goal persistence; old clients preserve the setting when omitted.
