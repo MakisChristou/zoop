@@ -35,13 +35,17 @@ import XCTest
         XCTAssertTrue(relaunched.descendants(matching: .any)["ecgReminderTime"].firstMatch.exists)
         relaunched.switches["ecgReminderEnabled"].firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertFalse(relaunched.descendants(matching: .any)["ecgReminderTime"].firstMatch.exists)
-        XCTAssertFalse(relaunched.switches["Off-body"].exists)
+        XCTAssertTrue(relaunched.switches["offBodyReminderEnabled"].exists)
         shot(relaunched, "Optional ECG reminder off")
     }
     func testLargeTextKeepsSettingsReachable() {
         let app = launch(large: true)
         XCTAssertTrue(app.switches["weightReminderEnabled"].firstMatch.exists)
         shot(app, "Notifications at accessibility text size")
+        let offBody = app.switches["offBodyReminderEnabled"]
+        for _ in 0..<8 where !offBody.isHittable { app.swipeUp() }
+        XCTAssertTrue(offBody.isHittable)
+        shot(app, "Off-body reminder at accessibility text size")
         let settings = app.buttons["iPhone notification settings"]
         let allow = app.buttons["Allow notifications"]
         for _ in 0..<6 where !settings.isHittable && !allow.isHittable { app.swipeUp() }

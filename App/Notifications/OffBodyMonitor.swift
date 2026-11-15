@@ -4,9 +4,9 @@ import OSLog
 import SnoopBattery
 import UserNotifications
 
-/// Candidate event mapping stays gated until a controlled remove/reattach test.
+/// Fresh live wear events schedule one reminder per removal episode.
 @MainActor @Observable final class OffBodyMonitor {
-    static let validated = false
+    static let available = true
     private static let wornCode: UInt8 = 9
     private static let removedCode: UInt8 = 10
     private static let prefix = "snoop.offbody."
@@ -21,7 +21,7 @@ import UserNotifications
     private var pending: Task<Void, Never>?
     private var generation = 0
     private let log = Logger(subsystem: "snoop", category: "wear")
-    init(defaults: UserDefaults = .standard, center: ReminderNotificationClient = .live, featureEnabled: Bool = OffBodyMonitor.validated, clock: @escaping () -> Date = Date.init) {
+    init(defaults: UserDefaults = .standard, center: ReminderNotificationClient = .live, featureEnabled: Bool = OffBodyMonitor.available, clock: @escaping () -> Date = Date.init) {
         self.defaults = defaults; self.center = center; self.featureEnabled = featureEnabled; self.clock = clock
         enabled = defaults.object(forKey: "reminders.offBody") as? Bool ?? true
         // An old process cannot establish continuity. Leave any new episode alone.
@@ -34,7 +34,7 @@ import UserNotifications
     func receive(code: UInt8, at: Date, live: Bool) {
         guard code == Self.wornCode || code == Self.removedCode else { return }
         // Diagnostics record the code and event freshness only, never a health inference.
-        if live { log.info("wear candidate: code=\(code), age=\(Date().timeIntervalSince(at))s") }
+        if live { log.info("wear event: code=\(code), age=\(Date().timeIntervalSince(at))s") }
         guard featureEnabled, enabled, policy.receive(worn: code == Self.wornCode, at: at, now: clock(), live: live) else { return }
         let before = removedAt; removedAt = policy.removedAt
         guard before != removedAt else { return }

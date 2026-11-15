@@ -22,10 +22,10 @@ struct NotificationSettingsView: View {
             .listRowBackground(SnoopStyle.surface)
             Section("My WHOOP") {
                 Toggle("Battery alerts", isOn: Binding(get: { model.battery.alertsEnabled }, set: { model.battery.alertsEnabled = $0; requestPermission() }))
-                if OffBodyMonitor.validated {
+                if OffBodyMonitor.available {
                     Toggle(isOn: Binding(get: { model.offBody.enabled }, set: { model.offBody.enabled = $0; requestPermission() })) {
                         VStack(alignment: .leading, spacing: 3) { Text("Off-body"); Text("After 10 minutes").font(.caption).foregroundStyle(SnoopStyle.secondary) }
-                    }
+                    }.accessibilityIdentifier("offBodyReminderEnabled")
                 }
             }.listRowBackground(SnoopStyle.surface)
             Section {
@@ -48,7 +48,7 @@ struct NotificationSettingsView: View {
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.battery.refreshAuthorization(); model.refreshReminders() } } }
     }
     private func requestPermission() {
-        guard model.health.canRemind || model.reminders.ecgEnabled || model.battery.alertsEnabled || (OffBodyMonitor.validated && model.offBody.enabled) else { return }
+        guard model.health.canRemind || model.reminders.ecgEnabled || model.battery.alertsEnabled || (OffBodyMonitor.available && model.offBody.enabled) else { return }
         Task { await model.battery.requestNotificationsIfNeeded(); model.refreshReminders() }
     }
     private func time(get: @escaping () -> Int, set: @escaping (Int) -> Void) -> Binding<Date> {

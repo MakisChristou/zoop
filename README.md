@@ -424,8 +424,11 @@ Battery alerts remain driven by fresh live device readings and can be disabled i
 Notifications. The off-body implementation waits ten minutes after a fresh live
 removal event, cancels on reattachment or loss of continuity, and alerts once per
 removal. It never uses missing heart rate, rest/motion, or disconnection as removal
-evidence. **Its candidate event mapping is gated off, and its settings row hidden,
-until controlled hardware removal/reattachment validation.**
+evidence. Off-body reminders are enabled by default and can be switched off in
+Profile → Notifications. Live removal (code 10) and reattachment (code 9) events
+have been observed on MG hardware. Historical uploads do not start a timer, and
+reconnecting or restarting requires a new live removal event. A real ten-minute
+notification delivery check remains separate from signal and automated tests.
 
 Deploy backend migration 0009 before installing this app. HealthKit and background
 Health delivery require an enabled App ID, suitable provisioning profile, and current
