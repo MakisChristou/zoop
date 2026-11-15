@@ -27,6 +27,7 @@ pub struct WeightWeek {
 #[derive(Debug, Serialize)]
 pub struct WeightOutlook {
     pub algorithm_version: i32,
+    pub progress: Option<crate::CutProgress>,
     pub start: NaiveDate,
     pub end: NaiveDate,
     pub provisional: bool,
@@ -152,6 +153,7 @@ pub fn weight_outlook(
     };
     WeightOutlook {
         algorithm_version: 1,
+        progress: None,
         start: c.start,
         end: c.end,
         provisional: c.end >= today,

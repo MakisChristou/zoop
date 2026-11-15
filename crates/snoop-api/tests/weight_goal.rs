@@ -113,3 +113,71 @@ async fn daily_health_priority_dst_deletions_and_bounded_read_only_summary() {
             .await
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn finish_date_validation_legacy_client_and_clear_preserve_phase() {
+    let db = Db::new().await;
+    let today = chrono::Utc::now().date_naive();
+    let mut q = input();
+    q["timezone"] = json!("UTC");
+    for date in [
+        today - chrono::Duration::days(1),
+        today,
+        today + chrono::Duration::days(731),
+    ] {
+        q["finish_date"] = json!(date);
+        assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.0, 400);
+    }
+    let finish = today + chrono::Duration::days(56);
+    q["finish_date"] = json!(finish);
+    let (status, first) = call(&db, DEVICE, Some(q.clone()), true).await;
+    assert_eq!(status, 200);
+    assert_eq!(first["finish_date"], json!(finish));
+    assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.1, first);
+    q.as_object_mut().unwrap().remove("finish_date");
+    q["revision"] = json!(1);
+    q["reminder_minute"] = json!(1100);
+    let saved = call(&db, DEVICE, Some(q.clone()), true).await.1;
+    assert_eq!(saved["finish_date"], json!(finish));
+    assert_eq!(saved["started_at"], first["started_at"]);
+    q["revision"] = json!(2);
+    q["finish_date"] = Value::Null;
+    let cleared = call(&db, DEVICE, Some(q.clone()), true).await.1;
+    assert!(cleared["finish_date"].is_null());
+    assert_eq!(cleared["pace_started_at"], first["pace_started_at"]);
+    q["revision"] = json!(3);
+    q["finish_date"] = json!(finish + chrono::Duration::days(7));
+    let edited = call(&db, DEVICE, Some(q), true).await.1;
+    assert_eq!(edited["pace_started_at"], first["pace_started_at"]);
+    let response = call(&db, DEVICE, None, true).await.1;
+    assert_eq!(response["summary"]["progress"]["weeks_remaining"], 9);
+    assert!(response["summary"]["progress"]["target_weight_kg"].is_null());
+    assert_eq!(db.count("SELECT count(*) FROM weight_readings").await, 0);
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn old_finished_cut_uses_original_health_baseline_and_excludes_later_weights() {
+    let db = Db::new().await;
+    call(&db, DEVICE, Some(input()), true).await;
+    db.sql("UPDATE weight_goals SET started_at='2020-11-16T10:00:00Z',pace_started_at='2020-11-16T10:00:00Z',timezone='UTC',finish_date='2020-11-30'").await;
+    db.sql("INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES ('TEST-RELIABILITY','health:start','2020-11-16T08:00:00Z',63,'health','Test',false),('TEST-RELIABILITY','snoop:start','2020-11-16T09:00:00Z',80,'snoop','Test',false),('TEST-RELIABILITY','health:end','2020-11-30T08:00:00Z',61,'health','Test',false),('TEST-RELIABILITY','health:later','2020-12-01T08:00:00Z',80,'health','Test',false)").await;
+    let before = db
+        .count("SELECT sum(version)::bigint FROM weight_readings")
+        .await;
+    let (status, r) = call(&db, DEVICE, None, true).await;
+    assert_eq!(status, 200);
+    let p = &r["summary"]["progress"];
+    assert_eq!(p["starting_weight_kg"], 63.0);
+    assert_eq!(p["current_weight_kg"], 61.0);
+    assert_eq!(p["total_lost_kg"], 2.0);
+    assert_eq!(p["target_weight_kg"], 62.4);
+    assert_eq!(p["completed"], true);
+    assert_eq!(p["weeks_remaining"], 0);
+    assert_eq!(
+        before,
+        db.count("SELECT sum(version)::bigint FROM weight_readings")
+            .await
+    );
+}

@@ -360,3 +360,15 @@ Pure regression cases run in `just ci`. Database regressions use an isolated sch
 `SNOOP_TEST_DATABASE_URL=<development-url> cargo test -p snoop-api --test weight_goal -- --ignored`.
 They cover opt-in, authentication, invalid inputs, source priority, DST, deletion,
 revision conflict, idempotent retries, pause, and preservation of measurement rows.
+
+Finish dates (migration 0015) are optional local calendar dates, after the start and
+within 730 days. Omitted PUT fields preserve the date for older clients; explicit
+null clears it. Date-only edits retain both phase and pace start dates.
+`summary.progress` reports rounded-up weeks remaining, observed total loss (negative
+for a gain), and target weight = starting median − weekly rate × calendar days / 7.
+The baseline is the median of canonical daily weights in the seven days ending at
+start; if absent, the first reading within the next seven days. Current progress is
+the trailing seven-day median, capped at finish. Late imports/corrections can refine
+these observations. Baseline queries remain bounded even for old cuts; absent/stale
+weights and unsupported projections stay null. This is arithmetic against a chosen
+goal, not a predicted fat-loss trajectory. Reads never alter Health or weight records.

@@ -21,3 +21,6 @@ pub use progress::{Period, Progress, ProgressMetric, progress};
 
 mod weight_outlook;
 pub use weight_outlook::{WeightOutlook, WeightWeek, weight_outlook};
+
+mod cut_progress;
+pub use cut_progress::{CutProgress, cut_progress};

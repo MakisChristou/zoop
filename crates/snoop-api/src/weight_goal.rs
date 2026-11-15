@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use serde::Serialize;
 use snoop_storage::{WeightGoal, WeightGoalInput};
 
@@ -27,14 +27,31 @@ pub(crate) async fn get(
             .store
             .weight_local_day(g.pace_started_at, &g.timezone)
             .await?;
-        let days = s.store.weight_goal_days(&d, &g.timezone, now).await?;
-        summary = Some(snoop_core::weight_outlook(
+        let as_of = g.finish_date.map_or(today, |end| end.min(today));
+        let days = s
+            .store
+            .weight_days_between(&d, &g.timezone, as_of - Duration::days(112), as_of, now)
+            .await?;
+        let baseline = s
+            .store
+            .weight_days_between(
+                &d,
+                &g.timezone,
+                started - Duration::days(6),
+                started + Duration::days(7),
+                now,
+            )
+            .await?;
+        let mut outlook = snoop_core::weight_outlook(&days, as_of, started, pace, g.weekly_loss_kg);
+        outlook.progress = Some(snoop_core::cut_progress(
+            &baseline,
             &days,
             today,
             started,
-            pace,
+            g.finish_date,
             g.weekly_loss_kg,
         ));
+        summary = Some(outlook);
     }
     Ok(Json(Response { goal, summary }))
 }
