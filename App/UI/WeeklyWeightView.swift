@@ -17,6 +17,7 @@ struct WeeklyWeightView: View {
                         VStack(alignment: .leading) { Text(period(summary)).font(.headline); Text("Cut · Week \(summary.weekNumber)").foregroundStyle(SnoopStyle.secondary) }
                     }
                     WeeklyWeightCard(summary: summary, unit: unit)
+                    if let progress = summary.progress { CutProgressView(progress: progress, unit: unit) }
                     let points = chartPoints(summary)
                     if points.count >= 2 {
                         VStack(alignment: .leading, spacing: 16) {
@@ -79,6 +80,7 @@ struct WeeklyWeightView: View {
                     Text("Comparisons need at least four weigh-ins spread across five days in both weeks. Missing days stay missing. The first week and incomplete weeks are not judged.")
                     Text("Your target allows a margin of 0.1 kg per week or 25%, whichever is larger, capped at half your target. A possible stall needs three adequately recorded weeks with little change. These are descriptive rules, not a diagnosis or an estimate of fat loss.")
                     Text("Sunday’s outlook includes readings synced so far. Late imports and corrections update it. Changing your rate starts a fresh comparison period; pausing stops the weekly reminder.")
+                    Text("Total loss compares your starting median with your latest seven-day median. The starting median uses the seven days ending at your start date; without those, your first reading in the next seven days is used. Corrections and late imports can refine it. Target weight is starting weight minus your selected weekly rate over the calendar days to finish. It is a goal, not a prediction. After finishing, progress excludes later weigh-ins.")
                     Text("Faster loss is not automatically better. Your target never changes your calories or recorded weights.")
                     if let zone = store.goal?.timezone { Text("Goal calendar and reminder: \(zone)").font(.footnote).foregroundStyle(SnoopStyle.secondary) }
                 }.padding(SnoopStyle.gutter)
@@ -96,7 +98,7 @@ struct WeeklyWeightCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack { Text("Weight outlook").font(.subheadline.weight(.semibold)); Spacer(); if !typeSize.isAccessibilitySize { Image(systemName: "scalemass") } }.foregroundStyle(SnoopStyle.secondary)
-            Text(WeeklyWeightPresentation.title(summary.state)).font(.system(size: titleSize, weight: .bold)).foregroundStyle(WeeklyWeightPresentation.color(summary.state))
+            Text(summary.progress?.completed == true ? "Cut finished" : WeeklyWeightPresentation.title(summary.state)).font(.system(size: titleSize, weight: .bold)).foregroundStyle(summary.progress?.completed == true ? SnoopStyle.secondary : WeeklyWeightPresentation.color(summary.state))
                 .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("weeklyWeightStatus")
             let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .top, spacing: 20))
             layout {

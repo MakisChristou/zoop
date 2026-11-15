@@ -2,12 +2,14 @@ import XCTest
 import UserNotifications
 @testable import Snoop
 
+@MainActor private final class WeeklyResponseSlot { var continuation: CheckedContinuation<SnoopAPI.WeeklyWeightResponse, Never>? }
+
 @MainActor final class WeeklyWeightTests: XCTestCase {
     private var requests: [String: UNNotificationRequest] = [:]
     private var permission = UNAuthorizationStatus.authorized
     private var added = 0
     private var beforeAdd: (() async -> Void)?
-    private var responseContinuation: CheckedContinuation<SnoopAPI.WeeklyWeightResponse, Never>?
+    private let response = WeeklyResponseSlot()
     private func scheduler() -> WeeklyWeightReminder {
         WeeklyWeightReminder(center: .init(authorization: { self.permission }, pending: { Array(self.requests.values) }, delivered: { [] }, add: { request in
             await self.beforeAdd?(); self.added += 1; self.requests[request.identifier] = request
@@ -55,14 +57,15 @@ import UserNotifications
         let defaults = UserDefaults(suiteName: domain)!
         defer { defaults.removePersistentDomain(forName: domain) }
         let goal = goal()
+        let response = response
         let store = WeeklyWeightStore(defaults: defaults, reminder: scheduler(), loader: { _ in
-            await withCheckedContinuation { continuation in Task { @MainActor in self.responseContinuation = continuation } }
+            await withCheckedContinuation { continuation in Task { @MainActor in response.continuation = continuation } }
         }, saver: { _, _ in throw URLError(.notConnectedToInternet) })
         store.activate(device: "first", scope: "a")
         let fetch = Task { await store.reload() }
-        while responseContinuation == nil { await Task.yield() }
+        while response.continuation == nil { await Task.yield() }
         store.activate(device: "", scope: nil)
-        responseContinuation?.resume(returning: .init(goal: goal, summary: nil)); await fetch.value
+        response.continuation?.resume(returning: .init(goal: goal, summary: nil)); await fetch.value
         XCTAssertNil(store.goal); XCTAssertNil(store.summary)
         let ready = WeeklyWeightStore(defaults: defaults, reminder: scheduler(), loader: { _ in .init(goal: goal, summary: nil) }, saver: { _, _ in throw URLError(.notConnectedToInternet) })
         ready.activate(device: "second", scope: "b"); await ready.reload()

@@ -2,16 +2,17 @@ import Foundation
 import Observation
 import UserNotifications
 
-/// One scoped recurring notification: iOS can deliver without waking the app to compute.
+/// Scoped calendar notifications: dated cuts use finite requests that stop at finish.
 /// Copy never asserts a result before the latest server weights have been fetched.
 @MainActor @Observable final class WeeklyWeightReminder {
+    private let now: () -> Date
     private let center: ReminderNotificationClient
     private var input: (SnoopAPI.WeightGoal?, String?) = (nil, nil)
     private var revision = 0
     private var worker: Task<Void, Never>?
     private static let prefix = "snoop.weekly-weight."
     private(set) var error: String?
-    init(center: ReminderNotificationClient = .live) { self.center = center }
+    init(center: ReminderNotificationClient = .live, now: @escaping () -> Date = Date.init) { self.center = center; self.now = now }
     func update(goal: SnoopAPI.WeightGoal?, scope: String?) {
         input = (goal, scope); revision &+= 1
         guard worker == nil else { return }
@@ -29,24 +30,41 @@ import UserNotifications
         let (goal, scope) = input
         let permission = await center.authorization()
         let enabled = goal?.active == true && goal?.reminderEnabled == true && scope != nil && (permission == .authorized || permission == .provisional)
-        let id = enabled ? Self.prefix + (scope ?? "") : nil
+        var desired: [(String, DateComponents, Bool)] = []
+        if enabled, let goal, let scope {
+            var date = DateComponents()
+            let calendar = CutPlan.calendar(timezone: goal.timezone)
+            date.timeZone = calendar.timeZone; date.weekday = goal.reminderWeekday
+            date.hour = goal.reminderMinute / 60; date.minute = goal.reminderMinute % 60
+            if let finish = CutPlan.date(goal.finishDate, calendar: calendar), let end = calendar.date(byAdding: .day, value: 1, to: finish) {
+                var cursor = now()
+                // Finite requests cannot outlive the cut, even when the app is closed.
+                for _ in 0..<8 {
+                    guard let next = calendar.nextDate(after: cursor, matching: date, matchingPolicy: .nextTime), next < end else { break }
+                    var exact = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: next)
+                    exact.timeZone = calendar.timeZone
+                    desired.append((Self.prefix + scope + "." + CutPlan.key(next, calendar: calendar), exact, false))
+                    cursor = next
+                }
+            } else { desired.append((Self.prefix + scope, date, true)) }
+        }
+        let ids = Set(desired.map { $0.0 })
         let pending = await center.pending()
-        center.removePending(pending.filter { $0.identifier.hasPrefix(Self.prefix) && $0.identifier != id }.map(\.identifier))
+        center.removePending(pending.filter { $0.identifier.hasPrefix(Self.prefix) && !ids.contains($0.identifier) }.map(\.identifier))
         let delivered = await center.delivered()
-        center.removeDelivered(delivered.filter { $0.request.identifier.hasPrefix(Self.prefix) && $0.request.identifier != id }.map { $0.request.identifier })
+        center.removeDelivered(delivered.filter { $0.request.identifier.hasPrefix(Self.prefix) && !ids.contains($0.request.identifier) }.map { $0.request.identifier })
         error = nil
-        guard let id, let goal, let scope else { return }
-        var date = DateComponents()
-        date.timeZone = TimeZone(identifier: goal.timezone)
-        date.weekday = goal.reminderWeekday
-        date.hour = goal.reminderMinute / 60; date.minute = goal.reminderMinute % 60
-        if let existing = pending.first(where: { $0.identifier == id }), let trigger = existing.trigger as? UNCalendarNotificationTrigger, trigger.repeats, trigger.dateComponents == date { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Your weekly weight outlook"
-        content.body = "See how this week compares with your goal."
-        content.sound = .default; content.threadIdentifier = "snoop.weekly-weight"
-        content.userInfo = ["destination": "weeklyWeight", "scope": scope]
-        do { try await center.add(.init(identifier: id, content: content, trigger: UNCalendarNotificationTrigger(dateMatching: date, repeats: true))) }
-        catch { self.error = "Couldn’t schedule your weekly reminder. Try again." }
+        guard let scope else { return }
+        for (id, date, repeats) in desired {
+            if let existing = pending.first(where: { $0.identifier == id }), let old = existing.trigger as? UNCalendarNotificationTrigger, old.repeats == repeats, old.dateComponents == date { continue }
+            let content = UNMutableNotificationContent()
+            content.title = "Your weekly weight outlook"
+            content.body = "See how this week compares with your goal."
+            content.sound = .default; content.threadIdentifier = "snoop.weekly-weight"
+            content.userInfo = ["destination": "weeklyWeight", "scope": scope]
+            let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: repeats)
+            do { try await center.add(.init(identifier: id, content: content, trigger: trigger)) }
+            catch { self.error = "Couldn’t schedule your weekly reminder. Try again." }
+        }
     }
 }

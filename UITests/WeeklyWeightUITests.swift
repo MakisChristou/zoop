@@ -9,11 +9,16 @@ import XCTest
     }
     private func shot(_ app: XCUIApplication, _ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
     func testOutlookAndConfigurableGoal() {
-        let app = launch(); shot(app, "Weekly outlook")
+        let app = launch(); XCTAssertTrue(app.staticTexts["Total lost"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook")
         let edit = app.buttons["editWeightGoal"]
         for _ in 0..<6 where !edit.isHittable { app.swipeUp() }; edit.tap()
         let input = app.textFields["weeklyLossInput"]; XCTAssertTrue(input.waitForExistence(timeout: 5))
-        shot(app, "Cut setup")
+        let finish = app.switches["hasCutFinish"]
+        for _ in 0..<4 where !finish.isHittable { app.swipeUp() }
+        XCTAssertTrue(finish.isHittable)
+        shot(app, "Cut setup with finish")
+        finish.tap()
+        for _ in 0..<4 where !input.isHittable { app.swipeDown() }
         let original = input.value as? String
         if (Double(original ?? "") ?? 0) > 0.5 { app.otherElements["weeklyLossRuler"].swipeRight() }
         else { app.otherElements["weeklyLossRuler"].swipeLeft() }
@@ -24,6 +29,7 @@ import XCTest
         let editAgain = app.buttons["editWeightGoal"]
         for _ in 0..<6 where !editAgain.isHittable { app.swipeUp() }; editAgain.tap()
         XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertEqual(input.value as? String, chosen)
+        XCTAssertEqual(app.switches["hasCutFinish"].value as? String, "0")
         app.buttons["Cancel"].tap()
     }
     func testSmallPhoneAndAccessibilityText() {

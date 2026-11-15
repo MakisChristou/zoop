@@ -526,3 +526,13 @@ failed saves. `NotificationResponseTests` includes the weekly route on the main
 thread. Run `python3 tools/weekly-weight-test-server.py` for `WeeklyWeightUITests`;
 its loopback server uses synthetic data only. Backend algorithm and isolated
 Postgres cases cover median robustness, sparse dates, goal changes and stall rules.
+
+An optional finish date adds a calculated target weight, rounded-up weeks remaining,
+and total weight change. Targets use the starting seven-day median and selected weekly
+rate over calendar days. Baselines can be refined by late Health imports or corrections;
+missing baselines remain unknown. Current progress uses the last seven calendar days,
+without inventing missing readings. Finished cuts exclude all later weigh-ins.
+The finish date does not restart pace comparisons; resuming a paused cut still does.
+Dated reminders schedule up to eight upcoming one-shot weeks, refreshed on app sync,
+so none can fire after the finish date even while offline. Open-ended cuts retain their
+repeating reminder. Backend migration 0015 preserves existing open-ended goals.

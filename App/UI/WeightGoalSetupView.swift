@@ -1,4 +1,5 @@
 import SwiftUI
+import SnoopHealth
 
 struct WeightGoalSetupView: View {
     @Environment(AppModel.self) private var model
@@ -12,12 +13,16 @@ struct WeightGoalSetupView: View {
     @State private var reminder = true
     @State private var weekday = 1
     @State private var minute = 20 * 60
+    @State private var hasFinish = false
+    @State private var finish = Date()
+    @State private var original: SnoopAPI.WeightGoal?
+    @State private var initialized = false
     @State private var error: String?
     @State private var confirmPause = false
     @FocusState private var typing: Bool
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 58.0
     var onSaved: () -> Void = {}
-    private var existing: SnoopAPI.WeightGoal? { model.weeklyWeight.goal }
+    private var existing: SnoopAPI.WeightGoal? { original }
     private var editing: Bool { existing?.active == true }
     private var factor: Double { unit == "lb" ? 2.2046226218 : 1 }
     private var rate: Double? {
@@ -27,11 +32,27 @@ struct WeightGoalSetupView: View {
         let kg = n / factor
         return (0.1...1.0).contains(kg) ? kg : nil
     }
+    private var calendar: Calendar { CutPlan.calendar(timezone: existing?.timezone ?? TimeZone.current.identifier) }
+    private var start: Date { editing ? (existing?.startedAt ?? Date()) : Date() }
+    private var baseline: Double? {
+        if editing { return model.weeklyWeight.summary?.progress?.startingWeightKg }
+        return CutPlan.baseline(model.health.rows, start: start, calendar: calendar)
+    }
+    private var targetWeight: Double? { guard hasFinish, let rate else { return nil }; return CutPlan.target(starting: baseline, rate: rate, start: start, finish: finish, calendar: calendar) }
+    private var finishRange: ClosedRange<Date> {
+        let first = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: start)) ?? start
+        let current = calendar.startOfDay(for: Date())
+        let previous = editing ? CutPlan.date(existing?.finishDate, calendar: calendar) : nil
+        let earliest = previous.map { min($0, max(first, current)) } ?? max(first, current)
+        let latest = calendar.date(byAdding: .day, value: 730, to: start) ?? earliest
+        return min(earliest, latest)...max(earliest, latest)
+    }
+    private var validFinish: Bool { !hasFinish || calendar.startOfDay(for: finish) > calendar.startOfDay(for: start) }
     private var ruler: Binding<Double> {
         Binding(get: { rate.map { $0 * factor } ?? 0.3 * factor }, set: { value = $0.formatted(.number.precision(.fractionLength(1))) })
     }
     private var time: Binding<Date> {
-        Binding(get: { Calendar.current.startOfDay(for: Date()).addingTimeInterval(Double(minute * 60)) }, set: { minute = Calendar.current.component(.hour, from: $0) * 60 + Calendar.current.component(.minute, from: $0) })
+        Binding(get: { Calendar.current.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()) ?? Date() }, set: { minute = Calendar.current.component(.hour, from: $0) * 60 + Calendar.current.component(.minute, from: $0) })
     }
     var body: some View {
         NavigationStack {
@@ -55,6 +76,16 @@ struct WeightGoalSetupView: View {
                             .accessibilityIdentifier("weeklyLossRuler")
                     }.padding(.top, 16).padding(.bottom, 12)
                     VStack(spacing: 12) {
+                        Toggle("Finish date", isOn: $hasFinish).accessibilityIdentifier("hasCutFinish")
+                        if hasFinish {
+                            DatePicker("Finish", selection: $finish, in: finishRange, displayedComponents: .date)
+                                .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone).accessibilityIdentifier("cutFinishDate")
+                            Divider()
+                            HStack { Text("Target weight"); Spacer(); Text(WeeklyWeightPresentation.weight(targetWeight, unit: unit) + (targetWeight == nil ? "" : " " + unit)).monospacedDigit() }
+                                .foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("cutTargetWeight")
+                        }
+                    }.snoopCard()
+                    VStack(spacing: 12) {
                         Toggle("Weekly brief", isOn: $reminder).accessibilityIdentifier("weeklyWeightReminder")
                         if reminder {
                             Divider()
@@ -74,7 +105,7 @@ struct WeightGoalSetupView: View {
                 Button { save(active: true) } label: {
                     HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save changes" : "Start cut").font(.headline) }
                         .frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-                }.buttonStyle(.borderedProminent).disabled(rate == nil || model.weeklyWeight.saving)
+                }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || model.weeklyWeight.saving)
                     .accessibilityIdentifier("saveWeightGoal").padding(SnoopStyle.gutter).background(SnoopStyle.background)
             }
             .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).snoopScreen().tint(SnoopStyle.load)
@@ -84,6 +115,10 @@ struct WeightGoalSetupView: View {
                 Button("Pause cut", role: .destructive) { save(active: false) }
             } message: { Text("Weekly reminders stop. Your weigh-ins stay saved.") }
             .onAppear {
+                guard !initialized else { return }; initialized = true
+                original = model.weeklyWeight.goal
+                hasFinish = editing && existing?.finishDate != nil
+                finish = (editing ? CutPlan.date(existing?.finishDate, calendar: calendar) : nil) ?? (calendar.date(byAdding: .weekOfYear, value: 8, to: Date()) ?? Date())
                 initialRate = existing?.weeklyLossKg ?? 0.3
                 value = (initialRate * factor).formatted(.number.precision(.fractionLength(1)))
                 initialValue = value
@@ -102,7 +137,7 @@ struct WeightGoalSetupView: View {
     private func save(active: Bool) {
         guard let rate else { return }; typing = false; error = nil
         let input = SnoopAPI.WeightGoalInput(revision: existing?.revision ?? 0, active: active, timezone: existing?.timezone ?? TimeZone.current.identifier,
-                                           weeklyLossKg: rate, reminderEnabled: reminder, reminderWeekday: weekday, reminderMinute: minute)
+                                           weeklyLossKg: rate, reminderEnabled: reminder, reminderWeekday: weekday, reminderMinute: minute, finishDate: hasFinish ? CutPlan.key(finish, calendar: calendar) : nil)
         Task {
             do {
                 try await model.weeklyWeight.save(input)

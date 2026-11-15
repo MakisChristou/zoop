@@ -11,6 +11,7 @@ extension SnoopAPI {
         var reminderEnabled: Bool
         var reminderWeekday: Int
         var reminderMinute: Int
+        var finishDate: String? = nil
         let updatedAt: Date
     }
     struct WeightGoalInput: Encodable, Sendable {
@@ -21,6 +22,15 @@ extension SnoopAPI {
         let reminderEnabled: Bool
         let reminderWeekday: Int
         let reminderMinute: Int
+        var finishDate: String? = nil
+        enum CodingKeys: String, CodingKey { case revision, active, timezone, weeklyLossKg, reminderEnabled, reminderWeekday, reminderMinute, finishDate }
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(revision, forKey: .revision); try c.encode(active, forKey: .active)
+            try c.encode(timezone, forKey: .timezone); try c.encode(weeklyLossKg, forKey: .weeklyLossKg)
+            try c.encode(reminderEnabled, forKey: .reminderEnabled); try c.encode(reminderWeekday, forKey: .reminderWeekday); try c.encode(reminderMinute, forKey: .reminderMinute)
+            try c.encode(finishDate, forKey: .finishDate)
+        }
     }
     struct WeightWeek: Codable, Equatable, Identifiable, Sendable {
         let start: String
@@ -43,6 +53,16 @@ extension SnoopAPI {
         let count: Int
         let weekNumber: Int
         let weeks: [WeightWeek]
+        var progress: CutProgress? = nil
+    }
+    struct CutProgress: Codable, Equatable, Sendable {
+        let finishDate: String?
+        let weeksRemaining: Int?
+        let completed: Bool
+        let startingWeightKg: Double?
+        let currentWeightKg: Double?
+        let totalLostKg: Double?
+        let targetWeightKg: Double?
     }
     struct WeeklyWeightResponse: Codable, Sendable {
         let goal: WeightGoal?

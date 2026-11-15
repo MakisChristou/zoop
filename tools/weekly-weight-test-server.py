@@ -10,14 +10,14 @@ goals = {}
 def goal():
     return dict(revision=1, active=True, started_at=stamp(now-timedelta(days=28)),
                 pace_started_at=stamp(now-timedelta(days=28)), timezone='UTC', weekly_loss_kg=.3,
-                reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
+                finish_date=str((now+timedelta(days=28)).date()), reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
 def summary(g):
     end=now.date()-timedelta(days=(now.weekday()+1)%7)
     weeks=[dict(start=str(end-timedelta(days=6+(3-i)*7)), end=str(end-timedelta(days=(3-i)*7)),
                 median_kg=63.3-.3*i, count=6, eligible=True) for i in range(4)]
     return dict(algorithm_version=1, start=weeks[-1]['start'], end=weeks[-1]['end'], provisional=False,
                 state='on_pace', reason='within_target', median_kg=62.4, change_kg=-.3,
-                weekly_loss_kg=g['weekly_loss_kg'], count=6, week_number=4, weeks=weeks)
+                weekly_loss_kg=g['weekly_loss_kg'], count=6, week_number=4, weeks=weeks, progress=dict(finish_date=g.get('finish_date'), weeks_remaining=4 if g.get('finish_date') else None, completed=False, starting_weight_kg=63.3, current_weight_kg=62.4, total_lost_kg=.9, target_weight_kg=60.9 if g.get('finish_date') else None))
 class Handler(BaseHTTPRequestHandler):
     def send(self, data, status=200):
         raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
