@@ -260,6 +260,7 @@ struct TodayView: View {
 
         minutes = fetchedMinutes ?? []
         steps = fetchedSteps
+        if let fetchedSteps { model.stepsReminder.receive(fetchedSteps, scope: model.health.reminderScope) }
         loadedDay = day
         historyFailed = fetchedDays == nil || fetchedNights == nil || fetchedMinutes == nil
             || fetchedWorkouts == nil || fetchedSteps == nil

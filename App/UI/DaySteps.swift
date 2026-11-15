@@ -123,6 +123,7 @@ struct DaySteps: View {
             let rows = try await SnoopAPI.steps(deviceId: serial, day: date)
             guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
             state = .loaded(rows)
+            model.stepsReminder.receive(rows, scope: model.health.reminderScope)
         } catch {
             guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
             state = .failed

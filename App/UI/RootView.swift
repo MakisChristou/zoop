@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var showDevice = false
     @State private var showECG = false
     @State private var showWeeklyWeight = false
+    @State private var showSteps = false
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?
     @State private var selectedActivityDay: Date?
@@ -49,6 +50,8 @@ struct RootView: View {
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
         }
+        .sheet(isPresented: $showSteps) { NavigationStack { StepsView() } }
+        .onChange(of: model.battery.openStepsScope, initial: true) { _, _ in openCheckInNotification() }
         .sheet(isPresented: $showWeeklyWeight) { NavigationStack { WeeklyWeightView() } }
         .onChange(of: model.battery.openWeeklyWeightScope, initial: true) { _, _ in openCheckInNotification() }
         .sheet(isPresented: $showECG) { ProfileSheet(open: .ecg) }
@@ -77,6 +80,10 @@ struct RootView: View {
         if let scope = model.battery.openECGScope {
             if scope == current { showECG = true }
             model.battery.openECGScope = nil
+        }
+        if let scope = model.battery.openStepsScope {
+            if scope == current { showSteps = true }
+            model.battery.openStepsScope = nil
         }
         if let scope = model.battery.openWeeklyWeightScope {
             if scope == current { showWeeklyWeight = true }

@@ -546,3 +546,15 @@ page show the measured count against it; missing data remains unknown. It is hid
 for historical days, paused cuts, and after the finish date. Changing this goal does
 not restart weight comparisons or change sensor measurements. Migration 0016 is
 required for step-goal persistence; old clients preserve the setting when omitted.
+
+Cut step reminders default to 22:00 and can be changed in cut setup or Profile →
+Notifications. These are phone-local preferences. A one-shot reminder uses today's
+last synced walking-step count, updates as Snoop syncs, and is cancelled when the
+goal is reached, paused, removed, or the cut ends. No data means no reminder; a
+confirmed zero-step day is eligible. The message explicitly says “at your last
+sync” because iOS cannot guarantee a fresh fetch at the chosen time. Snoop must
+run or wake and sync that day before the reminder time; future days are never
+scheduled using today's count. Scheduled-at receipts prevent a second reminder
+that day if the time changes after it was due; they do not prove delivery. There
+is no late catch-up. Tapping opens Steps. Notification permission and Focus still
+apply.

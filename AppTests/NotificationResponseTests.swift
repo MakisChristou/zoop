@@ -11,7 +11,7 @@ import UserNotifications
         let oldDelegate = center.delegate
         defer { center.delegate = oldDelegate }
         let monitor = BatteryMonitor(defaults: defaults, center: center)
-        for destination in ["ecg", "weight", "weeklyWeight", "battery", "workout", "unknown"] {
+        for destination in ["ecg", "weight", "weeklyWeight", "steps", "battery", "workout", "unknown"] {
             let done = expectation(description: "Complete \(destination) on main")
             done.assertForOverFulfill = true
             await Task.detached {
@@ -23,6 +23,7 @@ import UserNotifications
                         case "ecg": XCTAssertEqual(monitor.openECGScope, "test-scope")
                         case "weight": XCTAssertEqual(monitor.openWeightScope, "test-scope")
                         case "weeklyWeight": XCTAssertEqual(monitor.openWeeklyWeightScope, "test-scope")
+                        case "steps": XCTAssertEqual(monitor.openStepsScope, "test-scope")
                         case "battery": XCTAssertTrue(monitor.openBattery)
                         case "workout": XCTAssertEqual(monitor.openWorkout, 42)
                         default: break

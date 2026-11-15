@@ -3,7 +3,7 @@ import XCTest
 @MainActor final class WeeklyWeightUITests: XCTestCase {
     private func launch(large: Bool = false, screen: String = "weekly-weight") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "WEEKLY-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28482", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen]
+        app.launchArguments = ["-demoSerial", "WEEKLY-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28482", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-reminders.stepsEnabled", "YES"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch(); if screen == "weekly-weight" { XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 20)) }; return app
     }
@@ -24,13 +24,21 @@ import XCTest
         else { app.otherElements["weeklyLossRuler"].swipeLeft() }
         let chosen = input.value as? String
         XCTAssertNotEqual(chosen, original)
+        let stepsReminder = app.switches["cutStepsReminder"]
+        for _ in 0..<6 where !stepsReminder.isHittable || stepsReminder.frame.maxY >= app.buttons["saveWeightGoal"].frame.minY - 10 { app.swipeUp() }
+        XCTAssertEqual(stepsReminder.value as? String, "1")
+        XCTAssertTrue(app.datePickers["cutStepsReminderTime"].exists)
+        let reminderTime = app.datePickers["cutStepsReminderTime"]
+        for _ in 0..<4 where reminderTime.frame.maxY >= app.buttons["saveWeightGoal"].frame.minY - 10 { app.swipeUp() }
+        shot(app, "Cut steps reminder setup")
+        stepsReminder.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        XCTAssertFalse(app.datePickers["cutStepsReminderTime"].exists)
         let steps = app.textFields["cutStepsInput"]
-        for _ in 0..<6 where !steps.isHittable { app.swipeUp() }
+        for _ in 0..<6 where !steps.isHittable { app.swipeDown() }
         XCTAssertTrue(steps.isHittable); steps.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
         let oldSteps = steps.value as? String ?? ""
         steps.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldSteps.count) + "9000")
         XCTAssertEqual(steps.value as? String, "9000")
-        shot(app, "Cut steps setup")
         let save = app.buttons["saveWeightGoal"]; for _ in 0..<4 where !save.isHittable { app.swipeUp() }; XCTAssertTrue(save.isEnabled); save.tap()
         XCTAssertTrue(input.waitForNonExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 10))
@@ -39,6 +47,7 @@ import XCTest
         XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertEqual(input.value as? String, chosen)
         XCTAssertEqual(app.switches["hasCutFinish"].value as? String, "0")
         XCTAssertEqual(app.textFields["cutStepsInput"].value as? String, "9000")
+        XCTAssertEqual(app.switches["cutStepsReminder"].value as? String, "0")
         app.buttons["Cancel"].tap()
     }
     func testSmallPhoneAndAccessibilityText() {
@@ -48,6 +57,9 @@ import XCTest
         let steps = app.textFields["cutStepsInput"]
         for _ in 0..<10 where !steps.isHittable { app.swipeUp() }
         XCTAssertTrue(steps.isHittable); shot(app, "Step goal large text")
+        let time = app.datePickers["cutStepsReminderTime"]
+        for _ in 0..<10 where !time.isHittable { app.swipeUp() }
+        XCTAssertTrue(time.isHittable); shot(app, "Steps reminder large text")
         let save = app.buttons["saveWeightGoal"]; XCTAssertTrue(save.isHittable)
         app.buttons["Cancel"].tap()
     }

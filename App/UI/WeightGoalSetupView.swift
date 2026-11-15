@@ -13,6 +13,8 @@ struct WeightGoalSetupView: View {
     @State private var reminder = true
     @State private var weekday = 1
     @State private var minute = 20 * 60
+    @State private var stepsReminder = true
+    @State private var stepsReminderMinute = 22 * 60
     @State private var hasStepGoal = false
     @State private var stepGoal = "8000"
     @State private var hasFinish = false
@@ -53,6 +55,9 @@ struct WeightGoalSetupView: View {
     private var validFinish: Bool { !hasFinish || calendar.startOfDay(for: finish) > calendar.startOfDay(for: start) }
     private var ruler: Binding<Double> {
         Binding(get: { rate.map { $0 * factor } ?? 0.3 * factor }, set: { value = $0.formatted(.number.precision(.fractionLength(1))) })
+    }
+    private var stepsTime: Binding<Date> {
+        Binding(get: { Calendar.current.date(bySettingHour: stepsReminderMinute / 60, minute: stepsReminderMinute % 60, second: 0, of: Date()) ?? Date() }, set: { stepsReminderMinute = Calendar.current.component(.hour, from: $0) * 60 + Calendar.current.component(.minute, from: $0) })
     }
     private var time: Binding<Date> {
         Binding(get: { Calendar.current.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()) ?? Date() }, set: { minute = Calendar.current.component(.hour, from: $0) * 60 + Calendar.current.component(.minute, from: $0) })
@@ -97,6 +102,18 @@ struct WeightGoalSetupView: View {
                                 TextField("Steps", text: $stepGoal).keyboardType(.numberPad).multilineTextAlignment(.trailing).monospacedDigit()
                                     .frame(maxWidth: 140).accessibilityLabel("Daily steps goal").accessibilityIdentifier("cutStepsInput")
                             }
+                            Divider()
+                            Toggle("Steps reminder", isOn: $stepsReminder).accessibilityIdentifier("cutStepsReminder")
+                            if stepsReminder {
+                                if typeSize.isAccessibilitySize {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Time")
+                                        DatePicker("Time", selection: stepsTime, displayedComponents: .hourAndMinute).labelsHidden().accessibilityIdentifier("cutStepsReminderTime")
+                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                                } else {
+                                    DatePicker("Time", selection: stepsTime, displayedComponents: .hourAndMinute).accessibilityIdentifier("cutStepsReminderTime")
+                                }
+                            }
                         }
                     }.snoopCard()
                     VStack(spacing: 12) {
@@ -115,6 +132,7 @@ struct WeightGoalSetupView: View {
                     }
                 }.padding(SnoopStyle.gutter)
             }
+            .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 Button { save(active: true) } label: {
                     HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save changes" : "Start cut").font(.headline) }
@@ -131,6 +149,7 @@ struct WeightGoalSetupView: View {
             .onAppear {
                 guard !initialized else { return }; initialized = true
                 original = model.weeklyWeight.goal
+                stepsReminder = model.stepsReminder.enabled; stepsReminderMinute = model.stepsReminder.minute
                 hasStepGoal = existing?.dailyStepsGoal != nil
                 stepGoal = String(existing?.dailyStepsGoal ?? 8000)
                 hasFinish = editing && existing?.finishDate != nil
@@ -157,7 +176,10 @@ struct WeightGoalSetupView: View {
         Task {
             do {
                 try await model.weeklyWeight.save(input)
-                if active && reminder { await model.battery.requestNotificationsIfNeeded(); model.refreshReminders() }
+                model.stepsReminder.minute = stepsReminderMinute
+                model.stepsReminder.enabled = stepsReminder
+                if active && (reminder || (hasStepGoal && stepsReminder)) { await model.battery.requestNotificationsIfNeeded() }
+                model.refreshReminders()
                 dismiss(); onSaved()
             } catch { self.error = error.localizedDescription }
         }

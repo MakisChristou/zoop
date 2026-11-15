@@ -22,6 +22,7 @@ final class AppModel {
     let battery = BatteryMonitor()
     let reminders = DailyReminderScheduler()
     let weeklyWeight = WeeklyWeightStore()
+    let stepsReminder = StepGoalReminder()
     let offBody = OffBodyMonitor()
     @ObservationIgnored private var reminderSettingsObserver: NSObjectProtocol?
     @ObservationIgnored private var reminderConnection = Settings.connectionID
@@ -59,6 +60,7 @@ final class AppModel {
         self.strap = strap
         ecg = ECGRecorder(transport: strap)
         guard servicesEnabled else { return }
+        weeklyWeight.onGoalChange = { [weak self] in self?.refreshStepsReminder() }
         health.onReminderChange = { [weak self] in self?.refreshReminders() }
         ecg.onHistoryChanged = { [weak self] in self?.refreshReminders() }
         reminderSettingsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -124,6 +126,10 @@ final class AppModel {
         weeklyWeight.activate(device: health.reminderDevice, scope: scope)
         let ecgDays = Set(ecg.recordings.filter { $0.device == health.reminderDevice && $0.sampleCount > 0 }.map { DayKey.string($0.startedAt) })
         reminders.update(.init(scope: scope, weightEnabled: health.canRemind, weightDays: health.reminderWeightDays, ecgDays: ecgDays))
+    }
+
+    private func refreshStepsReminder() {
+        stepsReminder.activate(goal: isOnboarded ? weeklyWeight.goal : nil, device: health.reminderDevice, scope: isOnboarded ? health.reminderScope : nil)
     }
 
     private func openStorage() async {
@@ -221,7 +227,7 @@ final class AppModel {
         guard strap.serial == device, Settings.connectionID == connection else { return }
         uploadStats = stats
         lastBatchAccepted = uploadStats.accepted - before
-        if lastBatchAccepted > 0 || uploadStats.duplicates > previousDuplicates { workouts.checkSoon() }
+        if lastBatchAccepted > 0 || uploadStats.duplicates > previousDuplicates { workouts.checkSoon(); stepsReminder.refresh() }
         await updateQueueCounts()
         do {
             let status = try await SnoopAPI.processing(deviceId: device)

@@ -11,6 +11,7 @@ import Observation
     private(set) var loaded = false
     private(set) var error: String?
     private(set) var saving = false
+    var onGoalChange: (() -> Void)?
     let reminder: WeeklyWeightReminder
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let loader: Loader
@@ -32,7 +33,7 @@ import Observation
                 goal = saved.goal; summary = saved.summary
             }
         }
-        reminder.update(goal: goal, scope: scope)
+        reminder.update(goal: goal, scope: scope); onGoalChange?()
         guard scope != nil, !device.isEmpty, !saving else { return }
         scheduled?.cancel()
         scheduled = Task { [weak self] in
@@ -49,7 +50,7 @@ import Observation
             let result = try await loader(device)
             guard request == id, self.scope == scope, connection == Settings.connectionID, !Task.isCancelled else { return }
             goal = result.goal; summary = result.summary; loaded = true; error = nil
-            persist(); reminder.update(goal: goal, scope: scope)
+            persist(); reminder.update(goal: goal, scope: scope); onGoalChange?()
         } catch is CancellationError { }
         catch {
             guard request == id, self.scope == scope, connection == Settings.connectionID, !Task.isCancelled else { return }
@@ -64,7 +65,7 @@ import Observation
         let saved = try await saver(device, input)
         guard self.scope == scope, connection == Settings.connectionID else { throw CancellationError() }
         goal = saved; summary = nil; loaded = true; error = nil
-        persist(); reminder.update(goal: saved, scope: scope)
+        persist(); reminder.update(goal: saved, scope: scope); onGoalChange?()
         saving = false
         await reload()
     }
