@@ -372,3 +372,9 @@ the trailing seven-day median, capped at finish. Late imports/corrections can re
 these observations. Baseline queries remain bounded even for old cuts; absent/stale
 weights and unsupported projections stay null. This is arithmetic against a chosen
 goal, not a predicted fat-loss trajectory. Reads never alter Health or weight records.
+
+Optional `daily_steps_goal` (migration 0016) belongs to the cut and is independent
+of weight-loss pace. It accepts 1–100,000 steps, defaults to null, and does not
+change either start timestamp. Older clients omitting it preserve the setting;
+explicit null disables it. It is a user-chosen target, not an activity prescription,
+and does not alter measured steps or calorie calculations.

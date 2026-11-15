@@ -181,3 +181,36 @@ async fn old_finished_cut_uses_original_health_baseline_and_excludes_later_weigh
             .await
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn cut_steps_are_optional_revisioned_and_do_not_reset_weight_pace() {
+    let db = Db::new().await;
+    let mut q = input();
+    for steps in [-1, 0, 100001] {
+        q["daily_steps_goal"] = json!(steps);
+        assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.0, 400);
+    }
+    q["daily_steps_goal"] = json!(8000);
+    let (status, first) = call(&db, DEVICE, Some(q.clone()), true).await;
+    assert_eq!(status, 200);
+    assert_eq!(first["daily_steps_goal"], 8000);
+    assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.1, first);
+    q["revision"] = json!(1);
+    q["daily_steps_goal"] = json!(9000);
+    let saved = call(&db, DEVICE, Some(q.clone()), true).await.1;
+    assert_eq!(saved["daily_steps_goal"], 9000);
+    assert_eq!(saved["pace_started_at"], first["pace_started_at"]);
+    assert_eq!(saved["started_at"], first["started_at"]);
+    q["revision"] = json!(2);
+    q.as_object_mut().unwrap().remove("daily_steps_goal");
+    q["reminder_minute"] = json!(1100);
+    assert_eq!(
+        call(&db, DEVICE, Some(q.clone()), true).await.1["daily_steps_goal"],
+        9000
+    );
+    q["revision"] = json!(3);
+    q["daily_steps_goal"] = Value::Null;
+    assert!(call(&db, DEVICE, Some(q), true).await.1["daily_steps_goal"].is_null());
+    assert_eq!(db.count("SELECT count(*) FROM weight_readings").await, 0);
+}
