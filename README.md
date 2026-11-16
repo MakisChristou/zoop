@@ -516,8 +516,7 @@ a fresh phase. Reminder day/time changes save with the goal without resetting pa
 Deploy backend migration 0014 and `/weight-goal` before installing. Weekly
 notifications are calendar-based local reminders, scheduled by iOS without needing
 to fetch measurements in the background. They contain neutral copy and open the
-latest available outlook after syncing. The goal timezone is fixed at setup and
-shown in About. Pausing, disabling reminders or changing account removes the old
+latest available outlook after syncing. The goal timezone is fixed at setup. Pausing, disabling reminders or changing account removes the old
 local request after reconciliation. Changes made on another device are picked up
 on the next sync; they cannot revoke an offline device's notification immediately.
 
@@ -527,8 +526,15 @@ thread. Run `python3 tools/weekly-weight-test-server.py` for `WeeklyWeightUITest
 its loopback server uses synthetic data only. Backend algorithm and isolated
 Postgres cases cover median robustness, sparse dates, goal changes and stall rules.
 
-An optional finish date adds a calculated target weight, rounded-up weeks remaining,
-and total weight change. Targets use the starting seven-day median and selected weekly
+An optional finish date adds a calculated target weight and calendar-day progress.
+Cut progress shows days remaining, elapsed time, and weight lost toward the goal.
+Its chart uses the same axes, selection marker, and gestures as the Weight chart: swipe
+to browse weeks, or hold and drag to inspect. The server currently supplies up to eight
+recent weeks of the current pace phase. Historical medians show eligible adjacent-week
+changes without reusing the latest verdict. Missing weeks break the line; incomplete
+medians are isolated dots. Overall progress stays current while inspecting history.
+The dashed planned path is omitted after a pace reset, so the new rate is not drawn
+over old weeks. Goal weight and rate remain visible. No future measurements are drawn. Targets use the starting seven-day median and selected weekly
 rate over calendar days. Baselines can be refined by late Health imports or corrections;
 missing baselines remain unknown. Current progress uses the last seven calendar days,
 without inventing missing readings. Finished cuts exclude all later weigh-ins.

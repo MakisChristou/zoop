@@ -1,0 +1,143 @@
+import Charts
+import SwiftUI
+
+/// Uses the same axes, selection marker and gesture recognizer as WeightTrendChart.
+struct CutWeeklyChart: View {
+    let data: CutProgressData
+    let unit: String
+    @Binding var selection: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .body) private var chartHeight = 190.0
+    private var index: Int { data.weeks.firstIndex { $0.id == selection } ?? max(0, data.weeks.count - 1) }
+    private var week: SnoopAPI.WeightWeek? { data.weeks.indices.contains(index) ? data.weeks[index] : nil }
+    private func weight(_ kg: Double) -> Double { unit == "lb" ? kg * 2.2046226218 : kg }
+    private var points: [CutProgressData.Point] { data.points }
+    private var scale: ClosedRange<Double> {
+        let values = (points.map(\.kg) + data.targetPath.map(\.kg)).map(weight)
+        let low = values.min() ?? 60, high = values.max() ?? low
+        let padding = max((high - low) * 0.15, unit == "lb" ? 1 : 0.5)
+        return (low - padding)...(high + padding)
+    }
+    var body: some View {
+        if let week {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    arrow(-1)
+                    VStack(spacing: 4) {
+                        Text("Week \(data.number(week))").font(.headline).accessibilityIdentifier("cutSelectedWeek")
+                        Text(period(week)).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    }.frame(maxWidth: .infinity)
+                    arrow(1)
+                }
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                layout {
+                    VStack(alignment: .leading, spacing: 4) {
+                        MetricValue(WeeklyWeightPresentation.weight(week.medianKg, unit: unit), unit: week.medianKg == nil ? "" : unit, size: 36)
+                            .accessibilityIdentifier("cutWeeklyMedian")
+                        Text(week.medianKg == nil ? "No weigh-ins" : "Weekly median").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    if data.change(week) != nil || (week.start == data.summary.start && data.summary.state != "starting") {
+                    VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 6) {
+                        // Historical medians have no server classification; never reuse today's verdict.
+                        if week.start == data.summary.start && data.summary.state != "starting" {
+                            Text(WeeklyWeightPresentation.title(data.summary.state)).font(.subheadline.weight(.medium))
+                                .foregroundStyle(WeeklyWeightPresentation.color(data.summary.state)).accessibilityIdentifier("weeklyWeightStatus")
+                        }
+                        if let change = data.change(week) {
+                            Text(WeeklyWeightPresentation.weight(change, unit: unit, signed: true) + " " + unit + " this week")
+                                .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("cutWeeklyChange")
+                        }
+                    }.multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                    }
+                }
+                chart.frame(height: min(chartHeight, 280)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .accessibilityElement(children: .ignore).accessibilityLabel("Cut weight chart")
+                    .accessibilityValue("Week \(data.number(week)), \(WeeklyWeightPresentation.weight(week.medianKg, unit: unit)) \(unit)")
+                    .accessibilityIdentifier("cutWeeklyChart")
+                    .accessibilityHint("Swipe up or down to select a week.")
+                    .accessibilityAdjustableAction { move($0 == .increment ? 1 : -1) }
+                    .accessibilityAction(named: "Previous week") { move(-1) }
+                    .accessibilityAction(named: "Next week") { move(1) }
+                let legendLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 16))
+                legendLayout {
+                    legend("Weight", dashed: false)
+                    if !data.targetPath.isEmpty { legend("Target", dashed: true) }
+                }
+                ViewThatFits(in: .horizontal) {
+                    HStack { goalLabel; Spacer(); paceLabel }
+                    VStack(alignment: .leading, spacing: 6) { goalLabel; paceLabel }
+                }.font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            }.snoopCard(padding: 20)
+        }
+    }
+    @ViewBuilder private var goalLabel: some View {
+        if let target = data.summary.progress?.targetWeightKg { Text("Goal \(WeeklyWeightPresentation.weight(target, unit: unit)) \(unit)") }
+    }
+    private var paceLabel: some View { Text(WeeklyWeightPresentation.weight(-data.goal.weeklyLossKg, unit: unit, signed: true) + " " + unit + " / week") }
+    private func legend(_ label: String, dashed: Bool) -> some View {
+        HStack(spacing: 6) {
+            Path { p in p.move(to: .init(x: 0, y: 3)); p.addLine(to: .init(x: 20, y: 3)) }
+                .stroke(dashed ? SnoopStyle.secondary : SnoopStyle.load, style: .init(lineWidth: 2, dash: dashed ? [3, 3] : []))
+                .frame(width: 20, height: 6).accessibilityHidden(true)
+            Text(label).fixedSize(horizontal: false, vertical: true)
+        }.font(.caption).foregroundStyle(SnoopStyle.secondary)
+    }
+    private func period(_ week: SnoopAPI.WeightWeek) -> String {
+        var format = Date.FormatStyle().day().month(.abbreviated); format.timeZone = data.calendar.timeZone
+        return data.date(week.start).formatted(format) + " – " + data.date(week.end).formatted(format)
+    }
+    private func arrow(_ direction: Int) -> some View {
+        let enabled = data.weeks.indices.contains(index + direction)
+        return Button { move(direction) } label: { Image(systemName: direction < 0 ? "chevron.left" : "chevron.right").font(.footnote.weight(.semibold)).frame(width: 44, height: 44) }
+            .foregroundStyle(enabled ? SnoopStyle.load : SnoopStyle.secondary.opacity(0.35))
+            .disabled(!enabled)
+            .accessibilityLabel(direction < 0 ? "Previous week" : "Next week")
+            .accessibilityIdentifier(direction < 0 ? "cutPreviousWeek" : "cutNextWeek")
+    }
+    private func move(_ direction: Int) {
+        let next = index + direction
+        guard data.weeks.indices.contains(next) else { return }
+        selection = data.weeks[next].id
+    }
+    private var chart: some View {
+        Chart {
+            ForEach(Array(data.targetPath.enumerated()), id: \.offset) { _, point in
+                LineMark(x: .value("Date", point.date), y: .value("Target", weight(point.kg)), series: .value("Series", "target"))
+                    .foregroundStyle(SnoopStyle.secondary).lineStyle(.init(lineWidth: 1.5, dash: [4, 3]))
+            }
+            ForEach(points) { point in
+                LineMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg)), series: .value("Series", "weight-\(point.segment)"))
+                    .foregroundStyle(SnoopStyle.load).lineStyle(.init(lineWidth: 2, lineCap: .round))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(24)
+            }
+            if let week {
+                RuleMark(x: .value("Selected week", min(data.date(week.end), data.finish ?? data.today, data.today))).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
+                if let point = points.first(where: { $0.weekID == week.id }) {
+                    PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(80)
+                }
+            }
+        }.chartXScale(domain: data.domain).chartYScale(domain: scale).chartLegend(.hidden)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) { mark in
+                    AxisValueLabel { if let date = mark.as(Date.self) { Text(date, format: .dateTime.day().month(.abbreviated)).foregroundStyle(SnoopStyle.secondary) } }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine(stroke: .init(lineWidth: 0.5)).foregroundStyle(SnoopStyle.separator)
+                    AxisValueLabel(format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))).foregroundStyle(SnoopStyle.secondary)
+                }
+            }
+            .chartOverlay { proxy in
+                GeometryReader { geometry in
+                    if let frame = proxy.plotFrame {
+                        let plot = geometry[frame]
+                        CalendarChartGesture(select: { location in
+                            guard plot.contains(location), let date: Date = proxy.value(atX: location.x - plot.minX) else { return }
+                            selection = data.weeks.min { abs(min(data.date($0.end), data.today).timeIntervalSince(date)) < abs(min(data.date($1.end), data.today).timeIntervalSince(date)) }?.id
+                        }, page: move).accessibilityHidden(true)
+                    }
+                }
+            }
+    }
+}

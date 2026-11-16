@@ -1,39 +1,24 @@
-import Charts
 import SwiftUI
 
 struct WeeklyWeightView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("weightUnit") private var unit = "kg"
     @State private var editing = false
     @State private var about = false
+    @State private var selectedWeek: String?
     private var store: WeeklyWeightStore { model.weeklyWeight }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if let summary = store.summary, store.goal?.active == true {
-                    ViewThatFits(in: .horizontal) {
-                        HStack { Text(period(summary)).font(.headline); Spacer(); Text("Cut · Week \(summary.weekNumber)").font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
-                        VStack(alignment: .leading) { Text(period(summary)).font(.headline); Text("Cut · Week \(summary.weekNumber)").foregroundStyle(SnoopStyle.secondary) }
-                    }
-                    WeeklyWeightCard(summary: summary, unit: unit, showsHeading: false)
-                    if let progress = summary.progress { CutProgressView(progress: progress, unit: unit) }
-                    let points = chartPoints(summary)
-                    if points.count >= 2 {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack { Text("Weekly weight").font(.headline); Spacer(); Text(unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
-                            Chart(points) { point in
-                                LineMark(x: .value("Week", point.date), y: .value("Weight", point.value), series: .value("Segment", point.segment))
-                                    .foregroundStyle(SnoopStyle.load).lineStyle(.init(lineWidth: 2))
-                                PointMark(x: .value("Week", point.date), y: .value("Weight", point.value)).foregroundStyle(SnoopStyle.load)
-                            }.chartYScale(domain: .automatic(includesZero: false))
-                                .chartXAxis { AxisMarks(values: points.map(\.date)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)); AxisTick() } }
-                                .frame(height: 170).accessibilityLabel("Weekly median weight in \(unit)")
+                if let summary = store.summary, let goal = store.goal, goal.active {
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        let data = CutProgressData(goal: goal, summary: summary, now: context.date)
+                        VStack(alignment: .leading, spacing: 28) {
+                            CutProgressView(data: data, unit: unit)
+                            CutWeeklyChart(data: data, unit: unit, selection: $selectedWeek)
                         }
                     }
-                    Button("Edit goal") { editing = true }
-                        .font(.subheadline).foregroundStyle(SnoopStyle.load).frame(minHeight: 44).accessibilityIdentifier("editWeightGoal")
                 } else if store.loading { ProgressView().frame(maxWidth: .infinity).padding(30) }
                 else if store.loaded {
                     VStack(alignment: .leading, spacing: 16) {
@@ -49,25 +34,22 @@ struct WeeklyWeightView: View {
                 }
                 if let error = store.reminder.error { VStack(alignment: .leading) { Text(error).foregroundStyle(SnoopStyle.unfavourable); Button("Retry") { model.refreshReminders() }.foregroundStyle(SnoopStyle.load).frame(minHeight: 44) }.font(.footnote) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(SnoopStyle.gutter)
-        }.frame(maxWidth: .infinity).snoopScreen().tint(SnoopStyle.load).navigationTitle("Weekly outlook").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { about = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About weekly outlook") } }
+        }.frame(maxWidth: .infinity).snoopScreen().tint(SnoopStyle.load).navigationTitle("Cut progress").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Edit goal") { editing = true }.accessibilityIdentifier("editWeightGoal")
+                        Button("About cut progress") { about = true }
+                    } label: { Image(systemName: "ellipsis") }
+                    .accessibilityLabel("Cut options").accessibilityIdentifier("cutOptions")
+                }
+            }
             .sheet(isPresented: $editing) { WeightGoalSetupView() }
             .sheet(isPresented: $about) { aboutView }
             .task { await store.reload(); await model.battery.refreshAuthorization() }
             .refreshable { await store.reload() }
-    }
-    private func period(_ s: SnoopAPI.WeeklyWeightSummary) -> String {
-        guard let start = WeeklyWeightPresentation.date(s.start), let end = WeeklyWeightPresentation.date(s.end) else { return s.start + " – " + s.end }
-        return start.formatted(.dateTime.day().month(.abbreviated)) + " – " + end.formatted(.dateTime.day().month(.abbreviated))
-    }
-    private struct Point: Identifiable { let date: Date; let value: Double; let segment: Int; var id: Date { date } }
-    private func chartPoints(_ summary: SnoopAPI.WeeklyWeightSummary) -> [Point] {
-        var result: [Point] = [], segment = 0
-        for week in summary.weeks {
-            guard week.eligible, let value = week.medianKg, let date = WeeklyWeightPresentation.date(week.end) else { segment += 1; continue }
-            result.append(.init(date: date, value: unit == "lb" ? value * 2.2046226218 : value, segment: segment))
-        }
-        return result
+            .onChange(of: store.goal?.startedAt) { _, _ in selectedWeek = nil }
+            .onChange(of: store.goal?.paceStartedAt) { _, _ in selectedWeek = nil }
     }
     private func aboutItem(_ title: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {

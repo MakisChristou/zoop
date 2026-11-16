@@ -1,28 +1,47 @@
 import SwiftUI
 
 struct CutProgressView: View {
-    let progress: SnoopAPI.CutProgress
+    let data: CutProgressData
     let unit: String
-    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .top, spacing: 20))
-            layout {
-                value((progress.totalLostKg ?? 0) < 0 ? "Total gained" : "Total lost", WeeklyWeightPresentation.weight(progress.totalLostKg.map(abs), unit: unit) + (progress.totalLostKg == nil ? "" : " " + unit))
-                if let weeks = progress.weeksRemaining {
-                    value(progress.completed ? "Finished" : "Remaining", progress.completed ? "Cut ended" : weeks == 0 ? "Last day" : "\(weeks) \(weeks == 1 ? "week" : "weeks")")
+        VStack(alignment: .leading, spacing: 24) {
+            if let time = data.time {
+                VStack(alignment: .leading, spacing: 4) {
+                    if data.completed { Text("Cut finished").font(.largeTitle.weight(.semibold)) }
+                    else { MetricValue("\(time.remaining)", unit: time.remaining == 1 ? "day left" : "days left", size: 58) }
+                    if let finish = data.finish {
+                        Text((data.completed ? "Ended " : "Ends ") + dateLabel(finish))
+                            .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    }
+                }.accessibilityElement(children: .combine).accessibilityIdentifier("cutDaysRemaining")
+                progress("Time", value: "\(time.elapsed) / \(time.total) days", fraction: time.fraction)
+            }
+            if let loss = data.summary.progress?.totalLostKg {
+                let value = WeeklyWeightPresentation.weight(abs(loss), unit: unit)
+                if let planned = data.plannedLoss, loss >= 0 {
+                    progress("Weight", value: "\(value) / \(WeeklyWeightPresentation.weight(planned, unit: unit)) \(unit) lost", fraction: data.weightFraction)
+                } else {
+                    progress("Weight", value: "\(value) \(unit) \(loss < 0 ? "gained" : "lost")", fraction: data.weightFraction)
                 }
             }
-            if let end = progress.finishDate, let date = WeeklyWeightPresentation.date(end) {
-                Divider()
-                ViewThatFits(in: .horizontal) {
-                    HStack { Text("Target \(WeeklyWeightPresentation.weight(progress.targetWeightKg, unit: unit))\(progress.targetWeightKg == nil ? "" : " " + unit)"); Spacer(); Text(date.formatted(.dateTime.day().month(.abbreviated).year())) }
-                    VStack(alignment: .leading, spacing: 4) { Text("Target \(WeeklyWeightPresentation.weight(progress.targetWeightKg, unit: unit))\(progress.targetWeightKg == nil ? "" : " " + unit)"); Text(date.formatted(.dateTime.day().month(.abbreviated).year())) }
-                }.font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-            }
-        }.snoopCard().accessibilityIdentifier("cutProgress")
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("cutProgress")
     }
-    private func value(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) { Text(label).font(.caption).foregroundStyle(SnoopStyle.secondary); Text(value).font(.title3.weight(.semibold)).monospacedDigit() }.frame(maxWidth: .infinity, alignment: .leading)
+    private func dateLabel(_ date: Date) -> String {
+        var format = Date.FormatStyle().day().month(.abbreviated); format.timeZone = data.calendar.timeZone
+        return date.formatted(format)
+    }
+    private func progress(_ label: String, value: String, fraction: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack { Text(label); Spacer(); Text(value).monospacedDigit() }
+                VStack(alignment: .leading, spacing: 4) { Text(label); Text(value).monospacedDigit() }
+            }.font(.subheadline)
+            if let fraction {
+                GeometryReader { geometry in
+                    Capsule().fill(SnoopStyle.separator)
+                        .overlay(alignment: .leading) { Capsule().fill(SnoopStyle.load).frame(width: geometry.size.width * fraction) }
+                }.frame(height: 7).accessibilityHidden(true)
+            }
+        }.accessibilityElement(children: .ignore).accessibilityLabel(label).accessibilityValue(value)
     }
 }

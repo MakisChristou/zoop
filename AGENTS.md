@@ -46,6 +46,7 @@ Analysis happens on the server; the app shows live values and sync status.
   obvious interactions, such as "Swipe to adjust" or "Tap the number to type".
   Use familiar controls, clear labels, and visual affordances instead. Keep useful
   interaction guidance in accessibility hints.
+- **One fact, one place per screen.** Do not repeat a week number, status, measurement, or date in multiple badges, headings, or cards. Chart axes may provide necessary context; decorative restatements may not.
 - Give each screen one clear purpose and primary action. Remove sentences that
   repeat a heading, button, picker choice, or already-visible status. Empty states
   should state what is missing briefly, with an action when one is useful.
