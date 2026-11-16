@@ -8,6 +8,8 @@ import UserNotifications
         var target: Int
         var baselinePending = false
         var consumed = false
+        var celebrated: Bool?
+        var silent: Bool?
         var observedAt: Date
     }
     var enabled: Bool {
@@ -26,10 +28,10 @@ import UserNotifications
     @ObservationIgnored private let center: ReminderNotificationClient
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: () -> Calendar
-    @ObservationIgnored private var days: [String: Day]
-    @ObservationIgnored private var goal: SnoopAPI.WeightGoal?
-    @ObservationIgnored private var scope: String?
-    @ObservationIgnored private var sample: StepGoalReminder.Snapshot?
+    private var days: [String: Day]
+    private var goal: SnoopAPI.WeightGoal?
+    private var scope: String?
+    private var sample: StepGoalReminder.Snapshot?
     @ObservationIgnored private var revision = 0
     @ObservationIgnored private var worker: Task<Void, Never>?
     private static let prefix = "snoop.steps-complete."
@@ -55,6 +57,24 @@ import UserNotifications
         self.sample = sample
         observeTarget()
         reconcileSoon()
+    }
+
+    /// Notification delivery and the visible celebration have separate receipts.
+    /// A completed goal can be seen for the first time hours after its notification.
+    var celebrationKey: String? {
+        let now = clock(), calendar = calendar()
+        guard let scope, let target = CutTargets.steps(goal: goal, day: now, now: now, calendar: calendar),
+              let sample, sample.day == CutPlan.key(now, calendar: calendar), sample.steps >= target else { return nil }
+        let key = scope + "." + sample.day
+        guard let day = days[key], !day.baselinePending, day.silent != true, day.celebrated != true else { return nil }
+        return key
+    }
+
+    /// Called only by a visible foreground progress bar after its entrance settles.
+    func claimCelebration(_ key: String) -> Bool {
+        guard celebrationKey == key, var day = days[key] else { return false }
+        day.celebrated = true; days[key] = day; persist()
+        return true
     }
 
     private func observeTarget() {
@@ -107,7 +127,7 @@ import UserNotifications
         if day.baselinePending {
             day.baselinePending = false
             // Editing the goal is not an achievement. Establish a fresh baseline first.
-            if reached { day.consumed = true }
+            if reached { day.consumed = true; day.silent = true }
             days[key] = day; persist()
             return
         }
@@ -126,7 +146,7 @@ import UserNotifications
                 center.removePending([id]); center.removeDelivered([id])
             }
         } catch {
-            day.consumed = false; days[key] = day; persist()
+            days[key]?.consumed = false; persist()
             self.error = "Couldn’t send your goal notification. Try again."
         }
     }

@@ -579,5 +579,8 @@ Receipts survive relaunch; failed notification submissions can retry. Claiming a
 receipt before submission favors avoiding duplicates if the app is terminated at
 that boundary. Delivery remains subject to iOS permission, Focus and sync/wake
 opportunities; this is not a guaranteed real-time step counter or remote push.
-The existing progress bar turns green with a checkmark; a visible threshold
-crossing gets one brief bounce and success haptic (no bounce with Reduce Motion).
+The existing progress bar fills green with a checkmark and iPhone success haptic
+when the completed goal is first visible, including opening Steps after a
+notification. Presentation has its own daily receipt, so offscreen/background
+updates do not consume the effect and revisits do not repeat it. Reduce Motion
+skips the fill animation and bounce; system haptic preferences still apply.

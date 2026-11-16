@@ -149,4 +149,39 @@ import UserNotifications
         XCTAssertEqual(s.requests.count, 1)
         XCTAssertTrue(s.requests.keys.allSatisfy { $0.hasPrefix("snoop.steps-complete.") })
     }
+    func testFirstCompletedViewCanCelebrateAfterNotificationButOnlyOnce() async throws {
+        let s = CompletionState(), d = defaults(), c = completion(s, d)
+        c.activate(goal: goal(), scope: "person")
+        c.receive(.init(day: "2026-11-16", steps: 9000)); await c.settled()
+        XCTAssertEqual(s.adds, 1)
+        let reopened = completion(s, d); reopened.activate(goal: goal(), scope: "person")
+        XCTAssertNil(reopened.celebrationKey, "Wait for a fresh count")
+        reopened.receive(.init(day: "2026-11-16", steps: 9000)); await reopened.settled()
+        let key = try XCTUnwrap(reopened.celebrationKey)
+        XCTAssertTrue(reopened.claimCelebration(key))
+        XCTAssertFalse(reopened.claimCelebration(key))
+        XCTAssertNil(reopened.celebrationKey)
+        let third = completion(s, d); third.activate(goal: goal(), scope: "person")
+        third.receive(.init(day: "2026-11-16", steps: 9000)); await third.settled()
+        XCTAssertNil(third.celebrationKey); XCTAssertEqual(s.adds, 1)
+    }
+    func testLoweringTargetCannotCreateVisualCelebration() async {
+        let s = CompletionState(), c = completion(s, defaults())
+        c.activate(goal: goal(), scope: "person")
+        c.receive(.init(day: "2026-11-16", steps: 7000)); await c.settled()
+        c.activate(goal: goal(6000), scope: "person")
+        c.receive(.init(day: "2026-11-16", steps: 7000))
+        XCTAssertNil(c.celebrationKey)
+        await c.settled(); XCTAssertNil(c.celebrationKey)
+    }
+    func testVisualCelebrationIsAvailableWithoutNotificationPermission() async throws {
+        let s = CompletionState(), c = completion(s, defaults())
+        s.permission = .denied
+        c.activate(goal: goal(), scope: "person")
+        c.receive(.init(day: "2026-11-16", steps: 8000)); await c.settled()
+        XCTAssertNotNil(c.celebrationKey); XCTAssertEqual(s.adds, 0)
+        c.activate(goal: nil, scope: nil); await c.settled()
+        XCTAssertNil(c.celebrationKey)
+    }
+
 }

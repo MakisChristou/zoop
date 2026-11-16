@@ -193,6 +193,7 @@ import XCTest
         let progress = app.otherElements["cutStepsProgress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 20))
         XCTAssertTrue((progress.value as? String ?? "").contains("goal reached"))
+        XCTAssertTrue(app.otherElements["stepGoalCelebrationPlayed"].waitForExistence(timeout: 10))
         shot(app, "Steps goal complete")
         app.terminate()
         let settingsApp = launch(screen: "profile", state: "COMPLETE")
@@ -219,6 +220,7 @@ import XCTest
         for _ in 0..<5 where !progress.isHittable { app.swipeUp() }
         XCTAssertTrue(progress.isHittable)
         XCTAssertTrue((progress.value as? String ?? "").contains("goal reached"))
+        XCTAssertTrue(app.otherElements["stepGoalCelebrationPlayed"].waitForExistence(timeout: 10))
         shot(app, "Completed steps large text")
     }
 
