@@ -60,8 +60,11 @@ import XCTest
         shot(reopened, "Health switch remains saved after relaunch")
     }
     func testWeightRangesOptionsAndImportNavigation() {
-        let app = launch(); openWeight(app)
+        let app = launch(serial: "WEIGHT-CHART-" + UUID().uuidString); openWeight(app)
         XCTAssertTrue(app.segmentedControls.buttons["Month"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Recent weigh-ins"].exists)
+        XCTAssertFalse(app.staticTexts["This week’s check-ins"].exists)
+        XCTAssertFalse(app.buttons["openWeightImport"].exists)
         let monthDates = app.staticTexts["weightChartDates"].label
         app.segmentedControls.buttons["Week"].tap()
         XCTAssertNotEqual(app.staticTexts["weightChartDates"].label, monthDates)
@@ -199,6 +202,7 @@ import XCTest
         XCTAssertEqual(dates.label, week)
         app.segmentedControls.buttons["3 months"].tap()
         shot(app, "Three calendar months")
+        app.buttons["Weight options"].tap()
         app.buttons["weightHistory"].tap()
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
     }
@@ -210,11 +214,13 @@ import XCTest
         if let value = field.value as? String, value != "Weight", !value.isEmpty { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
         field.typeText("81.4"); shot(app, "Focused weight entry"); app.buttons["saveWeight"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
+        app.buttons["Weight options"].tap()
         app.buttons["weightHistory"].tap()
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["81.4 kg"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["81.4 kg"].firstMatch.waitForExistence(timeout: 10))
         shot(app, "Weight history")
         app.navigationBars["All weigh-ins"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
         app.navigationBars["Weight"].buttons.element(boundBy: 0).tap()
         XCTAssertFalse(app.buttons["todayLogWeight"].exists)
         XCTAssertTrue(app.buttons["todayWeight"].firstMatch.label.contains("81.4"))
@@ -237,6 +243,7 @@ import XCTest
         XCTAssertTrue(app.buttons["saveWeight"].isHittable)
         shot(app, "Weight entry accessibility text")
         app.buttons["Cancel"].tap()
+        app.buttons["Weight options"].tap()
         let history = app.buttons["weightHistory"]
         for _ in 0..<8 { if history.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(history.isHittable)
@@ -245,6 +252,7 @@ import XCTest
         XCTAssertTrue(app.navigationBars["All weigh-ins"].waitForExistence(timeout: 5))
         shot(app, "Weight history accessibility text")
         app.navigationBars["All weigh-ins"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
         app.navigationBars["Weight"].buttons.element(boundBy: 0).tap()
         profile(app)
         XCTAssertFalse(app.buttons["Weight"].exists)

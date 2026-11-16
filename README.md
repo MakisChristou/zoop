@@ -334,11 +334,12 @@ readings without paging. Latest returns to the current period. Raw measurements
 remain the default; an optional 7-day moving average lives in Weight options.
 Health readings take priority over Snoop readings on the same date, with all distinct
 Health readings retained. Missing days are never zero-filled and gaps of a week or
-more break the line. Recent weigh-ins link to the complete editable/source-aware list.
+more break the line. The chart stays focused on measurements; Weight options contains All weigh-ins
+and Import weight history. Weekly check-in circles remain on Today.
 
 Apple Health connection and export controls remain in Profile & settings. Connecting
 asks for sleep and workout write access, optional steps/weight export and optional
-weight import. Automatic sharing starts at connection time. Weight → Import weight
+weight import. Automatic sharing starts at connection time. Weight → options → Import weight
 history previews Health readings automatically with All available history enabled;
 turning it off reveals a date range.
 It imports only weights, reports existing readings separately, and never enrolls

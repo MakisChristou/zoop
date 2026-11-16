@@ -34,6 +34,8 @@ struct WeightOptionsView: View {
                     Picker("Weight unit", selection: $unit) { Text("Kilograms").tag("kg"); Text("Pounds").tag("lb") }
                 }
                 Section {
+                    NavigationLink { WeightHistoryView() } label: { Label("All weigh-ins", systemImage: "list.bullet") }
+                        .accessibilityIdentifier("weightHistory")
                     Button { importing = true } label: { Label("Import weight history", systemImage: "heart") }
                         .accessibilityIdentifier("importWeightFromOptions")
                     if let exportURL {
