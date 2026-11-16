@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Compact header shared by the four tabs. Detail pages retain native navigation.
+/// Compact header shared by the main tabs. Detail pages retain native navigation.
 struct MainScreenChrome: ViewModifier {
     let title: String
     var subtitle: String?

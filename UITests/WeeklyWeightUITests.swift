@@ -9,7 +9,11 @@ import XCTest
     }
     private func shot(_ app: XCUIApplication, _ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
     private func tap(_ app: XCUIApplication, _ id: String) {
-        if id == "editWeightGoal" || id == "About cut progress" { app.buttons["cutOptions"].tap() }
+        if id == "editWeightGoal" || id == "About cut progress" {
+            let options = app.buttons["cutOptions"]
+            for _ in 0..<12 where !options.isHittable { app.swipeDown() }
+            options.tap()
+        }
         let button = app.buttons[id]
         XCTAssertTrue(button.waitForExistence(timeout: 5))
         for _ in 0..<12 {
@@ -98,6 +102,36 @@ import XCTest
             if state == "EMPTY" { action.tap(); XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5)); shot(app, "Start cut empty"); app.buttons["Cancel"].tap() }
             app.terminate()
         }
+    }
+    func testGoalsTabOwnsCutNavigation() {
+        let app = launch(screen: "today")
+        XCTAssertTrue(app.tabBars.buttons["Goals"].waitForExistence(timeout: 15))
+        XCTAssertEqual(app.tabBars.buttons.count, 5)
+        XCTAssertFalse(app.buttons["todayWeeklyWeight"].exists)
+        let weight = app.buttons["todayWeight"].firstMatch
+        XCTAssertTrue(weight.waitForExistence(timeout: 10))
+        for _ in 0..<6 where !weight.isHittable { app.swipeUp() }
+        weight.tap()
+        XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["weightChart"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["openWeeklyWeight"].exists)
+        XCTAssertFalse(app.staticTexts["Weight outlook"].exists)
+        shot(app, "Weight only from Today")
+        app.buttons["Weight options"].tap()
+        XCTAssertTrue(app.buttons["weightHistory"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["weightGoalOptions"].exists)
+        app.buttons["Done"].tap()
+        app.tabBars.buttons["Goals"].tap()
+        XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Goals"].isSelected)
+        shot(app, "Goals tab current cut")
+        tap(app, "editWeightGoal")
+        XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.navigationBars["Weight"].exists)
+        app.tabBars.buttons["Goals"].tap()
+        XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 5))
     }
     func testCutWeekNavigationAndChartSelection() {
         let app = launch()

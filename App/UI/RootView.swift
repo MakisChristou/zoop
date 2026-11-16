@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// Four tabs. Each main screen carries the strap status and the profile button in its
+/// Five tabs. Each main screen carries the strap status and the profile button in its
 /// own header; the device page lives behind both.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var showDevice = false
     @State private var showECG = false
-    @State private var showWeeklyWeight = false
     @State private var showSteps = false
     @State private var selection = Tab.today
     @State private var selectedNight: SnoopAPI.Night?
@@ -16,7 +15,7 @@ struct RootView: View {
     @State private var sleepRequest = UUID()
 
     enum Tab: Hashable {
-        case today, activity, sleep, trends
+        case today, activity, sleep, trends, goals
     }
 
     var body: some View {
@@ -33,6 +32,9 @@ struct RootView: View {
             TrendsView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(Tab.trends)
+            NavigationStack { GoalsView() }
+                .tabItem { Label("Goals", systemImage: "target") }
+                .tag(Tab.goals)
         }
         .tint(SnoopStyle.load)
         .foregroundStyle(SnoopStyle.text)
@@ -52,7 +54,6 @@ struct RootView: View {
         }
         .sheet(isPresented: $showSteps) { NavigationStack { StepsView() } }
         .onChange(of: model.battery.openStepsScope, initial: true) { _, _ in openCheckInNotification() }
-        .sheet(isPresented: $showWeeklyWeight) { NavigationStack { WeeklyWeightView() } }
         .onChange(of: model.battery.openWeeklyWeightScope, initial: true) { _, _ in openCheckInNotification() }
         .sheet(isPresented: $showECG) { ProfileSheet(open: .ecg) }
         .onChange(of: model.battery.openECGScope, initial: true) { _, scope in
@@ -86,7 +87,7 @@ struct RootView: View {
             model.battery.openStepsScope = nil
         }
         if let scope = model.battery.openWeeklyWeightScope {
-            if scope == current { showWeeklyWeight = true }
+            if scope == current { selection = .goals }
             model.battery.openWeeklyWeightScope = nil
         }
         if let scope = model.battery.openWeightScope {
@@ -105,7 +106,7 @@ struct RootView: View {
         case "sleep": selection = .sleep
         case "trends": selection = .trends
         case "battery": showDevice = true
-        case "weekly-weight": showWeeklyWeight = true
+        case "weekly-weight", "goals": selection = .goals
         default: break
         }
         #endif

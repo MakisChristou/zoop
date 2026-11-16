@@ -48,7 +48,7 @@ Enter your snoop-api URL and bearer token during setup, or later under Profile �
 
 ## Navigation
 
-Four tabs: Today, Activity, Sleep and Trends. Every tab shows the strap's
+Five tabs: Today, Activity, Sleep, Trends and Goals. Every tab shows the strap's
 connection state in its header and a profile button that opens a sheet with the body
 profile, the device page (strap identity, history sync, the raw latest record), the
 notification settings, and, under Advanced, the server connection and upload
@@ -150,8 +150,8 @@ inside the chart disclosure.
 
 Today restores the seven weigh-in circles and puts live heart rate inside the daily
 timeline. Battery, including both pack and strap, lives under Profile → My WHOOP;
-the header shortcut and battery notifications open that page. The four tabs are
-Today, Activity, Sleep and Trends.
+the header shortcut and battery notifications open that page. The five tabs are
+Today, Activity, Sleep, Trends and Goals.
 
 Sleep uses one local comparison snapshot for all metrics, including resting HR,
 HRV, time asleep and stage durations. It does not depend on the separate Morning
@@ -505,19 +505,20 @@ synthetic history from `tools/layout-test-server.py`.
 
 ### Weekly weight outlook
 
-Weight options → Start a cut explicitly enables a configurable weekly loss target.
+Goals → Start a cut explicitly enables a configurable weekly loss target.
 The setup uses the existing measurement ruler and offers an optional Sunday 20:00
 reminder. The server stores revisioned goal settings; the app caches them per
 account/device, and never changes weight measurements or Health exports to meet a goal.
-The neutral outlook card matches Morning outlook. Week medians and the selected
-pace are separate from the raw Weight chart. An entry appears in Today’s weight
-check-in only while a cut is active. Edit goal supports pausing; restarting starts
-a fresh phase. Reminder day/time changes save with the goal without resetting pace.
+Goals uses the shared tab header and a target icon. Week medians and the selected
+pace are separate from the raw Weight chart. Goals is the home for cut setup, progress
+and editing. Today’s weight check-in opens only the Weight page; weight options contain
+no goal controls. Edit goal supports pausing; restarting starts a fresh phase.
+This navigation slice does not yet add maintenance, bulking, or an archive of past goals. Reminder day/time changes save with the goal without resetting pace.
 
 Deploy backend migration 0014 and `/weight-goal` before installing. Weekly
 notifications are calendar-based local reminders, scheduled by iOS without needing
 to fetch measurements in the background. They contain neutral copy and open the
-latest available outlook after syncing. The goal timezone is fixed at setup. Pausing, disabling reminders or changing account removes the old
+Goals tab with the latest available outlook after syncing. The goal timezone is fixed at setup. Pausing, disabling reminders or changing account removes the old
 local request after reconciliation. Changes made on another device are picked up
 on the next sync; they cannot revoke an offline device's notification immediately.
 

@@ -60,7 +60,7 @@ import XCTest
     func testTodayCirclesAndFourTabsWithBatteryInProfile() {
         let app = launch(screen: "")
         XCTAssertTrue(app.otherElements["weightWeekCircles"].waitForExistence(timeout: 20))
-        XCTAssertEqual(app.tabBars.buttons.count, 4)
+        XCTAssertEqual(app.tabBars.buttons.count, 5)
         XCTAssertFalse(app.tabBars.buttons["Battery"].exists)
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 20))
         shot(app, "Today restored check-ins")
