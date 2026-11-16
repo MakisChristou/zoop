@@ -188,4 +188,38 @@ import XCTest
         XCTAssertTrue((progress.value as? String ?? "").contains("8,000")); shot(stepsApp, "Cut daily steps progress")
     }
 
+    func testCompletedStepsAndNotificationPreference() {
+        let app = launch(screen: "steps", state: "COMPLETE")
+        let progress = app.otherElements["cutStepsProgress"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 20))
+        XCTAssertTrue((progress.value as? String ?? "").contains("goal reached"))
+        shot(app, "Steps goal complete")
+        app.terminate()
+        let settingsApp = launch(screen: "profile", state: "COMPLETE")
+        let notifications = settingsApp.buttons["openNotifications"]
+        XCTAssertTrue(notifications.waitForExistence(timeout: 15))
+        for _ in 0..<5 where !notifications.isHittable { settingsApp.swipeUp() }
+        notifications.tap()
+        let completion = settingsApp.switches["stepsCompletionEnabled"]
+        XCTAssertTrue(completion.waitForExistence(timeout: 15))
+        for _ in 0..<5 where !completion.isHittable { settingsApp.swipeUp() }
+        shot(settingsApp, "Goal completion preference")
+        // Turn off (no system permission dialog), then verify navigation preserves it.
+        if completion.value as? String == "1" { completion.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap() }
+        XCTAssertEqual(completion.value as? String, "0")
+        settingsApp.navigationBars["Notifications"].buttons.element(boundBy: 0).tap()
+        notifications.tap()
+        XCTAssertEqual(completion.value as? String, "0")
+    }
+
+    func testCompletedStepsLargeText() {
+        let app = launch(large: true, screen: "steps", state: "COMPLETE")
+        let progress = app.otherElements["cutStepsProgress"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 20))
+        for _ in 0..<5 where !progress.isHittable { app.swipeUp() }
+        XCTAssertTrue(progress.isHittable)
+        XCTAssertTrue((progress.value as? String ?? "").contains("goal reached"))
+        shot(app, "Completed steps large text")
+    }
+
 }

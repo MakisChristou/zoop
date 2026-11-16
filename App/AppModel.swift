@@ -204,6 +204,7 @@ final class AppModel {
                 _ = try await (nights, sessions)
                 guard !Task.isCancelled, self.analysisRequest == request else { return }
                 self.processingError = nil; self.analysisRevision += 1
+                self.stepsReminder.refresh(force: true)
                 self.health.checkSoon()
             } catch is CancellationError { }
             catch { if self.analysisRequest == request { self.processingError = error.localizedDescription } }

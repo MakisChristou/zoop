@@ -40,8 +40,9 @@ class Handler(BaseHTTPRequestHandler):
         if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))
         if path.endswith('/weight-changes'):return self.send(dict(rows=[dict(id='health:weekly-test',measured_at=stamp(now),kg=62.4,source='health',source_name='Test scale',version=1,removed=False)],next_cursor=1,watermark=1,done=True))
         if path.endswith('/steps'):
-            hours=[0]*24;hours[9]=2200;hours[13]=3400
-            return self.send(dict(day=path.split('/')[-2],hours=hours,walking_hours=hours,total=5600,walking=5600,bouts=[]))
+            hours=[0]*24;hours[9]=2200;hours[13]=5800 if device.startswith('COMPLETE-') else 3400
+            total=sum(hours)
+            return self.send(dict(day=path.split('/')[-2],hours=hours,walking_hours=hours,total=total,walking=total,bouts=[]))
         if path.endswith(('/days','/nights','/minutes','/sessions')):return self.send([])
         return self.send({},404)
     def do_PUT(self):

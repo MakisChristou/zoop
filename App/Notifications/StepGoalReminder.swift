@@ -11,6 +11,7 @@ import UserNotifications
     typealias Loader = @Sendable (String, Date) async throws -> Snapshot?
     var enabled: Bool { didSet { defaults.set(enabled, forKey: "reminders.stepsEnabled"); reconcileSoon() } }
     var minute: Int { didSet { defaults.set(minute, forKey: "reminders.stepsMinute"); reconcileSoon() } }
+    let completion: StepGoalCompletion
     private(set) var error: String?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let center: ReminderNotificationClient
@@ -32,6 +33,7 @@ import UserNotifications
 
     init(defaults: UserDefaults = .standard, center: ReminderNotificationClient = .live, clock: @escaping () -> Date = Date.init, calendar: @escaping () -> Calendar = { .current }, loader: @escaping Loader = { device, date in try await StepGoalReminder.load(device, date) }) {
         self.defaults = defaults; self.center = center; self.clock = clock; self.calendar = calendar; self.loader = loader
+        completion = StepGoalCompletion(defaults: defaults, center: center, clock: clock, calendar: calendar)
         enabled = defaults.object(forKey: "reminders.stepsEnabled") as? Bool ?? true
         minute = defaults.object(forKey: "reminders.stepsMinute") as? Int ?? 22 * 60
         receipts = defaults.data(forKey: "reminders.stepsReceipts").flatMap { try? JSONDecoder().decode([String: Date].self, from: $0) } ?? [:]
@@ -51,12 +53,14 @@ import UserNotifications
             self.scope = scope; self.device = device; connection = Settings.connectionID
             if let scope, let data = defaults.data(forKey: "stepsReminder." + scope) { snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) }
         }
+        let changedTarget = self.goal?.dailyStepsGoal != goal?.dailyStepsGoal
         self.goal = goal
-        reconcileSoon(); refresh()
+        completion.activate(goal: goal, scope: scope)
+        reconcileSoon(); refresh(force: changedTarget)
     }
     func refresh(force: Bool = false) {
         let now = clock(), calendar = calendar()
-        guard enabled, let scope, !device.isEmpty, CutTargets.steps(goal: goal, day: now, now: now, calendar: calendar) != nil else { reconcileSoon(); return }
+        guard enabled || completion.enabled, let scope, !device.isEmpty, CutTargets.steps(goal: goal, day: now, now: now, calendar: calendar) != nil else { reconcileSoon(); return }
         guard force || lastFetch.map({ now.timeIntervalSince($0) >= 60 }) != false else { return }
         guard fetch == nil else { return }
         lastFetch = now
@@ -67,7 +71,7 @@ import UserNotifications
             do {
                 let data = try await loader(device, now)
                 guard !Task.isCancelled, request == id, self.scope == scope, Settings.connectionID == connection else { return }
-                snapshot = data; persistSnapshot(); reconcileSoon()
+                snapshot = data; persistSnapshot(); reconcileSoon(); completion.receive(data)
             } catch {
                 guard !Task.isCancelled, request == id, self.scope == scope, Settings.connectionID == connection else { return }
                 // Keep the labelled last-sync snapshot and retry any failed scheduling.
@@ -81,7 +85,7 @@ import UserNotifications
         let now = clock()
         guard data.day == CutPlan.key(now, calendar: calendar()), data.walking >= 0 else { return }
         fetch?.cancel(); fetch = nil; request = UUID(); lastFetch = now
-        snapshot = .init(day: data.day, steps: data.walking); persistSnapshot(); reconcileSoon()
+        snapshot = .init(day: data.day, steps: data.walking); persistSnapshot(); reconcileSoon(); completion.receive(snapshot)
     }
     private func persistSnapshot() {
         guard let scope else { return }
@@ -96,7 +100,7 @@ import UserNotifications
             while true { let current = revision; await reconcile(); if current == revision { worker = nil; return } }
         }
     }
-    func settled() async { await fetch?.value; await worker?.value }
+    func settled() async { await fetch?.value; await worker?.value; await completion.settled() }
     private func reconcile() async {
         let now = clock(), calendar = calendar(), scope = scope, snapshot = snapshot
         let day = CutPlan.key(now, calendar: calendar)

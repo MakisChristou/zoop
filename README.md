@@ -566,3 +566,18 @@ scheduled using today's count. Scheduled-at receipts prevent a second reminder
 that day if the time changes after it was due; they do not prove delivery. There
 is no late catch-up. Tapping opens Steps. Notification permission and Focus still
 apply.
+
+
+Daily step-goal completions are enabled by default, independently of the evening
+reminder, under Profile → Notifications → Goal completions. A fresh current-day
+walking count at or above an active cut's target sends “Steps goal complete” once
+per account/device scope and local day. Tapping uses the existing Steps route.
+Cached snapshots, historical days and inactive cuts cannot generate celebrations.
+Lowering a target establishes a fresh baseline silently; edits never reset a day's
+completion receipt. Denied or disabled alerts are not replayed after enabling.
+Receipts survive relaunch; failed notification submissions can retry. Claiming a
+receipt before submission favors avoiding duplicates if the app is terminated at
+that boundary. Delivery remains subject to iOS permission, Focus and sync/wake
+opportunities; this is not a guaranteed real-time step counter or remote push.
+The existing progress bar turns green with a checkmark; a visible threshold
+crossing gets one brief bounce and success haptic (no bounce with Reduce Motion).

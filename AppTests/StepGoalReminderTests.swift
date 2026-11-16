@@ -25,7 +25,7 @@ import UserNotifications
         var g = SnoopAPI.WeightGoal(revision: 1, active: active, startedAt: start, paceStartedAt: start, timezone: timezone, weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, updatedAt: start)
         g.dailyStepsGoal = 8000; g.finishDate = "2026-11-20"; return g
     }
-    private func defaults() -> (UserDefaults, String) { let key="StepGoalReminderTests."+UUID().uuidString; return (UserDefaults(suiteName: key)!,key) }
+    private func defaults() -> (UserDefaults, String) { let key="StepGoalReminderTests."+UUID().uuidString; let defaults = UserDefaults(suiteName: key)!; defaults.set(false, forKey: "reminders.stepsCompletionEnabled"); return (defaults,key) }
     private func reminder(_ s: StepsReminderState, _ defaults: UserDefaults) -> StepGoalReminder {
         StepGoalReminder(defaults: defaults, center: s.client, clock: { s.now }, calendar: { CutPlan.calendar(timezone: "UTC") }, loader: { _, _ in try await s.read() })
     }
