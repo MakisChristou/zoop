@@ -1,67 +1,99 @@
 import XCTest
 
 @MainActor final class WeeklyWeightUITests: XCTestCase {
-    private func launch(large: Bool = false, screen: String = "weekly-weight") -> XCUIApplication {
+    private func launch(large: Bool = false, screen: String = "weekly-weight", state: String = "WEEKLY") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "WEEKLY-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28482", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-reminders.stepsEnabled", "YES"]
+        app.launchArguments = ["-demoSerial", state + "-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28482", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-reminders.stepsEnabled", "YES"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
-        app.launch(); if screen == "weekly-weight" { XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 20)) }; return app
+        app.launch(); if screen == "weekly-weight" && state == "WEEKLY" { XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 20)) }; return app
     }
     private func shot(_ app: XCUIApplication, _ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
+    private func tap(_ app: XCUIApplication, _ id: String) {
+        let button = app.buttons[id]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        for _ in 0..<12 {
+            let save = app.buttons["saveWeightGoal"]
+            if id.hasPrefix("editCut"), save.exists {
+                let top = app.navigationBars["Edit cut"].frame.maxY + 24
+                if button.frame.midY < top {
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
+                } else if button.frame.midY >= save.frame.minY - 24 || !button.isHittable {
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)))
+                } else { break }
+            } else if !button.isHittable { app.swipeUp() } else { break }
+        }
+        button.tap()
+    }
+    private func back(_ app: XCUIApplication) {
+        for title in ["Finish date", "Daily steps", "Reminders"] where app.navigationBars[title].exists {
+            app.navigationBars[title].buttons.element(boundBy: 0).tap(); return
+        }
+        XCTFail("Expected a goal detail page")
+    }
     func testOutlookAndConfigurableGoal() {
         let app = launch(); XCTAssertTrue(app.staticTexts["Total lost"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook")
-        let edit = app.buttons["editWeightGoal"]
-        for _ in 0..<6 where !edit.isHittable { app.swipeUp() }; edit.tap()
+        tap(app, "About weekly outlook"); XCTAssertTrue(app.staticTexts["About"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook info"); app.buttons["Done"].tap()
+        tap(app, "editWeightGoal")
         let input = app.textFields["weeklyLossInput"]; XCTAssertTrue(input.waitForExistence(timeout: 5))
-        let finish = app.switches["hasCutFinish"]
-        for _ in 0..<4 where !finish.isHittable { app.swipeUp() }
-        XCTAssertTrue(finish.isHittable)
-        shot(app, "Cut setup with finish")
-        finish.tap()
-        for _ in 0..<4 where !input.isHittable { app.swipeDown() }
+        shot(app, "Focused cut setup")
+        XCTAssertFalse(app.switches["hasCutFinish"].exists)
+        XCTAssertFalse(app.switches["cutStepsReminder"].exists)
         let original = input.value as? String
         if (Double(original ?? "") ?? 0) > 0.5 { app.otherElements["weeklyLossRuler"].swipeRight() }
         else { app.otherElements["weeklyLossRuler"].swipeLeft() }
-        let chosen = input.value as? String
-        XCTAssertNotEqual(chosen, original)
-        let stepsReminder = app.switches["cutStepsReminder"]
-        for _ in 0..<6 where !stepsReminder.isHittable || stepsReminder.frame.maxY >= app.buttons["saveWeightGoal"].frame.minY - 10 { app.swipeUp() }
-        XCTAssertEqual(stepsReminder.value as? String, "1")
-        XCTAssertTrue(app.datePickers["cutStepsReminderTime"].exists)
-        let reminderTime = app.datePickers["cutStepsReminderTime"]
-        for _ in 0..<4 where reminderTime.frame.maxY >= app.buttons["saveWeightGoal"].frame.minY - 10 { app.swipeUp() }
-        shot(app, "Cut steps reminder setup")
-        stepsReminder.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
-        XCTAssertFalse(app.datePickers["cutStepsReminderTime"].exists)
-        let steps = app.textFields["cutStepsInput"]
-        for _ in 0..<6 where !steps.isHittable { app.swipeDown() }
-        XCTAssertTrue(steps.isHittable); steps.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        let chosen = input.value as? String; XCTAssertNotEqual(chosen, original)
+        tap(app, "editCutFinish"); XCTAssertTrue(app.switches["hasCutFinish"].waitForExistence(timeout: 5))
+        shot(app, "Finish and target")
+        app.switches["hasCutFinish"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap(); back(app)
+        tap(app, "editCutReminders"); XCTAssertTrue(app.switches["cutStepsReminder"].waitForExistence(timeout: 5))
+        shot(app, "Focused reminders")
+        XCTAssertEqual(app.switches["cutStepsReminder"].value as? String, "1")
+        app.switches["cutStepsReminder"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap(); XCTAssertFalse(app.datePickers["cutStepsReminderTime"].exists); back(app)
+        tap(app, "editCutSteps")
+        let steps = app.textFields["cutStepsInput"]; XCTAssertTrue(steps.waitForExistence(timeout: 5))
+        steps.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
         let oldSteps = steps.value as? String ?? ""
         steps.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldSteps.count) + "9000")
-        XCTAssertEqual(steps.value as? String, "9000")
-        let save = app.buttons["saveWeightGoal"]; for _ in 0..<4 where !save.isHittable { app.swipeUp() }; XCTAssertTrue(save.isEnabled); save.tap()
+        XCTAssertEqual(steps.value as? String, "9000"); back(app)
+        tap(app, "saveWeightGoal")
         XCTAssertTrue(input.waitForNonExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 10))
-        let editAgain = app.buttons["editWeightGoal"]
-        for _ in 0..<6 where !editAgain.isHittable { app.swipeUp() }; editAgain.tap()
+        tap(app, "editWeightGoal")
         XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertEqual(input.value as? String, chosen)
-        XCTAssertEqual(app.switches["hasCutFinish"].value as? String, "0")
-        XCTAssertEqual(app.textFields["cutStepsInput"].value as? String, "9000")
-        XCTAssertEqual(app.switches["cutStepsReminder"].value as? String, "0")
-        app.buttons["Cancel"].tap()
+        tap(app, "editCutFinish"); XCTAssertEqual(app.switches["hasCutFinish"].value as? String, "0"); back(app)
+        tap(app, "editCutSteps"); XCTAssertEqual(app.textFields["cutStepsInput"].value as? String, "9000"); back(app)
+        tap(app, "editCutReminders"); XCTAssertEqual(app.switches["cutStepsReminder"].value as? String, "0")
+        app.switches["cutStepsReminder"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap(); back(app); app.buttons["Cancel"].tap()
+        tap(app, "editWeightGoal"); tap(app, "editCutReminders")
+        XCTAssertEqual(app.switches["cutStepsReminder"].value as? String, "0", "Cancel must discard reminder changes")
+        back(app); app.buttons["Cancel"].tap()
     }
     func testSmallPhoneAndAccessibilityText() {
         let app = launch(large: true); shot(app, "Weekly outlook large text")
-        let edit = app.buttons["editWeightGoal"]; for _ in 0..<10 where !edit.isHittable { app.swipeUp() }; XCTAssertTrue(edit.isHittable); edit.tap()
+        tap(app, "About weekly outlook"); shot(app, "Info large text")
+        let target = app.staticTexts["Target weight"]
+        for _ in 0..<8 where !target.isHittable { app.swipeUp() }
+        XCTAssertTrue(target.isHittable); shot(app, "Info ending large text"); app.buttons["Done"].tap()
+        tap(app, "editWeightGoal")
         XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5)); shot(app, "Cut setup large text")
-        let steps = app.textFields["cutStepsInput"]
-        for _ in 0..<10 where !steps.isHittable { app.swipeUp() }
-        XCTAssertTrue(steps.isHittable); shot(app, "Step goal large text")
+        tap(app, "editCutFinish"); shot(app, "Finish large text"); back(app); shot(app, "Goal options large text")
+        tap(app, "editCutReminders")
         let time = app.datePickers["cutStepsReminderTime"]
+        XCTAssertTrue(time.waitForExistence(timeout: 5))
         for _ in 0..<10 where !time.isHittable { app.swipeUp() }
-        XCTAssertTrue(time.isHittable); shot(app, "Steps reminder large text")
-        let save = app.buttons["saveWeightGoal"]; XCTAssertTrue(save.isHittable)
-        app.buttons["Cancel"].tap()
+        XCTAssertTrue(time.isHittable); shot(app, "Reminders large text")
+        back(app); tap(app, "editCutSteps")
+        XCTAssertTrue(app.textFields["cutStepsInput"].waitForExistence(timeout: 5)); shot(app, "Steps large text")
+        back(app); app.buttons["Cancel"].tap()
+    }
+    func testEmptyPausedAndErrorStates() {
+        for state in ["EMPTY", "PAUSED", "PENDING", "ERROR"] {
+            let app = launch(state: state)
+            let action = app.buttons[state == "ERROR" ? "Retry" : "startWeightGoal"]
+            XCTAssertTrue(action.waitForExistence(timeout: 15)); shot(app, "Weekly outlook " + state)
+            if state == "PENDING" { XCTAssertEqual(action.label, "Edit goal") }
+            if state == "EMPTY" { action.tap(); XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5)); shot(app, "Start cut empty"); app.buttons["Cancel"].tap() }
+            app.terminate()
+        }
     }
     func testWeightTargetAndStepsProgress() {
         let app = launch(screen: "today")

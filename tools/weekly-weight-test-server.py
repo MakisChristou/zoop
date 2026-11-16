@@ -24,7 +24,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path=urlparse(self.path).path;device=path.split('/')[3] if len(path.split('/'))>3 else ''
         if path.endswith('/weight-goal'):
-            g=goals.setdefault(device,goal());return self.send(dict(goal=g,summary=summary(g) if g['active'] else None))
+            if device.startswith('EMPTY-'):return self.send(dict(goal=None,summary=None))
+            if device.startswith('ERROR-'):return self.send(dict(error='Temporarily unavailable'),500)
+            g=goals.setdefault(device,goal())
+            if device.startswith('PAUSED-'):g['active']=False
+            return self.send(dict(goal=g,summary=summary(g) if g['active'] and not device.startswith('PENDING-') else None))
         if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))
         if path.endswith('/weight-changes'):return self.send(dict(rows=[dict(id='health:weekly-test',measured_at=stamp(now),kg=62.4,source='health',source_name='Test scale',version=1,removed=False)],next_cursor=1,watermark=1,done=True))
         if path.endswith('/steps'):

@@ -67,7 +67,7 @@ struct WeightGoalSetupView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     VStack(spacing: 12) {
-                        Text("Weekly loss").font(.title2.weight(.semibold))
+                        Text("Weekly loss").font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
                         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 10))
                         layout {
                             TextField("Weekly loss", text: $value).keyboardType(.decimalPad).focused($typing)
@@ -75,67 +75,37 @@ struct WeightGoalSetupView: View {
                                 .frame(maxWidth: 180).accessibilityLabel("Weekly loss").accessibilityIdentifier("weeklyLossInput")
                             Text("\(unit) / week").font(.body).foregroundStyle(SnoopStyle.secondary)
                         }
-                        if let rate, let weight = model.health.lastWeight?.kg, weight > 0 {
-                            let percent = rate / weight * 100
-                            Text("\(percent.formatted(.number.precision(.fractionLength(1))))% of body weight\(percent > 1 ? " · Fast pace" : "")")
-                                .font(.subheadline).foregroundStyle(percent > 1 ? SnoopStyle.typical : SnoopStyle.secondary)
+                        if let rate, let weight = model.health.lastWeight?.kg, weight > 0, rate / weight > 0.01 {
+                            Text("Fast pace · over 1% per week").font(.subheadline).foregroundStyle(SnoopStyle.typical)
                         }
                         MeasurementRuler(value: ruler, range: (unit == "lb" ? 0.3...2.2 : 0.1...1.0), step: 0.1, unit: "\(unit) per week", label: "Weekly loss ruler", majorTickEvery: 4, onEditing: { typing = false })
                             .accessibilityIdentifier("weeklyLossRuler")
                     }.padding(.top, 16).padding(.bottom, 12)
-                    VStack(spacing: 12) {
-                        Toggle("Finish date", isOn: $hasFinish).accessibilityIdentifier("hasCutFinish")
-                        if hasFinish {
-                            DatePicker("Finish", selection: $finish, in: finishRange, displayedComponents: .date)
-                                .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone).accessibilityIdentifier("cutFinishDate")
-                            Divider()
-                            HStack { Text("Target weight"); Spacer(); Text(WeeklyWeightPresentation.weight(targetWeight, unit: unit) + (targetWeight == nil ? "" : " " + unit)).monospacedDigit() }
-                                .foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("cutTargetWeight")
-                        }
-                    }.snoopCard()
-                    VStack(spacing: 12) {
-                        Toggle("Daily steps", isOn: $hasStepGoal).accessibilityIdentifier("hasCutSteps")
-                        if hasStepGoal {
-                            HStack {
-                                Text("Goal").foregroundStyle(SnoopStyle.secondary)
-                                Spacer()
-                                TextField("Steps", text: $stepGoal).keyboardType(.numberPad).multilineTextAlignment(.trailing).monospacedDigit()
-                                    .frame(maxWidth: 140).accessibilityLabel("Daily steps goal").accessibilityIdentifier("cutStepsInput")
-                            }
-                            Divider()
-                            Toggle("Steps reminder", isOn: $stepsReminder).accessibilityIdentifier("cutStepsReminder")
-                            if stepsReminder {
-                                if typeSize.isAccessibilitySize {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Time")
-                                        DatePicker("Time", selection: stepsTime, displayedComponents: .hourAndMinute).labelsHidden().accessibilityIdentifier("cutStepsReminderTime")
-                                    }.frame(maxWidth: .infinity, alignment: .leading)
-                                } else {
-                                    DatePicker("Time", selection: stepsTime, displayedComponents: .hourAndMinute).accessibilityIdentifier("cutStepsReminderTime")
-                                }
-                            }
-                        }
-                    }.snoopCard()
-                    VStack(spacing: 12) {
-                        Toggle("Weekly brief", isOn: $reminder).accessibilityIdentifier("weeklyWeightReminder")
-                        if reminder {
-                            Divider()
-                            ViewThatFits(in: .horizontal) {
-                                HStack { Text("Remind me").foregroundStyle(SnoopStyle.secondary); Spacer(); schedule }
-                                VStack(alignment: .leading, spacing: 8) { Text("Remind me").foregroundStyle(SnoopStyle.secondary); schedule }
-                            }
-                        }
-                    }.snoopCard()
+                    VStack(spacing: 0) {
+                        NavigationLink { finishEditor } label: {
+                            goalRow("Finish date", value: hasFinish ? finishLabel : "None")
+                        }.accessibilityIdentifier("editCutFinish")
+                        Divider()
+                        NavigationLink { stepsEditor } label: {
+                            goalRow("Daily steps", value: hasStepGoal ? parsedSteps.map { $0.formatted() } ?? "Set goal" : "Off")
+                        }.accessibilityIdentifier("editCutSteps")
+                    }.buttonStyle(.plain).snoopCard()
+                    NavigationLink { reminderEditor } label: {
+                        goalRow("Reminders", value: nil)
+                    }.buttonStyle(.plain).snoopCard().accessibilityIdentifier("editCutReminders")
+                    if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
+                    if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
+                    if !validFinish { Text("Choose a finish date after the start date.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
                     if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
                     if editing {
-                        Button("Pause cut", role: .destructive) { confirmPause = true }.frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
+                        Button("Pause cut", role: .destructive) { confirmPause = true }.font(.subheadline).frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
                     }
                 }.padding(SnoopStyle.gutter)
             }
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 Button { save(active: true) } label: {
-                    HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save changes" : "Start cut").font(.headline) }
+                    HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save" : "Start cut").font(.headline) }
                         .frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving)
                     .accessibilityIdentifier("saveWeightGoal").padding(SnoopStyle.gutter).background(SnoopStyle.background)
@@ -145,7 +115,7 @@ struct WeightGoalSetupView: View {
             .interactiveDismissDisabled(model.weeklyWeight.saving)
             .confirmationDialog("Pause your cut?", isPresented: $confirmPause, titleVisibility: .visible) {
                 Button("Pause cut", role: .destructive) { save(active: false) }
-            } message: { Text("Weekly reminders stop. Your weigh-ins stay saved.") }
+            } message: { Text("Cut reminders stop. Your weigh-ins stay saved.") }
             .onAppear {
                 guard !initialized else { return }; initialized = true
                 original = model.weeklyWeight.goal
@@ -161,12 +131,78 @@ struct WeightGoalSetupView: View {
             }
         }
     }
-    private var schedule: some View {
-        HStack(spacing: 4) {
-            Picker("Reminder day", selection: $weekday) {
-                ForEach(1...7, id: \.self) { day in Text(Calendar.current.weekdaySymbols[day - 1]).tag(day) }
-            }.labelsHidden().pickerStyle(.menu).accessibilityIdentifier("weeklyWeightDay")
-            DatePicker("Reminder time", selection: time, displayedComponents: .hourAndMinute).labelsHidden().accessibilityIdentifier("weeklyWeightTime")
+    private func goalRow(_ title: String, value: String?) -> some View {
+        HStack(spacing: 12) {
+            ViewThatFits(in: .horizontal) {
+                HStack { Text(title); Spacer(minLength: 12); if let value { Text(value).foregroundStyle(SnoopStyle.secondary).monospacedDigit() } }
+                VStack(alignment: .leading, spacing: 4) { Text(title); if let value { Text(value).foregroundStyle(SnoopStyle.secondary).monospacedDigit() } }
+            }
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+        }.frame(minHeight: 44).padding(.vertical, 4).contentShape(Rectangle())
+    }
+    private var finishLabel: String {
+        var format = Date.FormatStyle(date: .abbreviated, time: .omitted); format.timeZone = calendar.timeZone
+        return finish.formatted(format)
+    }
+    private var finishEditor: some View {
+        Form {
+            Section {
+                Toggle("Finish date", isOn: $hasFinish).accessibilityIdentifier("hasCutFinish")
+                if hasFinish {
+                    DatePicker("Finish", selection: $finish, in: finishRange, displayedComponents: .date)
+                        .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone).accessibilityIdentifier("cutFinishDate")
+                }
+            }.listRowBackground(SnoopStyle.surface)
+            if hasFinish {
+                Section {
+                    LabeledContent("Target weight", value: WeeklyWeightPresentation.weight(targetWeight, unit: unit) + (targetWeight == nil ? "" : " " + unit))
+                        .monospacedDigit().accessibilityIdentifier("cutTargetWeight")
+                }.listRowBackground(SnoopStyle.surface)
+            }
+        }.scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Finish date").navigationBarTitleDisplayMode(.inline)
+    }
+    private var stepsEditor: some View {
+        Form {
+            Section {
+                Toggle("Daily steps", isOn: $hasStepGoal).accessibilityIdentifier("hasCutSteps")
+                if hasStepGoal {
+                    LabeledContent("Goal") {
+                        TextField("Steps", text: $stepGoal).keyboardType(.numberPad).multilineTextAlignment(.trailing).monospacedDigit()
+                            .accessibilityLabel("Daily steps goal").accessibilityIdentifier("cutStepsInput")
+                    }
+                }
+            }.listRowBackground(SnoopStyle.surface)
+        }.scrollDismissesKeyboard(.interactively).scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Daily steps").navigationBarTitleDisplayMode(.inline)
+    }
+    private var reminderEditor: some View {
+        Form {
+            if hasStepGoal {
+                Section {
+                    Toggle("Steps reminder", isOn: $stepsReminder).accessibilityIdentifier("cutStepsReminder")
+                    if stepsReminder {
+                        reminderTime("Time", selection: stepsTime, identifier: "cutStepsReminderTime")
+                    }
+                }.listRowBackground(SnoopStyle.surface)
+            }
+            Section {
+                Toggle("Weekly outlook", isOn: $reminder).accessibilityIdentifier("weeklyWeightReminder")
+                if reminder {
+                    Picker("Day", selection: $weekday) {
+                        ForEach(1...7, id: \.self) { day in Text(Calendar.current.weekdaySymbols[day - 1]).tag(day) }
+                    }.accessibilityIdentifier("weeklyWeightDay")
+                    reminderTime("Time", selection: time, identifier: "weeklyWeightTime")
+                }
+            }.listRowBackground(SnoopStyle.surface)
+        }.scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Reminders").navigationBarTitleDisplayMode(.inline)
+    }
+    @ViewBuilder private func reminderTime(_ title: String, selection: Binding<Date>, identifier: String) -> some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                DatePicker(title, selection: selection, displayedComponents: .hourAndMinute).labelsHidden().accessibilityIdentifier(identifier)
+            }
+        } else {
+            DatePicker(title, selection: selection, displayedComponents: .hourAndMinute).accessibilityIdentifier(identifier)
         }
     }
     private func save(active: Bool) {
