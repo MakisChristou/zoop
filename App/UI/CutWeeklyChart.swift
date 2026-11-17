@@ -26,10 +26,8 @@ struct CutWeeklyChart: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     arrow(-1)
-                    VStack(spacing: 4) {
-                        Text("Week \(data.number(week))").font(.headline).accessibilityIdentifier("cutSelectedWeek")
-                        Text(period(week)).font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }.frame(maxWidth: .infinity)
+                    Text("Week \(data.number(week))").font(.headline)
+                        .frame(maxWidth: .infinity).accessibilityIdentifier("cutSelectedWeek")
                     arrow(1)
                 }
                 let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
@@ -84,10 +82,6 @@ struct CutWeeklyChart: View {
     private func readingDate(_ date: Date) -> String {
         var format = Date.FormatStyle().day().month(.abbreviated); format.timeZone = data.calendar.timeZone
         return date.formatted(format)
-    }
-    private func period(_ week: SnoopAPI.WeightWeek) -> String {
-        var format = Date.FormatStyle().day().month(.abbreviated); format.timeZone = data.calendar.timeZone
-        return data.date(week.start).formatted(format) + " – " + data.date(week.end).formatted(format)
     }
     private func arrow(_ direction: Int) -> some View {
         let enabled = data.weeks.indices.contains(index + direction)
