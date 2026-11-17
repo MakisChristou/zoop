@@ -84,4 +84,29 @@ final class CutProgressDataTests: XCTestCase {
         XCTAssertEqual(d.points.map(\.date), [date("2026-03-24"), date("2026-03-30")])
     }
 
+    func testWeekWindowClipsTodayAndGivesTwoReadingsSymmetricShoulders() {
+        let d = data(started: "2026-03-30", now: "2026-03-31", readings: [.init(day: "2026-03-30", kg: 70), .init(day: "2026-03-31", kg: 69.8)])
+        let w = d.weeks.last!
+        XCTAssertEqual(d.window(for: w), date("2026-03-30")...date("2026-03-31"))
+        let domain = d.domain(for: w), points = d.points(in: w)
+        XCTAssertEqual(points.count, 2)
+        XCTAssertEqual(points[0].date.timeIntervalSince(domain.lowerBound), domain.upperBound.timeIntervalSince(points[1].date))
+        XCTAssertEqual(d.targetPath(in: w).last!.date, date("2026-03-31"))
+    }
+    func testWeekSelectionFiltersPointsAndTargetUsesCalendarDaysAcrossDST() {
+        let weeks = [week("2026-03-23", "2026-03-29", 70), week("2026-03-30", "2026-04-05", 69.5)]
+        let d = data(now: "2026-04-06", weeks: weeks, readings: [.init(day: "2026-03-24", kg: 70), .init(day: "2026-03-30", kg: 69.5)])
+        XCTAssertEqual(d.points(in: d.weeks[0]).map(\.kg), [70])
+        XCTAssertEqual(d.points(in: d.weeks[1]).map(\.kg), [69.5])
+        XCTAssertEqual(d.targetPath(in: d.weeks[1]).first!.kg, 69.5, accuracy: 0.00001)
+        XCTAssertEqual(d.targetPath(in: d.weeks[0]).last!.kg, 70 - 6.0 / 14, accuracy: 0.00001)
+    }
+    func testOneReadingIsCenteredAndFinishClipsWeek() {
+        let d = data(started: "2026-03-30", now: "2026-03-30", readings: [.init(day: "2026-03-30", kg: 70)])
+        let bounds = d.domain(for: d.weeks.last!)
+        XCTAssertEqual(date("2026-03-30").timeIntervalSince(bounds.lowerBound), bounds.upperBound.timeIntervalSince(date("2026-03-30")))
+        let done = data(now: "2026-04-10", finish: "2026-04-01")
+        XCTAssertEqual(done.window(for: done.weeks.last!).upperBound, date("2026-04-01"))
+    }
+
 }

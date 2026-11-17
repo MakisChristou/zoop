@@ -529,10 +529,12 @@ its loopback server uses synthetic data only. Backend algorithm and isolated
 Postgres cases cover median robustness, sparse dates, goal changes and stall rules.
 
 An optional finish date adds a calculated target weight and calendar-day progress.
-Cut progress shows days remaining, elapsed time as a percentage, and weight lost toward the goal.
+Cut progress leads with weight lost, alongside days remaining, the goal weight, and time progress as a percentage.
 Its chart uses the same axes, selection marker, and gestures as the Weight chart: swipe
-to browse weeks, or hold and drag to inspect. The chart plots actual canonical daily weigh-ins across the cut, one point per recorded
-local day. Missing days are not fabricated. The weekly readout retains medians and
+to browse weeks, or hold and drag to inspect. The chart plots actual canonical daily weigh-ins for the selected week, one point per recorded
+local day. The current week ends at today; half-day shoulders keep edge points inset and
+a single reading centered. Missing days are not fabricated. Tap a point to inspect it;
+hold and drag to scrub, releasing to restore the weekly median. The cursor is hidden at rest. The weekly readout retains medians and
 eligibility, with up to eight recent weeks of the current pace phase. Historical
 comparisons never reuse the latest verdict. Overall progress stays current while inspecting history.
 The dashed planned path is omitted after a pace reset, so the new rate is not drawn

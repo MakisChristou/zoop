@@ -11,7 +11,6 @@ struct CutProgressData {
     struct Point: Identifiable {
         let date: Date
         let kg: Double
-        let segment: Int
         let weekID: String
         var id: Date { date }
     }
@@ -84,7 +83,7 @@ struct CutProgressData {
                   seen.insert(day).inserted else { return nil }
             let offset = (calendar.component(.weekday, from: day) + 5) % 7
             let monday = calendar.date(byAdding: .day, value: -offset, to: day)!
-            return Point(date: day, kg: reading.kg, segment: 0,
+            return Point(date: day, kg: reading.kg,
                          weekID: CutPlan.key(monday, calendar: calendar))
         }.sorted { $0.date < $1.date }
     }
@@ -96,8 +95,30 @@ struct CutProgressData {
               let target = summary.progress?.targetWeightKg, initial.isFinite, target.isFinite else { return [] }
         return [(start, initial), (finish, target)]
     }
-    var domain: ClosedRange<Date> {
-        let last = max(finish ?? today, points.last?.date ?? today)
-        return start...max(last, calendar.date(byAdding: .day, value: 7, to: start)!)
+    /// The selected calendar week's elapsed portion, clipped to the cut.
+    func window(for week: SnoopAPI.WeightWeek) -> ClosedRange<Date> {
+        let lower = max(start, date(week.start))
+        let upper = max(lower, min(date(week.end), today, finish ?? today))
+        return lower...upper
+    }
+    func points(in week: SnoopAPI.WeightWeek) -> [Point] {
+        let bounds = window(for: week)
+        return points.filter { bounds.contains($0.date) }
+    }
+    func domain(for week: SnoopAPI.WeightWeek) -> ClosedRange<Date> {
+        let bounds = window(for: week)
+        // Half-day shoulders keep a single day centered and edge dots fully visible.
+        let lower = calendar.date(byAdding: .hour, value: -12, to: bounds.lowerBound)!
+        let upper = calendar.date(byAdding: .hour, value: 12, to: bounds.upperBound)!
+        return lower...upper
+    }
+    func targetPath(in week: SnoopAPI.WeightWeek) -> [(date: Date, kg: Double)] {
+        guard let first = targetPath.first, let last = targetPath.last else { return [] }
+        let bounds = window(for: week)
+        let total = Double(days(first.date, last.date))
+        guard total > 0 else { return [] }
+        return [bounds.lowerBound, bounds.upperBound].map { date in
+            (date, first.kg + (last.kg - first.kg) * Double(days(first.date, date)) / total)
+        }
     }
 }

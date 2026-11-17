@@ -139,17 +139,27 @@ import XCTest
         XCTAssertTrue(chart.waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 4")
         shot(app, "Cut progress overview")
-        let remaining = app.otherElements["cutDaysRemaining"].label
+        let remaining = app.descendants(matching: .any)["cutDaysRemaining"].label
         app.buttons["cutPreviousWeek"].tap()
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 3")
         XCTAssertFalse(app.staticTexts["weeklyWeightStatus"].exists, "Do not reuse the current verdict for history")
-        XCTAssertEqual(app.otherElements["cutDaysRemaining"].label, remaining)
+        XCTAssertEqual(app.descendants(matching: .any)["cutDaysRemaining"].label, remaining)
         for _ in 0..<4 where chart.frame.maxY > app.frame.height - 130 { app.swipeUp() }
         chart.swipeRight()
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 2")
         chart.swipeLeft()
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 3")
-        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5)).tap()
+        XCTAssertEqual(app.staticTexts["cutReadingLabel"].label, "Weekly median")
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.5)).tap()
+        XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 3")
+        XCTAssertNotEqual(app.staticTexts["cutReadingLabel"].label, "Weekly median")
+        shot(app, "Cut reading inspected")
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).press(forDuration: 0.3, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5)))
+        XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 3")
+        XCTAssertEqual(app.staticTexts["cutReadingLabel"].label, "Weekly median", "Releasing inspection restores the weekly summary")
+        app.buttons["cutPreviousWeek"].tap()
+        app.buttons["cutPreviousWeek"].tap()
+        XCTAssertEqual(app.staticTexts["cutReadingLabel"].label, "Weekly median")
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 1")
         XCTAssertFalse(app.buttons["cutPreviousWeek"].isEnabled)
         shot(app, "Cut history selected")
@@ -167,7 +177,7 @@ import XCTest
                 XCTAssertFalse(app.staticTexts["Starting"].exists)
                 XCTAssertFalse(app.staticTexts["First week"].exists)
                 XCTAssertFalse(app.buttons["cutPreviousWeek"].isEnabled)
-            } else { XCTAssertFalse(app.otherElements["cutDaysRemaining"].exists) }
+            } else { XCTAssertFalse(app.descendants(matching: .any)["cutDaysRemaining"].exists) }
             shot(app, "Cut progress " + state); app.terminate()
         }
     }

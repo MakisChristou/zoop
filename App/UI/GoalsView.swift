@@ -10,7 +10,7 @@ struct GoalsView: View {
     private var store: WeeklyWeightStore { model.weeklyWeight }
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
                 if store.goal?.active == true {
                     HStack {
                         Text("Cut").font(.headline)
@@ -25,7 +25,7 @@ struct GoalsView: View {
                 if let summary = store.summary, let goal = store.goal, goal.active {
                     TimelineView(.periodic(from: .now, by: 60)) { context in
                         let data = CutProgressData(goal: goal, summary: summary, now: context.date)
-                        VStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: 24) {
                             CutProgressView(data: data, unit: unit)
                             CutWeeklyChart(data: data, unit: unit, selection: $selectedWeek)
                         }

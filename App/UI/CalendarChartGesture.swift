@@ -6,12 +6,14 @@ import UIKit
 struct CalendarChartGesture: UIViewRepresentable {
     var select: (CGPoint) -> Void
     var page: (Int) -> Void
+    var endInspection: () -> Void = {}
     func makeUIView(context: Context) -> Surface { Surface() }
-    func updateUIView(_ view: Surface, context: Context) { view.select = select; view.page = page }
+    func updateUIView(_ view: Surface, context: Context) { view.select = select; view.page = page; view.endInspection = endInspection }
 
     final class Surface: UIView {
         var select: (CGPoint) -> Void = { _ in }
         var page: (Int) -> Void = { _ in }
+        var endInspection: () -> Void = {}
         override init(frame: CGRect) {
             super.init(frame: frame)
             backgroundColor = .clear; isAccessibilityElement = false
@@ -21,9 +23,11 @@ struct CalendarChartGesture: UIViewRepresentable {
         @objc private func handle(_ gesture: IntentGesture) {
             if gesture.inspect || gesture.tap {
                 if gesture.state == .began || gesture.state == .changed || gesture.state == .ended { select(gesture.point) }
+                if gesture.state == .ended && gesture.inspect { endInspection() }
             } else if gesture.state == .ended, abs(gesture.point.x - gesture.origin.x) > 40 {
                 page(gesture.point.x > gesture.origin.x ? -1 : 1)
             }
+            if gesture.state == .cancelled { endInspection() }
         }
     }
 
