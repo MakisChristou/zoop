@@ -314,7 +314,9 @@ and then the `SnoopUITests/MorningRefreshTests` test on a simulator. Its loopbac
 on port 28479 returns Updating for eight seconds and then Learning, while unrelated
 Today endpoints fail. It uses synthetic data and does not require a backend database.
 
-Morning outlook uses a neutral Headline card above the daily overview. Only its
+Morning outlook uses a compact neutral card above the daily overview: a header
+chevron, status, and three comparison deltas. Degree wording and incomplete-data
+explanations remain when useful; the repeated scale and footer are omitted. Only its
 status and individual comparison deltas carry green, amber or red. The backend
 supplies the classification; mixed signals stay mixed and incomplete/early data
 stays neutral. Details and the method sheet explain the comparisons. This is a

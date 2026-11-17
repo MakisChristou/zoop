@@ -122,6 +122,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):
             if device == 'SLEEP-COMPARISON': return self.send(dict(error='Synthetic insights unavailable'), 503)
+            if device.startswith('MORNING-CARD-'):
+                state = device.removeprefix('MORNING-CARD-')
+                body = insight(parts[-2], state != 'learning')
+                body['outlook'].update(state=state, level={'good':5,'average':3,'low':1}.get(state))
+                if state in ('updating', 'awaiting_sync', 'no_sleep'):
+                    body['state']=state; body['metrics']=[]
+                if state in ('average', 'low'):
+                    for metric in body['metrics']:
+                        metric['comparison']['signal']='usual' if state == 'average' else 'unfavourable'
+                return self.send(body)
             mature = device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat()
             return self.send(insight(parts[-2], mature, 13 if device == 'INSIGHT-REVIEW' else 11))
         if route.endswith('/steps'):

@@ -2,9 +2,9 @@ import XCTest
 
 /// Synthetic INSIGHT-REVIEW only; no physical phone or personal recordings.
 @MainActor final class MorningInsightsTests: XCTestCase {
-    private func launch(large: Bool = false) -> XCUIApplication {
+    private func launch(large: Bool = false, state: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", "INSIGHT-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28473", "-ingestToken", "ui-test-token", "-onboarded", "YES"]
+        app.launchArguments = ["-demoSerial", state.map { "MORNING-CARD-" + $0 } ?? "INSIGHT-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
@@ -57,4 +57,33 @@ import XCTest
         XCTAssertTrue(app.staticTexts["Sleep timing"].exists)
         shot(app, "Weekly insights large text")
     }
+    func testCompactCardStates() {
+        for (state, title) in [("average", "Average"), ("good", "Good"), ("low", "Low"), ("learning", "Learning"), ("limited", "Limited data"), ("updating", "Updating"), ("no_sleep", "No sleep")] {
+            let app = launch(state: state)
+            let card = app.buttons["openMorningInsights"]
+            XCTAssertTrue(card.waitForExistence(timeout: 20))
+            XCTAssertEqual(app.staticTexts["morningOutlookStatus"].firstMatch.label, title)
+            XCTAssertFalse(app.staticTexts["Strong"].exists)
+            XCTAssertFalse(app.staticTexts["Compared with your usual"].exists)
+            if state == "average" {
+                XCTAssertFalse(app.staticTexts["Close to your usual"].exists)
+                XCTAssertLessThan(card.frame.height, 200)
+                XCTAssertTrue(card.label.contains("HRV"))
+            }
+            shot(app, "Compact morning " + state)
+            app.terminate()
+        }
+    }
+    func testCompactCardLargeTextAndNavigation() {
+        let app = launch(large: true, state: "average")
+        let card = app.buttons["openMorningInsights"]
+        XCTAssertTrue(card.waitForExistence(timeout: 20))
+        XCTAssertTrue(card.label.contains("HRV"))
+        XCTAssertTrue(card.label.contains("Resting"))
+        shot(app, "Compact morning large text top")
+        app.swipeUp()
+        shot(app, "Compact morning large text comparisons")
+        open(app)
+    }
+
 }
