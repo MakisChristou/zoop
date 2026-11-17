@@ -19,7 +19,8 @@ import Observation
     private(set) var loading = false
     @ObservationIgnored private let fetch: (String, Date) async throws -> MorningInsights
     @ObservationIgnored private let sleep: (Duration) async throws -> Void
-    @ObservationIgnored private var scope: Scope?
+    // Scoped reads must observe the first scope assignment, even before value exists.
+    private var scope: Scope?
     @ObservationIgnored private var requestID = UUID()
     @ObservationIgnored private var monitorID = UUID()
     @ObservationIgnored private var pollWait: Task<Void, Error>?

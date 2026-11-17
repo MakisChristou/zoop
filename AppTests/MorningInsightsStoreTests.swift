@@ -1,4 +1,5 @@
 import XCTest
+import Observation
 @testable import Snoop
 
 @MainActor final class MorningInsightsStoreTests: XCTestCase {
@@ -147,4 +148,20 @@ import XCTest
         XCTAssertEqual(delays, [.seconds(15)])
         XCTAssertFalse(store.loading)
     }
+    func testInitialScopedReadObservesFirstResult() async throws {
+        let ready = try response("ready")
+        let store = MorningInsightsStore(fetch: { _, _ in ready })
+        let current = scope()
+        let changed = expectation(description: "An initially empty card is invalidated when its scope loads")
+        withObservationTracking {
+            XCTAssertNil(store.value(for: current))
+            XCTAssertFalse(store.failed(for: current))
+        } onChange: {
+            changed.fulfill()
+        }
+        await store.reload(current)
+        await fulfillment(of: [changed], timeout: 0.2)
+        XCTAssertEqual(store.value(for: current)?.state, "ready")
+    }
+
 }
