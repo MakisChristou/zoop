@@ -116,6 +116,7 @@ fn missing_future_invalid_and_pre_cut_weights_do_not_create_progress() {
         Some(day("2026-12-10")),
         0.3,
     );
+    assert!(p.weigh_ins.is_empty());
     assert_eq!(p.starting_weight_kg, None);
     assert_eq!(p.current_weight_kg, None);
     assert_eq!(p.total_lost_kg, None);
@@ -130,6 +131,17 @@ fn input_order_and_duplicate_days_preserve_canonical_first_row() {
         ("2026-11-17", 71.0),
     ]);
     let p = cut_progress(&data, day("2026-11-18"), day("2026-11-16"), None, 0.3);
+    assert_eq!(
+        p.weigh_ins
+            .iter()
+            .map(|p| (p.day, p.kg))
+            .collect::<Vec<_>>(),
+        vec![
+            (day("2026-11-16"), 70.0),
+            (day("2026-11-17"), 71.0),
+            (day("2026-11-18"), 69.0)
+        ]
+    );
     assert_eq!(p.total_lost_kg, Some(1.0));
     assert_eq!(p.target_weight_kg, None);
     assert_eq!(p.weeks_remaining, None);

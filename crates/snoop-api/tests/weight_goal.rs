@@ -236,6 +236,10 @@ async fn first_latest_progress_keeps_weekly_median_and_measurements_unchanged() 
     let (status, r) = call(&db, DEVICE, None, true).await;
     assert_eq!(status, 200);
     let p = &r["summary"]["progress"];
+    assert_eq!(
+        p["weigh_ins"],
+        json!([{"day":"2020-11-16","kg":70.6},{"day":"2020-11-17","kg":69.9}])
+    );
     assert_eq!(p["starting_weight_kg"], 70.6);
     assert_eq!(p["current_weight_kg"], 69.9);
     assert!((p["total_lost_kg"].as_f64().unwrap() - 0.7).abs() < 1e-9);
@@ -263,6 +267,7 @@ async fn sparse_long_cut_endpoints_outlive_weekly_history_window() {
         "INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name) VALUES
       ('TEST-RELIABILITY','pre-cut','2019-12-31T08:00:00Z',90,'health','Test'),
       ('TEST-RELIABILITY','start','2020-01-20T08:00:00Z',80,'snoop','Test'),
+      ('TEST-RELIABILITY','middle','2020-03-01T08:00:00Z',79,'snoop','Test'),
       ('TEST-RELIABILITY','last','2020-06-01T08:00:00Z',78,'snoop','Test'),
       ('TEST-RELIABILITY','after','2021-01-01T08:00:00Z',70,'snoop','Test')",
     )
@@ -270,6 +275,10 @@ async fn sparse_long_cut_endpoints_outlive_weekly_history_window() {
     let (status, r) = call(&db, DEVICE, None, true).await;
     assert_eq!(status, 200);
     let p = &r["summary"]["progress"];
+    assert_eq!(
+        p["weigh_ins"],
+        json!([{"day":"2020-01-20","kg":80.0},{"day":"2020-03-01","kg":79.0},{"day":"2020-06-01","kg":78.0}])
+    );
     assert_eq!(p["starting_weight_kg"], 80.0);
     assert_eq!(p["current_weight_kg"], 78.0);
     assert_eq!(p["total_lost_kg"], 2.0);
@@ -293,7 +302,7 @@ async fn endpoints_preserve_local_day_health_priority_and_future_filter() {
     .await;
     let rows = db
         .store
-        .cut_weight_endpoints(
+        .cut_weight_days(
             DEVICE,
             "Europe/Berlin",
             day("2025-03-30"),
@@ -309,7 +318,7 @@ async fn endpoints_preserve_local_day_health_priority_and_future_filter() {
     assert_eq!(rows[1].kg, 69.0);
     let single = db
         .store
-        .cut_weight_endpoints(
+        .cut_weight_days(
             DEVICE,
             "Europe/Berlin",
             day("2025-03-30"),
@@ -322,7 +331,7 @@ async fn endpoints_preserve_local_day_health_priority_and_future_filter() {
     assert_eq!(single[0].kg, 70.0);
     assert!(
         db.store
-            .cut_weight_endpoints(
+            .cut_weight_days(
                 DEVICE,
                 "Europe/Berlin",
                 day("2025-04-01"),

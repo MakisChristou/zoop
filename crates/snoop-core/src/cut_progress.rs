@@ -4,9 +4,19 @@ use chrono::NaiveDate;
 use serde::Serialize;
 use snoop_storage::WeightDay;
 
+/// One observed canonical daily weight, never a weekly aggregate.
+#[derive(Debug, Serialize)]
+pub struct CutWeighIn {
+    /// Local calendar day in the goal timezone.
+    pub day: NaiveDate,
+    /// Recorded weight in kilograms.
+    pub kg: f64,
+}
+
 /// Progress remains separate from weekly pace eligibility.
 #[derive(Debug, Serialize)]
 pub struct CutProgress {
+    pub weigh_ins: Vec<CutWeighIn>,
     pub finish_date: Option<NaiveDate>,
     pub weeks_remaining: Option<i64>,
     pub completed: bool,
@@ -49,6 +59,10 @@ pub fn cut_progress(
             .then_some(target)
     });
     CutProgress {
+        weigh_ins: observed
+            .into_iter()
+            .map(|(day, kg)| CutWeighIn { day, kg })
+            .collect(),
         finish_date: finish,
         weeks_remaining: finish.map(|end| ((end - today).num_days().max(0) + 6) / 7),
         completed: finish.is_some_and(|end| today > end),
