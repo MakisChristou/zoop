@@ -536,10 +536,14 @@ recent weeks of the current pace phase. Historical medians show eligible adjacen
 changes without reusing the latest verdict. Missing weeks break the line; incomplete
 medians are isolated dots. Overall progress stays current while inspecting history.
 The dashed planned path is omitted after a pace reset, so the new rate is not drawn
-over old weeks. Goal weight and rate remain visible. No future measurements are drawn. Targets use the starting seven-day median and selected weekly
-rate over calendar days. Baselines can be refined by late Health imports or corrections;
-missing baselines remain unknown. Current progress uses the last seven calendar days,
-without inventing missing readings. Finished cuts exclude all later weigh-ins.
+over old weeks. Goal weight and rate remain visible. No future measurements are drawn. Targets use the first canonical weigh-in on or after
+the cut's local start day and the selected weekly rate over calendar days. Overall
+progress compares that first cut reading with the latest reading through today or
+finish; pre-cut readings never become the starting weight. A single reading means
+zero change; no cut readings means unknown progress/target. Long cuts and gaps in
+logging retain these endpoints. Weekly medians and pace eligibility are unchanged.
+Late Health imports or corrections can update the first/latest readings. Finished
+cuts exclude all later weigh-ins.
 The finish date does not restart pace comparisons; resuming a paused cut still does.
 Dated reminders schedule up to eight upcoming one-shot weeks, refreshed on app sync,
 so none can fire after the finish date even while offline. Open-ended cuts retain their
