@@ -214,3 +214,123 @@ async fn cut_steps_are_optional_revisioned_and_do_not_reset_weight_pace() {
     assert!(call(&db, DEVICE, Some(q), true).await.1["daily_steps_goal"].is_null());
     assert_eq!(db.count("SELECT count(*) FROM weight_readings").await, 0);
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn first_latest_progress_keeps_weekly_median_and_measurements_unchanged() {
+    let db = Db::new().await;
+    call(&db, DEVICE, Some(input()), true).await;
+    db.sql("UPDATE weight_goals SET started_at='2020-11-16T12:00:00Z',pace_started_at='2020-11-16T12:00:00Z',timezone='UTC',finish_date='2020-11-17',weekly_loss_kg=0.8").await;
+    db.sql(
+        "INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES
+      ('TEST-RELIABILITY','pre-cut','2020-11-15T08:00:00Z',69.9,'snoop','Test',false),
+      ('TEST-RELIABILITY','start','2020-11-16T08:00:00Z',70.6,'snoop','Test',false),
+      ('TEST-RELIABILITY','latest','2020-11-17T08:00:00Z',69.9,'snoop','Test',false),
+      ('TEST-RELIABILITY','deleted','2020-11-17T09:00:00Z',90,'health','Test',true),
+      ('TEST-RELIABILITY','after-finish','2020-11-18T08:00:00Z',80,'health','Test',false)",
+    )
+    .await;
+    let before = db
+        .count("SELECT sum(version)::bigint FROM weight_readings")
+        .await;
+    let (status, r) = call(&db, DEVICE, None, true).await;
+    assert_eq!(status, 200);
+    let p = &r["summary"]["progress"];
+    assert_eq!(p["starting_weight_kg"], 70.6);
+    assert_eq!(p["current_weight_kg"], 69.9);
+    assert!((p["total_lost_kg"].as_f64().unwrap() - 0.7).abs() < 1e-9);
+    assert!((p["target_weight_kg"].as_f64().unwrap() - (70.6 - 0.8 / 7.0)).abs() < 1e-9);
+    assert_eq!(r["summary"]["median_kg"], 70.25);
+    assert_eq!(r["summary"]["count"], 2);
+    assert_eq!(
+        before,
+        db.count("SELECT sum(version)::bigint FROM weight_readings")
+            .await
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_revisions").await,
+        1
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn sparse_long_cut_endpoints_outlive_weekly_history_window() {
+    let db = Db::new().await;
+    call(&db, DEVICE, Some(input()), true).await;
+    db.sql("UPDATE weight_goals SET started_at='2020-01-01T12:00:00Z',pace_started_at='2020-01-01T12:00:00Z',timezone='UTC',finish_date='2020-12-31',weekly_loss_kg=0.1").await;
+    db.sql(
+        "INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name) VALUES
+      ('TEST-RELIABILITY','pre-cut','2019-12-31T08:00:00Z',90,'health','Test'),
+      ('TEST-RELIABILITY','start','2020-01-20T08:00:00Z',80,'snoop','Test'),
+      ('TEST-RELIABILITY','last','2020-06-01T08:00:00Z',78,'snoop','Test'),
+      ('TEST-RELIABILITY','after','2021-01-01T08:00:00Z',70,'snoop','Test')",
+    )
+    .await;
+    let (status, r) = call(&db, DEVICE, None, true).await;
+    assert_eq!(status, 200);
+    let p = &r["summary"]["progress"];
+    assert_eq!(p["starting_weight_kg"], 80.0);
+    assert_eq!(p["current_weight_kg"], 78.0);
+    assert_eq!(p["total_lost_kg"], 2.0);
+    assert!((p["target_weight_kg"].as_f64().unwrap() - (80.0 - 0.1 * 365.0 / 7.0)).abs() < 1e-9);
+    assert!(r["summary"]["median_kg"].is_null());
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn endpoints_preserve_local_day_health_priority_and_future_filter() {
+    let db = Db::new().await;
+    db.sql(
+        "INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES
+      ('TEST-RELIABILITY','pre-cut','2025-03-29T22:59:00Z',90,'health','Test',false),
+      ('TEST-RELIABILITY','first','2025-03-29T23:30:00Z',70,'health','Test',false),
+      ('TEST-RELIABILITY','same-day-snoop','2025-03-30T10:00:00Z',80,'snoop','Test',false),
+      ('TEST-RELIABILITY','last','2025-03-30T22:30:00Z',69,'health','Test',false),
+      ('TEST-RELIABILITY','deleted','2025-03-30T22:45:00Z',90,'health','Test',true),
+      ('TEST-RELIABILITY','future','2025-03-31T08:00:00Z',60,'health','Test',false)",
+    )
+    .await;
+    let rows = db
+        .store
+        .cut_weight_endpoints(
+            DEVICE,
+            "Europe/Berlin",
+            day("2025-03-30"),
+            day("2025-03-31"),
+            at("2025-03-30T23:00:00Z"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].day, day("2025-03-30"));
+    assert_eq!(rows[0].kg, 70.0);
+    assert_eq!(rows[1].day, day("2025-03-31"));
+    assert_eq!(rows[1].kg, 69.0);
+    let single = db
+        .store
+        .cut_weight_endpoints(
+            DEVICE,
+            "Europe/Berlin",
+            day("2025-03-30"),
+            day("2025-03-30"),
+            at("2025-03-30T23:00:00Z"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(single.len(), 1);
+    assert_eq!(single[0].kg, 70.0);
+    assert!(
+        db.store
+            .cut_weight_endpoints(
+                DEVICE,
+                "Europe/Berlin",
+                day("2025-04-01"),
+                day("2025-03-31"),
+                at("2025-04-02T12:00:00Z")
+            )
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}

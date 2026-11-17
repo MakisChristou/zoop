@@ -365,13 +365,17 @@ Finish dates (migration 0015) are optional local calendar dates, after the start
 within 730 days. Omitted PUT fields preserve the date for older clients; explicit
 null clears it. Date-only edits retain both phase and pace start dates.
 `summary.progress` reports rounded-up weeks remaining, observed total loss (negative
-for a gain), and target weight = starting median − weekly rate × calendar days / 7.
-The baseline is the median of canonical daily weights in the seven days ending at
-start; if absent, the first reading within the next seven days. Current progress is
-the trailing seven-day median, capped at finish. Late imports/corrections can refine
-these observations. Baseline queries remain bounded even for old cuts; absent/stale
-weights and unsupported projections stay null. This is arithmetic against a chosen
-goal, not a predicted fat-loss trajectory. Reads never alter Health or weight records.
+for a gain), and target weight = first cut weigh-in − weekly rate × calendar days / 7.
+Progress compares the first and latest canonical daily readings within the cut's
+local start/finish dates. The start day is included even if the weigh-in preceded
+setup that day. Pre-cut, removed, future and post-finish readings are excluded.
+The endpoint query returns at most two daily observations and is independent of
+the bounded weekly pace history, so long cuts and logging gaps retain their real
+start/latest weights. A single reading means zero observed change; no reading
+means unknown progress/target. Late imports and corrections can update endpoints.
+Weekly pace still uses its existing median and eligibility rules unchanged.
+This is observed scale change and arithmetic against a chosen goal, not a predicted
+fat-loss trajectory. Reads never alter Health, weigh-ins or saved goal settings.
 
 Optional `daily_steps_goal` (migration 0016) belongs to the cut and is independent
 of weight-loss pace. It accepts 1–100,000 steps, defaults to null, and does not

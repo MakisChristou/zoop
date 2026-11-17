@@ -32,20 +32,13 @@ pub(crate) async fn get(
             .store
             .weight_days_between(&d, &g.timezone, as_of - Duration::days(112), as_of, now)
             .await?;
-        let baseline = s
+        let endpoints = s
             .store
-            .weight_days_between(
-                &d,
-                &g.timezone,
-                started - Duration::days(6),
-                started + Duration::days(7),
-                now,
-            )
+            .cut_weight_endpoints(&d, &g.timezone, started, as_of, now)
             .await?;
         let mut outlook = snoop_core::weight_outlook(&days, as_of, started, pace, g.weekly_loss_kg);
         outlook.progress = Some(snoop_core::cut_progress(
-            &baseline,
-            &days,
+            &endpoints,
             today,
             started,
             g.finish_date,

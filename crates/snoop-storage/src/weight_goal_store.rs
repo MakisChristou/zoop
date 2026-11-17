@@ -199,4 +199,46 @@ impl PostgresStore {
         sqlx::query_as("SELECT DISTINCT ON ((measured_at AT TIME ZONE $2)::date) (measured_at AT TIME ZONE $2)::date AS day,kg FROM weight_readings WHERE device_id=$1 AND NOT removed AND kg BETWEEN 20 AND 400 AND measured_at<=$5 AND measured_at>=($3::date::timestamp AT TIME ZONE $2) AND measured_at<(($4::date+1)::timestamp AT TIME ZONE $2) ORDER BY (measured_at AT TIME ZONE $2)::date, (source='health') DESC, measured_at DESC,id DESC")
             .bind(device).bind(tz).bind(from).bind(to).bind(now).fetch_all(self.pool()).await.map_err(fail)
     }
+    /// First and latest canonical weigh-ins in the cut, including both boundary days.
+    /// Unlike pace history, endpoints must survive cuts longer than 112 days and
+    /// gaps in logging. At most two rows are returned; source priority is unchanged.
+    /// # Errors
+    /// Database failure or invalid timezone.
+    pub async fn cut_weight_endpoints(
+        &self,
+        device: &str,
+        tz: &str,
+        from: NaiveDate,
+        to: NaiveDate,
+        now: DateTime<Utc>,
+    ) -> StorageResult<Vec<WeightDay>> {
+        if to < from {
+            return Ok(Vec::new());
+        }
+        sqlx::query_as(
+            "WITH daily AS (
+                SELECT DISTINCT ON ((measured_at AT TIME ZONE $2)::date)
+                    (measured_at AT TIME ZONE $2)::date AS day, kg
+                FROM weight_readings
+                WHERE device_id=$1 AND NOT removed AND kg BETWEEN 20 AND 400
+                    AND measured_at<=$5
+                    AND measured_at>=($3::date::timestamp AT TIME ZONE $2)
+                    AND measured_at<(($4::date+1)::timestamp AT TIME ZONE $2)
+                ORDER BY (measured_at AT TIME ZONE $2)::date,
+                    (source='health') DESC, measured_at DESC, id DESC
+            )
+            (SELECT day,kg FROM daily ORDER BY day LIMIT 1)
+            UNION
+            (SELECT day,kg FROM daily ORDER BY day DESC LIMIT 1)
+            ORDER BY day",
+        )
+        .bind(device)
+        .bind(tz)
+        .bind(from)
+        .bind(to)
+        .bind(now)
+        .fetch_all(self.pool())
+        .await
+        .map_err(fail)
+    }
 }

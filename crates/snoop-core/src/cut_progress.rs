@@ -1,6 +1,6 @@
 //! Calendar arithmetic and observed weight change, not a prediction of physiology.
-//! Uses the same descriptive median aggregation documented in weight_outlook.
-use chrono::{Duration, NaiveDate};
+//! Progress uses first/latest canonical cut weigh-ins; weekly pace retains medians.
+use chrono::NaiveDate;
 use serde::Serialize;
 use snoop_storage::WeightDay;
 
@@ -28,39 +28,20 @@ fn daily(
     }
     result
 }
-fn median(values: impl Iterator<Item = f64>) -> Option<f64> {
-    let mut xs: Vec<_> = values.collect();
-    if xs.is_empty() {
-        return None;
-    }
-    xs.sort_by(f64::total_cmp);
-    let n = xs.len();
-    Some((xs[(n - 1) / 2] + xs[n / 2]) / 2.0)
-}
-/// Baseline: prior seven calendar days including start; if absent, first reading
-/// within seven days after start. Current: median of last seven days, capped at finish.
-/// Missing or stale observations stay unknown. Negative loss honestly means a gain.
+/// First and latest real daily readings from the cut's local start day through
+/// today (or finish). Pre-cut and future readings cannot influence progress.
+/// A single reading means zero observed change; missing readings stay unknown.
 pub fn cut_progress(
-    baseline: &[WeightDay],
-    recent: &[WeightDay],
+    readings: &[WeightDay],
     today: NaiveDate,
     started: NaiveDate,
     finish: Option<NaiveDate>,
     rate: f64,
 ) -> CutProgress {
     let as_of = finish.map_or(today, |end| end.min(today));
-    let prior = daily(baseline, started - Duration::days(6), started.min(as_of));
-    let initial = median(prior.values().copied()).or_else(|| {
-        daily(baseline, started, (started + Duration::days(7)).min(as_of))
-            .values()
-            .next()
-            .copied()
-    });
-    let current = median(
-        daily(recent, (as_of - Duration::days(6)).max(started), as_of)
-            .values()
-            .copied(),
-    );
+    let observed = daily(readings, started, as_of);
+    let initial = observed.first_key_value().map(|(_, kg)| *kg);
+    let current = observed.last_key_value().map(|(_, kg)| *kg);
     let target = finish.zip(initial).and_then(|(end, weight)| {
         let duration = (end - started).num_days();
         let target = weight - rate * duration as f64 / 7.0;
