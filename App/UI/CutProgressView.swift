@@ -14,7 +14,7 @@ struct CutProgressView: View {
                             .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
                     }
                 }.accessibilityElement(children: .combine).accessibilityIdentifier("cutDaysRemaining")
-                progress("Time", value: "\(time.elapsed) / \(time.total) days", fraction: time.fraction)
+                progress("Time", value: time.fraction.formatted(.percent.precision(.fractionLength(0))), fraction: time.fraction)
             }
             if let loss = data.summary.progress?.totalLostKg {
                 let value = WeeklyWeightPresentation.weight(abs(loss), unit: unit)

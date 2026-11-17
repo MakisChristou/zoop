@@ -52,7 +52,7 @@ struct CutWeeklyChart: View {
                 }
                 chart.frame(height: min(chartHeight, 280)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .accessibilityElement(children: .ignore).accessibilityLabel("Cut weight chart")
-                    .accessibilityValue("Week \(data.number(week)), \(WeeklyWeightPresentation.weight(week.medianKg, unit: unit)) \(unit)")
+                    .accessibilityValue("\(points.count) weigh-ins. Week \(data.number(week)), weekly median \(WeeklyWeightPresentation.weight(week.medianKg, unit: unit)) \(unit)")
                     .accessibilityIdentifier("cutWeeklyChart")
                     .accessibilityHint("Swipe up or down to select a week.")
                     .accessibilityAdjustableAction { move($0 == .increment ? 1 : -1) }
@@ -112,7 +112,7 @@ struct CutWeeklyChart: View {
             }
             if let week {
                 RuleMark(x: .value("Selected week", min(data.date(week.end), data.finish ?? data.today, data.today))).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
-                if let point = points.first(where: { $0.weekID == week.id }) {
+                if let point = points.last(where: { $0.weekID == week.id }) {
                     PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(80)
                 }
             }

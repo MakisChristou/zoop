@@ -13,7 +13,7 @@ struct CutProgressData {
         let kg: Double
         let segment: Int
         let weekID: String
-        var id: String { weekID }
+        var id: Date { date }
     }
     let goal: SnoopAPI.WeightGoal
     let summary: SnoopAPI.WeeklyWeightSummary
@@ -76,16 +76,19 @@ struct CutProgressData {
         return after - before
     }
     var points: [Point] {
-        var segment = 0
-        return weeks.compactMap { week in
-            // Incomplete medians are inspectable dots, never joined to imply a reliable trend.
-            guard let kg = week.medianKg, kg.isFinite else { segment += 1; return nil }
-            if !week.eligible { segment += 1 }
-            let point = Point(date: min(date(week.end), finish ?? today, today), kg: kg, segment: segment, weekID: week.id)
-            if !week.eligible { segment += 1 }
-            return point
-        }
+        var seen = Set<Date>()
+        return (summary.progress?.weighIns ?? []).compactMap { reading in
+            guard let day = CutPlan.date(reading.day, calendar: calendar),
+                  day >= start, day <= min(finish ?? today, today),
+                  reading.kg.isFinite, (20...400).contains(reading.kg),
+                  seen.insert(day).inserted else { return nil }
+            let offset = (calendar.component(.weekday, from: day) + 5) % 7
+            let monday = calendar.date(byAdding: .day, value: -offset, to: day)!
+            return Point(date: day, kg: reading.kg, segment: 0,
+                         weekID: CutPlan.key(monday, calendar: calendar))
+        }.sorted { $0.date < $1.date }
     }
+
     /// A changed pace must not rewrite the target path of earlier weeks.
     var targetPath: [(date: Date, kg: Double)] {
         guard calendar.isDate(goal.startedAt, inSameDayAs: goal.paceStartedAt),

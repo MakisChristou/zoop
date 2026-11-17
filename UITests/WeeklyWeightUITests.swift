@@ -162,6 +162,7 @@ import XCTest
             let app = launch(state: state)
             XCTAssertTrue(app.otherElements["cutWeeklyChart"].waitForExistence(timeout: 15))
             if state == "FIRST" {
+                XCTAssertTrue((app.otherElements["cutWeeklyChart"].value as? String ?? "").contains("2 weigh-ins"))
                 XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 1")
                 XCTAssertFalse(app.staticTexts["Starting"].exists)
                 XCTAssertFalse(app.staticTexts["First week"].exists)

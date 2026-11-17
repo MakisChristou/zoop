@@ -17,7 +17,7 @@ def summary(g):
                 median_kg=63.3-.3*i, count=6, eligible=True) for i in range(4)]
     return dict(algorithm_version=1, start=weeks[-1]['start'], end=weeks[-1]['end'], provisional=False,
                 state='on_pace', reason='within_target', median_kg=62.4, change_kg=-.3,
-                weekly_loss_kg=g['weekly_loss_kg'], count=6, week_number=4, weeks=weeks, progress=dict(finish_date=g.get('finish_date'), weeks_remaining=4 if g.get('finish_date') else None, completed=False, starting_weight_kg=63.3, current_weight_kg=62.4, total_lost_kg=.9, target_weight_kg=60.9 if g.get('finish_date') else None))
+                weekly_loss_kg=g['weekly_loss_kg'], count=6, week_number=4, weeks=weeks, progress=dict(weigh_ins=[dict(day=str(datetime.fromisoformat(g['started_at'].replace('Z','+00:00')).date()+timedelta(days=i)),kg=63.3-.9*i/27) for i in range(28)], finish_date=g.get('finish_date'), weeks_remaining=4 if g.get('finish_date') else None, completed=False, starting_weight_kg=63.3, current_weight_kg=62.4, total_lost_kg=.9, target_weight_kg=60.9 if g.get('finish_date') else None))
 class Handler(BaseHTTPRequestHandler):
     def send(self, data, status=200):
         raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
@@ -30,11 +30,12 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('PAUSED-'):g['active']=False
             if device.startswith('OPEN-'):g['finish_date']=None
             if device.startswith('FIRST-'):
-                g['started_at']=stamp(now);g['pace_started_at']=stamp(now)
+                g['started_at']=stamp(now-timedelta(days=1));g['pace_started_at']=g['started_at']
                 monday=now.date()-timedelta(days=now.weekday())
                 s=summary(g);s.update(start=str(monday),end=str(monday+timedelta(days=6)),state='starting',reason='first_week',median_kg=64.6,change_kg=None,count=1,week_number=1,provisional=True)
                 s['weeks']=[dict(start=s['start'],end=s['end'],median_kg=64.6,count=1,eligible=False)]
-                s['progress'].update(starting_weight_kg=63.9,current_weight_kg=64.6,total_lost_kg=-.7,target_weight_kg=62.7)
+                s['progress'].update(weigh_ins=[dict(day=str((now-timedelta(days=1)).date()),kg=70.6),dict(day=str(now.date()),kg=69.9)],starting_weight_kg=70.6,current_weight_kg=69.9,total_lost_kg=.7,target_weight_kg=67.7)
+                s['median_kg']=70.25;s['count']=2;s['weeks'][0].update(median_kg=70.25,count=2)
                 return self.send(dict(goal=g,summary=s))
             return self.send(dict(goal=g,summary=summary(g) if g['active'] and not device.startswith('PENDING-') else None))
         if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))

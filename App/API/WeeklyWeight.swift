@@ -58,6 +58,10 @@ extension SnoopAPI {
         let weeks: [WeightWeek]
         var progress: CutProgress? = nil
     }
+    struct CutWeighIn: Codable, Equatable, Sendable {
+        let day: String
+        let kg: Double
+    }
     struct CutProgress: Codable, Equatable, Sendable {
         let finishDate: String?
         let weeksRemaining: Int?
@@ -66,6 +70,7 @@ extension SnoopAPI {
         let currentWeightKg: Double?
         let totalLostKg: Double?
         let targetWeightKg: Double?
+        var weighIns: [CutWeighIn]? = nil
     }
     struct WeeklyWeightResponse: Codable, Sendable {
         let goal: WeightGoal?
