@@ -382,3 +382,13 @@ of weight-loss pace. It accepts 1–100,000 steps, defaults to null, and does no
 change either start timestamp. Older clients omitting it preserve the setting;
 explicit null disables it. It is a user-chosen target, not an activity prescription,
 and does not alter measured steps or calorie calculations.
+
+
+### Walk workout duration
+
+Automatically detected walks count as workouts only when longer than 30 minutes
+(31 minutes at the detector's whole-minute resolution). Shorter walks do not
+become generic Activity workouts. All steps, walking bouts and whole-day load
+still count. Workout algorithm version 5 automatically reprocesses existing
+history; manual workout corrections remain authoritative. Sleep detection is
+unchanged.

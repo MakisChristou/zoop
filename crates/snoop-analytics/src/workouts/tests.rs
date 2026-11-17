@@ -48,23 +48,23 @@ const REST: (i64, u8, bool, bool) = (30, 70, false, false);
 
 #[test]
 fn a_walk_becomes_a_walk_session_with_steps_and_load() {
-    let samples = day(&[REST, (25, 100, true, false), REST]);
+    let samples = day(&[REST, (35, 100, true, false), REST]);
     let found = detect(&samples);
     assert_eq!(found.len(), 1);
     let w = &found[0];
     assert_eq!(w.kind, WorkoutKind::Walk);
-    assert_eq!(w.duration_s, 25 * 60);
+    assert_eq!(w.duration_s, 35 * 60);
     assert_eq!(w.start, samples[30 * 60].ts);
-    assert!((w.steps - 2500).abs() <= 2, "steps {}", w.steps);
+    assert!((w.steps - 3500).abs() <= 2, "steps {}", w.steps);
     assert!((w.avg_hr - 100.0).abs() < 1e-9);
     assert_eq!(w.max_hr, 100);
-    // 100 bpm is 52.6 % of 190: zone 1 for 25 minutes, TRIMP 25.
-    assert_eq!(w.zones.0, [1500, 0, 0, 0, 0]);
-    assert!((w.trimp - 25.0).abs() < 1e-9);
-    assert!(w.load > 3.0 && w.load < 4.0, "load {}", w.load);
+    // 100 bpm is 52.6 % of 190: zone 1 for 35 minutes, TRIMP 35.
+    assert_eq!(w.zones.0, [2100, 0, 0, 0, 0]);
+    assert!((w.trimp - 35.0).abs() < 1e-9);
+    assert!(w.load > 4.0 && w.load < 5.0, "load {}", w.load);
     // Keytel at 100 bpm for a 30-year-old 80 kg man is 7.2 kcal/min.
     assert!(
-        w.kcal.is_some_and(|k| k > 170.0 && k < 190.0),
+        w.kcal.is_some_and(|k| k > 240.0 && k < 260.0),
         "{:?}",
         w.kcal
     );
@@ -176,7 +176,7 @@ fn scattered_spikes_do_not_chain_into_a_session() {
 
 #[test]
 fn no_body_means_no_calories() {
-    let samples = day(&[REST, (25, 100, true, false), REST]);
+    let samples = day(&[REST, (35, 100, true, false), REST]);
     let phys = Physiology {
         body: None,
         ..physiology()
@@ -212,4 +212,46 @@ fn kind_round_trips() {
         assert_eq!(WorkoutKind::parse(kind.as_str()), Some(kind));
     }
     assert_eq!(WorkoutKind::parse("swim"), None);
+}
+
+#[test]
+fn walks_must_exceed_thirty_minutes_without_becoming_generic_activity() {
+    for minutes in [10, 19, 20, 29, 30, 31, 45] {
+        for hr in [100, 140] {
+            let samples = day(&[REST, (minutes, hr, true, false), REST]);
+            let found = detect(&samples);
+            if minutes <= 30 {
+                assert!(found.is_empty(), "{minutes} minutes at {hr} bpm: {found:?}");
+            } else {
+                assert_eq!(found.len(), 1);
+                assert_eq!(found[0].kind, WorkoutKind::Walk);
+                assert_eq!(found[0].duration_s, minutes * 60);
+            }
+        }
+    }
+}
+
+#[test]
+fn short_walks_keep_all_steps_bouts_and_daily_load() {
+    use crate::bouts::detect_bouts;
+    let samples = day(&[REST, (30, 140, true, false), REST]);
+    assert!(detect(&samples).is_empty());
+    let increments = step_increments(&samples);
+    assert!((increments.iter().sum::<i64>() - 3000).abs() <= 2);
+    assert!(!detect_bouts(&samples).is_empty());
+    let load = day_load(&samples, &[], &physiology());
+    assert_eq!(load.zones.0[2], 30 * 60);
+    assert!(load.trimp > 0.0);
+}
+
+#[test]
+fn separate_short_walks_do_not_add_up_to_a_workout() {
+    let samples = day(&[
+        REST,
+        (20, 100, true, false),
+        REST,
+        (20, 100, true, false),
+        REST,
+    ]);
+    assert!(detect(&samples).is_empty());
 }

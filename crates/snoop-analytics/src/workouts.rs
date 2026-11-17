@@ -16,6 +16,10 @@
 //! non-ambulatory exertion this project's users do; the label is editable. Zones,
 //! training impulse and load come from `zones`, calories from `energy`.
 
+//! Walk workouts must exceed 30 minutes (31 whole detector minutes). This is a
+//! product inclusion rule, not a physiological threshold; steps and daily load
+//! still include shorter walks.
+
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +32,7 @@ use crate::zones::{ZoneSeconds, hr_reserve_threshold, load};
 pub struct WorkoutParams {
     /// Non-exerting minutes up to this long stay inside a session.
     pub rest_gap_min: i64,
-    /// Shortest walk worth a session.
+    /// Minimum whole-minute walk duration, inclusive (31 means over 30 minutes).
     pub min_walk_min: i64,
     /// Shortest non-walking session.
     pub min_session_min: i64,
@@ -48,7 +52,7 @@ impl Default for WorkoutParams {
     fn default() -> Self {
         Self {
             rest_gap_min: 5,
-            min_walk_min: 10,
+            min_walk_min: 31,
             min_session_min: 20,
             exert_hrr_fraction: 0.4,
             walk_minute_fraction: 0.5,
@@ -251,18 +255,21 @@ fn summarise(
     }
     let walking = window.iter().filter(|s| s.is_ambulatory()).count();
     let walk_fraction = walking as f64 / window.len() as f64;
-    let kind =
-        if walk_fraction >= params.walk_session_fraction && duration_min >= params.min_walk_min {
-            WorkoutKind::Walk
-        } else if duration_min >= params.min_session_min {
-            if walk_fraction <= params.resistance_walk_fraction {
-                WorkoutKind::Resistance
-            } else {
-                WorkoutKind::Activity
-            }
-        } else {
+    let kind = if walk_fraction >= params.walk_session_fraction {
+        // A short walk must not fall through into a generic Activity session.
+        if duration_min < params.min_walk_min {
             return None;
-        };
+        }
+        WorkoutKind::Walk
+    } else if duration_min >= params.min_session_min {
+        if walk_fraction <= params.resistance_walk_fraction {
+            WorkoutKind::Resistance
+        } else {
+            WorkoutKind::Activity
+        }
+    } else {
+        return None;
+    };
 
     let hrs: Vec<f64> = window
         .iter()

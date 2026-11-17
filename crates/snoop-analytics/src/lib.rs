@@ -21,4 +21,5 @@ pub const ALGO_VERSION: i32 = 5;
 /// sleep version so a change on one side never hides the other side's history.
 /// Version 2 evaluates physiological inputs as of the analysed day.
 /// Version 3 adds durable corrections and allocates session calories by local day.
-pub const WORKOUT_ALGO_VERSION: i32 = 4;
+/// Version 5 includes walk workouts only when they exceed 30 minutes.
+pub const WORKOUT_ALGO_VERSION: i32 = 5;
