@@ -357,14 +357,12 @@ test("wide layouts stay compact, date stays centered and long workout histories 
   expect(await logo.text()).toContain('<title id="title">Zoop</title>');
   await page.getByRole("link", { name: "Activity", exact: true }).click();
   await page.getByRole("button", { name: "Month", exact: true }).click();
-  const card = page
-    .locator(".training-grid > .panel")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Recent activities",
-        exact: true,
-      }),
-    });
+  const card = page.locator(".training-grid > .panel").filter({
+    has: page.getByRole("heading", {
+      name: "Recent activities",
+      exact: true,
+    }),
+  });
   await expect(card.locator(".workout")).toHaveCount(6);
   expect((await card.boundingBox())!.width).toBeLessThan(530);
   expect((await card.boundingBox())!.height).toBeLessThan(800);

@@ -25,7 +25,16 @@ npm run test:e2e
 nix build
 ```
 
-On Nix Linux, set `CHROMIUM_PATH=$(command -v chromium)` inside `nix develop`. Browser tests cover navigation, errors, missing data, chart selection, mobile layout and admin visibility. The optional live test requires a separate development API with synthetic `admin@example.test` / `member@example.test` accounts owning `DEMO-A` / `DEMO-B`, and today's weights of 64.2 / 89.7 kg. Set `ZOOP_E2E_REAL=1` and `ZOOP_E2E_PASSWORD` to run it. Never point fixture tests at a real user's database.
+On Nix Linux, set `CHROMIUM_PATH=$(command -v chromium)` inside `nix develop`. Browser tests cover navigation, errors, missing data, chart selection, mobile layout and admin visibility. The real-API integration test uses a fresh temporary PostgreSQL cluster and synthetic
+accounts, checks cross-user denial and logout, then removes its fixtures:
+
+```sh
+ZOOP_API_DIR=/path/to/zoop-api nix develop --command bash tools/test-api.sh
+```
+
+This requires a local API checkout and never connects to your configured production
+database. Ordinary PR checks use mock responses; run the real-API test before a
+release or an authentication/API contract change.
 
 ## Accounts
 
@@ -49,3 +58,8 @@ services.zoop-web = {
 Provision the matching API first, set its exact HTTPS origin, and keep its port private. The module serves both UI and `/v1/` on one origin and enables HTTPS. Configure ACME's email and terms as usual. Building or importing the flake does not deploy it.
 
 The dashboard currently loads one year of history, up to 1,000 sleep sessions and 500 workouts, with visible notices when a limit is reached. Missing measurements remain empty. Sleep is displayed without an invented percentage because the iPhone's sleep goal is not yet stored by the API.
+
+For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
+and [SECURITY.md](SECURITY.md).
+
+MIT. Bundled font and dependency licenses remain applicable.

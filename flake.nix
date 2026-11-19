@@ -20,7 +20,7 @@
       };
     });
     devShells = each (system: let pkgs = nixpkgs.legacyPackages.${system}; in {
-      default = pkgs.mkShell { packages = [ pkgs.nodejs_24 ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.chromium ]; };
+      default = pkgs.mkShell { packages = [ pkgs.nodejs_24 pkgs.postgresql_18 pkgs.curl ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.chromium ]; };
     });
     checks = each (system: { build = self.packages.${system}.default; });
     nixosModules.default = import ./nix/module.nix self;
