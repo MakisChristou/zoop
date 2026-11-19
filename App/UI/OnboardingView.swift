@@ -6,8 +6,7 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @State private var page = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(Settings.serverURLKey) private var serverURL = ""
-    @AppStorage(Settings.ingestTokenKey) private var ingestToken = ""
+    @State private var configured = Settings.isConfigured
 
     private let pageCount = 6
 
@@ -40,6 +39,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }.zoopScreen()
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in configured = Settings.isConfigured }
     }
 
     private func advance() {
@@ -53,7 +53,7 @@ struct OnboardingView: View {
 
     private var canAdvance: Bool {
         switch page {
-        case 4: serverURL.isEmpty || URL(string: serverURL) != nil
+        case 4, 5: configured
         default: true
         }
     }
@@ -116,20 +116,8 @@ struct OnboardingView: View {
     }
 
     private var server: some View {
-        Form {
-            Section {
-                TextField("Server URL", text: $serverURL, prompt: Text("http://192.168.1.10:8471"))
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                SecureField("Bearer token", text: $ingestToken)
-            } header: {
-                Text("Your Zoop API server")
-            } footer: {
-                Text("A server syncs and analyses your recordings. Until then, recordings stay on this iPhone.")
-            }
-        }
-        .scrollContentBackground(.hidden)
+        Form { ServerSignInSection() }
+            .scrollContentBackground(.hidden)
     }
 
     private var done: some View {

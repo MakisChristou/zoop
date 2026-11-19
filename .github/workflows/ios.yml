@@ -8,12 +8,14 @@ jobs:
   test:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Install project generator
         run: brew install xcodegen
       - name: Test pure Swift packages
         run: |
-          for package in ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData; do
+          for package in ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData ZoopECG; do
             swift test --package-path "Packages/$package"
           done
       - name: Generate unsigned project
@@ -26,3 +28,5 @@ jobs:
         run: |
           device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for v in json.load(sys.stdin)["devices"].values() for d in v if d["name"].startswith("iPhone")))')
           xcodebuild -scheme Zoop -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO -only-testing:ZoopTests test
+      - name: Test synthetic UI flows
+        run: bash tools/test-ui.sh

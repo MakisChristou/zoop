@@ -193,14 +193,22 @@ import ZoopProtocol
         catch { self.error = "Couldn’t save the recording. \(error.localizedDescription)" }
     }
 
-    func load(id: UUID) async throws -> ECGRecording { try await journal.recording(id: id) }
+    func load(id: UUID) async throws -> ECGRecording {
+        let record = try await journal.recording(id: id)
+        guard Settings.permitsDevice(record.device) else { throw CancellationError() }
+        return record
+    }
+    func accountChanged() {
+        cancel(); refreshTask?.cancel(); recordings = []; savedRecording = nil; samples = []
+        historyError = nil; onHistoryChanged?()
+    }
 
     func reloadHistory() async {
         let serial = historyDevice
-        guard !serial.isEmpty else { return }
+        guard !serial.isEmpty, Settings.permitsDevice(serial) else { recordings = []; return }
         do {
             let values = try await journal.summaries(device: serial)
-            guard historyDevice == serial else { return }
+            guard historyDevice == serial, Settings.permitsDevice(serial), !Task.isCancelled else { return }
             recordings = values; historyError = nil; onHistoryChanged?()
         } catch { if historyDevice == serial { historyError = "Couldn’t load recordings. \(error.localizedDescription)" } }
     }

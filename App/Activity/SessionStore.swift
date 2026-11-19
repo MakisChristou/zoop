@@ -81,7 +81,7 @@ final class SessionStore<Endpoint: SessionEndpoint> {
         try await save(device: device, command: request)
     }
     func dismissNotice() { notice = nil; undoId = nil; undoRequest = nil }
-    private func activate(_ serial: String) {
+    func activate(_ serial: String) {
         guard device != serial || connection != Settings.connectionID else { return }
         followUp?.cancel(); device = serial; connection = Settings.connectionID
         epoch += 1; items = []; refreshes = [:]; dismissNotice()

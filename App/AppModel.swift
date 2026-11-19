@@ -67,6 +67,9 @@ final class AppModel {
             Task { @MainActor [weak self] in
                 guard let self, self.reminderConnection != Settings.connectionID else { return }
                 self.reminderConnection = Settings.connectionID
+                self.ecg.accountChanged()
+                self.sleep.activate(self.strap.serial)
+                self.activity.activate(self.strap.serial)
                 self.health.activate(self.strap.serial)
                 self.refreshReminders()
             }

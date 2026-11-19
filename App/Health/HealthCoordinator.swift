@@ -35,8 +35,7 @@ final class HealthCoordinator {
     private var knownHealthWeightDay: String?
     var reminderScope: String? {
         guard file != nil, Settings.isConfigured else { return nil }
-        let input = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
-        return SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined() == scope ? scope : nil
+        return Settings.healthScope(device: device) == scope ? scope : nil
     }
     var reminderDevice: String { device }
     var reminderWeightDays: Set<String> {
@@ -65,9 +64,8 @@ final class HealthCoordinator {
         if let lastDevice = UserDefaults.standard.string(forKey: "health.lastDevice") { activate(lastDevice) }
     }
     func activate(_ device: String) {
-        guard !device.isEmpty, Settings.isConfigured else { return }
-        let input = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
-        let next = SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
+        guard !device.isEmpty, Settings.isConfigured else { deactivate(); return }
+        let next = Settings.healthScope(device: device)
         guard next != scope else { return }
         epoch += 1; activation?.cancel(); scheduledSync?.cancel(); scheduledSync = nil; syncRequested = false; followUp?.cancel(); followUp = nil; busy = false; importingWeightHistory = false
         if let observation { adapter.store.stop(observation) }; observation = nil
@@ -91,6 +89,14 @@ final class HealthCoordinator {
             catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Zoop to try again." } }
         }
     }
+    private func deactivate() {
+        epoch += 1; activation?.cancel(); scheduledSync?.cancel(); followUp?.cancel()
+        activation = nil; scheduledSync = nil; followUp = nil; syncRequested = false
+        if let observation { adapter.store.stop(observation) }; observation = nil
+        scope = ""; device = ""; file = nil; journal = HealthJournal(); rows = []
+        knownHealthWeightDay = nil; busy = false; importingWeightHistory = false
+        status = "Not connected"; error = nil; onReminderChange?()
+    }
     private func persist() async throws {
         guard let file else { throw CocoaError(.fileWriteUnknown) }
         let generation = epoch
@@ -110,8 +116,7 @@ final class HealthCoordinator {
     }
     private func valid(_ generation: Int) throws {
         guard generation == epoch, !Task.isCancelled, Settings.isConfigured else { throw CancellationError() }
-        let current = "\(Settings.serverURL?.absoluteString ?? "")|\(Settings.ingestToken)|\(device)"
-        guard SHA256.hash(data: Data(current.utf8)).map({ String(format: "%02x", $0) }).joined() == scope else { throw CancellationError() }
+        guard Settings.healthScope(device: device) == scope else { throw CancellationError() }
     }
     func connect(steps: Bool, importWeight: Bool, exportWeight: Bool, resumeSync: Bool = true) async {
         guard adapter.available else { error = "Apple Health is unavailable on this device."; return }

@@ -98,6 +98,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if self.path == "/health": return self.send({"status": "ok"})
+        if self.path == "/v1/auth/me": return self.send(dict(account=dict(id=1, email="owner@example.test"), devices=["UI-REVIEW"]))
         url = urlparse(self.path)
         parts = url.path.strip('/').split('/')
         if len(parts) < 4 or parts[:2] != ['v1', 'devices']:
@@ -189,6 +191,14 @@ class Handler(BaseHTTPRequestHandler):
         if route == 'weights': return self.send(weight_rows(device))
         if route == 'processing': return self.send(dict(pending_decode=0, decode_failures=0, pending_analysis=0, failed_analysis=0, workers_healthy=True, paused=False))
         return self.send({'error': {'message': 'Unused synthetic endpoint'}}, 404)
+
+    def do_POST(self):
+        if self.path == '/v1/auth/native/login':
+            row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
+            if row.get('password') != 'synthetic-password': return self.send({}, 401)
+            return self.send(dict(token='synthetic-native-token', account=dict(id=1, email='owner@example.test'), devices=['UI-REVIEW']))
+        if self.path == '/v1/auth/native/logout': return self.send({}, 204)
+        return self.send({}, 404)
 
     def do_PUT(self):
         row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))

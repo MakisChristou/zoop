@@ -58,7 +58,8 @@ The phone still handles Bluetooth collection; uploads queue during outages.
 
 ## Run it
 
-You need Xcode 16+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), an iPhone
+Builds are verified with Xcode 27.2 and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+2.46.0. You need an iPhone
 running iOS 17+, and a running [Zoop API](https://github.com/MakisChristou/zoop-api).
 Use an Apple development team with HealthKit signing support.
 
@@ -75,8 +76,9 @@ xcodegen generate
 open Zoop.xcodeproj
 ```
 
-Choose the **Zoop** scheme and your iPhone, then Run. Enter your API URL and bearer
-token during setup. The simulator can preview the UI but cannot connect to a strap.
+Choose the **Zoop** scheme and your iPhone, then Run. Enter your HTTPS server URL and sign in with an account provisioned by your
+server administrator. A backend is required. Existing token installations migrate
+to Keychain automatically. The simulator can preview the UI but cannot connect to a strap.
 
 ## Development
 
@@ -89,3 +91,6 @@ The protocol implementation draws on public interoperability research from NOOP,
 wearable5.0, Goose and whoop-rs. Their code is not included in Zoop.
 
 MIT.
+
+For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
+and [SECURITY.md](SECURITY.md).

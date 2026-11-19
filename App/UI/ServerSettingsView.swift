@@ -1,72 +1,56 @@
 import SwiftUI
 
-/// Server URL and token, with a connection test. Pushed from the profile sheet's
-/// Advanced group; the onboarding flow collects the same two values on first run.
 struct ServerSettingsView: View {
     @Environment(AppModel.self) private var model
-    @AppStorage(Settings.serverURLKey) private var serverURL = ""
-    @AppStorage(Settings.ingestTokenKey) private var ingestToken = ""
-    @State private var testResult: String?
-    @State private var testing = false
-
     var body: some View {
         Form {
-            Section {
-                TextField("Server URL", text: $serverURL, prompt: Text("https://zoop.example.net"))
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                SecureField("Bearer token", text: $ingestToken)
-                Button {
-                    Task { await testConnection() }
-                } label: {
-                    HStack {
-                        Label("Test connection", systemImage: "network")
-                        Spacer()
-                        if testing { ProgressView() } else if let testResult { Text(testResult).foregroundStyle(ZoopStyle.secondary) }
-                    }
-                }
-                .disabled(testing || serverURL.isEmpty)
-            } header: {
-                Text("Zoop API")
-            } footer: {
-                Text("Recordings stay on this iPhone until a server is configured.")
-            }
+            ServerSignInSection()
             Section("Setup") {
-                Button("Show the welcome guide again") {
-                    model.isOnboarded = false
-                }
+                Button("Show the welcome guide again") { model.isOnboarded = false }
             }
         }
-        .scrollContentBackground(.hidden)
-        .zoopScreen()
-        .navigationTitle("Server connection")
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden).zoopScreen()
+        .navigationTitle("Server connection").navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    /// Hits `/health` (no auth) and then an authenticated endpoint, so a bad URL and a
-    /// bad token produce different messages.
-    private func testConnection() async {
-        testing = true
-        defer { testing = false }
-        guard let base = URL(string: serverURL) else { testResult = "Invalid URL"; return }
-        do {
-            var healthRequest = URLRequest(url: base.appendingPathComponent("health"))
-            healthRequest.timeoutInterval = 15
-            let (_, health) = try await URLSession.shared.data(for: healthRequest)
-            guard (health as? HTTPURLResponse)?.statusCode == 200 else { testResult = "Server not reachable"; return }
-            var request = URLRequest(url: base.appendingPathComponent("v1/devices/_/latest"))
-            request.timeoutInterval = 15
-            request.setValue("Bearer \(ingestToken)", forHTTPHeaderField: "Authorization")
-            let (_, response) = try await URLSession.shared.data(for: request)
-            switch (response as? HTTPURLResponse)?.statusCode {
-            case 200: testResult = "Connected"
-            case 401: testResult = "Reachable, token rejected"
-            case let code?: testResult = "HTTP \(code)"
-            case nil: testResult = "No response"
+struct ServerSignInSection: View {
+    @State private var server = Settings.credential?.server ?? UserDefaults.standard.string(forKey: Settings.serverURLKey) ?? ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var credential = Settings.credential
+    @State private var busy = false
+    @State private var replacingLegacy = false
+    @State private var error: String?
+    var body: some View {
+        Section("Zoop server") {
+            if let credential, !replacingLegacy {
+                Text(credential.email ?? "Connected")
+                Text(credential.server).foregroundStyle(ZoopStyle.secondary)
+                if credential.accountID == nil {
+                    Button("Sign in with account") { replacingLegacy = true }
+                }
+                Button("Sign out", role: .destructive) { perform { try await ServerSignIn.signOut() } }
+            } else {
+                TextField("Server URL", text: $server, prompt: Text("https://zoop.example.net"))
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                TextField("Email", text: $email).textContentType(.username)
+                    .keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                SecureField("Password", text: $password).textContentType(.password)
+                Button("Sign in") { perform { try await ServerSignIn.signIn(server: server, email: email, password: password); password = ""; replacingLegacy = false } }
+                    .disabled(server.isEmpty || email.isEmpty || password.isEmpty)
             }
-        } catch {
-            testResult = "Unreachable: \(error.localizedDescription)"
+            if busy { ProgressView().accessibilityLabel("Connecting") }
+            if let error { Text(error).foregroundStyle(.red) }
+        }
+        .disabled(busy)
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in credential = Settings.credential }
+    }
+    private func perform(_ action: @escaping @MainActor () async throws -> Void) {
+        busy = true; error = nil
+        Task { @MainActor in
+            defer { busy = false; credential = Settings.credential }
+            do { try await action() } catch { self.error = error.localizedDescription }
         }
     }
 }
