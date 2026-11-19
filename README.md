@@ -9,6 +9,15 @@ over Bluetooth and turns your strap’s data into sleep, activity and health tre
 It exists so you can use your hardware with software you control, backed by a
 self-hosted [Zoop API](https://github.com/MakisChristou/zoop-api).
 
+<p align="center">
+  <img src="docs/screenshots/today.png" width="195" alt="Daily overview with sleep, outlook, load and steps" />
+  <img src="docs/screenshots/activity.png" width="195" alt="Activity history with daily load and recent workouts" />
+  <img src="docs/screenshots/sleep.png" width="195" alt="Sleep timeline and stage breakdown" />
+  <img src="docs/screenshots/trends.png" width="195" alt="Sleep trends and nightly heatmap" />
+</p>
+
+<p align="center"><sub>Captured on iPhone with real data, shared with permission.</sub></p>
+
 ## What it does
 
 - Sleep timelines, stages and nightly measurements.
