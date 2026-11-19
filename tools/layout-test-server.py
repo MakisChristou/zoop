@@ -4,6 +4,7 @@ Run alongside ZoopUITests on a simulator. The default test URL is port 28476.
 All mutations are in memory and disappear when the process exits.
 """
 import json
+import copy
 import math
 import time
 from datetime import datetime, timedelta, timezone
@@ -47,6 +48,13 @@ for i in range(120):
     source = 'snoop' if i == 0 else 'health'
     weights.append(dict(id=f'{source}:layout-{i}', measured_at=stamp(day+timedelta(hours=7)),
                         kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Zoop' if i == 0 else 'Test scale', version=1, removed=False))
+
+
+def sleep_rows(device):
+    if not device.startswith('SLEEP-LAYOUT'): return sessions
+    rows = copy.deepcopy(sessions)
+    rows[0]['sleep']['stages'].update(deep_s=5100, rem_s=5700, light_s=15900)
+    return rows
 
 
 # Independent device scopes let entry tests exercise empty and completed days.
@@ -138,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
                         for i, (day, duration) in enumerate(zip([0,1,1,2,3,3,4,5,6,6], [49,64,37,72,45,58,31,52,63,41]))]
             if device.startswith('DESIGN-TIMELINE-EMPTY'): rows = []
             return self.send(rows if route == 'workouts' else next((w for w in rows if str(w['id']) == parts[-1]), {}))
-        if route == 'sleep-sessions': return self.send(sessions[:limit])
+        if route == 'sleep-sessions': return self.send(sleep_rows(device)[:limit])
         if route.endswith('/epochs'):
             if not device.startswith('DESIGN-'): return self.send([])
             session = next((s for s in sessions if str(s['id']) == parts[-2]), sessions[0])
@@ -149,7 +157,7 @@ class Handler(BaseHTTPRequestHandler):
                                    move_frac=0.2 if i%2700<120 else 0.01, strap_awake=i%2700<120)
                               for i in range(0, int((end-start).total_seconds()), 30)])
         if route.startswith('sleep-sessions/'):
-            return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
+            return self.send(next((s for s in sleep_rows(device) if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):
             if device == 'RINGS-EMPTY': return self.send(dict(error='Synthetic unavailable'), 503)
             if device == 'SLEEP-COMPARISON': return self.send(dict(error='Synthetic insights unavailable'), 503)

@@ -149,8 +149,8 @@ struct SleepView: View {
                                 Rectangle().fill(Hypnogram.color(.light)).frame(width: max(0, (geo.size.width - 6) * CGFloat(st.lightS) / total))
                                 Rectangle().fill(Hypnogram.color(.wake))
                             }.clipShape(Capsule())
-                        }.frame(height: 12).accessibilityHidden(true)
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 1 : 2), alignment: .leading, spacing: 20) {
+                        }.frame(height: 10).accessibilityHidden(true)
+                        LazyVGrid(columns: stageColumns, alignment: .leading, spacing: 24) {
                             StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored), delta: deltas[.deep])
                             StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored), delta: deltas[.rem])
                             StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored), delta: deltas[.light])
@@ -158,18 +158,11 @@ struct SleepView: View {
                             StageRow(name: "Awake", color: Hypnogram.color(.wake), seconds: st.wakeS, share: nil, delta: nil)
                         }
                         Divider().overlay(ZoopStyle.separator)
-                        HStack {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Fell asleep").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                Text(w.onset.formatted(date: .omitted, time: .shortened)).font(ZoopType.title)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 6) {
-                                Text("Woke up").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                Text(w.offset.formatted(date: .omitted, time: .shortened)).font(ZoopType.title)
-                            }
+                        LazyVGrid(columns: stageColumns, alignment: .leading, spacing: 20) {
+                            stageTime("Fell asleep", symbol: "moon", date: w.onset, id: "sleepStageOnset")
+                            stageTime("Woke up", symbol: "sun.max", date: w.offset, id: "sleepStageOffset")
                         }
-                    }.zoopCard()
+                    }.zoopCard().accessibilityIdentifier("sleepStagesCard")
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -219,6 +212,20 @@ struct SleepView: View {
                 MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. The Awake total uses the strap’s rest signal; chart awakenings are separate stage estimates. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
             .padding(.bottom, 4)
+    }
+
+    private var stageColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 24, alignment: .leading), count: typeSize.isAccessibilitySize ? 1 : 2)
+    }
+
+    private func stageTime(_ title: String, symbol: String, date: Date, id: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+            Text(date.formatted(date: .omitted, time: .shortened))
+                .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier(id)
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func duration(_ seconds: Int) -> String {
@@ -275,21 +282,35 @@ private struct StageRow: View {
     let seconds: Int
     let share: Double?
     let delta: SleepMetricDelta?
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 10, height: 10).accessibilityHidden(true)
-                Text(name).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    stageLabel.fixedSize()
+                    Spacer(minLength: 4)
+                    comparison.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 4) { stageLabel; comparison }
             }
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) { durationLabel; shareLabel; if let delta { SleepDeltaLabel(delta: delta, id: name) } }
-                VStack(alignment: .leading, spacing: 4) { durationLabel; shareLabel; if let delta { SleepDeltaLabel(delta: delta, id: name) } }
+                HStack(alignment: .firstTextBaseline, spacing: 8) { durationLabel; shareLabel }
+                VStack(alignment: .leading, spacing: 4) { durationLabel; shareLabel }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
-    private var durationLabel: some View { Text(hm(seconds)).font(ZoopType.headline).monospacedDigit() }
+    private var stageLabel: some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 9, height: 9).accessibilityHidden(true)
+            Text(name).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+        }
+    }
+    @ViewBuilder private var comparison: some View {
+        if let delta { SleepDeltaLabel(delta: delta, id: name, compact: true) }
+    }
+    private var durationLabel: some View {
+        Text(hm(seconds)).font(ZoopType.headline).monospacedDigit().accessibilityIdentifier("stageDuration-\(name)")
+    }
     @ViewBuilder private var shareLabel: some View {
         if let share { Text("\(Int((share * 100).rounded()))%")
             .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary).monospacedDigit() }
@@ -333,8 +354,9 @@ private struct Stat: View {
 private struct SleepDeltaLabel: View {
     let delta: SleepMetricDelta
     let id: String
+    var compact = false
     var body: some View {
-        Text(delta.text).font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).monospacedDigit()
+        Text(delta.text).font(compact ? ZoopType.font(size: 11, weight: .medium, relativeTo: .caption2) : ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).monospacedDigit()
             .foregroundStyle(InsightTone.color(delta.signal))
             .accessibilityLabel(delta.accessibility)
             .accessibilityIdentifier("sleepDelta-\(id)")
