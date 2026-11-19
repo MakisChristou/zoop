@@ -1,5 +1,7 @@
 # Zoop
 
+<img src="Brand/zoop-icon.svg" width="96" height="96" alt="Zoop logo" />
+
 **An open companion app for WHOOP 5.0 and WHOOP MG straps.**
 
 Zoop connects to your strap over Bluetooth, pulls live and stored sensor data, and
