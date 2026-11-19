@@ -8,4 +8,5 @@ with angled terminals and a tight central gap.
 - `../App/Assets.xcassets/AppIcon.appiconset/icon-1024.png`: opaque 1024 px iOS export.
 
 Keep the central gap, proportions and flat colors. Let iOS apply the icon mask;
-do not bake rounded corners into the source. Export the icon without an alpha channel.
+do not bake rounded corners into the source. In the app icon, scale the mark to 90%
+around the center for breathing room. Export the icon without an alpha channel.
