@@ -20,5 +20,5 @@ FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 WORKDIR /app
 USER nonroot
 COPY --from=builder /app/target/release/zoop /usr/local/bin/zoop
-EXPOSE 8080
+EXPOSE 8471
 ENTRYPOINT ["/usr/local/bin/zoop"]

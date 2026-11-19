@@ -551,3 +551,115 @@ async fn legacy_phone_connection_probe_is_authenticated_and_data_free() {
         StatusCode::NOT_FOUND
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn native_credentials_are_private_revocable_and_reset_safe() {
+    let (db, app, _, _) = setup().await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/auth/native/login")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({"email":"owner@example.test","password":PASSWORD}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    assert!(response.headers().get("set-cookie").is_none());
+    let body: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 10000).await.unwrap()).unwrap();
+    let token = body["token"].as_str().unwrap();
+    assert_eq!(token.len(), 64);
+    assert_eq!(
+        req(&app, "GET", "/v1/auth/me", None, Some(token), json!({}))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        req(
+            &app,
+            "GET",
+            "/v1/devices/OTHER/profile",
+            None,
+            Some(token),
+            json!({})
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(
+            &app,
+            "POST",
+            "/v1/auth/native/login",
+            None,
+            None,
+            json!({"email":"owner@example.test","password":PASSWORD})
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        req(
+            &app,
+            "POST",
+            "/v1/auth/native/logout",
+            None,
+            Some(token),
+            json!({})
+        )
+        .await
+        .0,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(
+        req(&app, "GET", "/v1/auth/me", None, Some(token), json!({}))
+            .await
+            .0,
+        StatusCode::UNAUTHORIZED
+    );
+    // Logout did not revoke the other phone. Password recovery does.
+    assert!(
+        db.store
+            .token_account(&digest("owner-phone-token"))
+            .await
+            .unwrap()
+            .is_some()
+    );
+    let old = db
+        .store
+        .login_account("owner@example.test")
+        .await
+        .unwrap()
+        .unwrap();
+    db.store
+        .reset_account_password(
+            "owner@example.test",
+            &hash_password("a replacement strong password").unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        db.store
+            .token_account(&digest("owner-phone-token"))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        !db.store
+            .create_native_token(old.id, &digest("stale-login"), &old.password_hash)
+            .await
+            .unwrap()
+    );
+}

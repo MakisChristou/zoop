@@ -13,7 +13,7 @@ fn loads_dev_config_and_warns_on_dev_token() {
     let file = write_config(
         r#"
 [server]
-bind = "0.0.0.0:8080"
+bind = "127.0.0.1:8080"
 ingest_token = "dev-token"
 
 [storage]
@@ -33,7 +33,7 @@ fn rejects_non_postgres_url() {
     let file = write_config(
         r#"
 [server]
-bind = "0.0.0.0:8080"
+bind = "127.0.0.1:8080"
 ingest_token = "0123456789abcdef0123456789abcdef"
 
 [storage]
@@ -78,4 +78,23 @@ origin="{origin}"
             "{origin}"
         );
     }
+}
+
+#[test]
+fn development_token_cannot_listen_publicly() {
+    let file = write_config(
+        r#"[server]
+bind="0.0.0.0:8471"
+ingest_token="dev-token"
+[storage]
+postgres_url="postgres://localhost/zoop"
+"#,
+    );
+    assert!(
+        Config::load(file.path())
+            .unwrap()
+            .validate()
+            .iter()
+            .any(|i| i.level == IssueLevel::Error)
+    );
 }

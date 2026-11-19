@@ -123,6 +123,47 @@ impl PostgresStore {
             .bind(digest).bind(email.trim().to_lowercase()).execute(self.pool()).await.map_err(fail)?;
         Ok(())
     }
+    /// Issue a phone credential only if the verified password is still current.
+    /// # Errors
+    /// Database failure.
+    pub async fn create_native_token(
+        &self,
+        id: i64,
+        digest: &str,
+        expected_hash: &str,
+    ) -> StorageResult<bool> {
+        let mut tx = self.pool().begin().await.map_err(fail)?;
+        let account: Option<i64> = sqlx::query_scalar(
+            "SELECT id FROM accounts WHERE id=$1 AND enabled AND password_hash=$2 FOR SHARE",
+        )
+        .bind(id)
+        .bind(expected_hash)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(fail)?;
+        if account.is_none() {
+            return Ok(false);
+        }
+        sqlx::query("INSERT INTO account_tokens(digest,account_id) VALUES($1,$2)")
+            .bind(digest)
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(fail)?;
+        tx.commit().await.map_err(fail)?;
+        Ok(true)
+    }
+    /// Revoke only the phone credential presented at logout.
+    /// # Errors
+    /// Database failure.
+    pub async fn revoke_account_token(&self, digest: &str) -> StorageResult<()> {
+        sqlx::query("DELETE FROM account_tokens WHERE digest=$1")
+            .bind(digest)
+            .execute(self.pool())
+            .await
+            .map_err(fail)?;
+        Ok(())
+    }
     /// Authenticate a hashed bearer credential against a currently enabled account.
     /// # Errors
     /// Database failure.
@@ -191,7 +232,7 @@ impl PostgresStore {
             .bind(key).bind(seconds).fetch_one(self.pool()).await.map_err(fail)?;
         Ok(attempts <= limit)
     }
-    /// Operator recovery rotates a password and revokes every browser session atomically.
+    /// Operator recovery rotates a password and revokes every session and phone token atomically.
     /// # Errors
     /// Unknown account or database failure.
     pub async fn reset_account_password(&self, email: &str, hash: &str) -> StorageResult<()> {
@@ -204,6 +245,11 @@ impl PostgresStore {
                 .await
                 .map_err(fail)?;
         sqlx::query("DELETE FROM web_sessions WHERE account_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(fail)?;
+        sqlx::query("DELETE FROM account_tokens WHERE account_id=$1")
             .bind(id)
             .execute(&mut *tx)
             .await

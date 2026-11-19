@@ -11,8 +11,8 @@ default:
 pg-start:
     [ -d "$PGDATA" ] || initdb --username=postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
     pg_ctl status >/dev/null 2>&1 || pg_ctl -o "-p $PGPORT -k /tmp -c listen_addresses=localhost" -l .pgdata/postgres.log start
-    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_roles WHERE rolname='snoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE ROLE zoop LOGIN PASSWORD 'snoop'"
-    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_database WHERE datname='snoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE DATABASE zoop OWNER zoop"
+    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_roles WHERE rolname='zoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE ROLE zoop LOGIN PASSWORD 'zoop'"
+    psql -U postgres -d postgres -h localhost -p $PGPORT -tc "SELECT 1 FROM pg_database WHERE datname='zoop'" | grep -q 1 || psql -U postgres -d postgres -h localhost -p $PGPORT -c "CREATE DATABASE zoop OWNER zoop"
     just migrate
 
 # Stop the repo-local Postgres.
@@ -100,15 +100,7 @@ install-tools:
 # isolated schemas and fail if the connection is absent or migrations cannot run.
 test-db:
     test -n "$ZOOP_TEST_DATABASE_URL"
-    cargo test -p zoop-storage -p zoop-api --test reliability -- --ignored
-    cargo test -p zoop-storage --test performance -- --ignored
-    cargo test -p zoop-storage --test workouts
-    cargo test -p zoop-api --test corrections -- --ignored
-    cargo test -p zoop-api --test sleep_corrections -- --ignored
-    cargo test -p zoop-api --test insights -- --ignored
-    cargo test -p zoop-api --test health -- --ignored
-    cargo test -p zoop-storage --test profile_weights -- --ignored
-    cargo test -p zoop-api --test profile_photo -- --ignored
+    cargo test --workspace --locked -- --include-ignored
 
 # Descriptive progress integration contracts against an isolated development schema.
 test-progress-db:

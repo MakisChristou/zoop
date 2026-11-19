@@ -2,7 +2,7 @@
 # beyond local testing. `just pg-start` then `just run`.
 
 [server]
-bind = "0.0.0.0:8471"
+bind = "127.0.0.1:8471"
 # Bearer token the iOS app sends on every request. DEV ONLY value; validation WARNs.
 ingest_token = "dev-token-change-me"
 

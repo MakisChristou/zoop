@@ -70,7 +70,7 @@ pub(crate) enum AccountCommand {
         #[arg(long)]
         token_file: PathBuf,
     },
-    /// Reset password and revoke browser sessions; iPhone tokens are preserved.
+    /// Reset password and revoke browser sessions and iPhone tokens.
     ResetPassword {
         #[arg(long)]
         email: String,

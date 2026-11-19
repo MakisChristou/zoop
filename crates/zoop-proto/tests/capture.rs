@@ -1,4 +1,5 @@
-//! Real frames from our own WHOOP MG. Guards the decoder against drifting from hardware.
+//! Synthetic wire-format fixtures, independently built from documented offsets.
+//! These are not captured measurements and do not prove hardware interoperability.
 
 use serde::Deserialize;
 use zoop_proto::{
@@ -37,13 +38,13 @@ fn r18_daytime_record() {
         panic!("expected biometric");
     };
     assert_eq!(b.header.layout, Layout::Biometric);
-    assert_eq!(b.header.unix_s, 1_792_780_655); // 2026-10-23 18:37:35 UTC
-    assert_eq!(b.heart_rate, 76);
+    assert_eq!(b.header.unix_s, 1_700_000_000); // Fixed synthetic timestamp
+    assert_eq!(b.heart_rate, 60);
     assert!(b.rr_ms.is_empty(), "no R-R while moving");
     assert_eq!(b.band_state, BandState::Wake);
     assert_eq!(b.activity, ActivityClass::Still);
-    assert_eq!(b.steps, 6108);
-    assert!((b.skin_temp_c.unwrap() - 32.45).abs() < 0.01);
+    assert_eq!(b.steps, 1234);
+    assert!((b.skin_temp_c.unwrap() - 33.0).abs() < 0.01);
     assert_eq!(b.spo2_percent, None);
     assert!(b.gravity_g.is_some());
 }
@@ -73,7 +74,7 @@ fn hello_response_event_metadata_console() {
     let Decoded::Event(e) = decode_frame(&capture("event_16")).unwrap() else {
         panic!()
     };
-    assert_eq!((e.code, e.unix_s), (34, 1_792_780_876));
+    assert_eq!((e.code, e.unix_s), (34, 1_700_000_002));
 
     let Decoded::Metadata(m) = decode_frame(&capture("history_start")).unwrap() else {
         panic!()

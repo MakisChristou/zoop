@@ -152,6 +152,8 @@ pub fn build_router(state: AppState) -> Router {
 
     Router::new()
         .route("/v1/auth/login", post(web::login))
+        .route("/v1/auth/native/login", post(web::native_login))
+        .route("/v1/auth/native/logout", post(web::native_logout))
         .route("/v1/auth/logout", post(web::logout))
         .route("/v1/auth/me", get(web::me))
         .route("/v1/admin/stats", get(web::admin))
@@ -164,4 +166,17 @@ pub fn build_router(state: AppState) -> Router {
         ))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(no_store))
+}
+
+async fn no_store(
+    request: axum::extract::Request,
+    next: middleware::Next,
+) -> axum::response::Response {
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
+    response
 }

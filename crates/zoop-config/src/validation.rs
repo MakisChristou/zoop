@@ -58,7 +58,7 @@ impl Config {
             });
         } else if token.starts_with(DEV_TOKEN_PREFIX) || token.len() < MIN_TOKEN_LEN {
             issues.push(ValidationIssue {
-                level: IssueLevel::Warn,
+                level: if self.server_config.bind.parse::<std::net::SocketAddr>().is_ok_and(|addr| addr.ip().is_loopback()) { IssueLevel::Warn } else { IssueLevel::Error },
                 message: format!(
                     "server.ingest_token looks like a development value; use `openssl rand -hex {MIN_TOKEN_LEN}`"
                 ),
