@@ -21,16 +21,20 @@ struct ActivityView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     weekCard
-                    actions
-                    if visibleWorkouts.isEmpty {
-                        emptyState
-                    } else {
-                        VStack(alignment: .leading, spacing: 20) {
-                            ForEach(groups, id: \.day) { group in
-                                section(group.day, group.workouts)
+                    VStack(alignment: .leading, spacing: 12) {
+                        actions
+                        if visibleWorkouts.isEmpty {
+                            Text(loaded ? (selectedDay == nil ? "No activities yet" : "No workouts this day") : "Loading…")
+                                .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+                        } else {
+                            let sections = groups
+                            VStack(spacing: 0) {
+                                ForEach(Array(sections.enumerated()), id: \.element.day) { index, group in
+                                    section(group.day, group.workouts, first: index == 0, last: index == sections.count - 1)
+                                }
                             }
-                        }.zoopCard(padding: 16).padding(.horizontal, ZoopStyle.gutter)
-                    }
+                        }
+                    }.zoopCard().padding(.horizontal, ZoopStyle.gutter)
                     if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red).padding(.horizontal) }
                 }
                 .padding(.bottom, 24)
@@ -133,14 +137,14 @@ struct ActivityView: View {
     private var actions: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(selectedDay.map(Self.dayTitle) ?? "Workouts").font(ZoopStyle.sectionTitle)
+                Text(selectedDay.map(Self.dayTitle) ?? "Recent activities").font(ZoopStyle.sectionTitle)
                 if selectedDay != nil { Button("Show all") { selectedDay = nil }.font(ZoopType.caption).frame(minHeight: 44) }
             }
             Spacer()
             NavigationLink { RemovedWorkoutsView() } label: {
-                Image(systemName: "archivebox").frame(width: 44, height: 44)
-            }.accessibilityLabel("Removed workouts")
-        }.padding(.horizontal, ZoopStyle.gutter)
+                Image(systemName: "archivebox").font(.system(size: 16)).frame(width: 44, height: 44).padding(.vertical, -12)
+            }.accessibilityLabel("Removed workouts").accessibilityIdentifier("removedWorkouts")
+        }
     }
 
     private var groups: [Group] {
@@ -150,28 +154,24 @@ struct ActivityView: View {
             .sorted { $0.day > $1.day }
     }
 
-    private func section(_ day: Date, _ items: [ZoopAPI.Workout]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(Self.dayTitle(day))
-                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) {
-                ForEach(items) { workout in
-                    NavigationLink(value: workout) { WorkoutRow(workout: workout) }
-                        .accessibilityIdentifier("workout-\(workout.id)")
-                        .buttonStyle(PressableCardStyle())
+    private func section(_ day: Date, _ items: [ZoopAPI.Workout], first: Bool, last: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Circle().fill(ZoopStyle.secondary.opacity(0.4)).frame(width: 7, height: 7)
+                    .frame(width: 36).background(ZoopStyle.surface)
+                    .accessibilityHidden(true)
+                Text(Self.dayTitle(day)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
+            }.frame(minHeight: 28)
+                .background { WorkoutTimelineRail(startsHere: first) }
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, workout in
+                NavigationLink(value: workout) {
+                    WorkoutTimelineRow(workout: workout, isLast: last && index == items.count - 1)
                 }
+                .accessibilityIdentifier("workout-\(workout.id)")
+                .buttonStyle(PressableCardStyle())
             }
         }
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(loaded ? (selectedDay == nil ? "No activities yet" : "No workouts this day") : "Loading…").font(ZoopStyle.sectionTitle)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
-        .padding(.horizontal)
     }
 
     // MARK: - Data

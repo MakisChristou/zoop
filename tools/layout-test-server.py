@@ -124,6 +124,13 @@ class Handler(BaseHTTPRequestHandler):
                                    kcal=240, steps=5200 if kind == 'walk' else 150, revision=1, status='active',
                                    coverage_s=3600, hr_coverage_s=3600, timezone='UTC')
                               for i, kind in enumerate(['resistance', 'walk', 'resistance'])]
+            if device.startswith('DESIGN-TIMELINE-'):
+                rows = [dict(rows[i % 3], id=900+i,
+                             start_ts=stamp(today-timedelta(days=day)+timedelta(hours=17-i%2*2)),
+                             end_ts=stamp(today-timedelta(days=day)+timedelta(hours=17-i%2*2, minutes=duration)),
+                             duration_s=duration*60, load=None if i == 7 else round(6.4+i*1.3, 1))
+                        for i, (day, duration) in enumerate(zip([0,1,1,2,3,3,4,5,6,6], [49,64,37,72,45,58,31,52,63,41]))]
+            if device.startswith('DESIGN-TIMELINE-EMPTY'): rows = []
             return self.send(rows if route == 'workouts' else next((w for w in rows if str(w['id']) == parts[-1]), {}))
         if route == 'sleep-sessions': return self.send(sessions[:limit])
         if route.endswith('/epochs'):
