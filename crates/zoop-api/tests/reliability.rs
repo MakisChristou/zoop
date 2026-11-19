@@ -144,9 +144,9 @@ async fn worker_automatically_backfills_old_days_and_preserves_corrections() {
     let db = Db::new().await;
     let versions = zoop_core::HistoryWorker::versions();
     let first = db.raw(1).await;
-    // A continuous twenty-minute walk, long before the former two-day window.
+    // A continuous thirty-five-minute walk, long before the former two-day window.
     sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id)
-        SELECT $1,'2025-01-01 10:00:00Z'::timestamptz+make_interval(secs=>n),110,ARRAY[545],n*2,1,1,$2 FROM generate_series(0,1200) n")
+        SELECT $1,'2025-01-01 10:00:00Z'::timestamptz+make_interval(secs=>n),110,ARRAY[545],n*2,1,1,$2 FROM generate_series(0,2100) n")
         .bind(DEVICE).bind(first).execute(&db.pool).await.unwrap();
     db.store.seed_history(versions).await.unwrap();
     let worker =

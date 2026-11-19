@@ -3,6 +3,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub web: WebConfig,
     #[serde(rename = "server")]
     pub server_config: ServerConfig,
     #[serde(rename = "storage")]
@@ -65,4 +67,13 @@ const fn default_analysis_interval_s() -> u64 {
 
 const fn default_history_enabled() -> bool {
     true
+}
+
+/// Private-account browser access is disabled until an explicit migration rollout.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WebConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub origin: String,
 }

@@ -33,6 +33,22 @@ impl Config {
     /// Structural checks that need no network or database.
     pub fn validate(&self) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
+        if self.web.enabled {
+            let valid = url::Url::parse(&self.web.origin).is_ok_and(|u| {
+                let local = matches!(u.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
+                (u.scheme() == "https" || (u.scheme() == "http" && local))
+                    && u.host_str().is_some()
+                    && u.username().is_empty()
+                    && u.password().is_none()
+                    && u.query().is_none()
+                    && u.fragment().is_none()
+                    && u.path() == "/"
+                    && !self.web.origin.ends_with('/')
+            });
+            if !valid {
+                issues.push(ValidationIssue{level:IssueLevel::Error,message:"web.origin must be an HTTPS origin without path; HTTP is allowed only on loopback for development".into()});
+            }
+        }
         let token = self.server_config.ingest_token.expose_secret();
 
         if token.is_empty() {

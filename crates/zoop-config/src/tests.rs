@@ -43,3 +43,39 @@ postgres_url = "mysql://nope"
     let issues = Config::load(file.path()).unwrap().validate();
     assert!(issues.iter().any(|issue| issue.level == IssueLevel::Error));
 }
+
+#[test]
+fn web_origin_requires_https_except_loopback() {
+    for (origin, valid) in [
+        ("https://zoop.example", true),
+        ("http://127.0.0.1:5173", true),
+        ("http://localhost:5173", true),
+        ("http://public.example", false),
+        ("https://zoop.example/path", false),
+        ("https://zoop.example/", false),
+        ("https://user:secret@zoop.example", false),
+        ("https://zoop.example?x=1", false),
+    ] {
+        let file = write_config(&format!(
+            r#"
+[server]
+bind="127.0.0.1:18471"
+ingest_token="0123456789abcdef0123456789abcdef"
+[storage]
+postgres_url="postgres://localhost/zoop"
+[web]
+enabled=true
+origin="{origin}"
+"#
+        ));
+        assert_eq!(
+            !Config::load(file.path())
+                .unwrap()
+                .validate()
+                .iter()
+                .any(|i| i.level == IssueLevel::Error),
+            valid,
+            "{origin}"
+        );
+    }
+}

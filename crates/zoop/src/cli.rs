@@ -16,6 +16,11 @@ pub(crate) struct Cli {
 pub(crate) enum Command {
     /// Run the API server and the decode worker (default).
     Run,
+    /// Provision or recover a private account (operator-only, no public registration).
+    Account {
+        #[command(subcommand)]
+        action: AccountCommand,
+    },
     /// Validate the configuration file and exit.
     Validate,
     /// Apply any pending Postgres schema migrations and exit.
@@ -37,5 +42,44 @@ pub(crate) enum Command {
         /// Local calendar day, YYYY-MM-DD, in the profile's time zone. Defaults to today.
         #[arg(long)]
         day: Option<chrono::NaiveDate>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum AccountCommand {
+    /// Create an account. Passwords are read from a protected file, never arguments.
+    Create {
+        #[arg(long)]
+        email: String,
+        #[arg(long)]
+        password_file: PathBuf,
+        #[arg(long)]
+        admin: bool,
+    },
+    /// Reserve a device for an account, including before its first upload.
+    BindDevice {
+        #[arg(long)]
+        email: String,
+        #[arg(long)]
+        device: String,
+    },
+    /// Import a protected iPhone token file; it becomes scoped to this account.
+    ImportToken {
+        #[arg(long)]
+        email: String,
+        #[arg(long)]
+        token_file: PathBuf,
+    },
+    /// Reset password and revoke browser sessions; iPhone tokens are preserved.
+    ResetPassword {
+        #[arg(long)]
+        email: String,
+        #[arg(long)]
+        password_file: PathBuf,
+    },
+    /// Disable all account access and revoke tokens and sessions.
+    Disable {
+        #[arg(long)]
+        email: String,
     },
 }

@@ -5,13 +5,24 @@ use zoop_storage::PostgresStore;
 
 #[derive(Clone, Debug)]
 pub struct AppState {
+    pub(crate) web: Option<crate::web::WebOptions>,
+    pub(crate) telemetry: Arc<crate::telemetry::Telemetry>,
+    pub(crate) password_slots: Arc<tokio::sync::Semaphore>,
     pub store: PostgresStore,
     pub ingest_token: Arc<SecretString>,
 }
 
 impl AppState {
+    /// Enable private-account mode; the shared installation token is no longer accepted.
+    pub fn with_web(mut self, options: crate::web::WebOptions) -> Self {
+        self.web = Some(options);
+        self
+    }
     pub fn new(store: PostgresStore, ingest_token: SecretString) -> Self {
         Self {
+            web: None,
+            telemetry: Arc::default(),
+            password_slots: Arc::new(tokio::sync::Semaphore::new(4)),
             store,
             ingest_token: Arc::new(ingest_token),
         }

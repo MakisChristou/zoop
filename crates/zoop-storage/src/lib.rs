@@ -1,6 +1,8 @@
 //! Postgres persistence. Raw frames are the durable source of truth; decoded tables
 //! are rebuilt from them whenever the protocol version advances.
 
+mod accounts;
+pub use accounts::{Account, AdminSnapshot, LoginAccount};
 mod analysis_store;
 mod day_store;
 mod progress_store;

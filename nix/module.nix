@@ -28,6 +28,10 @@ let
     [storage]
     postgres_url = "postgres:///${cfg.database}?host=/run/postgresql&port=${toString config.services.postgresql.settings.port}"
 
+    [web]
+    enabled = ${lib.boolToString cfg.web.enable}
+    origin = ${builtins.toJSON cfg.web.origin}
+
     [worker]
     poll_interval_ms = ${toString cfg.pollIntervalMs}
     batch_size = ${toString cfg.batchSize}
@@ -40,6 +44,9 @@ in
 
   options.services.zoop = {
     enable = lib.mkEnableOption "zoop-api, the self-hosted WHOOP backend";
+
+    web.enable = lib.mkEnableOption "private browser accounts (requires explicit account/device provisioning)";
+    web.origin = lib.mkOption { type = lib.types.str; default = ""; description = "HTTPS browser origin, with no trailing slash."; };
 
     package = lib.mkOption {
       type = lib.types.package;

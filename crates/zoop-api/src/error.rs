@@ -10,6 +10,9 @@ use zoop_storage::StorageError;
 #[derive(Debug)]
 pub(crate) enum ApiError {
     Unauthorized,
+    Forbidden,
+    RateLimited,
+    AuthUnavailable,
     BadRequest(String),
     NotFound,
     Conflict(String),
@@ -54,6 +57,21 @@ impl From<zoop_core::CoreError> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
+            Self::Forbidden => (
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Access is not permitted.".into(),
+            ),
+            Self::RateLimited => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limited",
+                "Too many attempts. Try again later.".into(),
+            ),
+            Self::AuthUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "auth_unavailable",
+                "Sign-in is temporarily unavailable.".into(),
+            ),
             Self::PhotoProcessing => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "photo_unavailable",
@@ -70,7 +88,7 @@ impl IntoResponse for ApiError {
             Self::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
                 "unauthorized",
-                "missing or invalid bearer token".to_owned(),
+                "Sign-in required or credentials invalid".to_owned(),
             ),
             Self::Conflict(message) => (StatusCode::CONFLICT, "conflict", message),
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),

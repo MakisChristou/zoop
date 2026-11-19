@@ -37,6 +37,7 @@
                   "refs"
                   "captures"
                   ".pgdata"
+                  ".pgdata-web"
                   "target"
                   ".direnv"
                 ]);

@@ -63,7 +63,7 @@ async fn fixture(gap: bool) -> Db {
     db.sql("INSERT INTO profiles(device_id,sex,birth_year,weight_kg,tz) VALUES('TEST-RELIABILITY','male',1985,80,'UTC'); INSERT INTO profile_revisions(device_id,effective_at,profile) SELECT device_id,'-infinity',to_jsonb(p) FROM profiles p;").await;
     sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id) SELECT $1,'2025-03-30T00:00:00Z'::timestamptz+make_interval(secs=>n),CASE WHEN n>=3600 AND n<6300 THEN 80 ELSE 50 END,ARRAY[1000],0,0,CASE WHEN n>=3600 AND n<6300 THEN 0 ELSE 2 END,$2 FROM generate_series(0,8999)n WHERE NOT $3 OR n<3600 OR n>=6300")
  .bind(DEVICE).bind(raw).bind(gap).execute(&db.pool).await.unwrap();
-    sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id) SELECT $1, '2025-03-30T14:00:00Z'::timestamptz+make_interval(secs=>n),50,ARRAY[1000],0,0,2,$2 FROM generate_series(0,1799)n UNION ALL SELECT $1,'2025-03-30T16:00:00Z'::timestamptz+make_interval(secs=>n),120,ARRAY[500],n*2,1,0,$2 FROM generate_series(0,1799)n")
+    sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id) SELECT $1, '2025-03-30T14:00:00Z'::timestamptz+make_interval(secs=>n),50,ARRAY[1000],0,0,2,$2 FROM generate_series(0,1799)n UNION ALL SELECT $1,'2025-03-30T16:00:00Z'::timestamptz+make_interval(secs=>n),120,ARRAY[500],n*2,1,0,$2 FROM generate_series(0,2099)n")
  .bind(DEVICE).bind(raw).execute(&db.pool).await.unwrap();
     db.store
         .seed_history(HistoryWorker::versions())

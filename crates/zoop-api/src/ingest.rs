@@ -1,6 +1,7 @@
 //! Per-frame durable receipts, with a conservative compatibility route for old clients.
+use crate::auth::Principal;
 use crate::{AppState, error::ApiError};
-use axum::{Json, extract::State};
+use axum::{Extension, Json, extract::State};
 use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -40,9 +41,10 @@ struct Receipt {
 
 pub(crate) async fn ingest(
     State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
     Json(request): Json<IngestRequest>,
 ) -> Result<Json<IngestResponse>, ApiError> {
-    let result = process(&state, request, false).await?;
+    let result = process(&state, principal, request, false).await?;
     // An older app deletes the ENTIRE batch on 2xx. Never acknowledge a partial batch.
     if result.rejected > 0 {
         return Err(ApiError::BadRequest(
@@ -53,15 +55,26 @@ pub(crate) async fn ingest(
 }
 pub(crate) async fn ingest_v2(
     State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
     Json(request): Json<IngestRequest>,
 ) -> Result<Json<IngestResponse>, ApiError> {
-    Ok(Json(process(&state, request, true).await?))
+    Ok(Json(process(&state, principal, request, true).await?))
 }
 async fn process(
     state: &AppState,
+    principal: Principal,
     request: IngestRequest,
     v2: bool,
 ) -> Result<IngestResponse, ApiError> {
+    match principal {
+        Principal::Browser(_) => return Err(ApiError::Forbidden),
+        Principal::Device(a) => {
+            if !state.store.owns_device(a.id, &request.device_id).await? {
+                return Err(ApiError::NotFound);
+            }
+        }
+        Principal::Legacy => {}
+    }
     if request.device_id.is_empty() || request.frames.is_empty() || request.frames.len() > MAX_BATCH
     {
         return Err(ApiError::BadRequest(

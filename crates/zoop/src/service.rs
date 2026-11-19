@@ -23,6 +23,15 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
         .context("connecting to Postgres")?;
     store.ping().await.context("pinging Postgres")?;
 
+    if config.web.enabled {
+        anyhow::ensure!(
+            store
+                .private_accounts_ready()
+                .await
+                .context("checking private-account readiness")?,
+            "Private accounts require an enabled admin and an owner for every existing device. Provision accounts and bind devices before enabling web access."
+        );
+    }
     let decoder = Decoder::new(
         store.clone(),
         config.worker_config.batch_size,
@@ -37,10 +46,14 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
     );
     let mut analysis = tokio::spawn(analyzer.run(cancel.clone()));
 
-    let app = zoop_api::build_router(AppState::new(
-        store,
-        config.server_config.ingest_token.clone(),
-    ));
+    let mut state = AppState::new(store, config.server_config.ingest_token.clone());
+    if config.web.enabled {
+        state = state.with_web(zoop_api::WebOptions {
+            origin: config.web.origin.clone(),
+            secure_cookie: config.web.origin.starts_with("https://"),
+        });
+    }
+    let app = zoop_api::build_router(state);
     let listener = TcpListener::bind(&config.server_config.bind)
         .await
         .with_context(|| format!("binding {}", config.server_config.bind))?;

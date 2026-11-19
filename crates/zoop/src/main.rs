@@ -4,6 +4,7 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use zoop_config::Config;
 
+mod accounts;
 mod cli;
 mod commands;
 mod service;
@@ -22,6 +23,7 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("loading config from {}", cli.config.display()))?;
 
     match cli.command.unwrap_or(Command::Run) {
+        Command::Account { action } => accounts::run(&config, action).await,
         Command::Run => service::run(config).await,
         Command::Validate => commands::validate(&config),
         Command::Migrate => commands::migrate(&config.storage_config).await,

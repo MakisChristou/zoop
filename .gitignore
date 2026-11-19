@@ -10,3 +10,5 @@
 
 # Existing private configuration
 /snoop.toml
+
+.pgdata-web/

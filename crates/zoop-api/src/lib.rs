@@ -1,6 +1,9 @@
 //! zoop HTTP API.
 
 mod auth;
+mod telemetry;
+mod web;
+pub use web::WebOptions;
 mod days;
 mod devices;
 mod epochs;
@@ -148,9 +151,17 @@ pub fn build_router(state: AppState) -> Router {
         ));
 
     Router::new()
+        .route("/v1/auth/login", post(web::login))
+        .route("/v1/auth/logout", post(web::logout))
+        .route("/v1/auth/me", get(web::me))
+        .route("/v1/admin/stats", get(web::admin))
         .route("/health", get(|| async { "ok" }))
         .route("/ready", get(processing::ready))
         .merge(protected)
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            telemetry::observe,
+        ))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }
