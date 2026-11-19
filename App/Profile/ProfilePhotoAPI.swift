@@ -1,6 +1,6 @@
 import Foundation
 
-extension SnoopAPI {
+extension ZoopAPI {
     static func profilePhoto(device: String, method: String = "GET", jpeg: Data? = nil) async throws -> Data? {
         var request = try request("v1/devices/\(device)/profile/photo")
         request.httpMethod = method; request.httpBody = jpeg

@@ -32,9 +32,9 @@ enum ActivityKind: String, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .walk: SnoopStyle.steps
-        case .resistance: SnoopStyle.load
-        case .activity: SnoopStyle.secondary
+        case .walk: ZoopStyle.steps
+        case .resistance: ZoopStyle.load
+        case .activity: ZoopStyle.secondary
         }
     }
 

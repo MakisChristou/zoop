@@ -1,8 +1,8 @@
 import XCTest
-@testable import Snoop
+@testable import Zoop
 
 @MainActor final class ProgressTests: XCTestCase {
-    nonisolated static func summary(_ zone: String = "UTC") -> SnoopAPI.ProgressSummary {
+    nonisolated static func summary(_ zone: String = "UTC") -> ZoopAPI.ProgressSummary {
         .init(timezone: zone, current: .init(start: "2026-10-08", end: "2026-11-04"), previous: .init(start: "2026-09-10", end: "2026-10-07"), metrics: [.init(key: "steps", current: 7800, previous: 6600, change: 1200, currentCount: 28, previousCount: 28, requiredCount: 21, weeks: [nil, 6000, 7000, 6800, 8000, 7600, 7800, 7800])])
     }
     func testFormattingKeepsUnitsAndNoSignedZero() {
@@ -14,7 +14,7 @@ import XCTest
         XCTAssertEqual(ProgressFormat.delta(-20, key: "wake_variation"), "−20 min")
     }
     func testDateLabelsUseTheResponseZoneAcrossDST() {
-        let period = SnoopAPI.ProgressSummary.Period(start: "2026-10-25", end: "2026-11-01")
+        let period = ZoopAPI.ProgressSummary.Period(start: "2026-10-25", end: "2026-11-01")
         let label = period.label(timeZone: TimeZone(identifier: "Europe/Berlin")!)
         XCTAssertTrue(label.contains("25")); XCTAssertTrue(label.contains("1")); XCTAssertTrue(label.contains("2026"))
     }
@@ -41,7 +41,7 @@ import XCTest
     func testDecodeRetainsMissingWeeksAndUnavailableComparison() throws {
         let data = Data(#"{"key":"steps","current":7000,"previous":null,"change":null,"current_count":5,"previous_count":0,"required_count":21,"weeks":[null,null,null,null,null,null,null,7000]}"#.utf8)
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let metric = try decoder.decode(SnoopAPI.ProgressSummary.Metric.self, from: data)
+        let metric = try decoder.decode(ZoopAPI.ProgressSummary.Metric.self, from: data)
         XCTAssertEqual(metric.weeks.count, 8); XCTAssertNil(metric.weeks[0]); XCTAssertNil(metric.change)
         XCTAssertEqual(metric.currentCount, 5)
     }

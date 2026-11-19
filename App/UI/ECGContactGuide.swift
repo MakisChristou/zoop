@@ -8,23 +8,23 @@ struct ECGContactGuide: View {
                 Label("Finger", systemImage: "minus")
                 Label("Thumb", systemImage: "minus")
             }
-            .font(.caption).foregroundStyle(SnoopStyle.secondary) }
+            .font(.caption).foregroundStyle(ZoopStyle.secondary) }
             ZStack {
-                Rectangle().fill(SnoopStyle.track).frame(width: 72, height: 150)
-                RoundedRectangle(cornerRadius: 16).fill(SnoopStyle.background).frame(width: 98, height: 70)
-                RoundedRectangle(cornerRadius: 16).stroke(SnoopStyle.secondary, lineWidth: 4).frame(width: 98, height: 70)
-                Image(systemName: "waveform.path.ecg").font(.system(size: 24)).foregroundStyle(SnoopStyle.text)
+                Rectangle().fill(ZoopStyle.track).frame(width: 72, height: 150)
+                RoundedRectangle(cornerRadius: 16).fill(ZoopStyle.background).frame(width: 98, height: 70)
+                RoundedRectangle(cornerRadius: 16).stroke(ZoopStyle.secondary, lineWidth: 4).frame(width: 98, height: 70)
+                Image(systemName: "waveform.path.ecg").font(.system(size: 24)).foregroundStyle(ZoopStyle.text)
                 VStack {
-                    Capsule().fill(SnoopStyle.load).frame(width: 28, height: 6)
+                    Capsule().fill(ZoopStyle.load).frame(width: 28, height: 6)
                     Spacer()
-                    Capsule().fill(SnoopStyle.load).frame(width: 28, height: 6)
+                    Capsule().fill(ZoopStyle.load).frame(width: 28, height: 6)
                 }.frame(height: 74)
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity)
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Touch both metal clasp contacts lightly with your other hand’s thumb and index finger.")
     }

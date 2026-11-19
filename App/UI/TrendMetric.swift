@@ -22,13 +22,13 @@ enum TrendMetric: String, CaseIterable, Identifiable, Sendable {
     }
     var color: Color {
         switch self {
-        case .sleep: SnoopStyle.sleep
-        case .restingHr: SnoopStyle.heartRate
-        case .hrv: SnoopStyle.sleep
-        case .breathing: SnoopStyle.steps
-        case .skinTemp: SnoopStyle.temperature
-        case .steps: SnoopStyle.steps
-        case .efficiency: SnoopStyle.sleep
+        case .sleep: ZoopStyle.sleep
+        case .restingHr: ZoopStyle.heartRate
+        case .hrv: ZoopStyle.sleep
+        case .breathing: ZoopStyle.steps
+        case .skinTemp: ZoopStyle.temperature
+        case .steps: ZoopStyle.steps
+        case .efficiency: ZoopStyle.sleep
         }
     }
     func formatted(_ value: Double) -> String {

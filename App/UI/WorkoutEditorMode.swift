@@ -2,7 +2,7 @@ import Foundation
 
 /// A correction always starts from an existing recording.
 enum WorkoutEditorMode: Identifiable {
-    case edit(SnoopAPI.Workout), merge(SnoopAPI.Workout), split(SnoopAPI.Workout)
+    case edit(ZoopAPI.Workout), merge(ZoopAPI.Workout), split(ZoopAPI.Workout)
 
     var id: String { "\(action)-\(workout.id)" }
     var action: String {
@@ -11,7 +11,7 @@ enum WorkoutEditorMode: Identifiable {
     var title: String {
         switch self { case .edit: "Edit workout"; case .merge: "Merge workouts"; case .split: "Split workout" }
     }
-    var workout: SnoopAPI.Workout {
+    var workout: ZoopAPI.Workout {
         switch self { case let .edit(w), let .merge(w), let .split(w): w }
     }
 }

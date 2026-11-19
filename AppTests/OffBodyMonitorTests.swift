@@ -1,6 +1,6 @@
 import XCTest
 import UserNotifications
-@testable import Snoop
+@testable import Zoop
 
 @MainActor final class OffBodyMonitorTests: XCTestCase {
     private var requests: [String: UNNotificationRequest] = [:]

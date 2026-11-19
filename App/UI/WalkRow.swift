@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WalkRow: View {
-    let bout: SnoopAPI.StepsDay.Bout
+    let bout: ZoopAPI.StepsDay.Bout
     let linked: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -13,17 +13,17 @@ struct WalkRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(bout.start.formatted(date: .omitted, time: .shortened)) – \(bout.end.formatted(date: .omitted, time: .shortened))")
                     .font(.subheadline.weight(.medium)).monospacedDigit()
-                Text("\(bout.durationS / 60) min").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                Text("\(bout.durationS / 60) min").font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(bout.steps.formatted()).font(.subheadline.weight(.semibold)).monospacedDigit()
-                Text("steps").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                if linked { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(SnoopStyle.secondary) }
+                Text("steps").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                if linked { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(ZoopStyle.secondary) }
             }
         }
         .padding(.vertical, 16)
-        .overlay(alignment: .top) { Rectangle().fill(SnoopStyle.separator).frame(height: 0.5) }
+        .overlay(alignment: .top) { Rectangle().fill(ZoopStyle.separator).frame(height: 0.5) }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Walk from \(bout.start.formatted(date: .omitted, time: .shortened)) to \(bout.end.formatted(date: .omitted, time: .shortened)), \(bout.durationS / 60) minutes, \(bout.steps.formatted()) steps")

@@ -1,15 +1,15 @@
 import XCTest
-@testable import Snoop
+@testable import Zoop
 
 final class CutProgressDataTests: XCTestCase {
     private let calendar = CutPlan.calendar(timezone: "Europe/Berlin")
     private func date(_ key: String) -> Date { CutPlan.date(key, calendar: calendar)! }
-    private func data(started: String = "2026-03-23", now: String = "2026-03-30", finish: String? = "2026-04-06", loss: Double? = 0.5, target: Double? = 69, pace: String? = nil, weeks: [SnoopAPI.WeightWeek] = [], readings: [SnoopAPI.CutWeighIn]? = nil) -> CutProgressData {
-        let goal = SnoopAPI.WeightGoal(revision: 1, active: true, startedAt: date(started), paceStartedAt: date(pace ?? started), timezone: "Europe/Berlin", weeklyLossKg: 0.5, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, finishDate: finish, updatedAt: date(now))
-        let summary = SnoopAPI.WeeklyWeightSummary(algorithmVersion: 1, start: "2026-03-30", end: "2026-04-05", provisional: true, state: "starting", reason: "first_week", medianKg: 69.5, changeKg: nil, weeklyLossKg: 0.5, count: 1, weekNumber: 2, weeks: weeks, progress: .init(finishDate: finish, weeksRemaining: 1, completed: false, startingWeightKg: 70, currentWeightKg: loss.map { 70 - $0 }, totalLostKg: loss, targetWeightKg: target, weighIns: readings))
+    private func data(started: String = "2026-03-23", now: String = "2026-03-30", finish: String? = "2026-04-06", loss: Double? = 0.5, target: Double? = 69, pace: String? = nil, weeks: [ZoopAPI.WeightWeek] = [], readings: [ZoopAPI.CutWeighIn]? = nil) -> CutProgressData {
+        let goal = ZoopAPI.WeightGoal(revision: 1, active: true, startedAt: date(started), paceStartedAt: date(pace ?? started), timezone: "Europe/Berlin", weeklyLossKg: 0.5, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, finishDate: finish, updatedAt: date(now))
+        let summary = ZoopAPI.WeeklyWeightSummary(algorithmVersion: 1, start: "2026-03-30", end: "2026-04-05", provisional: true, state: "starting", reason: "first_week", medianKg: 69.5, changeKg: nil, weeklyLossKg: 0.5, count: 1, weekNumber: 2, weeks: weeks, progress: .init(finishDate: finish, weeksRemaining: 1, completed: false, startingWeightKg: 70, currentWeightKg: loss.map { 70 - $0 }, totalLostKg: loss, targetWeightKg: target, weighIns: readings))
         return CutProgressData(goal: goal, summary: summary, now: date(now))
     }
-    private func week(_ start: String, _ end: String, _ median: Double?, eligible: Bool = true) -> SnoopAPI.WeightWeek {
+    private func week(_ start: String, _ end: String, _ median: Double?, eligible: Bool = true) -> ZoopAPI.WeightWeek {
         .init(start: start, end: end, medianKg: median, count: median == nil ? 0 : 6, eligible: eligible)
     }
     func testCalendarDaysCrossDSTWithoutLosingADay() throws {

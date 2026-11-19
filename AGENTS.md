@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Conventions for contributors and coding agents working in snoop. Read before changing
+Conventions for contributors and coding agents working in Zoop. Read before changing
 anything.
 
 ## What this is
 
 A SwiftUI iPhone app for WHOOP 5.0 / MG straps. It owns the Bluetooth link, decodes
-enough of the protocol to drive the strap, and uploads raw frames to a snoop-api server.
+enough of the protocol to drive the strap, and uploads raw frames to a Zoop API server.
 Analysis happens on the server; the app shows live values and sync status.
 
 ## Hard rules
@@ -16,7 +16,7 @@ Analysis happens on the server; the app shows live values and sync status.
   the protocol, then write our own Swift. Never add them as dependencies, vendor their
   code, or copy their fixtures.
 - **Pure Swift.** No Rust bridge, no third-party protocol libraries. The protocol layer
-  (`Packages/SnoopProtocol`) mirrors the byte layouts documented in snoop-api's
+  (`Packages/ZoopProtocol`) mirrors the byte layouts documented in Zoop API's
   `docs/PROTOCOL.md`; when the two disagree, fix the document first.
 - **Never drop frames.** Every complete frame goes to the local queue before anything
   else. Uploads are batched, retried, and removed only after a matching per-frame stored or duplicate receipt. A 2xx alone is insufficient.
@@ -35,7 +35,7 @@ Analysis happens on the server; the app shows live values and sync status.
   CoreBluetooth's delegate API can be wrapped.
 - One type per file, named after the type. Folders match the layers in the README.
 - Protocol code is pure functions over `[UInt8]`/`Data`, unit-tested against frames
-  built by our own encoder, exactly like snoop-api's tests.
+  built by our own encoder, exactly like Zoop API's tests.
 - Named constants for UUIDs, offsets and timings; no magic numbers in logic.
 - Background mode `bluetooth-central` with state restoration is mandatory. Test on a
   real device.
@@ -75,8 +75,8 @@ Analysis happens on the server; the app shows live values and sync status.
 
 ```sh
 xcodegen generate                          # after editing project.yml
-cd Packages/SnoopProtocol && swift test    # protocol tests, no device needed
-xcodebuild -scheme Snoop -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+cd Packages/ZoopProtocol && swift test    # protocol tests, no device needed
+xcodebuild -scheme Zoop -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
 Build and run on a physical iPhone that is already paired with the strap through the
@@ -84,5 +84,5 @@ official WHOOP app. Quit the official app before testing.
 
 ## When unsure
 
-snoop-api's `docs/ARCHITECTURE.md`, `docs/PROTOCOL.md` and `docs/ROADMAP.md` are the
+Zoop API's `docs/ARCHITECTURE.md`, `docs/PROTOCOL.md` and `docs/ROADMAP.md` are the
 shared source of truth; this repo follows them.

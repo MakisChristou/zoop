@@ -1,6 +1,6 @@
 import Foundation
 
-extension SnoopAPI {
+extension ZoopAPI {
     struct WeightGoal: Codable, Equatable, Sendable {
         let revision: Int64
         var active: Bool

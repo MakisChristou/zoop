@@ -43,22 +43,22 @@ struct ProfileSheet: View {
                         HStack {
                             Label("My WHOOP", systemImage: "sensor.tag.radiowaves.forward")
                             Spacer()
-                            Text(statusText).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                            Text(statusText).font(.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                     }
                     .accessibilityLabel("My WHOOP, \(statusText)").accessibilityIdentifier("openDevice")
                     notificationRow
                 }
-                .listRowBackground(SnoopStyle.surface)
+                .listRowBackground(ZoopStyle.surface)
                 Section {
                     NavigationLink(value: Page.advanced) { Label("Advanced", systemImage: "slider.horizontal.3") }
                 }
-                .listRowBackground(SnoopStyle.surface)
+                .listRowBackground(ZoopStyle.surface)
             }
             .scrollContentBackground(.hidden)
             .contentMargins(.top, 8, for: .scrollContent)
             .listSectionSpacing(.compact)
-            .snoopScreen()
+            .zoopScreen()
             .navigationTitle("Profile & settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { closeControl }
@@ -79,9 +79,9 @@ struct ProfileSheet: View {
             .sheet(isPresented: $editingPhoto) { ProfilePhotoView(scope: photoScope) }
             .onAppear { if let open, path.isEmpty { path = [open] } }
         }
-        .tint(SnoopStyle.text)
+        .tint(ZoopStyle.text)
         .presentationDragIndicator(.visible)
-        .presentationBackground(SnoopStyle.background)
+        .presentationBackground(ZoopStyle.background)
     }
 
     private var closeControl: some ToolbarContent {
@@ -97,7 +97,7 @@ struct ProfileSheet: View {
             HStack {
                 Label("Notifications", systemImage: "bell")
                 Spacer()
-                Text(authorizationText).foregroundStyle(SnoopStyle.secondary)
+                Text(authorizationText).foregroundStyle(ZoopStyle.secondary)
             }
         }.accessibilityIdentifier("openNotifications")
     }

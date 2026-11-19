@@ -1,9 +1,9 @@
 import Combine
-import SnoopProtocol
+import ZoopProtocol
 import SwiftUI
 
 struct TodayView: View {
-    let openSleep: (SnoopAPI.Night?) -> Void
+    let openSleep: (ZoopAPI.Night?) -> Void
     let openActivity: (Date) -> Void
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -15,11 +15,11 @@ struct TodayView: View {
     @State private var loadedDay: Date?
     @State private var loading = false
     @State private var loadID = UUID()
-    @State private var minutes: [SnoopAPI.Minute] = []
-    @State private var days: [SnoopAPI.Day] = []
-    @State private var nights: [SnoopAPI.Night] = []
-    private var workouts: [SnoopAPI.Workout] { model.activity.items }
-    @State private var steps: SnoopAPI.StepsDay?
+    @State private var minutes: [ZoopAPI.Minute] = []
+    @State private var days: [ZoopAPI.Day] = []
+    @State private var nights: [ZoopAPI.Night] = []
+    private var workouts: [ZoopAPI.Workout] { model.activity.items }
+    @State private var steps: ZoopAPI.StepsDay?
     @State private var path = NavigationPath()
     @State private var historyFailed = false
     @State private var morning = MorningInsightsStore()
@@ -57,7 +57,7 @@ struct TodayView: View {
                                     sessions: selectedWorkouts, walkingHours: currentSteps?.walkingHours)
                             .id(viewedDay)
                     } else if isViewingToday {
-                        TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: selectedSummary, history: []).snoopCard()
+                        TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: selectedSummary, history: []).zoopCard()
                     }
                     if loading && loadedDay != viewedDay {
                         ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading day")
@@ -65,13 +65,13 @@ struct TodayView: View {
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
                 }
-                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
             }
             .mainScreenChrome(screenTitle)
             .onAppear { visible = true }
             .onDisappear { visible = false; morning.stop() }
-            .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
+            .navigationDestination(for: ZoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .navigationDestination(for: StepsView.Scope.self) { StepsView(initialScope: $0, day: viewedDay) }
             .onAppear(perform: applyDemoRoute)
             .refreshable { await loadHistory() }
@@ -111,17 +111,17 @@ struct TodayView: View {
                     metricLabel("Sleep", icon: "moon")
                     SleepDuration(seconds: selectedNight?.metrics.window.asleepS)
                     Text(selectedNight.map { isViewingToday ? "Last night" : $0.metrics.window.offset.formatted(.dateTime.day().month(.abbreviated)) } ?? "No night recorded")
-                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
                     if let night = selectedNight, !night.stages.isEmpty {
                         Hypnogram(segments: night.stages, onset: night.metrics.window.onset, offset: night.metrics.window.offset)
                             .frame(height: 22).accessibilityHidden(true)
                     } else {
-                        Sparkline(values: precedingNights.map { Double($0.metrics.window.asleepS) }, color: SnoopStyle.sleep)
+                        Sparkline(values: precedingNights.map { Double($0.metrics.window.asleepS) }, color: ZoopStyle.sleep)
                             .frame(height: 22).accessibilityHidden(true)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                .snoopCard(padding: 14)
+                .zoopCard(padding: 14)
             }
             .buttonStyle(PressableCardStyle()).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
             Button { openActivity(viewedDay) } label: {
@@ -134,11 +134,11 @@ struct TodayView: View {
                             LoadRing(load: load, lineWidth: 4).frame(width: 42, height: 42).accessibilityHidden(true)
                         }
                     }
-                    Text("0–21 scale").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Text("0–21 scale").font(.caption).foregroundStyle(ZoopStyle.secondary)
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                .snoopCard(padding: 14)
+                .zoopCard(padding: 14)
             }
             .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
         }
@@ -150,7 +150,7 @@ struct TodayView: View {
                 HStack {
                     metricLabel("Steps", icon: "shoeprints.fill")
                     Spacer()
-                    Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 }
                 MetricValue((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
                     .padding(.top, 4)
@@ -158,7 +158,7 @@ struct TodayView: View {
                     StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
                 } else {
                     Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
-                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let steps = currentSteps {
                     HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)
@@ -170,7 +170,7 @@ struct TodayView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .snoopCard()
+            .zoopCard()
         }
         .buttonStyle(PressableCardStyle())
         .accessibilityIdentifier("openSteps")
@@ -197,22 +197,22 @@ struct TodayView: View {
     }
 
     private func metricLabel(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon).font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+        Label(title, systemImage: icon).font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
     }
 
     private func sectionHeading(_ title: String) -> some View {
         Text(title).font(.headline).accessibilityAddTraits(.isHeader)
     }
 
-    private var selectedWorkouts: [SnoopAPI.Workout] {
+    private var selectedWorkouts: [ZoopAPI.Workout] {
         workouts.filter { $0.startTs < (Calendar.current.date(byAdding: .day, value: 1, to: viewedDay) ?? viewedDay) && $0.endTs > viewedDay }.sorted { $0.startTs > $1.startTs }
     }
 
-    private var selectedSummary: SnoopAPI.Day? {
+    private var selectedSummary: ZoopAPI.Day? {
         days.last { StepsView.day($0.day).map { Calendar.current.isDate($0, inSameDayAs: viewedDay) } == true }
     }
 
-    private var currentSteps: SnoopAPI.StepsDay? {
+    private var currentSteps: ZoopAPI.StepsDay? {
         guard let steps, let day = StepsView.day(steps.day), Calendar.current.isDate(day, inSameDayAs: viewedDay) else { return nil }
         guard steps.walking > 0 || selectedSummary != nil else { return nil }
         return steps
@@ -242,11 +242,11 @@ struct TodayView: View {
         defer { if loadID == requestID { loading = false } }
         let scope = insightScope
         async let brief: Void = morning.reload(scope) { insightScope == scope && visible && scenePhase == .active }
-        async let d = SnoopAPI.days(deviceId: serial, limit: 30)
-        async let n = SnoopAPI.nights(deviceId: serial, limit: 30)
-        async let m = SnoopAPI.minutes(deviceId: serial, day: day)
+        async let d = ZoopAPI.days(deviceId: serial, limit: 30)
+        async let n = ZoopAPI.nights(deviceId: serial, limit: 30)
+        async let m = ZoopAPI.minutes(deviceId: serial, day: day)
         async let w: Void = model.activity.reload(device: serial, from: day, to: Calendar.current.date(byAdding: .day, value: 1, to: day))
-        async let s = SnoopAPI.steps(deviceId: serial, day: day)
+        async let s = ZoopAPI.steps(deviceId: serial, day: day)
         await brief
         let fetchedDays = try? await d
         let fetchedNights = try? await n
@@ -271,17 +271,17 @@ struct TodayView: View {
         .init(device: model.strap.serial, day: viewedDay, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
     }
     private var isViewingToday: Bool { Calendar.current.isDate(viewedDay, inSameDayAs: now) }
-    private var currentMinutes: [SnoopAPI.Minute] { loadedDay == viewedDay ? minutes : [] }
+    private var currentMinutes: [ZoopAPI.Minute] { loadedDay == viewedDay ? minutes : [] }
 
-    private var selectedNight: SnoopAPI.Night? {
+    private var selectedNight: ZoopAPI.Night? {
         nights.first { Calendar.current.isDate($0.metrics.window.offset, inSameDayAs: viewedDay) }
     }
 
-    private var precedingNights: [SnoopAPI.Night] {
+    private var precedingNights: [ZoopAPI.Night] {
         nights.filter { Calendar.current.startOfDay(for: $0.metrics.window.offset) <= viewedDay }.reversed()
     }
 
-    private var precedingDays: [SnoopAPI.Day] {
+    private var precedingDays: [ZoopAPI.Day] {
         days.filter { StepsView.day($0.day).map { $0 <= viewedDay } == true }
     }
 

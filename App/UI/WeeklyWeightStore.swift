@@ -3,10 +3,10 @@ import Observation
 
 /// Server-owned goals and summaries. Cache is scoped to the same account/device as Health.
 @MainActor @Observable final class WeeklyWeightStore {
-    typealias Loader = @Sendable (String) async throws -> SnoopAPI.WeeklyWeightResponse
-    typealias Saver = @Sendable (String, SnoopAPI.WeightGoalInput) async throws -> SnoopAPI.WeightGoal
-    private(set) var goal: SnoopAPI.WeightGoal?
-    private(set) var summary: SnoopAPI.WeeklyWeightSummary?
+    typealias Loader = @Sendable (String) async throws -> ZoopAPI.WeeklyWeightResponse
+    typealias Saver = @Sendable (String, ZoopAPI.WeightGoalInput) async throws -> ZoopAPI.WeightGoal
+    private(set) var goal: ZoopAPI.WeightGoal?
+    private(set) var summary: ZoopAPI.WeeklyWeightSummary?
     private(set) var loading = false
     private(set) var loaded = false
     private(set) var error: String?
@@ -21,7 +21,7 @@ import Observation
     @ObservationIgnored private var connection = ""
     @ObservationIgnored private var request = UUID()
     @ObservationIgnored private var scheduled: Task<Void, Never>?
-    init(defaults: UserDefaults = .standard, reminder: WeeklyWeightReminder = WeeklyWeightReminder(), loader: @escaping Loader = { try await SnoopAPI.weeklyWeight($0) }, saver: @escaping Saver = { try await SnoopAPI.saveWeightGoal($0, input: $1) }) {
+    init(defaults: UserDefaults = .standard, reminder: WeeklyWeightReminder = WeeklyWeightReminder(), loader: @escaping Loader = { try await ZoopAPI.weeklyWeight($0) }, saver: @escaping Saver = { try await ZoopAPI.saveWeightGoal($0, input: $1) }) {
         self.defaults = defaults; self.reminder = reminder; self.loader = loader; self.saver = saver
     }
     func activate(device: String, scope: String?) {
@@ -29,7 +29,7 @@ import Observation
             scheduled?.cancel(); scheduled = nil; request = UUID()
             self.scope = scope; self.device = device; connection = Settings.connectionID
             goal = nil; summary = nil; error = nil; loaded = false; loading = false; saving = false
-            if let scope, let data = defaults.data(forKey: "weeklyWeight." + scope), let saved = try? JSONDecoder().decode(SnoopAPI.WeeklyWeightResponse.self, from: data) {
+            if let scope, let data = defaults.data(forKey: "weeklyWeight." + scope), let saved = try? JSONDecoder().decode(ZoopAPI.WeeklyWeightResponse.self, from: data) {
                 goal = saved.goal; summary = saved.summary
             }
         }
@@ -57,7 +57,7 @@ import Observation
             self.error = "Couldn’t update your weekly outlook. Try again."
         }
     }
-    func save(_ input: SnoopAPI.WeightGoalInput) async throws {
+    func save(_ input: ZoopAPI.WeightGoalInput) async throws {
         guard let scope, !device.isEmpty, !saving else { throw CancellationError() }
         let connection = connection
         saving = true; scheduled?.cancel(); scheduled = nil; request = UUID()
@@ -70,7 +70,7 @@ import Observation
         await reload()
     }
     private func persist() {
-        guard let scope, let data = try? JSONEncoder().encode(SnoopAPI.WeeklyWeightResponse(goal: goal, summary: summary)) else { return }
+        guard let scope, let data = try? JSONEncoder().encode(ZoopAPI.WeeklyWeightResponse(goal: goal, summary: summary)) else { return }
         defaults.set(data, forKey: "weeklyWeight." + scope)
     }
 }

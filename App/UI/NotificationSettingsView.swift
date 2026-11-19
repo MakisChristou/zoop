@@ -19,24 +19,24 @@ struct NotificationSettingsView: View {
                         .accessibilityLabel("ECG time").accessibilityIdentifier("ecgReminderTime")
                 }
             } header: { Text("Daily check-ins") } footer: { Text("Skipped once you’ve checked in.") }
-            .listRowBackground(SnoopStyle.surface)
+            .listRowBackground(ZoopStyle.surface)
             Section("My WHOOP") {
                 Toggle("Battery alerts", isOn: Binding(get: { model.battery.alertsEnabled }, set: { model.battery.alertsEnabled = $0; requestPermission() }))
                 if OffBodyMonitor.available {
                     Toggle(isOn: Binding(get: { model.offBody.enabled }, set: { model.offBody.enabled = $0; requestPermission() })) {
-                        VStack(alignment: .leading, spacing: 3) { Text("Off-body"); Text("After 10 minutes").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                        VStack(alignment: .leading, spacing: 3) { Text("Off-body"); Text("After 10 minutes").font(.caption).foregroundStyle(ZoopStyle.secondary) }
                     }.accessibilityIdentifier("offBodyReminderEnabled")
                 }
-            }.listRowBackground(SnoopStyle.surface)
+            }.listRowBackground(ZoopStyle.surface)
             if model.weeklyWeight.goal?.dailyStepsGoal != nil {
                 Section("Cut steps") {
                     Toggle("Goal completions", isOn: Binding(get: { model.stepsReminder.completion.enabled }, set: { model.stepsReminder.completion.enabled = $0; requestPermission(); model.stepsReminder.refresh(force: true) }))
                         .accessibilityIdentifier("stepsCompletionEnabled")
-                    if let error = model.stepsReminder.completion.error { Text(error).foregroundStyle(SnoopStyle.secondary); Button("Retry") { model.stepsReminder.refresh(force: true) } }
+                    if let error = model.stepsReminder.completion.error { Text(error).foregroundStyle(ZoopStyle.secondary); Button("Retry") { model.stepsReminder.refresh(force: true) } }
                     Toggle("Steps reminder", isOn: Binding(get: { model.stepsReminder.enabled }, set: { model.stepsReminder.enabled = $0; requestPermission(); model.stepsReminder.refresh(force: true) }))
                     if model.stepsReminder.enabled { DatePicker("Time", selection: time(get: { model.stepsReminder.minute }, set: { model.stepsReminder.minute = $0 }), displayedComponents: .hourAndMinute) }
-                    if let error = model.stepsReminder.error { Text(error).foregroundStyle(SnoopStyle.secondary); Button("Retry") { model.stepsReminder.refresh(force: true) } }
-                }.listRowBackground(SnoopStyle.surface)
+                    if let error = model.stepsReminder.error { Text(error).foregroundStyle(ZoopStyle.secondary); Button("Retry") { model.stepsReminder.refresh(force: true) } }
+                }.listRowBackground(ZoopStyle.surface)
             }
             Section {
                 if model.battery.authorization == .notDetermined {
@@ -46,13 +46,13 @@ struct NotificationSettingsView: View {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
-                if model.battery.authorization == .denied { Text("Notifications are off for Snoop.").foregroundStyle(SnoopStyle.secondary) }
+                if model.battery.authorization == .denied { Text("Notifications are off for Zoop.").foregroundStyle(ZoopStyle.secondary) }
                 if let error = model.reminders.error {
-                    Text(error).foregroundStyle(SnoopStyle.secondary)
+                    Text(error).foregroundStyle(ZoopStyle.secondary)
                     Button("Retry") { model.refreshReminders() }
                 }
-            }.listRowBackground(SnoopStyle.surface)
-        }.scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
+            }.listRowBackground(ZoopStyle.surface)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
             .navigationTitle("Notifications").navigationBarTitleDisplayMode(.inline)
             .task { await model.battery.refreshAuthorization(); model.refreshReminders() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.battery.refreshAuthorization(); model.refreshReminders() } } }

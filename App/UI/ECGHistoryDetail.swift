@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopECG
+import ZoopECG
 
 struct ECGHistoryDetail: View {
     let id: UUID
@@ -13,9 +13,9 @@ struct ECGHistoryDetail: View {
                 if let recording { ECGRecordingView(recording: recording) }
                 else if let error { ContentUnavailableView("Couldn’t open recording", systemImage: "exclamationmark.circle", description: Text(error)) }
                 else { ProgressView("Loading recording") }
-            }.padding(SnoopStyle.gutter)
+            }.padding(ZoopStyle.gutter)
         }
-        .snoopScreen().navigationTitle("ECG recording").navigationBarTitleDisplayMode(.inline)
+        .zoopScreen().navigationTitle("ECG recording").navigationBarTitleDisplayMode(.inline)
         .task(id: id) {
             do { recording = try await model.ecg.load(id: id) }
             catch { self.error = error.localizedDescription }

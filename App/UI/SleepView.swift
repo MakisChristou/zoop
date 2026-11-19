@@ -2,25 +2,25 @@ import SwiftUI
 
 struct SleepView: View {
     @Environment(AppModel.self) private var model
-    @Binding var selected: SnoopAPI.Night?
+    @Binding var selected: ZoopAPI.Night?
     @State private var selectedDay = Date()
     @State private var editor: SleepEditorMode?
-    @State private var resetTarget: SnoopAPI.SleepSession?
+    @State private var resetTarget: ZoopAPI.SleepSession?
     @State private var error: String?
     @State private var loading = false
     @State private var loadID = UUID()
     @Environment(\.dynamicTypeSize) private var typeSize
     private var timezone: String { model.sleep.items.first?.timezone ?? TimeZone.current.identifier }
     private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: timezone) ?? .current; return c }
-    private var key: String { SnoopAPI.SleepSession.day(selectedDay, timezone: timezone) }
-    private var rows: [SnoopAPI.SleepSession] { model.sleep.items.filter { $0.day == key }.sorted { $0.startTs < $1.startTs } }
-    private var main: SnoopAPI.SleepSession? { rows.first { $0.kind == "main" } }
+    private var key: String { ZoopAPI.SleepSession.day(selectedDay, timezone: timezone) }
+    private var rows: [ZoopAPI.SleepSession] { model.sleep.items.filter { $0.day == key }.sorted { $0.startTs < $1.startTs } }
+    private var main: ZoopAPI.SleepSession? { rows.first { $0.kind == "main" } }
     private var dayTitle: String { let f = DateFormatter(); f.timeZone = calendar.timeZone; f.dateFormat = "EEE d MMM"; return f.string(from: selectedDay) }
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < SnoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) })
+                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < ZoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) })
                     if let main, let night = main.night { content(night, record: main) }
                     else if loading { ProgressView().frame(maxWidth: .infinity).padding(40) }
                     else {
@@ -38,18 +38,18 @@ struct SleepView: View {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(row.startTs.formatted(date: .omitted, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
-                                            if let data = row.sleep { Text(duration(data.window.asleepS)).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
-                                            if row.metricsPending { Text("Updating sleep").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                                            if let data = row.sleep { Text(duration(data.window.asleepS)).font(.subheadline).foregroundStyle(ZoopStyle.secondary) }
+                                            if row.metricsPending { Text("Updating sleep").font(.caption).foregroundStyle(ZoopStyle.secondary) }
                                         }
-                                        Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                                    }.frame(minHeight: 44).padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                                        Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                    }.frame(minHeight: 44).padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
                                 }.buttonStyle(PressableCardStyle()).accessibilityIdentifier("napSession-\(row.id)")
                             }
                         }
                     }
                     if main != nil, let error { Text(error).font(.footnote).foregroundStyle(.red) }
                     NavigationLink("Removed sleep") { RemovedSleepView() }.font(.footnote).frame(minHeight: 44)
-                }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 24)
+                }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 24)
             }
             .navigationTitle("Sleep").mainScreenChrome("Sleep")
             .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
@@ -59,7 +59,7 @@ struct SleepView: View {
             .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         }
         .sheet(item: $editor) { SleepEditorView(mode: $0) }
-        .sheet(item: $resetTarget) { row in NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(SnoopStyle.background) }
+        .sheet(item: $resetTarget) { row in NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(ZoopStyle.background) }
     }
     private func step(_ delta: Int) { selected = nil; selectedDay = calendar.date(byAdding: .day, value: delta, to: selectedDay) ?? selectedDay }
     private func load() async {
@@ -76,7 +76,7 @@ struct SleepView: View {
             self.error = error.localizedDescription
         }
     }
-    private func content(_ night: SnoopAPI.Night, record: SnoopAPI.SleepSession) -> some View {
+    private func content(_ night: ZoopAPI.Night, record: ZoopAPI.SleepSession) -> some View {
         let w = night.metrics.window
         let p = night.metrics.physiology
         let deltas = SleepMetricDelta.all(record: record, history: model.sleep.items, calendar: calendar)
@@ -94,16 +94,16 @@ struct SleepView: View {
                         } label: { Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44) }
                         .accessibilityLabel("Sleep options")
                     }
-                    if record.metricsPending { Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(SnoopStyle.secondary) }
-                    else if record.edited { Text(record.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                    if record.metricsPending { Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath").font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                    else if record.edited { Text(record.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(ZoopStyle.secondary) }
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text("Time asleep").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        Text("Time asleep").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                         Spacer()
                         if let delta = deltas[.asleep] { SleepDeltaLabel(delta: delta, id: "Time asleep") }
                     }
                     if night.stages.isEmpty {
                         Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened))")
-                            .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                            .font(.footnote).foregroundStyle(ZoopStyle.secondary)
                         NavigationLink { SleepSessionDetailView(initial: record) } label: {
                             Label("Sleep details", systemImage: "chevron.right").font(.footnote).frame(minHeight: 44)
                         }
@@ -117,7 +117,7 @@ struct SleepView: View {
                                 HStack {
                                     Spacer()
                                     Label("Sleep details", systemImage: "chevron.right")
-                                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
                                 }
                             }
                             .padding(.top, 8)
@@ -128,12 +128,12 @@ struct SleepView: View {
                             Spacer()
                             Text(w.offset.formatted(date: .omitted, time: .shortened))
                         }
-                        .font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption2).foregroundStyle(ZoopStyle.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
 
                 if let st = night.metrics.stages, !night.stages.isEmpty {
                     let scored = max(st.lightS + st.deepS + st.remS, 1)
@@ -142,11 +142,11 @@ struct SleepView: View {
                         StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored), delta: deltas[.rem])
                         StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored), delta: deltas[.deep])
                         StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored), delta: deltas[.light])
-                        Text("Stages are estimates").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.top, 4)
+                        Text("Stages are estimates").font(.caption).foregroundStyle(ZoopStyle.secondary).padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                    .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -166,32 +166,32 @@ struct SleepView: View {
                 let awakenings = night.stages.filter { $0.stage == .wake && $0.start > w.onset && $0.end < w.offset }
                 if !awakenings.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Awake during the night").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                        Text("Awake during the night").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                         ForEach(Array(awakenings.enumerated()), id: \.offset) { _, seg in
                             HStack {
                                 Text(seg.start.formatted(date: .omitted, time: .shortened))
-                                Text("·").foregroundStyle(SnoopStyle.secondary)
+                                Text("·").foregroundStyle(ZoopStyle.secondary)
                                 Text(duration(Int(seg.end.timeIntervalSince(seg.start))))
-                                    .foregroundStyle(SnoopStyle.secondary)
+                                    .foregroundStyle(ZoopStyle.secondary)
                             }
                             .font(.subheadline)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                    .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
                 }
 
                 if w.coverageS < w.timeInBedS - 120 {
                     Label("\(duration(w.timeInBedS - w.coverageS)) of this night has no data, for example while the strap was off or charging. Those minutes are not counted as sleep.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
                 }
 
                 HStack {
                     Text("Recording coverage")
                     Spacer()
                     Text(pct(Double(w.coverageS) / Double(max(w.timeInBedS, 1)))).monospacedDigit()
-                }.font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                }.font(.footnote).foregroundStyle(ZoopStyle.secondary)
 
                 MetricInformation(title: "About sleep estimates", text: "Sleep is estimated from the strap’s rest signal and heart rate. Stages use motion, heart rate, HRV and breathing; they are estimates, and deep sleep is the least certain. The Awake total uses the strap’s rest signal; chart awakenings are separate stage estimates. HRV uses RMSSD across \(p.hrvWindows) windows; oxygen saturation uses \(p.spo2Windows) windows. Algorithm v\(night.algoVersion).")
             }
@@ -206,20 +206,20 @@ struct SleepView: View {
 }
 
 struct Hypnogram: View {
-    let segments: [SnoopAPI.Night.Segment]
+    let segments: [ZoopAPI.Night.Segment]
     let onset: Date
     let offset: Date
 
-    static func color(_ stage: SnoopAPI.Night.Stage) -> Color {
+    static func color(_ stage: ZoopAPI.Night.Stage) -> Color {
         switch stage {
         case .wake: .orange
-        case .light: SnoopStyle.sleep.opacity(0.5)
-        case .deep: SnoopStyle.sleep
-        case .rem: SnoopStyle.sleep.opacity(0.78)
+        case .light: ZoopStyle.sleep.opacity(0.5)
+        case .deep: ZoopStyle.sleep
+        case .rem: ZoopStyle.sleep.opacity(0.78)
         }
     }
 
-    private static func level(_ stage: SnoopAPI.Night.Stage) -> CGFloat {
+    private static func level(_ stage: ZoopAPI.Night.Stage) -> CGFloat {
         switch stage {
         case .wake: 0
         case .rem: 1
@@ -285,7 +285,7 @@ private struct StageRow: View {
 
     private var shareLabel: some View {
         Text("\(Int((share * 100).rounded()))%")
-            .font(.caption).foregroundStyle(SnoopStyle.secondary).monospacedDigit()
+            .font(.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
     }
     private var progress: some View {
         ProgressView(value: min(max(share, 0), 1)).tint(color).accessibilityHidden(true)
@@ -313,21 +313,21 @@ private struct Stat: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title == "Resting heart rate" ? "Resting HR" : title)
-                .font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                .font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value).font(.title2.weight(.semibold)).monospacedDigit()
-                if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
+                if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(ZoopStyle.secondary) }
             }
             if let delta { SleepDeltaLabel(delta: delta, id: title) }
             else {
-                Text("—").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                Text("—").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                     .accessibilityLabel("Comparison not available")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(16)
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 }
 
@@ -353,7 +353,7 @@ private struct SleepSectionHeader: View {
         layout {
             Text(title).font(.headline)
             if !typeSize.isAccessibilitySize { Spacer() }
-            Text(comparison).font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text(comparison).font(.caption).foregroundStyle(ZoopStyle.secondary)
         }
     }
 }

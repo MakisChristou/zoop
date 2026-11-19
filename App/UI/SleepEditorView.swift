@@ -8,9 +8,9 @@ struct SleepEditorView: View {
     @State private var start: Date
     @State private var end: Date
     @State private var chosenKind: String?
-    @State private var neighbours: [SnoopAPI.SleepSession] = []
+    @State private var neighbours: [ZoopAPI.SleepSession] = []
     @State private var mergeId: Int64?
-    @State private var minutes: [SnoopAPI.Minute] = []
+    @State private var minutes: [ZoopAPI.Minute] = []
     @State private var selection: Date?
     @State private var loading = false
     @State private var saving = false
@@ -23,7 +23,7 @@ struct SleepEditorView: View {
         _start = State(initialValue: mode.record.startTs)
         _chosenKind = State(initialValue: mode.action == "merge" ? nil : mode.record.kind)
     }
-    private var neighbour: SnoopAPI.SleepSession? { neighbours.first { $0.id == mergeId } }
+    private var neighbour: ZoopAPI.SleepSession? { neighbours.first { $0.id == mergeId } }
     // Joining a main sleep and a nap remains main sleep whichever card opened
     // the editor. An explicit type choice still takes precedence.
     private var kind: String {
@@ -37,44 +37,44 @@ struct SleepEditorView: View {
             Form {
                 Section {
                     Picker("Type", selection: Binding(get: { kind }, set: { chosenKind = $0 })) { Text("Main sleep").tag("main"); Text("Nap").tag("nap") }.accessibilityIdentifier("sleepType")
-                }.listRowBackground(SnoopStyle.surface)
+                }.listRowBackground(ZoopStyle.surface)
                 if mode.action == "merge" {
                     Section("Merge with") {
                         if loading { ProgressView("Loading sleep") }
-                        else if neighbours.isEmpty { Text("No nearby sleep recordings").foregroundStyle(SnoopStyle.secondary) }
+                        else if neighbours.isEmpty { Text("No nearby sleep recordings").foregroundStyle(ZoopStyle.secondary) }
                         ForEach(neighbours) { row in
                             Button { mergeId = row.id } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(row.name)
                                         Text(row.startTs.formatted(date: .abbreviated, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
-                                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
                                     }
                                     Spacer()
                                     if row.id == mergeId { Image(systemName: "checkmark").accessibilityLabel("Selected") }
                                 }.frame(minHeight: 44)
-                            }.foregroundStyle(SnoopStyle.text)
+                            }.foregroundStyle(ZoopStyle.text)
                         }
-                    }.listRowBackground(SnoopStyle.surface)
+                    }.listRowBackground(ZoopStyle.surface)
                     if neighbour != nil {
                         Section {
                             LabeledContent("Sleep period", value: "\(Int(to.timeIntervalSince(from) / 60)) min")
-                            Text("Awake time and missing readings stay separate.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
-                        }.listRowBackground(SnoopStyle.surface)
+                            Text("Awake time and missing readings stay separate.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                        }.listRowBackground(ZoopStyle.surface)
                     }
                 } else {
                     Section {
                         DatePicker("Fell asleep", selection: $start, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                         DatePicker("Woke up", selection: $end, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                    }.listRowBackground(SnoopStyle.surface)
+                    }.listRowBackground(ZoopStyle.surface)
                 }
                 Section {
                     WorkoutWindowChart(minutes: minutes, start: from, end: max(to, from.addingTimeInterval(1)), split: nil, selected: $selection)
-                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(SnoopStyle.secondary) }
-                }.listRowBackground(SnoopStyle.surface)
-                if let error { Section { Text(error).foregroundStyle(.red).accessibilityLabel("Unable to save. \(error)") }.listRowBackground(SnoopStyle.surface) }
+                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+                }.listRowBackground(ZoopStyle.surface)
+                if let error { Section { Text(error).foregroundStyle(.red).accessibilityLabel("Unable to save. \(error)") }.listRowBackground(ZoopStyle.surface) }
             }
-            .scrollContentBackground(.hidden).snoopScreen()
+            .scrollContentBackground(.hidden).zoopScreen()
             .navigationTitle(mode.title).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
@@ -88,24 +88,24 @@ struct SleepEditorView: View {
             .task(id: "\(from)-\(to)") { await loadReadings() }
         }
         .environment(\.timeZone, timezone)
-        .tint(SnoopStyle.load).foregroundStyle(SnoopStyle.text).presentationBackground(SnoopStyle.background)
+        .tint(ZoopStyle.load).foregroundStyle(ZoopStyle.text).presentationBackground(ZoopStyle.background)
     }
     private func loadNeighbours() async {
         guard mode.action == "merge" else { return }
         let row = mode.record
         loading = true; defer { loading = false }
         do {
-            let rows = try await SnoopAPI.sleepSessions(deviceId: model.strap.serial, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration)).filter { $0.id != row.id }
+            let rows = try await ZoopAPI.sleepSessions(deviceId: model.strap.serial, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration)).filter { $0.id != row.id }
             neighbours = [rows.filter { $0.endTs <= start }.max { $0.endTs < $1.endTs }, rows.filter { $0.startTs >= end }.min { $0.startTs < $1.startTs }].compactMap { $0 }.sorted { gap($0) < gap($1) }
         } catch { self.error = error.localizedDescription }
     }
-    private func gap(_ row: SnoopAPI.SleepSession) -> TimeInterval {
+    private func gap(_ row: ZoopAPI.SleepSession) -> TimeInterval {
         max(row.startTs.timeIntervalSince(end), start.timeIntervalSince(row.endTs), 0)
     }
     private func loadReadings() async {
         guard to > from, to.timeIntervalSince(from) <= Self.maximumDuration else { minutes = []; return }
         do {
-            let rows = try await SnoopAPI.minutes(deviceId: model.strap.serial, window: from...to)
+            let rows = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: from...to)
             guard !Task.isCancelled else { return }; minutes = rows; chartError = nil
         } catch { if !Task.isCancelled { minutes = []; chartError = "Couldn’t load the chart. You can still save your times." } }
     }

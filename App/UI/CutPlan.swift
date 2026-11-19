@@ -1,5 +1,5 @@
 import Foundation
-import SnoopHealth
+import ZoopHealth
 
 /// Setup preview uses the same calendar arithmetic as the authoritative server summary.
 enum CutPlan {

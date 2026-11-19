@@ -12,14 +12,14 @@ struct MorningInsightsView: View {
     @State private var showMethod = false
     @State private var history = TrendStore()
     @State private var metric: TrendMetric = .sleep
-    @State private var detailNight: SnoopAPI.Night?
+    @State private var detailNight: ZoopAPI.Night?
     @State private var showNight = false
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 if error {
                     Button("Couldn’t update insights. Retry") { Task { await load() } }
                         .frame(minHeight: 44).accessibilityIdentifier("retryInsights")
@@ -30,7 +30,7 @@ struct MorningInsightsView: View {
                             .accessibilityIdentifier("morningOutlookStatus")
                         Spacer()
                         if insights.isLearning, let outlook = insights.outlook {
-                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                         }
                     }
                     let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
@@ -48,9 +48,9 @@ struct MorningInsightsView: View {
                 } else if loading {
                     ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading morning insights")
                 }
-            }.padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
+            }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
-        .navigationTitle("Morning insights").navigationBarTitleDisplayMode(.inline).snoopScreen()
+        .navigationTitle("Morning insights").navigationBarTitleDisplayMode(.inline).zoopScreen()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showMethod = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About morning insights")

@@ -1,6 +1,6 @@
 """Loopback-only, generated history for layout/gesture tests. No real health data.
 
-Run alongside SnoopUITests on a simulator. The default test URL is port 28476.
+Run alongside ZoopUITests on a simulator. The default test URL is port 28476.
 All mutations are in memory and disappear when the process exits.
 """
 import json
@@ -45,7 +45,7 @@ for i in range(120):
     # readings exercise Health imports; their Health-first preference is unchanged.
     source = 'snoop' if i == 0 else 'health'
     weights.append(dict(id=f'{source}:layout-{i}', measured_at=stamp(day+timedelta(hours=7)),
-                        kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Snoop' if i == 0 else 'Test scale', version=1, removed=False))
+                        kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Zoop' if i == 0 else 'Test scale', version=1, removed=False))
 
 
 # Independent device scopes let entry tests exercise empty and completed days.

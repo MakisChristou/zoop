@@ -61,12 +61,12 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         Page(symbol: "waveform.path.ecg", title: "Your strap, your data",
-             body: "snoop reads your WHOOP 5.0 or MG directly over Bluetooth and sends the raw data to a server you run. No WHOOP account, no WHOOP cloud, no subscription.")
+             body: "Zoop reads your WHOOP 5.0 or MG directly over Bluetooth and sends the raw data to a server you run. No WHOOP account, no WHOOP cloud, no subscription.")
     }
 
     private var bluetooth: some View {
         Page(symbol: "antenna.radiowaves.left.and.right", title: "Bluetooth, locally",
-             body: "Next, iOS will ask for Bluetooth access. snoop uses it only to talk to the strap. The strap already trusts this phone because the official app paired it, so there is no pairing step.")
+             body: "Next, iOS will ask for Bluetooth access. Zoop uses it only to talk to the strap. The strap already trusts this phone because the official app paired it, so there is no pairing step.")
     }
 
     private var prepare: some View {
@@ -89,7 +89,7 @@ struct OnboardingView: View {
                 .font(.title2.weight(.semibold))
             Text(connectDetail)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(SnoopStyle.secondary)
+                .foregroundStyle(ZoopStyle.secondary)
                 .padding(.horizontal, 32)
             if model.strap.state != .ready {
                 Button("Try again") { model.strap.connect() }
@@ -123,7 +123,7 @@ struct OnboardingView: View {
                     .autocorrectionDisabled()
                 SecureField("Bearer token", text: $ingestToken)
             } header: {
-                Text("Your snoop-api server")
+                Text("Your Zoop API server")
             } footer: {
                 Text("A server syncs and analyses your recordings. Until then, recordings stay on this iPhone.")
             }
@@ -153,7 +153,7 @@ private struct Page: View {
             Spacer()
             Image(systemName: symbol).font(.system(size: 64)).foregroundStyle(.tint)
             Text(title).font(.title.weight(.semibold))
-            Text(text).multilineTextAlignment(.center).foregroundStyle(SnoopStyle.secondary).padding(.horizontal, 32)
+            Text(text).multilineTextAlignment(.center).foregroundStyle(ZoopStyle.secondary).padding(.horizontal, 32)
             Spacer()
         }
     }

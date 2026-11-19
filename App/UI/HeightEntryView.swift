@@ -24,20 +24,20 @@ struct HeightEntryView: View {
                             .multilineTextAlignment(.center).frame(maxWidth: 240)
                             .accessibilityLabel("Height in centimetres").accessibilityIdentifier("heightInput")
                             .accessibilityHint("Tap to type a height")
-                        Text("cm").foregroundStyle(SnoopStyle.secondary)
+                        Text("cm").foregroundStyle(ZoopStyle.secondary)
                     }
                     MeasurementRuler(value: rulerValue, range: 40...250, step: 1, unit: "cm", label: "Height ruler", onEditing: { focused = false })
                         .accessibilityIdentifier("heightRuler")
-                }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
+                }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 20)
             }
             .safeAreaInset(edge: .bottom) {
                 Button { height = draft; dismiss() } label: {
                     Text("Done").font(.headline).frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }.buttonStyle(.borderedProminent).disabled(!draft.isEmpty && number?.isFinite != true)
-                    .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+                    .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)
             }
-            .navigationTitle("Height").navigationBarTitleDisplayMode(.inline).snoopScreen().tint(SnoopStyle.load)
+            .navigationTitle("Height").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.load)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onAppear { draft = height }
         }.presentationDetents([.large]).presentationDragIndicator(.visible)

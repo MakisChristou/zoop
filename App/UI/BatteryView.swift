@@ -1,5 +1,5 @@
 import Combine
-import SnoopBattery
+import ZoopBattery
 import SwiftUI
 import UserNotifications
 
@@ -16,7 +16,7 @@ struct BatteryView: View {
                 if model.battery.authorization == .denied {
                     Button("Turn on notifications") {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
-                    }.font(.caption).foregroundStyle(SnoopStyle.secondary).frame(minHeight: 44)
+                    }.font(.caption).foregroundStyle(ZoopStyle.secondary).frame(minHeight: 44)
                 }
             }
         }
@@ -35,12 +35,12 @@ struct BatteryView: View {
         let full = current && state.percent == 100
         let transferring = charging && !full
         let inferred = charging && state.chargingEvidence == .risingLevel
-        let strapColor = current ? BatteryColors.level(state.percent) : SnoopStyle.secondary
+        let strapColor = current ? BatteryColors.level(state.percent) : ZoopStyle.secondary
         let pack = model.battery.pack
         let packCurrent = model.strap.state == .ready && pack.isLive(at: now)
         let packCharging = packCurrent && pack.flow == .charging && pack.percent != 100
         let packSupplying = packCurrent && !packCharging && (transferring || pack.flow == .discharging)
-        let packColor = packCurrent ? BatteryColors.level(pack.percent) : SnoopStyle.secondary
+        let packColor = packCurrent ? BatteryColors.level(pack.percent) : ZoopStyle.secondary
         let packStatus = pack.percent == nil ? "No pack reading" : pack.present == false ? "Detached"
             : !packCurrent ? "Last reading" : packCharging ? "Charging"
             : packSupplying ? "Charging WHOOP" : pack.percent == 100 ? "Fully charged"
@@ -83,10 +83,10 @@ struct BatteryView: View {
             }
             if !current, let at = state.levelAt {
                 Text("Updated \(at.formatted(.relative(presentation: .named)))")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .frame(maxWidth: .infinity).padding(20)
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 }

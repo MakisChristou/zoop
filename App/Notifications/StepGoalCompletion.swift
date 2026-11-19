@@ -29,7 +29,7 @@ import UserNotifications
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: () -> Calendar
     private var days: [String: Day]
-    private var goal: SnoopAPI.WeightGoal?
+    private var goal: ZoopAPI.WeightGoal?
     private var scope: String?
     private var sample: StepGoalReminder.Snapshot?
     @ObservationIgnored private var revision = 0
@@ -44,7 +44,7 @@ import UserNotifications
         days = defaults.data(forKey: Self.storageKey).flatMap { try? JSONDecoder().decode([String: Day].self, from: $0) } ?? [:]
     }
 
-    func activate(goal: SnoopAPI.WeightGoal?, scope: String?) {
+    func activate(goal: ZoopAPI.WeightGoal?, scope: String?) {
         if self.scope != scope || self.goal?.dailyStepsGoal != goal?.dailyStepsGoal || self.goal?.active != goal?.active || self.goal?.startedAt != goal?.startedAt {
             sample = nil
         }

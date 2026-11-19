@@ -12,9 +12,9 @@ struct HistoryRangePicker: View {
             if !all {
                 VStack(spacing: 12) {
                     DatePicker("From", selection: $from, in: ...to, displayedComponents: .date)
-                    Divider().overlay(SnoopStyle.separator)
+                    Divider().overlay(ZoopStyle.separator)
                     DatePicker("Through", selection: $to, in: from...Date(), displayedComponents: .date)
-                }.snoopCard()
+                }.zoopCard()
             }
         }
     }
@@ -24,9 +24,9 @@ struct HistoryRangePicker: View {
                 Text(title).font(.headline)
                 Spacer()
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3).foregroundStyle(selected ? SnoopStyle.load : SnoopStyle.secondary)
-            }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).snoopCard()
-                .overlay(RoundedRectangle(cornerRadius: SnoopStyle.radius).strokeBorder(selected ? SnoopStyle.load : .clear, lineWidth: 1))
+                    .font(.title3).foregroundStyle(selected ? ZoopStyle.load : ZoopStyle.secondary)
+            }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).zoopCard()
+                .overlay(RoundedRectangle(cornerRadius: ZoopStyle.radius).strokeBorder(selected ? ZoopStyle.load : .clear, lineWidth: 1))
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

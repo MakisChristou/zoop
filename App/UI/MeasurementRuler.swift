@@ -15,7 +15,7 @@ struct MeasurementRuler: View {
         RulerSurface(value: $value, range: range, step: step, majorTickEvery: majorTickEvery, onEditing: onEditing)
             .frame(height: 92)
             .overlay(alignment: .top) {
-                Capsule().fill(SnoopStyle.load).frame(width: 3, height: 38).allowsHitTesting(false)
+                Capsule().fill(ZoopStyle.load).frame(width: 3, height: 38).allowsHitTesting(false)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
@@ -127,14 +127,14 @@ private struct RulerSurface: UIViewRepresentable {
             guard first <= last else { return }
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular),
-                .foregroundColor: UIColor(SnoopStyle.secondary)
+                .foregroundColor: UIColor(ZoopStyle.secondary)
             ]
             for index in first...last {
                 let value = start + Double(index) * step
                 let tick = Int((value / step).rounded())
                 let major = tick.isMultiple(of: majorTickEvery)
                 let x = bounds.midX + Double(index) * spacing - offset
-                context.setStrokeColor(UIColor(major ? SnoopStyle.secondary : SnoopStyle.track).cgColor)
+                context.setStrokeColor(UIColor(major ? ZoopStyle.secondary : ZoopStyle.track).cgColor)
                 context.setLineWidth(1)
                 context.move(to: CGPoint(x: x, y: 6))
                 context.addLine(to: CGPoint(x: x, y: major ? 34 : tick.isMultiple(of: 5) ? 26 : 18))

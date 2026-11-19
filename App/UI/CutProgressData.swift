@@ -14,15 +14,15 @@ struct CutProgressData {
         let weekID: String
         var id: Date { date }
     }
-    let goal: SnoopAPI.WeightGoal
-    let summary: SnoopAPI.WeeklyWeightSummary
+    let goal: ZoopAPI.WeightGoal
+    let summary: ZoopAPI.WeeklyWeightSummary
     let calendar: Calendar
     let start: Date
     let finish: Date?
     let today: Date
-    let weeks: [SnoopAPI.WeightWeek]
+    let weeks: [ZoopAPI.WeightWeek]
 
-    init(goal: SnoopAPI.WeightGoal, summary: SnoopAPI.WeeklyWeightSummary, now: Date = Date()) {
+    init(goal: ZoopAPI.WeightGoal, summary: ZoopAPI.WeeklyWeightSummary, now: Date = Date()) {
         self.goal = goal; self.summary = summary
         let calendar = CutPlan.calendar(timezone: goal.timezone)
         self.calendar = calendar
@@ -59,14 +59,14 @@ struct CutProgressData {
     }
     func days(_ from: Date, _ to: Date) -> Int { calendar.dateComponents([.day], from: from, to: to).day ?? 0 }
     func date(_ key: String) -> Date { CutPlan.date(key, calendar: calendar) ?? start }
-    func number(_ week: SnoopAPI.WeightWeek) -> Int {
+    func number(_ week: ZoopAPI.WeightWeek) -> Int {
         // Monday-based reporting weeks, including a partial opening week.
         // Counting elapsed seven-day blocks gives two "Week 1" pages for midweek starts.
         let offset = (calendar.component(.weekday, from: start) + 5) % 7
         let firstMonday = calendar.date(byAdding: .day, value: -offset, to: start)!
         return max(1, days(firstMonday, date(week.start)) / 7 + 1)
     }
-    func change(_ week: SnoopAPI.WeightWeek) -> Double? {
+    func change(_ week: ZoopAPI.WeightWeek) -> Double? {
         if week.start == summary.start { return summary.changeKg }
         guard let index = weeks.firstIndex(where: { $0.id == week.id }), index > 0 else { return nil }
         let previous = weeks[index - 1]
@@ -96,23 +96,23 @@ struct CutProgressData {
         return [(start, initial), (finish, target)]
     }
     /// The selected calendar week's elapsed portion, clipped to the cut.
-    func window(for week: SnoopAPI.WeightWeek) -> ClosedRange<Date> {
+    func window(for week: ZoopAPI.WeightWeek) -> ClosedRange<Date> {
         let lower = max(start, date(week.start))
         let upper = max(lower, min(date(week.end), today, finish ?? today))
         return lower...upper
     }
-    func points(in week: SnoopAPI.WeightWeek) -> [Point] {
+    func points(in week: ZoopAPI.WeightWeek) -> [Point] {
         let bounds = window(for: week)
         return points.filter { bounds.contains($0.date) }
     }
-    func domain(for week: SnoopAPI.WeightWeek) -> ClosedRange<Date> {
+    func domain(for week: ZoopAPI.WeightWeek) -> ClosedRange<Date> {
         let bounds = window(for: week)
         // Half-day shoulders keep a single day centered and edge dots fully visible.
         let lower = calendar.date(byAdding: .hour, value: -12, to: bounds.lowerBound)!
         let upper = calendar.date(byAdding: .hour, value: 12, to: bounds.upperBound)!
         return lower...upper
     }
-    func targetPath(in week: SnoopAPI.WeightWeek) -> [(date: Date, kg: Double)] {
+    func targetPath(in week: ZoopAPI.WeightWeek) -> [(date: Date, kg: Double)] {
         guard let first = targetPath.first, let last = targetPath.last else { return [] }
         let bounds = window(for: week)
         let total = Double(days(first.date, last.date))

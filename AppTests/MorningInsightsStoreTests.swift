@@ -1,6 +1,6 @@
 import XCTest
 import Observation
-@testable import Snoop
+@testable import Zoop
 
 @MainActor final class MorningInsightsStoreTests: XCTestCase {
     private var today: Date { Date(timeIntervalSince1970: 1_793_664_000) }

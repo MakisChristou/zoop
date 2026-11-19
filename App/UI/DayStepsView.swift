@@ -4,15 +4,15 @@ import SwiftUI
 /// range the day was picked from.
 struct DayStepsView: View {
     let day: Date
-    let summary: SnoopAPI.Day?
+    let summary: ZoopAPI.Day?
     let summariesLoaded: Bool
 
     var body: some View {
         ScrollView {
             DaySteps(day: day, summary: summary, summariesLoaded: summariesLoaded)
-                .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
+                .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Steps")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)

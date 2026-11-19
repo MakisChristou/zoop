@@ -47,7 +47,7 @@ struct DateNavigation: View {
             Button(action: previous) {
                 Image(systemName: "chevron.left").frame(minWidth: 44, minHeight: 44)
             }
-            .foregroundStyle(canGoBack ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
+            .foregroundStyle(canGoBack ? ZoopStyle.text : ZoopStyle.secondary.opacity(0.35))
             .disabled(!canGoBack).accessibilityLabel(previousLabel)
             Spacer(minLength: 4)
             HStack(spacing: 6) {
@@ -59,7 +59,7 @@ struct DateNavigation: View {
                 if let reset {
                     Button("Today", action: reset)
                         .font(.footnote.weight(.medium))
-                        .foregroundStyle(SnoopStyle.load)
+                        .foregroundStyle(ZoopStyle.load)
                         .frame(minWidth: 44, minHeight: 44)
                         .opacity(canReset ? 1 : 0)
                         .disabled(!canReset)
@@ -71,7 +71,7 @@ struct DateNavigation: View {
             Button(action: next) {
                 Image(systemName: "chevron.right").frame(minWidth: 44, minHeight: 44)
             }
-            .foregroundStyle(canGoForward ? SnoopStyle.text : SnoopStyle.secondary.opacity(0.35))
+            .foregroundStyle(canGoForward ? ZoopStyle.text : ZoopStyle.secondary.opacity(0.35))
             .disabled(!canGoForward).accessibilityLabel(nextLabel)
         }
     }

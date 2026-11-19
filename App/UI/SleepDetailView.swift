@@ -4,22 +4,22 @@ import SwiftUI
 /// The night, full screen: stages on top, then heart rate, HRV and motion drawn on the
 /// same time axis so the staging can be judged against the physiology by eye.
 struct SleepDetailView: View {
-    let night: SnoopAPI.Night
+    let night: ZoopAPI.Night
     var sessionID: Int64? = nil
     @Environment(AppModel.self) private var model
-    @State private var epochs: [SnoopAPI.Epoch] = []
+    @State private var epochs: [ZoopAPI.Epoch] = []
     @State private var scrub: Date?
     @State private var error: String?
 
     private var onset: Date { night.metrics.window.onset }
     private var offset: Date { night.metrics.window.offset }
 
-    private var selected: SnoopAPI.Epoch? {
+    private var selected: ZoopAPI.Epoch? {
         guard let scrub else { return nil }
         return epochs.min { abs($0.start.timeIntervalSince(scrub)) < abs($1.start.timeIntervalSince(scrub)) }
     }
 
-    private var selectedStage: SnoopAPI.Night.Stage? {
+    private var selectedStage: ZoopAPI.Night.Stage? {
         guard let scrub else { return nil }
         return night.stages.first { $0.start <= scrub && scrub < $0.end }?.stage
     }
@@ -29,16 +29,16 @@ struct SleepDetailView: View {
             VStack(alignment: .leading, spacing: 14) {
                 readout
                 stageChart
-                track("Heart rate", unit: "bpm", color: SnoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
-                track("HRV", unit: "ms", color: SnoopStyle.sleep, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
-                track("Breathing", unit: "/min", color: SnoopStyle.steps, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
+                track("Heart rate", unit: "bpm", color: ZoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
+                track("HRV", unit: "ms", color: ZoopStyle.sleep, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
+                track("Breathing", unit: "/min", color: ZoopStyle.steps, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
                 motionTrack
                 MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own.")
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
             }
             .padding()
         }
-        .snoopScreen()
+        .zoopScreen()
         .toolbar(.visible, for: .navigationBar)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -58,13 +58,13 @@ struct SleepDetailView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(e.hr.map { "\(Int($0.rounded())) bpm" } ?? "—")
-                    Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(SnoopStyle.secondary)
+                    Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(ZoopStyle.secondary)
                 }
                 .font(.subheadline).monospacedDigit()
             } else {
                 Text("\(onset.formatted(date: .omitted, time: .shortened)) – \(offset.formatted(date: .omitted, time: .shortened))").font(.headline)
                 Spacer()
-                Text("Sleep detail").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                Text("Sleep detail").font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .frame(minHeight: 36)
@@ -72,7 +72,7 @@ struct SleepDetailView: View {
 
     private var stageChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
+            Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
             Chart {
                 ForEach(Array(night.stages.enumerated()), id: \.offset) { _, seg in
                     RectangleMark(
@@ -94,15 +94,15 @@ struct SleepDetailView: View {
             .frame(height: 110)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private func track(_ name: String, unit: String, color: Color, values: [(Date, Double)]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(name).font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
+                Text(name).font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
                 Spacer()
-                Text(unit).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                Text(unit).font(.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             Chart {
                 ForEach(night.stages.filter { $0.stage == .deep || $0.stage == .rem }, id: \.start) { seg in
@@ -124,15 +124,15 @@ struct SleepDetailView: View {
             .frame(height: 90)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private var motionTrack: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Motion").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary).textCase(.uppercase)
+                Text("Motion").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
                 Spacer()
-                Text("share of seconds moving").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                Text("share of seconds moving").font(.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             Chart {
                 ForEach(epochs) { e in
@@ -148,7 +148,7 @@ struct SleepDetailView: View {
             .frame(height: 60)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private func scrubOverlay(_ proxy: ChartProxy) -> some View {
@@ -165,7 +165,7 @@ struct SleepDetailView: View {
         }
     }
 
-    private func level(_ stage: SnoopAPI.Night.Stage) -> Double {
+    private func level(_ stage: ZoopAPI.Night.Stage) -> Double {
         switch stage {
         case .deep: 0
         case .light: 1
@@ -183,7 +183,7 @@ struct SleepDetailView: View {
         }
     }
 
-    private func stageName(_ s: SnoopAPI.Night.Stage) -> String {
+    private func stageName(_ s: ZoopAPI.Night.Stage) -> String {
         switch s {
         case .wake: "Awake"
         case .light: "Light"
@@ -203,8 +203,8 @@ struct SleepDetailView: View {
 
     private func load() async {
         do {
-            if let sessionID { epochs = try await SnoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
-            else { epochs = try await SnoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
+            if let sessionID { epochs = try await ZoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
+            else { epochs = try await ZoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
             error = nil
         } catch {
             self.error = error.localizedDescription

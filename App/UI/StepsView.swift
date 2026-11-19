@@ -1,4 +1,4 @@
-import SnoopData
+import ZoopData
 import Charts
 import SwiftUI
 
@@ -23,10 +23,10 @@ struct StepsView: View {
 
     enum Loadable {
         case loading
-        case loaded([SnoopAPI.Day])
+        case loaded([ZoopAPI.Day])
         case failed(String)
 
-        var rows: [SnoopAPI.Day] {
+        var rows: [ZoopAPI.Day] {
             if case let .loaded(rows) = self { return rows }
             return []
         }
@@ -59,9 +59,9 @@ struct StepsView: View {
                     comparison
                 }
             }
-            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
+            .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Steps")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -103,11 +103,11 @@ struct StepsView: View {
         let with = pts.compactMap(\.steps)
         let average = with.isEmpty ? 0.0 : Double(with.reduce(0, +)) / Double(with.count)
         VStack(alignment: .leading, spacing: 6) {
-            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 54)
-            Text("Average steps per day").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            Text("Average steps per day").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             if days.isLoaded, !with.isEmpty {
-                Text(comparisonCaption(with: with)).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                Text(comparisonCaption(with: with)).font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -118,21 +118,21 @@ struct StepsView: View {
         case .failed:
             VStack(alignment: .leading, spacing: 8) {
                 Label("Could not load these days", systemImage: "wifi.exclamationmark").font(.headline)
-                Text("Check your connection and try again.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                Text("Check your connection and try again.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 Button("Retry") { Task { await load() } }.buttonStyle(.bordered).font(.subheadline.weight(.medium))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+            .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
         case .loaded:
             if with.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("No days yet", systemImage: "calendar").font(.headline)
-                    Text("Waiting for a full day of data.").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Text("Waiting for a full day of data.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
             } else {
                 chartCard(pts, average: average)
                 dailyRows(pts)
@@ -155,7 +155,7 @@ struct StepsView: View {
             Chart {
                 ForEach(pts) { p in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps ?? 0))
-                        .foregroundStyle(Calendar.current.isDateInToday(p.date) ? SnoopStyle.steps : SnoopStyle.steps.opacity(0.65))
+                        .foregroundStyle(Calendar.current.isDateInToday(p.date) ? ZoopStyle.steps : ZoopStyle.steps.opacity(0.65))
                         .cornerRadius(3)
                 }
                 if average > 0 {
@@ -163,7 +163,7 @@ struct StepsView: View {
                         .foregroundStyle(.secondary.opacity(0.5))
                         .lineStyle(StrokeStyle(dash: [3, 3]))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text("Average").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                            Text("Average").font(.caption2).foregroundStyle(ZoopStyle.secondary)
                         }
                 }
             }
@@ -204,10 +204,10 @@ struct StepsView: View {
                         Text(ActivityView.dayTitle(point.date)).font(.subheadline)
                         Spacer()
                         Text(point.steps.map { $0.formatted() } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
-                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(ZoopStyle.secondary)
                     }
                     .padding(.vertical, 15)
-                    .overlay(alignment: .top) { Rectangle().fill(SnoopStyle.separator).frame(height: 0.5) }
+                    .overlay(alignment: .top) { Rectangle().fill(ZoopStyle.separator).frame(height: 0.5) }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -227,7 +227,7 @@ struct StepsView: View {
 
     // MARK: - Data
 
-    private func summary(for day: Date) -> SnoopAPI.Day? {
+    private func summary(for day: Date) -> ZoopAPI.Day? {
         days.rows.first { Self.day($0.day) == day }
     }
 
@@ -241,7 +241,7 @@ struct StepsView: View {
         let request = UUID(); loadID = request
         async let w: Void = model.activity.reload(device: serial)
         do {
-            let rows = try await SnoopAPI.days(deviceId: serial, limit: 31)
+            let rows = try await ZoopAPI.days(deviceId: serial, limit: 31)
             guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection else { return }
             days = .loaded(rows)
         } catch is CancellationError { }

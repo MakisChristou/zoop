@@ -21,7 +21,7 @@ import UIKit
     @ObservationIgnored private let remote: (String, String, Data?) async throws -> Data?
     private static let refreshInterval: TimeInterval = 60
 
-    init(disk: ProfilePhotoDisk = ProfilePhotoDisk(), remote: @escaping (String, String, Data?) async throws -> Data? = { try await SnoopAPI.profilePhoto(device: $0, method: $1, jpeg: $2) }) {
+    init(disk: ProfilePhotoDisk = ProfilePhotoDisk(), remote: @escaping (String, String, Data?) async throws -> Data? = { try await ZoopAPI.profilePhoto(device: $0, method: $1, jpeg: $2) }) {
         self.disk = disk; self.remote = remote
     }
     func image(for scope: Scope) -> UIImage? { self.scope == scope ? image : nil }

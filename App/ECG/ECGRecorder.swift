@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 import OSLog
-import SnoopECG
-import SnoopProtocol
+import ZoopECG
+import ZoopProtocol
 
 /// Owns one manual recording through setup, capture, durable save and cleanup.
 /// Connection recovery only stops prior work; it never restarts a measurement.

@@ -10,9 +10,9 @@ struct WorkoutEditorView: View {
     @State private var split: Date
     @State private var kind: ActivityKind
     @State private var secondKind: ActivityKind
-    @State private var neighbours: [SnoopAPI.Workout] = []
+    @State private var neighbours: [ZoopAPI.Workout] = []
     @State private var mergeId: Int64?
-    @State private var minutes: [SnoopAPI.Minute] = []
+    @State private var minutes: [ZoopAPI.Minute] = []
     @State private var chartSelection: Date?
     @State private var saving = false
     @State private var loading = false
@@ -31,7 +31,7 @@ struct WorkoutEditorView: View {
         _kind = State(initialValue: kind); _secondKind = State(initialValue: kind)
     }
 
-    private var merged: SnoopAPI.Workout? { neighbours.first { $0.id == mergeId } }
+    private var merged: ZoopAPI.Workout? { neighbours.first { $0.id == mergeId } }
     private var previewStart: Date { merged.map { min(start, $0.startTs) } ?? start }
     private var previewEnd: Date { merged.map { max(end, $0.endTs) } ?? end }
 
@@ -48,11 +48,11 @@ struct WorkoutEditorView: View {
                         }
                     }
                 }
-                .listRowBackground(SnoopStyle.surface)
+                .listRowBackground(ZoopStyle.surface)
                 if mode.action == "merge" {
                     Section("Merge with") {
                         if loading { ProgressView("Loading workouts") }
-                        else if neighbours.isEmpty { Text("No neighbouring workouts").foregroundStyle(SnoopStyle.secondary) }
+                        else if neighbours.isEmpty { Text("No neighbouring workouts").foregroundStyle(ZoopStyle.secondary) }
                         ForEach(neighbours) { workout in
                             Button {
                                 mergeId = workout.id
@@ -61,21 +61,21 @@ struct WorkoutEditorView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(ActivityKind.named(workout.kind).name)
                                         Text(workout.startTs.formatted(date: .abbreviated, time: .shortened) + " – " + workout.endTs.formatted(date: .omitted, time: .shortened))
-                                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
                                     }
                                     Spacer()
                                     if mergeId == workout.id { Image(systemName: "checkmark").accessibilityLabel("Selected") }
                                 }.frame(minHeight: 44)
-                            }.foregroundStyle(SnoopStyle.text)
+                            }.foregroundStyle(ZoopStyle.text)
                         }
                     }
-                    .listRowBackground(SnoopStyle.surface)
+                    .listRowBackground(ZoopStyle.surface)
                     if merged != nil {
                         Section {
                             LabeledContent("Duration", value: "\(Int(previewEnd.timeIntervalSince(previewStart) / 60)) min")
-                            Text("Includes the rest between workouts").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                            Text("Includes the rest between workouts").font(.footnote).foregroundStyle(ZoopStyle.secondary)
                         }
-                        .listRowBackground(SnoopStyle.surface)
+                        .listRowBackground(ZoopStyle.surface)
                     }
                 } else if mode.action == "split" {
                     Section {
@@ -83,27 +83,27 @@ struct WorkoutEditorView: View {
                         LabeledContent("First workout", value: "\(max(0, Int(split.timeIntervalSince(start) / 60))) min")
                         LabeledContent("Second workout", value: "\(max(0, Int(end.timeIntervalSince(split) / 60))) min")
                     }
-                    .listRowBackground(SnoopStyle.surface)
+                    .listRowBackground(ZoopStyle.surface)
                 } else {
                     Section {
                         DatePicker("Start", selection: $start, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                         DatePicker("End", selection: $end, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                     }
-                    .listRowBackground(SnoopStyle.surface)
+                    .listRowBackground(ZoopStyle.surface)
                 }
                 Section {
                     if loading && minutes.isEmpty { ProgressView("Loading readings") }
                     else { WorkoutWindowChart(minutes: minutes, start: previewStart, end: max(previewEnd, previewStart.addingTimeInterval(1)), split: mode.action == "split" ? split : nil, selected: $chartSelection) }
-                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(SnoopStyle.secondary) }
+                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
                 }
-                .listRowBackground(SnoopStyle.surface)
+                .listRowBackground(ZoopStyle.surface)
                 if let error {
                     Section { Text(error).foregroundStyle(.red).accessibilityLabel("Unable to save. \(error)") }
-                    .listRowBackground(SnoopStyle.surface)
+                    .listRowBackground(ZoopStyle.surface)
                 }
             }
             .scrollContentBackground(.hidden)
-            .snoopScreen()
+            .zoopScreen()
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -122,8 +122,8 @@ struct WorkoutEditorView: View {
                 let minute = Date(timeIntervalSince1970: (value.timeIntervalSince1970 / 60).rounded() * 60)
                 if minute > start && minute < end { split = minute }
             }
-        }.tint(SnoopStyle.load).foregroundStyle(SnoopStyle.text)
-        .presentationBackground(SnoopStyle.background)
+        }.tint(ZoopStyle.load).foregroundStyle(ZoopStyle.text)
+        .presentationBackground(ZoopStyle.background)
     }
 
     private func loadNeighbours() async {
@@ -132,7 +132,7 @@ struct WorkoutEditorView: View {
         loading = true
         defer { loading = false }
         do {
-            let rows = try await SnoopAPI.workouts(deviceId: model.strap.serial, limit: 500, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration))
+            let rows = try await ZoopAPI.workouts(deviceId: model.strap.serial, limit: 500, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration))
                 .filter { $0.id != workout.id }
             neighbours = [rows.filter { $0.endTs <= start }.max { $0.endTs < $1.endTs }, rows.filter { $0.startTs >= end }.min { $0.startTs < $1.startTs }].compactMap { $0 }
         } catch { self.error = "Couldn’t load nearby workouts. Check your connection and reopen the editor." }
@@ -141,7 +141,7 @@ struct WorkoutEditorView: View {
     private func loadMinutes() async {
         guard previewEnd > previewStart, previewEnd.timeIntervalSince(previewStart) <= Self.maximumDuration else { minutes = []; return }
         do {
-            let loaded = try await SnoopAPI.minutes(deviceId: model.strap.serial, window: previewStart...previewEnd)
+            let loaded = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: previewStart...previewEnd)
             guard !Task.isCancelled else { return }
             minutes = loaded; chartError = nil
         } catch {

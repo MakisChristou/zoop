@@ -3,9 +3,9 @@ import SwiftUI
 /// Intraday totals and charts are read together from the existing steps endpoint.
 struct DaySteps: View {
     let day: Date
-    let summary: SnoopAPI.Day?
+    let summary: ZoopAPI.Day?
     let summariesLoaded: Bool
-    private var workouts: [SnoopAPI.Workout] { model.activity.items }
+    private var workouts: [ZoopAPI.Workout] { model.activity.items }
     var refreshID = 0
 
     @Environment(AppModel.self) private var model
@@ -16,12 +16,12 @@ struct DaySteps: View {
 
     enum Loadable {
         case loading
-        case loaded(SnoopAPI.StepsDay)
+        case loaded(ZoopAPI.StepsDay)
         case failed
     }
 
     private var noData: Bool { summariesLoaded && summary == nil && loaded?.walking == 0 }
-    private var loaded: SnoopAPI.StepsDay? {
+    private var loaded: ZoopAPI.StepsDay? {
         if case let .loaded(data) = state { return data }
         return nil
     }
@@ -29,9 +29,9 @@ struct DaySteps: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(ActivityView.dayTitle(day)).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text(ActivityView.dayTitle(day)).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 MetricValue(headlineValue, size: 54)
-                Text("Steps").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("Steps").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             .accessibilityElement(children: .combine)
             if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: day) {
@@ -41,10 +41,10 @@ struct DaySteps: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Couldn’t update steps").font(.headline)
                     Button("Try again") { Task { await load() } }.frame(minHeight: 44)
-                }.snoopCard()
+                }.zoopCard()
             } else if noData {
                 Text("No step data for this day.")
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             } else {
                 chart
             }
@@ -68,7 +68,7 @@ struct DaySteps: View {
                 HourlyStepsChart(hours: data.walkingHours, day: day, interactive: true, selection: $selectedHour)
                     .frame(height: chartHeight)
                 if data.walking == 0 {
-                    Text("No walking recorded").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Text("No walking recorded").font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
             } else {
                 ProgressView().frame(maxWidth: .infinity).frame(height: chartHeight)
@@ -87,16 +87,16 @@ struct DaySteps: View {
                 Text(day.formatted(.dateTime.day().month(.abbreviated)))
             }
         }
-        .font(.caption).foregroundStyle(SnoopStyle.secondary).monospacedDigit()
+        .font(.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
     }
 
-    private func walks(_ data: SnoopAPI.StepsDay) -> some View {
+    private func walks(_ data: ZoopAPI.StepsDay) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Walks").font(.headline).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("\(data.bouts.reduce(0) { $0 + $1.durationS } / 60) min total")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
             .padding(.bottom, 12)
             ForEach(data.bouts) { bout in
@@ -107,7 +107,7 @@ struct DaySteps: View {
         }
     }
 
-    private func session(for bout: SnoopAPI.StepsDay.Bout) -> SnoopAPI.Workout? {
+    private func session(for bout: ZoopAPI.StepsDay.Bout) -> ZoopAPI.Workout? {
         workouts.first { w in
             let overlap = min(w.endTs, bout.end).timeIntervalSince(max(w.startTs, bout.start))
             return overlap * 2 >= Double(bout.durationS)
@@ -120,7 +120,7 @@ struct DaySteps: View {
         let request = UUID(); loadID = request
         let serial = model.strap.serial, connection = Settings.connectionID, date = day
         do {
-            let rows = try await SnoopAPI.steps(deviceId: serial, day: date)
+            let rows = try await ZoopAPI.steps(deviceId: serial, day: date)
             guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
             state = .loaded(rows)
             model.stepsReminder.receive(rows, scope: model.health.reminderScope)

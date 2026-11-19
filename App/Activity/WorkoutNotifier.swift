@@ -74,7 +74,7 @@ final class WorkoutNotifier {
     func check() async {
         guard let device, Settings.isConfigured else { return }
         lastCheckedAt = Date()
-        guard let workouts = try? await SnoopAPI.workouts(deviceId: device, limit: 20) else { return }
+        guard let workouts = try? await ZoopAPI.workouts(deviceId: device, limit: 20) else { return }
         let keys = Set(workouts.map(Self.key))
         let firstRun = defaults.array(forKey: key(device)) == nil
         if firstRun {
@@ -92,9 +92,9 @@ final class WorkoutNotifier {
 
     /// Stable identities keep corrections and recalculations silent.
     /// The new defaults key seeds old installs silently on their first check.
-    static func key(_ workout: SnoopAPI.Workout) -> Int64 { workout.id }
+    static func key(_ workout: ZoopAPI.Workout) -> Int64 { workout.id }
 
-    private func notify(_ workout: SnoopAPI.Workout) async {
+    private func notify(_ workout: ZoopAPI.Workout) async {
         let kind = ActivityKind.named(workout.kind)
         let content = UNMutableNotificationContent()
         content.title = kind == .activity ? "Activity detected" : "\(kind.name) detected"

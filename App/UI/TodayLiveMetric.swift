@@ -5,7 +5,7 @@ struct TodayLiveMetric: View {
     enum Kind { case heartRate, temperature }
     let kind: Kind
     let isViewingToday: Bool
-    let summary: SnoopAPI.Day?
+    let summary: ZoopAPI.Day?
     let history: [Double]
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -22,13 +22,13 @@ struct TodayLiveMetric: View {
                 : AnyLayout(HStackLayout(spacing: 20))
             layout {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Skin temperature").font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                    Text("Skin temperature").font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                     MetricValue(skinTemperature.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C", size: 28)
-                    Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading)
-                Sparkline(values: history, color: SnoopStyle.temperature)
+                Sparkline(values: history, color: ZoopStyle.temperature)
                     .frame(width: typeSize.isAccessibilitySize ? nil : 110, height: 32).accessibilityHidden(true)
-            }.snoopCard().accessibilityElement(children: .combine)
+            }.zoopCard().accessibilityElement(children: .combine)
         }
     }
     private func heartRate(now: Date) -> some View {
@@ -37,12 +37,12 @@ struct TodayLiveMetric: View {
             : AnyLayout(HStackLayout(spacing: 8))
         return layout {
             Label(isViewingToday ? "Heart rate" : "Average heart rate", systemImage: "heart")
-                .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(heartRateValue).font(.title3.weight(.semibold)).monospacedDigit()
-                Text("bpm").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(SnoopStyle.secondary).padding(.leading, 4)
+                Text("bpm").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                Text(isViewingToday ? freshness(now: now) : "Day average").font(.caption).foregroundStyle(ZoopStyle.secondary).padding(.leading, 4)
             }
         }
         .frame(minHeight: 44)

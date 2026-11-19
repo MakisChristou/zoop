@@ -63,7 +63,7 @@ final class SessionStore<Endpoint: SessionEndpoint> {
                     let ids = Set(changed.map(\.id))
                     self.items = (self.items.filter { !ids.contains($0.id) } + changed.filter(\.isActive)).sorted { $0.startTs > $1.startTs }
                     if !changed.contains(where: \.needsMetrics) {
-                        await SnoopAPI.invalidateReads()
+                        await ZoopAPI.invalidateReads()
                         guard !Task.isCancelled, self.epoch == generation else { return }
                         self.refreshError = nil; self.changeToken += 1
                         return

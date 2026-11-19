@@ -1,5 +1,5 @@
 import Foundation
-import SnoopData
+import ZoopData
 
 /// One server-calculated brief and the measurements behind it.
 struct MorningInsights: Decodable, Sendable {
@@ -180,7 +180,7 @@ struct MorningInsights: Decodable, Sendable {
     }
 }
 
-extension SnoopAPI {
+extension ZoopAPI {
     static func morningInsights(deviceId: String, day: Date) async throws -> MorningInsights {
         let date = SleepSession.day(day, timezone: TimeZone.current.identifier)
         return try await get("v1/devices/\(deviceId)/days/\(date)/insights", query: ["tz": TimeZone.current.identifier])

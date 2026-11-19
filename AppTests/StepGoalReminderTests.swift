@@ -1,6 +1,6 @@
 import XCTest
 import UserNotifications
-@testable import Snoop
+@testable import Zoop
 
 @MainActor private final class StepsReminderState {
     var now = ISO8601DateFormatter().date(from: "2026-11-16T21:00:00Z")!
@@ -20,16 +20,16 @@ import UserNotifications
 
 @MainActor final class StepGoalReminderTests: XCTestCase {
     private let calendar = CutPlan.calendar(timezone: "UTC")
-    private func goal(active: Bool = true, timezone: String = "UTC") -> SnoopAPI.WeightGoal {
+    private func goal(active: Bool = true, timezone: String = "UTC") -> ZoopAPI.WeightGoal {
         let start = CutPlan.date("2026-11-16", calendar: calendar)!
-        var g = SnoopAPI.WeightGoal(revision: 1, active: active, startedAt: start, paceStartedAt: start, timezone: timezone, weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, updatedAt: start)
+        var g = ZoopAPI.WeightGoal(revision: 1, active: active, startedAt: start, paceStartedAt: start, timezone: timezone, weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, updatedAt: start)
         g.dailyStepsGoal = 8000; g.finishDate = "2026-11-20"; return g
     }
     private func defaults() -> (UserDefaults, String) { let key="StepGoalReminderTests."+UUID().uuidString; let defaults = UserDefaults(suiteName: key)!; defaults.set(false, forKey: "reminders.stepsCompletionEnabled"); return (defaults,key) }
     private func reminder(_ s: StepsReminderState, _ defaults: UserDefaults) -> StepGoalReminder {
         StepGoalReminder(defaults: defaults, center: s.client, clock: { s.now }, calendar: { CutPlan.calendar(timezone: "UTC") }, loader: { _, _ in try await s.read() })
     }
-    private func data(_ steps: Int) -> SnoopAPI.StepsDay { .init(day: "2026-11-16", hours: [], walkingHours: [], total: steps, walking: steps, bouts: []) }
+    private func data(_ steps: Int) -> ZoopAPI.StepsDay { .init(day: "2026-11-16", hours: [], walkingHours: [], total: steps, walking: steps, bouts: []) }
     func testSchedulesAtTenUpdatesRemainderAndCancelsWhenReached() async throws {
         let s=StepsReminderState(), (defaults,key)=defaults(); defer { defaults.removePersistentDomain(forName: key) }
         let r=reminder(s,defaults); r.activate(goal: goal(),device: "one",scope: "one"); await r.settled()

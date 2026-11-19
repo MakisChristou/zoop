@@ -1,4 +1,4 @@
-import SnoopData
+import ZoopData
 import SwiftUI
 
 /// Detected sessions, newest first, grouped by day, with the week's load on top.
@@ -7,12 +7,12 @@ struct ActivityView: View {
     @Environment(AppModel.self) private var model
     @Binding var selectedDay: Date?
     let requestID: UUID
-    private var workouts: [SnoopAPI.Workout] { model.activity.items }
-    @State private var days: [SnoopAPI.Day] = []
+    private var workouts: [ZoopAPI.Workout] { model.activity.items }
+    @State private var days: [ZoopAPI.Day] = []
     @State private var error: String?
     @State private var loaded = false
     @State private var loadID = UUID()
-    @State private var path: [SnoopAPI.Workout] = []
+    @State private var path: [ZoopAPI.Workout] = []
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -35,7 +35,7 @@ struct ActivityView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { WorkoutNotice() }
             .navigationTitle("Activity")
             .mainScreenChrome("Activity")
-            .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
+            .navigationDestination(for: ZoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
         .onChange(of: requestID) { _, _ in path = []; Task { await load() } }
         .onChange(of: selectedDay) { _, _ in Task { await load() } }
@@ -81,9 +81,9 @@ struct ActivityView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Daily load").font(.subheadline.weight(.medium))
                 Spacer()
-                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
-            Text("Last 7 days · 0–21 scale").font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text("Last 7 days · 0–21 scale").font(.caption).foregroundStyle(ZoopStyle.secondary)
             if typeSize.isAccessibilitySize {
                 ForEach(week) { day in
                     HStack {
@@ -97,12 +97,12 @@ struct ActivityView: View {
                 ForEach(week) { day in
                     VStack(spacing: 8) {
                         Text(day.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                            .font(.caption2).monospacedDigit().foregroundStyle(SnoopStyle.secondary)
+                            .font(.caption2).monospacedDigit().foregroundStyle(ZoopStyle.secondary)
                         ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 3).fill(SnoopStyle.track.opacity(0.5)).frame(height: 72)
+                            RoundedRectangle(cornerRadius: 3).fill(ZoopStyle.track.opacity(0.5)).frame(height: 72)
                             if let load = day.load, load > 0 {
                                 RoundedRectangle(cornerRadius: 3)
-                                    .fill(Calendar.current.isDateInToday(day.date) ? SnoopStyle.load : SnoopStyle.load.opacity(0.55))
+                                    .fill(Calendar.current.isDateInToday(day.date) ? ZoopStyle.load : ZoopStyle.load.opacity(0.55))
                                     .frame(height: max(2, 72 * CGFloat(min(load, LoadRing.maximum) / LoadRing.maximum)))
                             }
                         }
@@ -118,18 +118,18 @@ struct ActivityView: View {
             }
         }
         .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
-        .padding(.horizontal, SnoopStyle.gutter)
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        .padding(.horizontal, ZoopStyle.gutter)
     }
 
     // MARK: - Sessions
 
     private struct Group {
         let day: Date
-        let workouts: [SnoopAPI.Workout]
+        let workouts: [ZoopAPI.Workout]
     }
 
-    private var visibleWorkouts: [SnoopAPI.Workout] {
+    private var visibleWorkouts: [ZoopAPI.Workout] {
         guard let selectedDay, let end = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) else { return workouts }
         return workouts.filter { $0.startTs < end && $0.endTs > selectedDay }
     }
@@ -144,7 +144,7 @@ struct ActivityView: View {
             NavigationLink { RemovedWorkoutsView() } label: {
                 Image(systemName: "archivebox").frame(width: 44, height: 44)
             }.accessibilityLabel("Removed workouts")
-        }.padding(.horizontal, SnoopStyle.gutter)
+        }.padding(.horizontal, ZoopStyle.gutter)
     }
 
     private var groups: [Group] {
@@ -154,16 +154,16 @@ struct ActivityView: View {
             .sorted { $0.day > $1.day }
     }
 
-    private func section(_ day: Date, _ items: [SnoopAPI.Workout]) -> some View {
+    private func section(_ day: Date, _ items: [ZoopAPI.Workout]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Self.dayTitle(day))
                 .font(.headline).accessibilityAddTraits(.isHeader)
-                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.horizontal, ZoopStyle.gutter)
             ForEach(items) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }
                     .accessibilityIdentifier("workout-\(workout.id)")
                     .buttonStyle(PressableCardStyle())
-                    .padding(.horizontal, SnoopStyle.gutter)
+                    .padding(.horizontal, ZoopStyle.gutter)
             }
         }
     }
@@ -174,7 +174,7 @@ struct ActivityView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
         .padding(.horizontal)
     }
 
@@ -185,7 +185,7 @@ struct ActivityView: View {
         let serial = model.strap.serial, connection = Settings.connectionID, day = selectedDay
         let request = UUID(); loadID = request
         async let w: Void = model.activity.reload(device: serial, from: day, to: day.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) })
-        async let d = SnoopAPI.days(deviceId: serial, limit: 7)
+        async let d = ZoopAPI.days(deviceId: serial, limit: 7)
         var failure: String?
         do { try await w } catch { failure = error.localizedDescription }
         let rows = try? await d
@@ -197,7 +197,7 @@ struct ActivityView: View {
 
     private func open(_ id: Int64) async {
         do {
-            let workout = try await SnoopAPI.workout(deviceId: model.strap.serial, id: id)
+            let workout = try await ZoopAPI.workout(deviceId: model.strap.serial, id: id)
             path = [workout]
         } catch { self.error = "Couldn’t open this workout. Refresh and try again." }
         model.battery.openWorkout = nil

@@ -1,7 +1,7 @@
 import Observation
 import Foundation
-import SnoopSync
-import SnoopData
+import ZoopSync
+import ZoopData
 
 /// Wires the strap manager to the local queue and the uploader.
 @MainActor
@@ -9,7 +9,7 @@ import SnoopData
 final class AppModel {
     private(set) var queued = 0
     private(set) var heldFrames = 0
-    private(set) var processing: SnoopAPI.Processing?
+    private(set) var processing: ZoopAPI.Processing?
     private(set) var processingError: String?
     private(set) var uploadStats = Uploader.Stats()
     private(set) var queueError: String?
@@ -192,13 +192,13 @@ final class AppModel {
             do {
                 let ready = try await RefreshPoller.wait(attempts: Self.analysisRefreshAttempts, delay: Self.analysisRefreshDelay) {
                     guard self.strap.serial == device, Settings.connectionID == connection, self.analysisRequest == request else { throw CancellationError() }
-                    do { return try await SnoopAPI.processing(deviceId: device).pendingAnalysis == 0 }
+                    do { return try await ZoopAPI.processing(deviceId: device).pendingAnalysis == 0 }
                     catch is CancellationError { throw CancellationError() }
                     catch { self.processingError = error.localizedDescription; return false }
                 }
                 guard !Task.isCancelled, self.analysisRequest == request, self.strap.serial == device, Settings.connectionID == connection else { return }
                 guard ready else { self.processingError = "Analysis is still refreshing. Try again shortly."; return }
-                await SnoopAPI.invalidateReads()
+                await ZoopAPI.invalidateReads()
                 async let nights: () = self.sleep.reload(device: device)
                 async let sessions: () = self.activity.reload(device: device)
                 _ = try await (nights, sessions)
@@ -231,7 +231,7 @@ final class AppModel {
         if lastBatchAccepted > 0 || uploadStats.duplicates > previousDuplicates { workouts.checkSoon(); stepsReminder.refresh() }
         await updateQueueCounts()
         do {
-            let status = try await SnoopAPI.processing(deviceId: device)
+            let status = try await ZoopAPI.processing(deviceId: device)
             guard strap.serial == device, Settings.connectionID == connection else { return }
             processing = status
             processingError = nil

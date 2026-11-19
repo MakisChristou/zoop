@@ -9,17 +9,17 @@ struct InsightMetricView: View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 7) {
                 Text(metric.key == "resting_hr" ? "Resting HR" : metric.title)
-                    .font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                    .font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 Text(metric.formatted(metric.value) + (metric.unit.isEmpty ? "" : " " + metric.unit))
-                    .font(.headline).monospacedDigit().foregroundStyle(SnoopStyle.text)
-                if metric.quality != "good" { Text(metric.status).font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                    .font(.headline).monospacedDigit().foregroundStyle(ZoopStyle.text)
+                if metric.quality != "good" { Text(metric.status).font(.caption).foregroundStyle(ZoopStyle.secondary) }
                 Text(metric.visibleDelta ?? " ")
                     .font(.caption.weight(.semibold)).monospacedDigit()
                     .foregroundStyle(InsightTone.color(metric.comparison?.signal))
                     .accessibilityHidden(metric.visibleDelta == nil)
             }.frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
-                .padding(12).background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay { RoundedRectangle(cornerRadius: 12).stroke(selected ? SnoopStyle.sleep : .clear, lineWidth: 1.5) }
+                .padding(12).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay { RoundedRectangle(cornerRadius: 12).stroke(selected ? ZoopStyle.sleep : .clear, lineWidth: 1.5) }
         }.buttonStyle(.plain)
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier("insightMetric_\(metric.key)")

@@ -9,25 +9,25 @@ struct Tile: View {
     let caption: String
     let history: [Double]
     var linked = false
-    var color = SnoopStyle.secondary
+    var color = ZoopStyle.secondary
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.caption.weight(.medium)).foregroundStyle(SnoopStyle.secondary)
+                Text(title).font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
                 if linked {
-                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             MetricValue(value, unit: unit, size: 28)
-            Text(caption).font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text(caption).font(.caption).foregroundStyle(ZoopStyle.secondary)
             Sparkline(values: history, color: color)
                 .frame(height: 22)
                 .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .snoopCard()
+        .zoopCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(value) \(unit), \(caption)")
     }
@@ -36,7 +36,7 @@ struct Tile: View {
 /// Fourteen-day context under a tile. Draws nothing until there are two points.
 struct Sparkline: View {
     let values: [Double]
-    var color = SnoopStyle.secondary
+    var color = ZoopStyle.secondary
 
     var body: some View {
         GeometryReader { geo in

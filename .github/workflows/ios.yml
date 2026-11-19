@@ -13,7 +13,7 @@ jobs:
         run: brew install xcodegen
       - name: Test pure Swift packages
         run: |
-          for package in SnoopProtocol SnoopSync SnoopBattery SnoopHealth SnoopData; do
+          for package in ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData; do
             swift test --package-path "Packages/$package"
           done
       - name: Generate unsigned project
@@ -21,8 +21,8 @@ jobs:
           cp Config/Local.xcconfig.example Config/Local.xcconfig
           xcodegen generate
       - name: Build with concurrency warnings treated as errors
-        run: xcodebuild -scheme Snoop -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
+        run: xcodebuild -scheme Zoop -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
       - name: Test app state and cancellation
         run: |
           device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for v in json.load(sys.stdin)["devices"].values() for d in v if d["name"].startswith("iPhone")))')
-          xcodebuild -scheme Snoop -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO -only-testing:SnoopTests test
+          xcodebuild -scheme Zoop -destination "platform=iOS Simulator,id=$device" CODE_SIGNING_ALLOWED=NO -only-testing:ZoopTests test

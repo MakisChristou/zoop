@@ -1,7 +1,7 @@
 import Foundation
-import SnoopData
+import ZoopData
 
-extension SnoopAPI {
+extension ZoopAPI {
     struct ProgressSummary: Decodable, Sendable {
         struct Period: Decodable, Sendable {
             let start: String

@@ -5,7 +5,7 @@ struct WorkoutCorrection: Encodable, Equatable, Sendable {
     struct Target: Encodable, Equatable, Sendable {
         let id: Int64
         let revision: Int64
-        init(_ workout: SnoopAPI.Workout) { id = workout.id; revision = workout.revision ?? 0 }
+        init(_ workout: ZoopAPI.Workout) { id = workout.id; revision = workout.revision ?? 0 }
     }
     struct Interval: Encodable, Equatable, Sendable {
         let startTs: Date

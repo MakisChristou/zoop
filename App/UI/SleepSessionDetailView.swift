@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct SleepSessionDetailView: View {
-    let initial: SnoopAPI.SleepSession
+    let initial: ZoopAPI.SleepSession
     @Environment(AppModel.self) private var model
-    @State private var snapshot: SnoopAPI.SleepSession?
+    @State private var snapshot: ZoopAPI.SleepSession?
     @State private var editor: SleepEditorMode?
     @State private var reset = false
     @State private var remove = false
     @State private var saving = false
     @State private var error: String?
     @State private var removalRequest: WorkoutCorrection?
-    private var row: SnoopAPI.SleepSession { model.sleep.items.first { $0.id == initial.id } ?? snapshot ?? initial }
+    private var row: ZoopAPI.SleepSession { model.sleep.items.first { $0.id == initial.id } ?? snapshot ?? initial }
     var body: some View {
         Group {
             if row.isActive, let night = row.night {
@@ -23,7 +23,7 @@ struct SleepSessionDetailView: View {
                 }
             }
         }
-        .snoopScreen().navigationTitle(row.name).navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
+        .zoopScreen().navigationTitle(row.name).navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -40,12 +40,12 @@ struct SleepSessionDetailView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let error { Text(error).font(.footnote).foregroundStyle(.red).padding().frame(maxWidth: .infinity).background(SnoopStyle.surface) }
+                if let error { Text(error).font(.footnote).foregroundStyle(.red).padding().frame(maxWidth: .infinity).background(ZoopStyle.surface) }
                 SleepNotice()
             }
         }
         .sheet(item: $editor, onDismiss: { Task { await refresh() } }) { SleepEditorView(mode: $0) }
-        .sheet(isPresented: $reset, onDismiss: { Task { await refresh() } }) { NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(SnoopStyle.background) }
+        .sheet(isPresented: $reset, onDismiss: { Task { await refresh() } }) { NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(ZoopStyle.background) }
         .confirmationDialog("Remove this sleep recording?", isPresented: $remove, titleVisibility: .visible) {
             Button("Remove sleep", role: .destructive) { Task { await removeSleep() } }
         } message: { Text("Your recorded data is kept. You can restore this sleep later.") }
@@ -53,7 +53,7 @@ struct SleepSessionDetailView: View {
         .onChange(of: model.analysisRevision) { _, _ in Task { await refresh() } }
     }
     private func refresh() async {
-        do { snapshot = try await SnoopAPI.sleepSession(deviceId: model.strap.serial, id: initial.id) }
+        do { snapshot = try await ZoopAPI.sleepSession(deviceId: model.strap.serial, id: initial.id) }
         catch { self.error = error.localizedDescription }
     }
     private func undo(_ edit: String) async {

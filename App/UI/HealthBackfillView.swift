@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct HealthBackfillView: View {
     @Environment(AppModel.self) private var model
@@ -31,9 +31,9 @@ struct HealthBackfillView: View {
                         if model.health.journal.exportSteps { LabeledContent("Days with steps", value: "\(preview.stepDays.count)") }
                         if model.health.journal.exportWeight { LabeledContent("Weigh-ins to Health", value: "\(preview.weights)") }
                         if preview.already > 0 { LabeledContent("Already synced", value: "\(preview.already)") }
-                    } header: { Text("Snoop → Apple Health") } footer: { Text("Records still being analysed will follow when ready. Repeating this range won’t duplicate Snoop exports.") }
+                    } header: { Text("Zoop → Apple Health") } footer: { Text("Records still being analysed will follow when ready. Repeating this range won’t duplicate Zoop exports.") }
                 }
-                if let error = error ?? model.health.error { Section { Text(error).foregroundStyle(SnoopStyle.unfavourable) } }
+                if let error = error ?? model.health.error { Section { Text(error).foregroundStyle(ZoopStyle.unfavourable) } }
                 Section {
                     if started {
                         Label(model.health.status, systemImage: model.health.busy ? "arrow.triangle.2.circlepath" : "checkmark")
@@ -54,8 +54,8 @@ struct HealthBackfillView: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
-            .navigationTitle("Export Snoop history").navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+            .navigationTitle("Export Zoop history").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onChange(of: from) { _, _ in preview = nil }
             .onChange(of: to) { _, _ in preview = nil }

@@ -1,6 +1,6 @@
 import SwiftUI
-import SnoopECG
-import SnoopProtocol
+import ZoopECG
+import ZoopProtocol
 
 struct ECGView: View {
     @Environment(AppModel.self) private var model
@@ -17,9 +17,9 @@ struct ECGView: View {
                 if let cleanupError = recorder.cleanupError {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Finish stopping the previous recording", systemImage: "exclamationmark.circle").font(.headline)
-                        Text(cleanupError).font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                        Text(cleanupError).font(.footnote).foregroundStyle(ZoopStyle.secondary)
                         Button("Retry stopping") { recorder.recoverCleanup() }.disabled(recorder.isBusy || recorder.device == nil)
-                    }.snoopCard()
+                    }.zoopCard()
                 }
                 switch recorder.phase {
                 case .starting, .waiting, .recording, .finishing: capture
@@ -33,9 +33,9 @@ struct ECGView: View {
                     else { home }
                 }
             }
-            .padding(SnoopStyle.gutter)
+            .padding(ZoopStyle.gutter)
         }
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle(recorder.phase == .saved ? "ECG recording" : "ECG")
         .navigationBarTitleDisplayMode(.inline)
         .interactiveDismissDisabled(recorder.isRecording)
@@ -58,19 +58,19 @@ struct ECGView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label(recorder.device == nil ? "WHOOP not connected" : recorder.device?.isMG == true ? "WHOOP MG connected" : "ECG needs WHOOP MG",
                       systemImage: recorder.device == nil ? "antenna.radiowaves.left.and.right.slash" : "checkmark.circle")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
                 Text("A moment for\nyour heart.").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                Text("Record your heart rhythm in 30 seconds.").foregroundStyle(SnoopStyle.secondary)
+                Text("Record your heart rhythm in 30 seconds.").foregroundStyle(ZoopStyle.secondary)
             }
             Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 64, weight: .light)).foregroundStyle(SnoopStyle.heartRate)
-                .frame(maxWidth: .infinity, minHeight: 140).snoopCard().accessibilityHidden(true)
+                .font(.system(size: 64, weight: .light)).foregroundStyle(ZoopStyle.heartRate)
+                .frame(maxWidth: .infinity, minHeight: 140).zoopCard().accessibilityHidden(true)
             Button("Record ECG") { preparing = true }.buttonStyle(ECGActionStyle()).accessibilityIdentifier("recordECG")
             history
             DisclosureGroup("About this measurement") {
-                Text("Use a WHOOP MG and an ECG-compatible clasp. Snoop saves the electrical signal without a rhythm assessment. Waveform timing and amplitude are not calibrated. Recording history is stored on this iPhone.")
-                    .font(.footnote).foregroundStyle(SnoopStyle.secondary).padding(.top, 8)
-            }.font(.subheadline).tint(SnoopStyle.secondary)
+                Text("Use a WHOOP MG and an ECG-compatible clasp. Zoop saves the electrical signal without a rhythm assessment. Waveform timing and amplitude are not calibrated. Recording history is stored on this iPhone.")
+                    .font(.footnote).foregroundStyle(ZoopStyle.secondary).padding(.top, 8)
+            }.font(.subheadline).tint(ZoopStyle.secondary)
         }
     }
 
@@ -85,14 +85,14 @@ struct ECGView: View {
                 step(3, "Hold still for 30 seconds.")
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("WHOOP is on my").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("WHOOP is on my").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 Picker("Wrist wearing WHOOP", selection: $recorder.wrist) {
                     Text("Left wrist").tag(ECGWrist.left)
                     Text("Right wrist").tag(ECGWrist.right)
-                }.pickerStyle(.menu).tint(SnoopStyle.load).accessibilityIdentifier("ecgWrist")
+                }.pickerStyle(.menu).tint(ZoopStyle.load).accessibilityIdentifier("ecgWrist")
             }
             if recorder.device == nil {
-                Text("Connect your WHOOP MG to begin.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("Connect your WHOOP MG to begin.").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 Button("Reconnect") { model.startStrap(); model.strap.connect() }.buttonStyle(ECGActionStyle(primary: false))
             } else if recorder.device?.isMG == false {
                 Text("ECG requires WHOOP MG and its ECG-compatible clasp.").font(.subheadline)
@@ -108,10 +108,10 @@ struct ECGView: View {
             if recorder.phase == .recording {
                 VStack(spacing: 4) {
                     Text(recorder.secondsRemaining.formatted()).font(.system(.largeTitle, design: .rounded, weight: .medium)).monospacedDigit()
-                    Text("seconds remaining").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    Text("seconds remaining").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity)
                 ECGWaveform(samples: recorder.samples, label: "Live ECG")
-                ProgressView(value: Double(30 - recorder.secondsRemaining), total: 30).tint(SnoopStyle.load)
+                ProgressView(value: Double(30 - recorder.secondsRemaining), total: 30).tint(ZoopStyle.load)
                     .accessibilityLabel("Recording progress")
             } else { ProgressView().frame(maxWidth: .infinity).padding(.vertical, 35) }
             if recorder.phase != .finishing {
@@ -138,39 +138,39 @@ struct ECGView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Recent recordings").font(.headline).accessibilityAddTraits(.isHeader)
             if let error = recorder.historyError {
-                Text(error).font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                Text(error).font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 Button("Reload recordings") { Task { await recorder.reloadHistory() } }
             } else if recorder.recordings.isEmpty {
-                Text("No recordings yet").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("No recordings yet").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             ForEach(Array(recorder.recordings.prefix(showAll ? recorder.recordings.count : 3))) { item in
                 NavigationLink { ECGHistoryDetail(id: item.id) } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "waveform.path.ecg").foregroundStyle(SnoopStyle.heartRate)
+                        Image(systemName: "waveform.path.ecg").foregroundStyle(ZoopStyle.heartRate)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.startedAt.formatted(date: .abbreviated, time: .omitted)).font(.subheadline.weight(.semibold))
                             Text("\(item.startedAt.formatted(date: .omitted, time: .shortened)) · \(Int(item.duration.rounded())) seconds")
-                                .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                .font(.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(SnoopStyle.secondary)
-                    }.snoopCard()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    }.zoopCard()
                 }.buttonStyle(PressableCardStyle())
             }
-            if recorder.recordings.count > 3 { Button(showAll ? "Show recent" : "View all recordings") { showAll.toggle() }.tint(SnoopStyle.load) }
+            if recorder.recordings.count > 3 { Button(showAll ? "Show recent" : "View all recordings") { showAll.toggle() }.tint(ZoopStyle.load) }
         }
     }
 
     private func heading(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-            Text(subtitle).foregroundStyle(SnoopStyle.secondary)
+            Text(subtitle).foregroundStyle(ZoopStyle.secondary)
         }
     }
     private func step(_ number: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(number.formatted()).font(.caption).frame(width: stepDiameter, height: stepDiameter)
-                .overlay(Circle().stroke(SnoopStyle.separator)).foregroundStyle(SnoopStyle.secondary)
+                .overlay(Circle().stroke(ZoopStyle.separator)).foregroundStyle(ZoopStyle.secondary)
             Text(text).font(.subheadline)
         }.accessibilityElement(children: .combine)
     }

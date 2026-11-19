@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightView: View {
     @Environment(AppModel.self) private var model
@@ -17,16 +17,16 @@ struct WeightView: View {
                     WeightTrendChart(readings: rows, unit: unit, target: CutTargets.weight(goal: model.weeklyWeight.goal, summary: model.weeklyWeight.summary), logWeight: { adding = true }, openReading: { editing = $0 })
                 }
                 if !model.health.journal.pendingWeights.isEmpty {
-                    Label("Saved on this iPhone · waiting to sync", systemImage: "icloud.and.arrow.up").font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Label("Saved on this iPhone · waiting to sync", systemImage: "icloud.and.arrow.up").font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let error = model.health.error {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable)
+                        Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable)
                         Button("Retry sync") { model.health.checkSoon() }.disabled(model.health.busy)
-                    }.snoopCard()
+                    }.zoopCard()
                 }
-            }.padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
-        }.accessibilityIdentifier("weightScroll").snoopScreen().tint(SnoopStyle.load)
+            }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
+        }.accessibilityIdentifier("weightScroll").zoopScreen().tint(ZoopStyle.load)
         .navigationTitle("Weight").navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -41,7 +41,7 @@ struct WeightView: View {
     }
     private var empty: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "chart.xyaxis.line").font(.largeTitle).foregroundStyle(SnoopStyle.load)
+            Image(systemName: "chart.xyaxis.line").font(.largeTitle).foregroundStyle(ZoopStyle.load)
             Text("No weigh-ins yet").font(.title.weight(.semibold))
             Button { adding = true } label: {
                 Text("Log your weight").font(.headline).frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)

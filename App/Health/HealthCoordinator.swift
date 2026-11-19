@@ -1,9 +1,9 @@
 import Observation
-import SnoopData
+import ZoopData
 import CryptoKit
 import Foundation
 import HealthKit
-import SnoopHealth
+import ZoopHealth
 import UIKit
 
 /// Serialized, disk-backed reconciliation. A cancelled/failed pass retains its cursor,
@@ -88,7 +88,7 @@ final class HealthCoordinator {
                 UserDefaults.standard.set(device, forKey: "health.lastDevice")
                 self.installObserver(); await self.refreshReminderCompletion(); self.checkSoon()
             } catch is CancellationError { }
-            catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Snoop to try again." } }
+            catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Zoop to try again." } }
         }
     }
     private func persist() async throws {
@@ -153,7 +153,7 @@ final class HealthCoordinator {
             journal.versions = [:]; journal.deferred = [:]; journal.clearExportHistory()
             journal.cursor = 0; journal.watermark = nil; journal.pageCursor = 0; journal.snapshot = true
             disconnect()
-        } catch { self.error = "Some Snoop exports could not be removed. Check Health permissions and retry." }
+        } catch { self.error = "Some Zoop exports could not be removed. Check Health permissions and retry." }
     }
     func pause(_ paused: Bool) {
         journal.paused = paused
@@ -193,7 +193,7 @@ final class HealthCoordinator {
     }
     func save(_ row: WeightReading) async throws {
         activate(device)
-        guard file != nil else { throw SnoopAPI.Failure.notConfigured }
+        guard file != nil else { throw ZoopAPI.Failure.notConfigured }
         try WeightEntryPolicy.validate(row, existing: rows)
         journal.pendingWeights.removeAll { $0.id == row.id }; journal.pendingWeights.append(row)
         refreshRows(); try await persist()
@@ -215,7 +215,7 @@ final class HealthCoordinator {
             }
         }
         do {
-            let info = try await SnoopAPI.healthInfo(device); try valid(generation)
+            let info = try await ZoopAPI.healthInfo(device); try valid(generation)
             guard journal.namespace.isEmpty || journal.namespace == info.namespace else { throw HealthAdapter.Failure.newerVersion }
             journal.namespace = info.namespace; earliest = info.earliest
             guard journal.cursor <= info.cursor else { throw HealthAdapter.Failure.newerVersion }
@@ -226,7 +226,7 @@ final class HealthCoordinator {
             // Persist every local measurement before asking Health to mirror it.
             for row in journal.pendingWeights {
                 try valid(generation)
-                let saved = try await SnoopAPI.saveWeight(device, row); try valid(generation)
+                let saved = try await ZoopAPI.saveWeight(device, row); try valid(generation)
                 journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved)
                 journal.pendingWeights.removeAll { $0 == row }; refreshRows(); try await persist()
             }
@@ -242,7 +242,7 @@ final class HealthCoordinator {
                     var start = range.from
                     while !journal.paused {
                         try valid(generation); status = "Preparing steps…"
-                        let result = try await SnoopAPI.prepareHealth(device, from: start, to: range.to); try valid(generation)
+                        let result = try await ZoopAPI.prepareHealth(device, from: start, to: range.to); try valid(generation)
                         guard !result.done, let next = result.nextDay else { break }
                         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(secondsFromGMT: 0)
                         guard let date = f.date(from: next) else { throw HealthAdapter.Failure.invalidRecord }; start = date
@@ -252,7 +252,7 @@ final class HealthCoordinator {
             repeat {
                 try valid(generation); if journal.paused { return }
                 status = "Syncing Apple Health…"
-                let page = try await SnoopAPI.healthPage(device, cursor: journal.watermark == nil ? (journal.snapshot ? 0 : journal.cursor) : journal.pageCursor, watermark: journal.watermark, snapshot: journal.snapshot)
+                let page = try await ZoopAPI.healthPage(device, cursor: journal.watermark == nil ? (journal.snapshot ? 0 : journal.cursor) : journal.pageCursor, watermark: journal.watermark, snapshot: journal.snapshot)
                 try valid(generation)
                 guard page.namespace == journal.namespace else { throw HealthAdapter.Failure.newerVersion }
                 journal.watermark = page.watermark; try await persist()
@@ -310,7 +310,7 @@ final class HealthCoordinator {
         var watermark: Int64?
         do {
             repeat {
-                let page = try await SnoopAPI.weightChanges(device, cursor: journal.weightCursor ?? 0, watermark: watermark)
+                let page = try await ZoopAPI.weightChanges(device, cursor: journal.weightCursor ?? 0, watermark: watermark)
                 try valid(generation)
                 var saved = Dictionary(journal.weights.map { ($0.id, $0) }, uniquingKeysWith: { a, b in a.version >= b.version ? a : b })
                 for row in page.rows where (saved[row.id]?.version ?? -1) <= row.version { saved[row.id] = row }
@@ -320,9 +320,9 @@ final class HealthCoordinator {
                 if page.done { return }
                 watermark = page.watermark
             } while true
-        } catch SnoopAPI.Failure.http(404) {
+        } catch ZoopAPI.Failure.http(404) {
             try await loadAllWeights(generation)
-        } catch SnoopAPI.Failure.server(404, _) {
+        } catch ZoopAPI.Failure.server(404, _) {
             try await loadAllWeights(generation)
         }
     }
@@ -330,7 +330,7 @@ final class HealthCoordinator {
         var loaded: [WeightReading] = []; var after = ""
         repeat {
             try valid(generation)
-            let rows = try await SnoopAPI.weights(device, from: Date(timeIntervalSince1970: 0), to: Date().addingTimeInterval(300), after: after)
+            let rows = try await ZoopAPI.weights(device, from: Date(timeIntervalSince1970: 0), to: Date().addingTimeInterval(300), after: after)
             try valid(generation); loaded += rows
             guard rows.count == 250, let last = rows.last else { break }; after = last.id
         } while true
@@ -346,14 +346,14 @@ final class HealthCoordinator {
                 try valid(generation)
                 guard !journal.paused || allowWhilePaused else { throw CancellationError() }
                 if journal.weights.contains(where: { $0.id == row.id && $0.kg == row.kg && !$0.removed }) { continue }
-                let saved = try await SnoopAPI.saveWeight(device, row); try valid(generation)
+                let saved = try await ZoopAPI.saveWeight(device, row); try valid(generation)
                 journal.weights.removeAll { $0.id == saved.id }; journal.weights.append(saved); refreshRows()
                 if importingWeightHistory && journal.pendingWeightImport?.contains(saved.measuredAt) == true { importedWeightCount += 1 }
                 // Preserve per-reading receipts before advancing the Health anchor;
                 // repeated short background windows can finish a large import.
                 try await persist()
             }
-            try await SnoopAPI.removeImportedWeights(device, ids: changes.deleted); try valid(generation)
+            try await ZoopAPI.removeImportedWeights(device, ids: changes.deleted); try valid(generation)
             let deleted = Set(changes.deleted)
             journal.weights.removeAll { $0.source == "health" && deleted.contains($0.id) }
             refreshRows(); journal.anchor = changes.anchor; try await persist()
@@ -399,7 +399,7 @@ final class HealthCoordinator {
             var start = range.from
             while true {
                 try valid(generation)
-                let prepared = try await SnoopAPI.prepareHealth(device, from: start, to: range.to)
+                let prepared = try await ZoopAPI.prepareHealth(device, from: start, to: range.to)
                 try valid(generation)
                 guard !prepared.done, let next = prepared.nextDay else { break }
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(secondsFromGMT: 0)
@@ -408,7 +408,7 @@ final class HealthCoordinator {
         }
         var result = Preview(); var cursor: Int64 = 0; var watermark: Int64?
         repeat {
-            let page = try await SnoopAPI.healthPage(device, cursor: cursor, watermark: watermark, snapshot: true); try valid(generation)
+            let page = try await ZoopAPI.healthPage(device, cursor: cursor, watermark: watermark, snapshot: true); try valid(generation)
             watermark = page.watermark
             for r in page.records where range.contains(r.eligibilityDate) && !r.removed {
                 if journal.versions[r.id] == r.version { result.already += 1 }
@@ -441,7 +441,7 @@ final class HealthCoordinator {
         defer { if epoch == generation { busy = false; importingWeightHistory = false; if syncRequested { syncRequested = false; checkSoon() } } }
         let previous = Set(rows.filter { range.contains($0.measuredAt) }.map(\.id))
         do {
-            let info = try await SnoopAPI.healthInfo(device); try valid(generation)
+            let info = try await ZoopAPI.healthInfo(device); try valid(generation)
             guard journal.namespace.isEmpty || journal.namespace == info.namespace, journal.cursor <= info.cursor else { throw HealthAdapter.Failure.newerVersion }
             journal.namespace = info.namespace
             journal.approveWeightImport(range); try await persist()

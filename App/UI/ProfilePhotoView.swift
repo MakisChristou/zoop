@@ -37,7 +37,7 @@ struct ProfilePhotoView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .accessibilityIdentifier("saveProfilePhoto")
-                            photoPicker.buttonStyle(.bordered).tint(SnoopStyle.text)
+                            photoPicker.buttonStyle(.bordered).tint(ZoopStyle.text)
                         } else {
                             photoPicker.buttonStyle(.borderedProminent)
                         }
@@ -47,20 +47,20 @@ struct ProfilePhotoView: View {
                         }
                     }
                     .controlSize(.large)
-                    .buttonBorderShape(.roundedRectangle(radius: SnoopStyle.radius))
+                    .buttonBorderShape(.roundedRectangle(radius: ZoopStyle.radius))
                     .disabled(busy || !valid)
                     if preparing { ProgressView("Preparing photo…") }
-                    if let error { Text(error).font(.subheadline).foregroundStyle(SnoopStyle.unfavourable) }
+                    if let error { Text(error).font(.subheadline).foregroundStyle(ZoopStyle.unfavourable) }
                     if !valid { Text("Your profile changed. Close this screen and try again.").font(.subheadline) }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .snoopScreen()
-            .tint(SnoopStyle.load)
+            .zoopScreen()
+            .tint(ZoopStyle.load)
             .navigationTitle("Profile photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -69,7 +69,7 @@ struct ProfilePhotoView: View {
                         Image(systemName: "xmark").font(.body.weight(.medium))
                             .frame(minWidth: 44, minHeight: 44)
                     }
-                    .tint(SnoopStyle.text)
+                    .tint(ZoopStyle.text)
                     .disabled(working)
                     .accessibilityLabel("Close")
                     .accessibilityIdentifier("closeProfilePhoto")
@@ -83,7 +83,7 @@ struct ProfilePhotoView: View {
         }
         .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.height(compactHeight)])
         .presentationDragIndicator(.visible)
-        .presentationBackground(SnoopStyle.background)
+        .presentationBackground(ZoopStyle.background)
         .interactiveDismissDisabled(working)
     }
 
@@ -94,7 +94,7 @@ struct ProfilePhotoView: View {
             } else {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable().scaledToFit()
-                    .foregroundStyle(SnoopStyle.secondary.opacity(0.6), SnoopStyle.surface)
+                    .foregroundStyle(ZoopStyle.secondary.opacity(0.6), ZoopStyle.surface)
             }
         }
         .frame(width: 144, height: 144)
@@ -105,7 +105,7 @@ struct ProfilePhotoView: View {
 
     private var photoPicker: some View {
         let title = draft == nil && current == nil ? "Choose photo" : "Choose another photo"
-        let foreground = draft == nil ? (colorScheme == .dark ? Color.black : Color.white) : SnoopStyle.text
+        let foreground = draft == nil ? (colorScheme == .dark ? Color.black : Color.white) : ZoopStyle.text
         return PhotosPicker(selection: $selected, matching: .images) {
             Label(title, systemImage: "photo.on.rectangle")
                 .font(.headline)

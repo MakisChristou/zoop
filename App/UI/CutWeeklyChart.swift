@@ -10,7 +10,7 @@ struct CutWeeklyChart: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight = 190.0
     private var index: Int { data.weeks.firstIndex { $0.id == selection } ?? max(0, data.weeks.count - 1) }
-    private var week: SnoopAPI.WeightWeek? { data.weeks.indices.contains(index) ? data.weeks[index] : nil }
+    private var week: ZoopAPI.WeightWeek? { data.weeks.indices.contains(index) ? data.weeks[index] : nil }
     private func weight(_ kg: Double) -> Double { unit == "lb" ? kg * 2.2046226218 : kg }
     private var points: [CutProgressData.Point] { week.map { data.points(in: $0) } ?? [] }
     private var targetPath: [(date: Date, kg: Double)] { week.map { data.targetPath(in: $0) } ?? [] }
@@ -35,7 +35,7 @@ struct CutWeeklyChart: View {
                     VStack(alignment: .leading, spacing: 4) {
                         MetricValue(WeeklyWeightPresentation.weight(inspected?.kg ?? week.medianKg, unit: unit), unit: inspected == nil && week.medianKg == nil ? "" : unit, size: 32)
                             .accessibilityIdentifier("cutWeeklyMedian")
-                        Text(inspected.map { readingDate($0.date) } ?? (week.medianKg == nil ? "No weigh-ins" : "Weekly median")).font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("cutReadingLabel")
+                        Text(inspected.map { readingDate($0.date) } ?? (week.medianKg == nil ? "No weigh-ins" : "Weekly median")).font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("cutReadingLabel")
                     }.frame(maxWidth: .infinity, alignment: .leading)
                     VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 6) {
                         // Historical medians have no server classification; never reuse today's verdict.
@@ -45,9 +45,9 @@ struct CutWeeklyChart: View {
                         }
                         if let change = data.change(week) {
                             Text(WeeklyWeightPresentation.weight(change, unit: unit, signed: true) + " " + unit + " this week")
-                                .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("cutWeeklyChange")
+                                .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("cutWeeklyChange")
                         }
-                        paceLabel.font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        paceLabel.font(.caption).foregroundStyle(ZoopStyle.secondary)
                     }.multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
                 }
                 chart(week).frame(height: min(chartHeight, 280)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -66,7 +66,7 @@ struct CutWeeklyChart: View {
                     legend("Weight", dashed: false)
                     if !targetPath.isEmpty { legend("Target", dashed: true) }
                 }
-            }.snoopCard(padding: 20)
+            }.zoopCard(padding: 20)
                 .onChange(of: week.id) { _, _ in inspectedDate = nil }
         }
     }
@@ -74,10 +74,10 @@ struct CutWeeklyChart: View {
     private func legend(_ label: String, dashed: Bool) -> some View {
         HStack(spacing: 6) {
             Path { p in p.move(to: .init(x: 0, y: 3)); p.addLine(to: .init(x: 20, y: 3)) }
-                .stroke(dashed ? SnoopStyle.secondary : SnoopStyle.load, style: .init(lineWidth: 2, dash: dashed ? [3, 3] : []))
+                .stroke(dashed ? ZoopStyle.secondary : ZoopStyle.load, style: .init(lineWidth: 2, dash: dashed ? [3, 3] : []))
                 .frame(width: 20, height: 6).accessibilityHidden(true)
             Text(label).fixedSize(horizontal: false, vertical: true)
-        }.font(.caption).foregroundStyle(SnoopStyle.secondary)
+        }.font(.caption).foregroundStyle(ZoopStyle.secondary)
     }
     private func readingDate(_ date: Date) -> String {
         var format = Date.FormatStyle().day().month(.abbreviated); format.timeZone = data.calendar.timeZone
@@ -86,7 +86,7 @@ struct CutWeeklyChart: View {
     private func arrow(_ direction: Int) -> some View {
         let enabled = data.weeks.indices.contains(index + direction)
         return Button { move(direction) } label: { Image(systemName: direction < 0 ? "chevron.left" : "chevron.right").font(.footnote.weight(.semibold)).frame(width: 44, height: 44) }
-            .foregroundStyle(enabled ? SnoopStyle.load : SnoopStyle.secondary.opacity(0.35))
+            .foregroundStyle(enabled ? ZoopStyle.load : ZoopStyle.secondary.opacity(0.35))
             .disabled(!enabled)
             .accessibilityLabel(direction < 0 ? "Previous week" : "Next week")
             .accessibilityIdentifier(direction < 0 ? "cutPreviousWeek" : "cutNextWeek")
@@ -109,32 +109,32 @@ struct CutWeeklyChart: View {
         let offsets = count <= 2 ? Array(0...count) : [0, count / 2, count]
         return offsets.compactMap { data.calendar.date(byAdding: .day, value: $0, to: bounds.lowerBound) }
     }
-    private func chart(_ week: SnoopAPI.WeightWeek) -> some View {
+    private func chart(_ week: ZoopAPI.WeightWeek) -> some View {
         Chart {
             ForEach(Array(targetPath.enumerated()), id: \.offset) { _, point in
                 LineMark(x: .value("Date", point.date), y: .value("Target", weight(point.kg)), series: .value("Series", "target"))
-                    .foregroundStyle(SnoopStyle.secondary).lineStyle(.init(lineWidth: 1.5, dash: [4, 3]))
+                    .foregroundStyle(ZoopStyle.secondary).lineStyle(.init(lineWidth: 1.5, dash: [4, 3]))
             }
             ForEach(points) { point in
                 LineMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg)), series: .value("Series", "weight"))
-                    .foregroundStyle(SnoopStyle.load).lineStyle(.init(lineWidth: 2, lineCap: .round))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(32)
+                    .foregroundStyle(ZoopStyle.load).lineStyle(.init(lineWidth: 2, lineCap: .round))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(32)
             }
             if let point = inspected {
-                RuleMark(x: .value("Selected reading", point.date)).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(70)
+                RuleMark(x: .value("Selected reading", point.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(70)
             }
         }.chartXScale(domain: data.domain(for: week)).chartXScale(range: .plotDimension(startPadding: 12, endPadding: 12))
             .chartYScale(domain: scale).chartLegend(.hidden)
             .chartXAxis {
                 AxisMarks(values: axisDates) { mark in
-                    AxisValueLabel { if let date = mark.as(Date.self) { Text(date, format: .dateTime.day().month(.abbreviated)).foregroundStyle(SnoopStyle.secondary) } }
+                    AxisValueLabel { if let date = mark.as(Date.self) { Text(date, format: .dateTime.day().month(.abbreviated)).foregroundStyle(ZoopStyle.secondary) } }
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine(stroke: .init(lineWidth: 0.5)).foregroundStyle(SnoopStyle.separator)
-                    AxisValueLabel(format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))).foregroundStyle(SnoopStyle.secondary)
+                    AxisGridLine(stroke: .init(lineWidth: 0.5)).foregroundStyle(ZoopStyle.separator)
+                    AxisValueLabel(format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             .chartOverlay { proxy in

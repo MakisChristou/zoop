@@ -2,8 +2,8 @@ import Observation
 import CoreBluetooth
 import Foundation
 import OSLog
-import SnoopProtocol
-import SnoopBattery
+import ZoopProtocol
+import ZoopBattery
 
 /// Owns the Bluetooth link to the strap.
 ///

@@ -6,30 +6,30 @@ import SwiftUI
 /// from the toolbar; the server keeps that choice through recomputes.
 struct WorkoutDetailView: View {
     @Environment(AppModel.self) private var model
-    @State private var snapshot: SnoopAPI.Workout
+    @State private var snapshot: ZoopAPI.Workout
     @State private var editor: WorkoutEditorMode?
     @State private var showReset = false
     @State private var confirmRemove = false
     @State private var removalRequest: WorkoutCorrection?
     @State private var readingsLoaded = false
-    @State private var minutes: [SnoopAPI.Minute] = []
+    @State private var minutes: [ZoopAPI.Minute] = []
     @State private var scrub: Date?
     @State private var saving = false
     @State private var error: String?
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    init(workout: SnoopAPI.Workout) {
+    init(workout: ZoopAPI.Workout) {
         _snapshot = State(initialValue: workout)
     }
 
-    private var workout: SnoopAPI.Workout { model.activity.items.first { $0.id == snapshot.id } ?? snapshot }
+    private var workout: ZoopAPI.Workout { model.activity.items.first { $0.id == snapshot.id } ?? snapshot }
 
     private var kind: ActivityKind { .named(workout.kind) }
     private var window: ClosedRange<Date> {
         workout.startTs.addingTimeInterval(-300)...workout.endTs.addingTimeInterval(300)
     }
 
-    private var selected: SnoopAPI.Minute? {
+    private var selected: ZoopAPI.Minute? {
         guard let scrub else { return nil }
         return minutes.min { abs($0.ts.timeIntervalSince(scrub)) < abs($1.ts.timeIntervalSince(scrub)) }
     }
@@ -49,7 +49,7 @@ struct WorkoutDetailView: View {
                     if workout.metricsPending == true {
                         HStack { ProgressView(); Text("Updating workout").font(.footnote) }
                     } else if workout.isPartial {
-                        Label("Partial data", systemImage: "waveform.path").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        Label("Partial data", systemImage: "waveform.path").font(.caption).foregroundStyle(ZoopStyle.secondary)
                     }
                     stats
                     if workout.zonesMin != nil { zones }
@@ -58,10 +58,10 @@ struct WorkoutDetailView: View {
                 if workout.isActive { MetricInformation(title: "About load and calories", text: "Load is zone-weighted training impulse (Edwards 1993), displayed on a 0–21 scale. Calories are estimated from heart rate, weight, age and sex (Keytel 2005). Zones use your estimated maximum heart rate.\(workout.trimp.map { " Training impulse: \($0.formatted(.number.precision(.fractionLength(0)))) TRIMP." } ?? "")") }
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
             }
-            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 16)
+            .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
-        .sheet(isPresented: $showReset) { NavigationStack { AnalysisResetView(domain: "workout", targetId: workout.id, isSheet: true) }.presentationBackground(SnoopStyle.background) }
-        .snoopScreen()
+        .sheet(isPresented: $showReset) { NavigationStack { AnalysisResetView(domain: "workout", targetId: workout.id, isSheet: true) }.presentationBackground(ZoopStyle.background) }
+        .zoopScreen()
         .toolbar(.visible, for: .navigationBar)
         .navigationTitle(kind.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -109,9 +109,9 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 MetricValue(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "Load")
                 Text("\(workout.startTs.formatted(date: .omitted, time: .shortened)) – \(workout.endTs.formatted(date: .omitted, time: .shortened)) · \(ActivityView.dayTitle(workout.startTs).lowercased())")
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 if workout.edited {
-                    Text(workout.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Text(workout.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(ZoopStyle.secondary)
                 } else if kind == .activity {
                     Text("Unclassified").font(.caption).foregroundStyle(kind.color)
                 }
@@ -119,7 +119,7 @@ struct WorkoutDetailView: View {
             Spacer(minLength: 0)
         }
         .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private var stats: some View {
@@ -133,12 +133,12 @@ struct WorkoutDetailView: View {
         return LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(cells, id: \.0) { title, value, unit in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Text(title).font(.caption).foregroundStyle(ZoopStyle.secondary)
                     MetricValue(value, unit: unit, size: 28)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+                .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
             }
         }
     }
@@ -148,9 +148,9 @@ struct WorkoutDetailView: View {
         let total = max(minutesByZone.reduce(0, +), 1)
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Heart rate zones").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                Text("Heart rate zones").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
-                Text("of max HR, minutes").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                Text("of max HR, minutes").font(.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             GeometryReader { geo in
                 HStack(spacing: 2) {
@@ -172,7 +172,7 @@ struct WorkoutDetailView: View {
                     VStack(spacing: 2) {
                         Text("\(min)").font(.subheadline.weight(.semibold)).monospacedDigit()
                             .foregroundStyle(min > 0 ? .primary : .tertiary)
-                        Text(ZoneColors.label(zone)).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                        Text(ZoneColors.label(zone)).font(.caption2).foregroundStyle(ZoopStyle.secondary)
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity)
@@ -180,19 +180,19 @@ struct WorkoutDetailView: View {
             }
         }
         .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private var heartRate: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
                 if let m = selected {
                     Text("\(m.ts.formatted(date: .omitted, time: .shortened)) · \(m.hr.map { "\($0) bpm" } ?? "—")")
                         .font(.caption.weight(.semibold)).monospacedDigit()
                 } else {
-                    Text(readingsLoaded ? (minutes.contains { $0.hr != nil } ? "bpm" : "No readings") : "Loading…").font(.caption).foregroundStyle(SnoopStyle.secondary)
+                    Text(readingsLoaded ? (minutes.contains { $0.hr != nil } ? "bpm" : "No readings") : "Loading…").font(.caption).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             Chart {
@@ -203,9 +203,9 @@ struct WorkoutDetailView: View {
                 }
                 ForEach(minutes.filter { $0.hr != nil }) { m in
                     AreaMark(x: .value("Time", m.ts), yStart: .value("min", m.hrMin ?? m.hr!), yEnd: .value("max", m.hrMax ?? m.hr!))
-                    .foregroundStyle(SnoopStyle.heartRate.opacity(0.18))
+                    .foregroundStyle(ZoopStyle.heartRate.opacity(0.18))
                     LineMark(x: .value("Time", m.ts), y: .value("HR", m.hr!))
-                        .foregroundStyle(SnoopStyle.heartRate)
+                        .foregroundStyle(ZoopStyle.heartRate)
                         .lineStyle(StrokeStyle(lineWidth: 1.4))
                         .interpolationMethod(.monotone)
                 }
@@ -234,7 +234,7 @@ struct WorkoutDetailView: View {
             }
         }
         .padding()
-        .background(SnoopStyle.surface, in: RoundedRectangle(cornerRadius: SnoopStyle.radius))
+        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     // MARK: - Data
@@ -242,15 +242,15 @@ struct WorkoutDetailView: View {
     private func load() async {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
         do {
-            var refreshed = try await SnoopAPI.workout(deviceId: model.strap.serial, id: snapshot.id)
+            var refreshed = try await ZoopAPI.workout(deviceId: model.strap.serial, id: snapshot.id)
             // Merged-away notification links lead to the surviving workout.
             for _ in 0..<10 {
                 guard refreshed.status == "superseded", let id = refreshed.replacements?.first, id != refreshed.id else { break }
-                refreshed = try await SnoopAPI.workout(deviceId: model.strap.serial, id: id)
+                refreshed = try await ZoopAPI.workout(deviceId: model.strap.serial, id: id)
             }
             snapshot = refreshed
             if refreshed.isActive {
-                minutes = try await SnoopAPI.minutes(deviceId: model.strap.serial, window: window)
+                minutes = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: window)
             }
             readingsLoaded = true
             error = nil

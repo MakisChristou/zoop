@@ -1,6 +1,6 @@
 import XCTest
-import SnoopData
-@testable import Snoop
+import ZoopData
+@testable import Zoop
 
 private actor TrendTestServer {
     var calls = 0
@@ -8,7 +8,7 @@ private actor TrendTestServer {
     var failing = false
     func fail() { failing = true }
     func setDelay() { delay = true }
-    func nights(_ device: String) async throws -> [SnoopAPI.Night] {
+    func nights(_ device: String) async throws -> [ZoopAPI.Night] {
         calls += 1
         if failing { throw URLError(.notConnectedToInternet) }
         if delay && calls == 1 { try await Task.sleep(for: .milliseconds(80)) }
@@ -96,12 +96,12 @@ private actor TrendTestServer {
         XCTAssertNil(store.error)
     }
 
-    nonisolated static func night(day: String) -> SnoopAPI.Night {
+    nonisolated static func night(day: String) -> ZoopAPI.Night {
         let wake = DayKey.date(day, timeZone: TimeZone(secondsFromGMT: 0)!)!.addingTimeInterval(9 * 3600)
         let start = wake.addingTimeInterval(-8 * 3600)
         return .init(nightOf: day, algoVersion: 2, startTs: start, endTs: wake, stages: [], metrics: .init(window: .init(onset: start, offset: wake, timeInBedS: 28800, asleepS: 27000, wasoS: 1800, efficiency: 0.9, coverageS: 28800, disturbances: 1), physiology: .init(restingHr: 52, hrvRmssdMs: 66, hrvWindows: 40, respiratoryRate: 14.5, skinTempC: 32.2, spo2Pct: nil, spo2Windows: 0), stages: nil, naps: []))
     }
-    nonisolated private static func day(_ key: String, steps: Int?) -> SnoopAPI.Day {
+    nonisolated private static func day(_ key: String, steps: Int?) -> ZoopAPI.Day {
         .init(day: key, steps: steps, stepsWalking: steps, walkingS: nil, hrMin: nil, hrAvg: nil, hrMax: nil, skinTempAvg: nil, asleepS: nil, samples: 100, load: nil, trimp: nil, kcal: nil, zonesMin: nil)
     }
 }

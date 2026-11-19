@@ -1,7 +1,7 @@
 import Observation
 import Foundation
 import OSLog
-import SnoopBattery
+import ZoopBattery
 import UserNotifications
 
 /// Keeps battery observations and notification deduplication across app launches.

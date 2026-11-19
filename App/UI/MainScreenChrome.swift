@@ -26,7 +26,7 @@ struct MainScreenChrome: ViewModifier {
     @ViewBuilder private func chrome(_ content: Content) -> some View {
         if typeSize.isAccessibilitySize {
             content
-                .snoopScreen()
+                .zoopScreen()
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar(.visible, for: .navigationBar)
@@ -42,12 +42,12 @@ struct MainScreenChrome: ViewModifier {
                 }
         } else {
             content
-            .snoopScreen()
+            .zoopScreen()
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
-                        if let subtitle { Text(subtitle).font(.caption).foregroundStyle(SnoopStyle.secondary) }
+                        if let subtitle { Text(subtitle).font(.caption).foregroundStyle(ZoopStyle.secondary) }
                         Text(title).font(.title.weight(.bold)).accessibilityAddTraits(.isHeader)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -61,10 +61,10 @@ struct MainScreenChrome: ViewModifier {
                         .accessibilityIdentifier("openProfile")
                     }
                 }
-                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.top, 8).padding(.bottom, 18)
-                .foregroundStyle(SnoopStyle.text)
-                .background(SnoopStyle.background)
+                .foregroundStyle(ZoopStyle.text)
+                .background(ZoopStyle.background)
             }
         }
     }

@@ -12,7 +12,7 @@ struct CutProgressView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let loss = data.summary.progress?.totalLostKg {
                         MetricValue(WeeklyWeightPresentation.weight(abs(loss), unit: unit), unit: unit, size: 44)
-                        Text(loss < 0 ? "Gained" : "Lost").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        Text(loss < 0 ? "Gained" : "Lost").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                     } else {
                         Text("No weigh-ins yet").font(.title2.weight(.semibold))
                     }
@@ -24,7 +24,7 @@ struct CutProgressView: View {
                             .font(.headline).monospacedDigit()
                         if let finish = data.finish {
                             Text((data.completed ? "Ended " : "Ends ") + dateLabel(finish))
-                                .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                .font(.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                     }.accessibilityElement(children: .combine).accessibilityIdentifier("cutDaysRemaining")
                 }
@@ -48,11 +48,11 @@ struct CutProgressView: View {
             ViewThatFits(in: .horizontal) {
                 HStack { Text(label); Spacer(); Text(value).monospacedDigit() }
                 VStack(alignment: .leading, spacing: 4) { Text(label); Text(value).monospacedDigit() }
-            }.font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            }.font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             if let fraction {
                 GeometryReader { geometry in
-                    Capsule().fill(SnoopStyle.separator)
-                        .overlay(alignment: .leading) { Capsule().fill(SnoopStyle.load).frame(width: geometry.size.width * fraction) }
+                    Capsule().fill(ZoopStyle.separator)
+                        .overlay(alignment: .leading) { Capsule().fill(ZoopStyle.load).frame(width: geometry.size.width * fraction) }
                 }.frame(height: 6).accessibilityHidden(true)
             }
         }.accessibilityElement(children: .ignore).accessibilityLabel(label).accessibilityValue(value)

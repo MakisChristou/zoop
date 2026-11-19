@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SnoopData
+import ZoopData
 import UserNotifications
 
 /// Serial reconciliation: an older settings pass cannot leave requests behind after

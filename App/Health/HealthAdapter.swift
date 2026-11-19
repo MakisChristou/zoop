@@ -1,9 +1,9 @@
 import Foundation
 import HealthKit
-import SnoopHealth
+import ZoopHealth
 
-/// HealthKit is confined to this adapter. Only Snoop's source and selected namespace
-/// may be reconciled; imported weight is never sent back as a Snoop measurement.
+/// HealthKit is confined to this adapter. Only Zoop's source and selected namespace
+/// may be reconciled; imported weight is never sent back as a Zoop measurement.
 @MainActor
 final class HealthAdapter {
     let store = HKHealthStore()
@@ -32,7 +32,7 @@ final class HealthAdapter {
         var errorDescription: String? {
             switch self {
             case .unavailable: "Apple Health is unavailable on this device."
-            case .newerVersion: "Apple Health has a newer Snoop export. Restore the latest server history before syncing."
+            case .newerVersion: "Apple Health has a newer Zoop export. Restore the latest server history before syncing."
             case .invalidRecord: "This recording is incomplete. Try syncing again after analysis finishes."
             }
         }
@@ -72,7 +72,7 @@ final class HealthAdapter {
             let day = Calendar.current.startOfDay(for: row.startDate)
             guard seen.insert(day).inserted else { continue }
             if !(try await existingWeight(on: day)).isEmpty {
-                // Only remove our redundant Health copies, never the Snoop history or
+                // Only remove our redundant Health copies, never the Zoop history or
                 // the external reading. Receipts prevent unchanged re-exports.
                 try await store.delete(own.filter { Calendar.current.isDate($0.startDate, inSameDayAs: day) })
             }

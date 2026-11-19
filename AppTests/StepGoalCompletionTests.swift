@@ -1,6 +1,6 @@
 import XCTest
 import UserNotifications
-@testable import Snoop
+@testable import Zoop
 
 @MainActor private final class CompletionState {
     var now = ISO8601DateFormatter().date(from: "2026-11-16T12:00:00Z")!
@@ -21,9 +21,9 @@ import UserNotifications
 }
 
 @MainActor final class StepGoalCompletionTests: XCTestCase {
-    private func goal(_ target: Int = 8000, active: Bool = true) -> SnoopAPI.WeightGoal {
+    private func goal(_ target: Int = 8000, active: Bool = true) -> ZoopAPI.WeightGoal {
         let start = CutPlan.date("2026-11-16", calendar: CutPlan.calendar(timezone: "UTC"))!
-        var g = SnoopAPI.WeightGoal(revision: 1, active: active, startedAt: start, paceStartedAt: start, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, updatedAt: start)
+        var g = ZoopAPI.WeightGoal(revision: 1, active: active, startedAt: start, paceStartedAt: start, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200, updatedAt: start)
         g.dailyStepsGoal = target; g.finishDate = "2026-11-20"; return g
     }
     private func defaults() -> UserDefaults {

@@ -1,11 +1,11 @@
 import Foundation
 import Observation
-import SnoopData
+import ZoopData
 
 /// Range selection never loads history. Refreshes replace every prepared range together.
 @MainActor @Observable final class TrendStore {
-    typealias NightsLoader = @Sendable (String) async throws -> [SnoopAPI.Night]
-    typealias DaysLoader = @Sendable (String) async throws -> [SnoopAPI.Day]
+    typealias NightsLoader = @Sendable (String) async throws -> [ZoopAPI.Night]
+    typealias DaysLoader = @Sendable (String) async throws -> [ZoopAPI.Day]
     private(set) var snapshot = TrendSnapshot()
     private(set) var error: String?
     private var requestID = UUID()
@@ -13,8 +13,8 @@ import SnoopData
     private let loadNights: NightsLoader
     private let loadDays: DaysLoader
 
-    init(loadNights: @escaping NightsLoader = { try await SnoopAPI.nights(deviceId: $0, limit: TrendRange.all.days, summary: true) },
-         loadDays: @escaping DaysLoader = { try await SnoopAPI.days(deviceId: $0, limit: TrendRange.all.days) }) {
+    init(loadNights: @escaping NightsLoader = { try await ZoopAPI.nights(deviceId: $0, limit: TrendRange.all.days, summary: true) },
+         loadDays: @escaping DaysLoader = { try await ZoopAPI.days(deviceId: $0, limit: TrendRange.all.days) }) {
         self.loadNights = loadNights; self.loadDays = loadDays
     }
 

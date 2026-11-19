@@ -17,7 +17,7 @@ struct MorningOutlookView: View {
                     if showsDisclosure {
                         Image(systemName: "chevron.right").font(.caption.weight(.semibold)).accessibilityHidden(true)
                     }
-                }.foregroundStyle(SnoopStyle.secondary)
+                }.foregroundStyle(ZoopStyle.secondary)
                 Text(insights.outlookTitle)
                     .font(.system(size: headlineSize, weight: .semibold))
                     .foregroundStyle(InsightTone.color(insights.outlook?.state))
@@ -25,7 +25,7 @@ struct MorningOutlookView: View {
                     .accessibilityIdentifier("morningOutlookStatus")
                 // Degree and incomplete-data explanations matter; "Average" already says usual.
                 if !insights.isLearning && insights.outlook?.state != "average" {
-                    Text(insights.outlookSubtitle).font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    Text(insights.outlookSubtitle).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -34,19 +34,19 @@ struct MorningOutlookView: View {
             } else if showsChanges && !insights.metrics.isEmpty {
                 comparisons
             }
-        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+        }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
     }
 
     @ViewBuilder private var learningProgress: some View {
         if let outlook = insights.outlook, outlook.baselineRequired > 0 {
             VStack(alignment: .leading, spacing: 8) {
                 Text("\(outlook.baselineCount) of \(outlook.baselineRequired) nights")
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 ProgressView(value: Double(min(outlook.baselineCount, outlook.baselineRequired)), total: Double(outlook.baselineRequired))
-                    .tint(SnoopStyle.secondary).accessibilityHidden(true)
+                    .tint(ZoopStyle.secondary).accessibilityHidden(true)
             }
         } else {
-            Text("Building your personal comparison").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+            Text("Building your personal comparison").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
         }
     }
 
@@ -58,7 +58,7 @@ struct MorningOutlookView: View {
             ForEach(insights.metrics) { metric in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(metric.key == "resting_hr" ? "Resting HR" : metric.title)
-                        .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
                     Text(metric.deltaText).font(.subheadline.weight(.semibold)).monospacedDigit()
                         .foregroundStyle(InsightTone.color(metric.comparison?.signal))
                         .fixedSize(horizontal: false, vertical: true)

@@ -1,6 +1,6 @@
 import SwiftUI
 import Charts
-import SnoopData
+import ZoopData
 
 struct TrendWeekdayPattern: View {
     let metric: TrendMetric
@@ -22,7 +22,7 @@ struct TrendWeekdayPattern: View {
                 AxisValueLabel { if let offset = value.as(Int.self) { Text(calendar.shortStandaloneWeekdaySymbols[(offset + calendar.firstWeekday - 1) % 7]) } }
             } }
             .chartYAxis(.hidden).frame(height: 100)
-            Text("Past 8 weeks").font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text("Past 8 weeks").font(.caption).foregroundStyle(ZoopStyle.secondary)
         }.accessibilityIdentifier("weekdayPattern")
     }
 }

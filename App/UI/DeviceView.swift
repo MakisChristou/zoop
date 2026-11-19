@@ -1,4 +1,4 @@
-import SnoopProtocol
+import ZoopProtocol
 import SwiftUI
 
 /// The strap itself: link state, identity, history sync, and the raw latest record
@@ -16,7 +16,7 @@ struct DeviceView: View {
                     Text(statusText)
                     Spacer()
                     if model.strap.framesReceived > 0, model.strap.state == .ready {
-                        Text("receiving").foregroundStyle(SnoopStyle.secondary)
+                        Text("receiving").foregroundStyle(ZoopStyle.secondary)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -30,7 +30,7 @@ struct DeviceView: View {
                 if let battery = model.strap.batteryPercent {
                     LabeledContent("Battery", value: battery.formatted(.number.precision(.fractionLength(0))) + " %")
                 }
-            }.listRowBackground(SnoopStyle.surface)
+            }.listRowBackground(ZoopStyle.surface)
 
             Section {
                 DisclosureGroup("Sync details") {
@@ -48,7 +48,7 @@ struct DeviceView: View {
                 }
             } header: {
                 Text("Sync")
-            }.listRowBackground(SnoopStyle.surface)
+            }.listRowBackground(ZoopStyle.surface)
 
             Section {
                 DisclosureGroup("Latest record") {
@@ -65,13 +65,13 @@ struct DeviceView: View {
                         }
                         LabeledContent("Recorded", value: Date(timeIntervalSince1970: TimeInterval(b.header.unixSeconds)).formatted(date: .omitted, time: .standard))
                     } else {
-                        Text("No records yet.").foregroundStyle(SnoopStyle.secondary)
+                        Text("No records yet.").foregroundStyle(ZoopStyle.secondary)
                     }
                 }
-            }.listRowBackground(SnoopStyle.surface)
+            }.listRowBackground(ZoopStyle.surface)
         }
         .scrollContentBackground(.hidden)
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("My WHOOP")
         .navigationBarTitleDisplayMode(.inline)
     }

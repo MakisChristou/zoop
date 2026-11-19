@@ -1,6 +1,6 @@
 import Charts
-import SnoopData
-import SnoopHealth
+import ZoopData
+import ZoopHealth
 import SwiftUI
 
 /// Raw readings and calendar paging; preparation runs only when the source changes.
@@ -72,17 +72,17 @@ struct WeightTrendChart: View {
                 }.buttonStyle(.plain).disabled(displayed == nil)
                     .accessibilityIdentifier("openWeightReading")
                     .accessibilityHint(displayed?.reading.source == "snoop" ? "Edit this weigh-in" : "View this weigh-in")
-                Text(measurementDate).font(.subheadline).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("weightChartMeasurementDate")
+                Text(measurementDate).font(.subheadline).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("weightChartMeasurementDate")
             }.padding(.bottom, 6)
             Picker("Chart range", selection: $period) { ForEach(WeightCalendarPeriod.allCases) { Text($0.rawValue).tag($0) } }
                 .pickerStyle(.segmented)
             HStack {
                 periodButton(-1)
-                Text(rangeLabel).font(.subheadline).foregroundStyle(SnoopStyle.secondary).frame(maxWidth: .infinity).multilineTextAlignment(.center).accessibilityIdentifier("weightChartDates")
+                Text(rangeLabel).font(.subheadline).foregroundStyle(ZoopStyle.secondary).frame(maxWidth: .infinity).multilineTextAlignment(.center).accessibilityIdentifier("weightChartDates")
                 periodButton(1)
             }
             chart.frame(height: min(chartHeight, 320)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                .overlay { if visible.isEmpty { Text("No weigh-ins in this period").font(.subheadline).foregroundStyle(SnoopStyle.secondary).allowsHitTesting(false) } }
+                .overlay { if visible.isEmpty { Text("No weigh-ins in this period").font(.subheadline).foregroundStyle(ZoopStyle.secondary).allowsHitTesting(false) } }
                 .accessibilityElement(children: .ignore).accessibilityLabel("Weight chart").accessibilityIdentifier("weightChart")
                 .accessibilityValue("\(rangeLabel). \(displayed.map { "\(display($0.kg).formatted(.number.precision(.fractionLength(1)))) \(unit). \(measurementDate)" } ?? "No weigh-ins")" + (targetSegment == nil ? "" : ". " + targetLabel))
                 .accessibilityHint((targetSegment == nil ? "" : targetLabel + ". ") + "Swipe up or down to inspect readings. Previous and next period actions browse history.")
@@ -96,13 +96,13 @@ struct WeightTrendChart: View {
                 .accessibilityScrollAction { edge in if edge == .leading { move(-1) }; if edge == .trailing { move(1) } }
             HStack {
                 HStack(spacing: 6) {
-                    if showAverage { Circle().fill(SnoopStyle.load).frame(width: 5, height: 5) }
+                    if showAverage { Circle().fill(ZoopStyle.load).frame(width: 5, height: 5) }
                     Text(showAverage ? "Weight" : "Recorded weigh-ins")
                     if showAverage {
-                        Rectangle().fill(SnoopStyle.sleep).frame(width: 12, height: 2)
+                        Rectangle().fill(ZoopStyle.sleep).frame(width: 12, height: 2)
                         Text("7-day average")
                     }
-                }.font(.caption).foregroundStyle(SnoopStyle.secondary)
+                }.font(.caption).foregroundStyle(ZoopStyle.secondary)
                 Spacer(minLength: 4)
                 Button("Latest") { anchor = now; selectedID = nil }
                     .font(.caption.weight(.medium)).frame(minHeight: 44)
@@ -116,7 +116,7 @@ struct WeightTrendChart: View {
     }
     private var headlineLabel: some View {
         Text(selected != nil ? "Selected weigh-in" : range == latestRange ? "Latest weigh-in" : "Last in this period")
-            .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("weightChartHeadline")
+            .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("weightChartHeadline")
     }
     @ViewBuilder private var logButton: some View {
         if WeightReading.preferred(readings, on: now, calendar: calendar) == nil {
@@ -134,40 +134,40 @@ struct WeightTrendChart: View {
         Chart {
             if let target, let segment = targetSegment {
                 RuleMark(xStart: .value("Cut start", segment.start), xEnd: .value("Cut finish", segment.end), y: .value("Target weight", display(target.kg)))
-                    .foregroundStyle(SnoopStyle.secondary)
+                    .foregroundStyle(ZoopStyle.secondary)
                     .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [1, 4]))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text(targetLabel).font(.caption2).foregroundStyle(SnoopStyle.secondary).padding(.horizontal, 3).background(SnoopStyle.background)
+                        Text(targetLabel).font(.caption2).foregroundStyle(ZoopStyle.secondary).padding(.horizontal, 3).background(ZoopStyle.background)
                             .accessibilityIdentifier("weightChartTarget")
                     }
             }
             ForEach(visible) { point in
                 LineMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg)), series: .value("Series", "weight-\(point.segment)"))
-                    .foregroundStyle(SnoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg))).foregroundStyle(SnoopStyle.load).symbolSize(period == .week || period == .month ? 24 : 10)
+                    .foregroundStyle(ZoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(period == .week || period == .month ? 24 : 10)
             }
             if showAverage {
                 ForEach(averages.filter { $0.date >= range.start && $0.date < range.end }) { point in
                     LineMark(x: .value("Date", point.date), y: .value("7-day average", display(point.average)), series: .value("Series", "average-\(point.segment)"))
-                        .foregroundStyle(SnoopStyle.sleep).lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                        .foregroundStyle(ZoopStyle.sleep).lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
                 }
             }
             if let selected {
-                RuleMark(x: .value("Selected", selected.date)).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
-                PointMark(x: .value("Date", selected.date), y: .value("Weight", display(selected.kg))).foregroundStyle(SnoopStyle.load).symbolSize(80)
+                RuleMark(x: .value("Selected", selected.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
+                PointMark(x: .value("Date", selected.date), y: .value("Weight", display(selected.kg))).foregroundStyle(ZoopStyle.load).symbolSize(80)
             }
         }.chartXScale(domain: range.start...range.end).chartYScale(domain: scale.range).chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: ticks) { mark in
                 AxisValueLabel(anchor: mark.index == 0 ? .topLeading : mark.index == ticks.count - 1 ? .topTrailing : .top) {
-                    if let date = mark.as(Date.self) { Text(date, format: period == .week ? .dateTime.weekday(.narrow) : .dateTime.day().month(.abbreviated)).foregroundStyle(SnoopStyle.secondary) }
+                    if let date = mark.as(Date.self) { Text(date, format: period == .week ? .dateTime.weekday(.narrow) : .dateTime.day().month(.abbreviated)).foregroundStyle(ZoopStyle.secondary) }
                 }
             }
         }
         .chartYAxis {
             AxisMarks(position: .trailing, values: scale.ticks) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(SnoopStyle.separator)
-                AxisValueLabel(format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))).foregroundStyle(SnoopStyle.secondary)
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(ZoopStyle.separator)
+                AxisValueLabel(format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .chartOverlay { proxy in

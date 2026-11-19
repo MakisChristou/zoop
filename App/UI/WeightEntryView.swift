@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightEntryView: View {
     @Environment(AppModel.self) private var model
@@ -37,10 +37,10 @@ struct WeightEntryView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
                             MetricValue(display(row.kg), unit: unit, size: 52)
-                            Text(row.measuredAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(SnoopStyle.secondary)
-                            Text(row.sourceName).font(.headline)
-                            Text("Edit this measurement in Apple Health.").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                        }.padding(SnoopStyle.gutter).frame(maxWidth: .infinity, alignment: .leading)
+                            Text(row.measuredAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ZoopStyle.secondary)
+                            Text(row.displaySourceName).font(.headline)
+                            Text("Edit this measurement in Apple Health.").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                        }.padding(ZoopStyle.gutter).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else {
                     ScrollView {
@@ -62,8 +62,8 @@ struct WeightEntryView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Button { focused = false; choosingDate.toggle() } label: {
                                     ViewThatFits(in: .horizontal) {
-                                        HStack { Text("Measured").foregroundStyle(SnoopStyle.secondary); Spacer(); measuredLabel }
-                                        VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(SnoopStyle.secondary); measuredLabel }
+                                        HStack { Text("Measured").foregroundStyle(ZoopStyle.secondary); Spacer(); measuredLabel }
+                                        VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(ZoopStyle.secondary); measuredLabel }
                                     }.font(.subheadline).frame(minHeight: 44).contentShape(Rectangle())
                                 }.buttonStyle(.plain).accessibilityIdentifier("weightMeasuredDate")
                                 if choosingDate {
@@ -71,8 +71,8 @@ struct WeightEntryView: View {
                                         .labelsHidden().accessibilityLabel("Measurement date and time")
                                 }
                             }.padding(.top, 4)
-                            if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
-                        }.padding(.horizontal, SnoopStyle.gutter).padding(.bottom, 20)
+                            if let error { Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
+                        }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 20)
                     }
                     .safeAreaInset(edge: .bottom) {
                         Button(action: save) {
@@ -80,11 +80,11 @@ struct WeightEntryView: View {
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                         }.buttonStyle(.borderedProminent).disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
-                            .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+                            .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)
                     }
                 }
             }
-            .snoopScreen().tint(SnoopStyle.load)
+            .zoopScreen().tint(ZoopStyle.load)
             .navigationTitle(entry?.source == "health" ? "Weight" : entry == nil ? "Today’s weigh-in" : "Edit weight").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(entry?.source == "health" ? "Done" : "Cancel") { dismiss() }.disabled(saving) } }
             .interactiveDismissDisabled(saving)
@@ -109,7 +109,7 @@ struct WeightEntryView: View {
         HStack(spacing: 5) {
             Text(Calendar.current.isDateInToday(measuredAt) ? "Today, \(measuredAt.formatted(date: .omitted, time: .shortened))" : measuredAt.formatted(date: .abbreviated, time: .shortened))
             Image(systemName: "chevron.down").font(.caption)
-        }.foregroundStyle(SnoopStyle.load)
+        }.foregroundStyle(ZoopStyle.load)
     }
     private func display(_ kg: Double) -> String { (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) }
     private func save() {

@@ -13,7 +13,7 @@ struct SleepMetricDelta {
         case asleep, efficiency, awake, restingHR, hrv, breathing, oxygen, temperature, disturbances
         case rem, deep, light
 
-        func value(_ sleep: SnoopAPI.SleepSession.Payload) -> Double? {
+        func value(_ sleep: ZoopAPI.SleepSession.Payload) -> Double? {
             let value: Double?
             switch self {
             case .asleep: value = Double(sleep.window.asleepS)
@@ -50,12 +50,12 @@ struct SleepMetricDelta {
         }
     }
 
-    static func nightly(_ metric: Metric, record: SnoopAPI.SleepSession, history: [SnoopAPI.SleepSession], calendar: Calendar) -> Self? {
+    static func nightly(_ metric: Metric, record: ZoopAPI.SleepSession, history: [ZoopAPI.SleepSession], calendar: Calendar) -> Self? {
         all(record: record, history: history, calendar: calendar)[metric]
     }
 
     /// Dedupe and quality-filter history once, then calculate all badges together.
-    static func all(record: SnoopAPI.SleepSession, history: [SnoopAPI.SleepSession], calendar: Calendar) -> [Metric: Self] {
+    static func all(record: ZoopAPI.SleepSession, history: [ZoopAPI.SleepSession], calendar: Calendar) -> [Metric: Self] {
         guard eligible(record), let sleep = record.sleep else { return [:] }
         let end = calendar.startOfDay(for: record.endTs)
         guard let from = calendar.date(byAdding: .day, value: -lookbackDays, to: end) else { return [:] }
@@ -64,7 +64,7 @@ struct SleepMetricDelta {
             return row.id != record.id && row.kind == "main" && day >= from && day < end
         }
         // Select revisions before checking quality; never revive stale valid data.
-        let nights = Dictionary(grouping: prior) { calendar.startOfDay(for: $0.endTs) }.values.compactMap { rows -> SnoopAPI.SleepSession.Payload? in
+        let nights = Dictionary(grouping: prior) { calendar.startOfDay(for: $0.endTs) }.values.compactMap { rows -> ZoopAPI.SleepSession.Payload? in
             guard let latest = rows.max(by: { $0.revision == $1.revision ? $0.id < $1.id : $0.revision < $1.revision }),
                   eligible(latest) else { return nil }
             return latest.sleep
@@ -95,7 +95,7 @@ struct SleepMetricDelta {
         return result
     }
 
-    private static func eligible(_ record: SnoopAPI.SleepSession) -> Bool {
+    private static func eligible(_ record: ZoopAPI.SleepSession) -> Bool {
         guard record.isActive, !record.metricsPending, record.kind == "main", record.durationS > 0,
               let sleep = record.sleep, sleep.window.coverageS > 0 else { return false }
         return max(record.durationS - sleep.window.coverageS, sleep.unknownS ?? 0) <= maximumUnknownSeconds

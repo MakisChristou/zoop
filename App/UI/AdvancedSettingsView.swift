@@ -8,10 +8,10 @@ struct AdvancedSettingsView: View {
                 NavigationLink { AnalysisResetView() } label: { Label("Reset to automatic", systemImage: "arrow.counterclockwise") }
                 NavigationLink { DiagnosticsView() } label: { Label("Diagnostics", systemImage: "waveform.path.ecg.rectangle") }
             }
-            .listRowBackground(SnoopStyle.surface)
+            .listRowBackground(ZoopStyle.surface)
         }
         .scrollContentBackground(.hidden)
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Advanced")
         .navigationBarTitleDisplayMode(.inline)
     }

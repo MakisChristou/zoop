@@ -1,6 +1,6 @@
 import Charts
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 /// The same footprint for the next action and its completed state.
 struct WeightCheckIn: View {
@@ -23,11 +23,11 @@ struct WeightCheckIn: View {
                         if let today = summary.today {
                             Text("\(display(today.kg)) \(unit)").font(.title3.weight(.semibold)).monospacedDigit()
                             Label(today.source == "health" ? "Added from Apple Health" : "You’re all set for today", systemImage: "checkmark")
-                                .font(.caption).foregroundStyle(SnoopStyle.favourable)
+                                .font(.caption).foregroundStyle(ZoopStyle.favourable)
                         } else {
                             Text("Morning check-in").font(.subheadline.weight(.semibold))
                             Text(summary.latest.map { "\(display($0.kg)) \(unit) · \(dateLabel($0.measuredAt))" } ?? "Log your first weight")
-                                .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                                .font(.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                     }.frame(maxWidth: .infinity, minHeight: 50, alignment: .leading).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("todayWeight").accessibilityHint("Opens your weight chart and history")
@@ -39,15 +39,15 @@ struct WeightCheckIn: View {
                     NavigationLink { WeightView() } label: {
                         Chart(points) { point in
                             LineMark(x: .value("Date", point.date), y: .value("Weight", point.kg), series: .value("Segment", point.segment))
-                                .foregroundStyle(SnoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2))
+                                .foregroundStyle(ZoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2))
                         }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis(.hidden).chartYAxis(.hidden)
                             .frame(width: 100, height: 44).accessibilityHidden(true)
                     }.buttonStyle(.plain).accessibilityLabel("View weight chart")
                 }
             }
             WeightWeekView(summary: summary, showsCount: false)
-        }.snoopCard()
-        .tint(SnoopStyle.load)
+        }.zoopCard()
+        .tint(ZoopStyle.load)
         .sheet(isPresented: $adding) { WeightEntryView() }
         .onChange(of: model.health.rows, initial: true) { _, _ in prepare() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { prepare() } }

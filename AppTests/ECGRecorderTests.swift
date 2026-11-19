@@ -1,7 +1,7 @@
 import XCTest
-import SnoopECG
-import SnoopProtocol
-@testable import Snoop
+import ZoopECG
+import ZoopProtocol
+@testable import Zoop
 
 @MainActor private final class ECGTestTransport: ECGTransport {
     var ecgDevice: ECGDevice? = .init(serial: "TEST-MG", firmware: "test", isMG: true)

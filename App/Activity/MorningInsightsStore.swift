@@ -33,7 +33,7 @@ import Observation
         static let settled: Duration = .seconds(300)
     }
 
-    init(fetch: @escaping (String, Date) async throws -> MorningInsights = { try await SnoopAPI.morningInsights(deviceId: $0, day: $1) },
+    init(fetch: @escaping (String, Date) async throws -> MorningInsights = { try await ZoopAPI.morningInsights(deviceId: $0, day: $1) },
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.fetch = fetch; self.sleep = sleep
     }

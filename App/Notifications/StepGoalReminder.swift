@@ -18,7 +18,7 @@ import UserNotifications
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: () -> Calendar
     @ObservationIgnored private let loader: Loader
-    @ObservationIgnored private var goal: SnoopAPI.WeightGoal?
+    @ObservationIgnored private var goal: ZoopAPI.WeightGoal?
     @ObservationIgnored private var scope: String?
     @ObservationIgnored private var device = ""
     @ObservationIgnored private var connection = ""
@@ -39,15 +39,15 @@ import UserNotifications
         receipts = defaults.data(forKey: "reminders.stepsReceipts").flatMap { try? JSONDecoder().decode([String: Date].self, from: $0) } ?? [:]
     }
     nonisolated private static func load(_ device: String, _ date: Date) async throws -> Snapshot? {
-        let data = try await SnoopAPI.steps(deviceId: device, day: date)
+        let data = try await ZoopAPI.steps(deviceId: device, day: date)
         // A zero-filled response alone cannot distinguish a quiet day from no sensor data.
         if data.walking == 0 && data.total == 0 {
-            let days = try await SnoopAPI.days(deviceId: device, limit: 2)
+            let days = try await ZoopAPI.days(deviceId: device, limit: 2)
             guard days.contains(where: { $0.day == data.day }) else { return nil }
         }
         return .init(day: data.day, steps: data.walking)
     }
-    func activate(goal: SnoopAPI.WeightGoal?, device: String, scope: String?) {
+    func activate(goal: ZoopAPI.WeightGoal?, device: String, scope: String?) {
         if self.scope != scope || self.device != device || connection != Settings.connectionID {
             fetch?.cancel(); fetch = nil; request = UUID(); lastFetch = nil; snapshot = nil
             self.scope = scope; self.device = device; connection = Settings.connectionID
@@ -80,7 +80,7 @@ import UserNotifications
         }
     }
     /// Reuse a successfully scoped current-day response already fetched by a visible screen.
-    func receive(_ data: SnoopAPI.StepsDay, scope: String?) {
+    func receive(_ data: ZoopAPI.StepsDay, scope: String?) {
         guard scope != nil, scope == self.scope, data.walking > 0 || data.total > 0 else { return }
         let now = clock()
         guard data.day == CutPlan.key(now, calendar: calendar()), data.walking >= 0 else { return }

@@ -1,6 +1,6 @@
 import XCTest
-import SnoopData
-@testable import Snoop
+import ZoopData
+@testable import Zoop
 
 final class CalendarTrendTests: XCTestCase {
     private var calendar: Calendar {

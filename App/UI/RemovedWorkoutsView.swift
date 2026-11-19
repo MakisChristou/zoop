@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RemovedWorkoutsView: View {
     @Environment(AppModel.self) private var model
-    @State private var rows: [SnoopAPI.Workout] = []
+    @State private var rows: [ZoopAPI.Workout] = []
     @State private var loading = true
     @State private var restoring: Int64?
     @State private var error: String?
@@ -10,12 +10,12 @@ struct RemovedWorkoutsView: View {
     var body: some View {
         List {
             if loading { ProgressView("Loading workouts") }
-            if !loading && rows.isEmpty { Text("No removed workouts").foregroundStyle(SnoopStyle.secondary) }
+            if !loading && rows.isEmpty { Text("No removed workouts").foregroundStyle(ZoopStyle.secondary) }
             ForEach(rows) { workout in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(ActivityKind.named(workout.kind).name).font(.headline)
                     Text(workout.startTs.formatted(date: .abbreviated, time: .shortened))
-                        .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                        .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                     if let id = workout.lastEdit {
                         Button("Restore workout") {
                             Task {
@@ -30,7 +30,7 @@ struct RemovedWorkoutsView: View {
             }
             if let error { Text(error).foregroundStyle(.red) }
         }
-        .scrollContentBackground(.hidden).snoopScreen()
+        .scrollContentBackground(.hidden).zoopScreen()
         .navigationTitle("Removed workouts").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .task { await load() }
@@ -39,7 +39,7 @@ struct RemovedWorkoutsView: View {
 
     private func load() async {
         defer { loading = false }
-        do { rows = try await SnoopAPI.workouts(deviceId: model.strap.serial, limit: 500, status: "removed"); error = nil }
+        do { rows = try await ZoopAPI.workouts(deviceId: model.strap.serial, limit: 500, status: "removed"); error = nil }
         catch { self.error = error.localizedDescription }
     }
 }

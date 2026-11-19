@@ -4,10 +4,10 @@ import SwiftUI
 enum InsightTone {
     static func color(_ signal: String?) -> Color {
         switch signal {
-        case "good", "favourable": SnoopStyle.favourable
-        case "average", "mixed", "usual": SnoopStyle.typical
-        case "low", "unfavourable": SnoopStyle.unfavourable
-        default: SnoopStyle.secondary
+        case "good", "favourable": ZoopStyle.favourable
+        case "average", "mixed", "usual": ZoopStyle.typical
+        case "low", "unfavourable": ZoopStyle.unfavourable
+        default: ZoopStyle.secondary
         }
     }
 }

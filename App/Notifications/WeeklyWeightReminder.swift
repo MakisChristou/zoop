@@ -7,13 +7,13 @@ import UserNotifications
 @MainActor @Observable final class WeeklyWeightReminder {
     private let now: () -> Date
     private let center: ReminderNotificationClient
-    private var input: (SnoopAPI.WeightGoal?, String?) = (nil, nil)
+    private var input: (ZoopAPI.WeightGoal?, String?) = (nil, nil)
     private var revision = 0
     private var worker: Task<Void, Never>?
     private static let prefix = "snoop.weekly-weight."
     private(set) var error: String?
     init(center: ReminderNotificationClient = .live, now: @escaping () -> Date = Date.init) { self.center = center; self.now = now }
-    func update(goal: SnoopAPI.WeightGoal?, scope: String?) {
+    func update(goal: ZoopAPI.WeightGoal?, scope: String?) {
         input = (goal, scope); revision &+= 1
         guard worker == nil else { return }
         worker = Task { [weak self] in

@@ -1,7 +1,7 @@
 import Foundation
-import SnoopData
+import ZoopData
 
-extension SnoopAPI {
+extension ZoopAPI {
     struct SleepSession: Decodable, Identifiable, Hashable, Sendable {
         struct Payload: Decodable, Sendable {
             let window: Night.Window
@@ -88,5 +88,5 @@ extension SnoopAPI {
 }
 
 extension WorkoutCorrection.Target {
-    init(_ sleep: SnoopAPI.SleepSession) { id = sleep.id; revision = sleep.revision }
+    init(_ sleep: ZoopAPI.SleepSession) { id = sleep.id; revision = sleep.revision }
 }

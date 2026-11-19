@@ -16,7 +16,7 @@ struct SleepNotice: View {
                     Button { model.sleep.dismissNotice(); error = nil } label: { Image(systemName: "xmark").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel("Dismiss message")
                 }
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            }.padding(.horizontal, SnoopStyle.gutter).background(SnoopStyle.surface)
+            }.padding(.horizontal, ZoopStyle.gutter).background(ZoopStyle.surface)
         }
     }
 }

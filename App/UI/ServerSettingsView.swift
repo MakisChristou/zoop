@@ -12,7 +12,7 @@ struct ServerSettingsView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Server URL", text: $serverURL, prompt: Text("https://snoop.example.net"))
+                TextField("Server URL", text: $serverURL, prompt: Text("https://zoop.example.net"))
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -23,12 +23,12 @@ struct ServerSettingsView: View {
                     HStack {
                         Label("Test connection", systemImage: "network")
                         Spacer()
-                        if testing { ProgressView() } else if let testResult { Text(testResult).foregroundStyle(SnoopStyle.secondary) }
+                        if testing { ProgressView() } else if let testResult { Text(testResult).foregroundStyle(ZoopStyle.secondary) }
                     }
                 }
                 .disabled(testing || serverURL.isEmpty)
             } header: {
-                Text("snoop-api")
+                Text("Zoop API")
             } footer: {
                 Text("Recordings stay on this iPhone until a server is configured.")
             }
@@ -39,7 +39,7 @@ struct ServerSettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Server connection")
         .navigationBarTitleDisplayMode(.inline)
     }

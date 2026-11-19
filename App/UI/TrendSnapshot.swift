@@ -1,10 +1,10 @@
 import Foundation
-import SnoopData
+import ZoopData
 
 /// Every available calendar page is prepared off the UI executor on refresh.
 struct TrendSnapshot: Sendable {
-    let nights: [SnoopAPI.Night]
-    let days: [SnoopAPI.Day]
+    let nights: [ZoopAPI.Night]
+    let days: [ZoopAPI.Day]
     let sleepByDay: [Date: Double]
     let calendar: Calendar
     let now: Date
@@ -15,7 +15,7 @@ struct TrendSnapshot: Sendable {
 
     init() { self.init(nights: [], days: [], now: .now, calendar: .current) }
 
-    init(nights: [SnoopAPI.Night], days: [SnoopAPI.Day], now: Date, calendar: Calendar) {
+    init(nights: [ZoopAPI.Night], days: [ZoopAPI.Day], now: Date, calendar: Calendar) {
         self.nights = nights; self.days = days; self.calendar = calendar; self.now = now
         var values: [TrendMetric: [TrendPoint]] = [:]
         values[.steps] = days.compactMap { day in

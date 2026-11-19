@@ -1,7 +1,7 @@
 import XCTest
-import SnoopHealth
+import ZoopHealth
 import UserNotifications
-@testable import Snoop
+@testable import Zoop
 
 @MainActor final class CutPlanTests: XCTestCase {
     func testProjectionUsesLocalCalendarDaysAcrossDSTAndUnitsStayKilograms() throws {
@@ -19,7 +19,7 @@ import UserNotifications
         XCTAssertEqual(CutPlan.baseline(rows, start: start, calendar: calendar, now: start), 71)
     }
     func testClearingFinishDateEncodesExplicitNullForCompatibility() throws {
-        let input = SnoopAPI.WeightGoalInput(revision: 1, active: true, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200)
+        let input = ZoopAPI.WeightGoalInput(revision: 1, active: true, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: false, reminderWeekday: 1, reminderMinute: 1200)
         let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(input)) as? [String: Any])
         XCTAssertTrue(json["finish_date"] is NSNull)
@@ -30,7 +30,7 @@ import UserNotifications
         var requests: [String: UNNotificationRequest] = [:]
         let center = ReminderNotificationClient(authorization: { .authorized }, pending: { Array(requests.values) }, delivered: { [] }, add: { requests[$0.identifier] = $0 }, removePending: { ids in ids.forEach { requests.removeValue(forKey: $0) } }, removeDelivered: { _ in })
         let reminder = WeeklyWeightReminder(center: center, now: { now })
-        var goal = SnoopAPI.WeightGoal(revision: 1, active: true, startedAt: now, paceStartedAt: now, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: true, reminderWeekday: 1, reminderMinute: 1200, updatedAt: now)
+        var goal = ZoopAPI.WeightGoal(revision: 1, active: true, startedAt: now, paceStartedAt: now, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: true, reminderWeekday: 1, reminderMinute: 1200, updatedAt: now)
         goal.finishDate = "2026-11-29"
         reminder.update(goal: goal, scope: "test"); await reminder.settled()
         XCTAssertEqual(requests.count, 2)

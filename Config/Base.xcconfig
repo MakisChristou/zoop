@@ -1,0 +1,4 @@
+// Keep existing signing identities when upgrading from Snoop.
+ZOOP_TEAM_ID = $(SNOOP_TEAM_ID)
+ZOOP_BUNDLE_ID = $(SNOOP_BUNDLE_ID)
+#include? "Local.xcconfig"

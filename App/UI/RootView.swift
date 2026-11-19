@@ -9,7 +9,7 @@ struct RootView: View {
     @State private var showECG = false
     @State private var showSteps = false
     @State private var selection = Tab.today
-    @State private var selectedNight: SnoopAPI.Night?
+    @State private var selectedNight: ZoopAPI.Night?
     @State private var selectedActivityDay: Date?
     @State private var activityRequest = UUID()
     @State private var sleepRequest = UUID()
@@ -36,9 +36,9 @@ struct RootView: View {
                 .tabItem { Label("Goals", systemImage: "target") }
                 .tag(Tab.goals)
         }
-        .tint(SnoopStyle.load)
-        .foregroundStyle(SnoopStyle.text)
-        .toolbarBackground(SnoopStyle.surface, for: .tabBar)
+        .tint(ZoopStyle.load)
+        .foregroundStyle(ZoopStyle.text)
+        .toolbarBackground(ZoopStyle.surface, for: .tabBar)
         .task {
             #if targetEnvironment(simulator)
             if UserDefaults.standard.string(forKey: "demoScreen") != nil { return }

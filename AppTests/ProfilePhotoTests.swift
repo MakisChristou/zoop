@@ -2,7 +2,7 @@ import XCTest
 import UIKit
 import ImageIO
 import UniformTypeIdentifiers
-@testable import Snoop
+@testable import Zoop
 
 @MainActor final class ProfilePhotoTests: XCTestCase {
     private func image(_ color: UIColor = .blue, size: CGSize = .init(width: 32, height: 16)) -> Data {

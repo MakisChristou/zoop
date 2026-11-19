@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightOptionsView: View {
     @Environment(AppModel.self) private var model
@@ -31,13 +31,13 @@ struct WeightOptionsView: View {
                             .accessibilityHint("All saved weigh-ins, in kilograms.")
                     } else {
                         Label("Export CSV", systemImage: "square.and.arrow.up")
-                            .foregroundStyle(SnoopStyle.secondary)
+                            .foregroundStyle(ZoopStyle.secondary)
                             .accessibilityIdentifier("exportWeightCSVUnavailable")
                     }
-                    if let exportError { Text(exportError).foregroundStyle(SnoopStyle.unfavourable) }
+                    if let exportError { Text(exportError).foregroundStyle(ZoopStyle.unfavourable) }
                 }
             }
-            .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
+            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
             .navigationTitle("Weight options").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented: $importing) { WeightImportView() }
@@ -50,7 +50,7 @@ struct WeightOptionsView: View {
                     do {
                         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("WeightExport-" + UUID().uuidString, isDirectory: true)
                         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                        let url = folder.appendingPathComponent("Snoop-weight.csv")
+                        let url = folder.appendingPathComponent("Zoop-weight.csv")
                         try WeightCSV.encode(rows, timeZone: timeZone).write(to: url, atomically: true, encoding: .utf8)
                         return (url, nil)
                     } catch { return (nil, "Couldn’t prepare CSV. Reopen this page to retry.") }

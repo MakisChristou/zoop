@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Load a full session only after opening a compact trend summary.
 struct TrendSleepDetailView: View {
-    let summary: SnoopAPI.Night
+    let summary: ZoopAPI.Night
     @Environment(AppModel.self) private var model
-    @State private var session: SnoopAPI.SleepSession?
+    @State private var session: ZoopAPI.SleepSession?
     @State private var error: String?
     @State private var requestID = UUID()
     @State private var loadedScope: String?
@@ -24,7 +24,7 @@ struct TrendSleepDetailView: View {
                 ProgressView("Loading sleep").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Sleep details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -35,7 +35,7 @@ struct TrendSleepDetailView: View {
         requestID = request
         session = nil; error = nil; loadedScope = nil
         do {
-            let rows = try await SnoopAPI.sleepSessions(deviceId: serial, from: summary.startTs, to: summary.endTs.addingTimeInterval(1))
+            let rows = try await ZoopAPI.sleepSessions(deviceId: serial, from: summary.startTs, to: summary.endTs.addingTimeInterval(1))
             guard !Task.isCancelled, scope == source, requestID == request else { return }
             guard let match = Self.match(summary, in: rows) else {
                 error = "This sleep has changed. Go back and refresh Trends."; return
@@ -48,7 +48,7 @@ struct TrendSleepDetailView: View {
         }
     }
     /// Exact windows win; a corrected main sleep may shift, but never substitute a nap.
-    static func match(_ night: SnoopAPI.Night, in rows: [SnoopAPI.SleepSession]) -> SnoopAPI.SleepSession? {
+    static func match(_ night: ZoopAPI.Night, in rows: [ZoopAPI.SleepSession]) -> ZoopAPI.SleepSession? {
         let main = rows.filter { $0.isActive && $0.kind == "main" }
         if let exact = main.first(where: { $0.startTs == night.startTs && $0.endTs == night.endTs }) { return exact }
         return main.filter { row in

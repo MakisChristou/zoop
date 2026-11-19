@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightGoalSetupView: View {
     @Environment(AppModel.self) private var model
@@ -19,14 +19,14 @@ struct WeightGoalSetupView: View {
     @State private var stepGoal = "8000"
     @State private var hasFinish = false
     @State private var finish = Date()
-    @State private var original: SnoopAPI.WeightGoal?
+    @State private var original: ZoopAPI.WeightGoal?
     @State private var initialized = false
     @State private var error: String?
     @State private var confirmPause = false
     @FocusState private var typing: Bool
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 58.0
     var onSaved: () -> Void = {}
-    private var existing: SnoopAPI.WeightGoal? { original }
+    private var existing: ZoopAPI.WeightGoal? { original }
     private var editing: Bool { existing?.active == true }
     private var factor: Double { unit == "lb" ? 2.2046226218 : 1 }
     private var rate: Double? {
@@ -73,10 +73,10 @@ struct WeightGoalSetupView: View {
                             TextField("Weekly loss", text: $value).keyboardType(.decimalPad).focused($typing)
                                 .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit().multilineTextAlignment(.center)
                                 .frame(maxWidth: 180).accessibilityLabel("Weekly loss").accessibilityIdentifier("weeklyLossInput")
-                            Text("\(unit) / week").font(.body).foregroundStyle(SnoopStyle.secondary)
+                            Text("\(unit) / week").font(.body).foregroundStyle(ZoopStyle.secondary)
                         }
                         if let rate, let weight = model.health.lastWeight?.kg, weight > 0, rate / weight > 0.01 {
-                            Text("Fast pace · over 1% per week").font(.subheadline).foregroundStyle(SnoopStyle.typical)
+                            Text("Fast pace · over 1% per week").font(.subheadline).foregroundStyle(ZoopStyle.typical)
                         }
                         MeasurementRuler(value: ruler, range: (unit == "lb" ? 0.3...2.2 : 0.1...1.0), step: 0.1, unit: "\(unit) per week", label: "Weekly loss ruler", majorTickEvery: 4, onEditing: { typing = false })
                             .accessibilityIdentifier("weeklyLossRuler")
@@ -89,18 +89,18 @@ struct WeightGoalSetupView: View {
                         NavigationLink { stepsEditor } label: {
                             goalRow("Daily steps", value: hasStepGoal ? parsedSteps.map { $0.formatted() } ?? "Set goal" : "Off")
                         }.accessibilityIdentifier("editCutSteps")
-                    }.buttonStyle(.plain).snoopCard()
+                    }.buttonStyle(.plain).zoopCard()
                     NavigationLink { reminderEditor } label: {
                         goalRow("Reminders", value: nil)
-                    }.buttonStyle(.plain).snoopCard().accessibilityIdentifier("editCutReminders")
-                    if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
-                    if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
-                    if !validFinish { Text("Choose a finish date after the start date.").font(.footnote).foregroundStyle(SnoopStyle.unfavourable) }
-                    if let error { Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
+                    }.buttonStyle(.plain).zoopCard().accessibilityIdentifier("editCutReminders")
+                    if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if !validFinish { Text("Choose a finish date after the start date.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if let error { Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
                     if editing {
                         Button("Pause cut", role: .destructive) { confirmPause = true }.font(.subheadline).frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
                     }
-                }.padding(SnoopStyle.gutter)
+                }.padding(ZoopStyle.gutter)
             }
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
@@ -108,9 +108,9 @@ struct WeightGoalSetupView: View {
                     HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save" : "Start cut").font(.headline) }
                         .frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving)
-                    .accessibilityIdentifier("saveWeightGoal").padding(SnoopStyle.gutter).background(SnoopStyle.background)
+                    .accessibilityIdentifier("saveWeightGoal").padding(ZoopStyle.gutter).background(ZoopStyle.background)
             }
-            .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).snoopScreen().tint(SnoopStyle.load)
+            .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.load)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(model.weeklyWeight.saving) } }
             .interactiveDismissDisabled(model.weeklyWeight.saving)
             .confirmationDialog("Pause your cut?", isPresented: $confirmPause, titleVisibility: .visible) {
@@ -134,10 +134,10 @@ struct WeightGoalSetupView: View {
     private func goalRow(_ title: String, value: String?) -> some View {
         HStack(spacing: 12) {
             ViewThatFits(in: .horizontal) {
-                HStack { Text(title); Spacer(minLength: 12); if let value { Text(value).foregroundStyle(SnoopStyle.secondary).monospacedDigit() } }
-                VStack(alignment: .leading, spacing: 4) { Text(title); if let value { Text(value).foregroundStyle(SnoopStyle.secondary).monospacedDigit() } }
+                HStack { Text(title); Spacer(minLength: 12); if let value { Text(value).foregroundStyle(ZoopStyle.secondary).monospacedDigit() } }
+                VStack(alignment: .leading, spacing: 4) { Text(title); if let value { Text(value).foregroundStyle(ZoopStyle.secondary).monospacedDigit() } }
             }
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
         }.frame(minHeight: 44).padding(.vertical, 4).contentShape(Rectangle())
     }
     private var finishLabel: String {
@@ -152,14 +152,14 @@ struct WeightGoalSetupView: View {
                     DatePicker("Finish", selection: $finish, in: finishRange, displayedComponents: .date)
                         .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone).accessibilityIdentifier("cutFinishDate")
                 }
-            }.listRowBackground(SnoopStyle.surface)
+            }.listRowBackground(ZoopStyle.surface)
             if hasFinish {
                 Section {
                     LabeledContent("Target weight", value: WeeklyWeightPresentation.weight(targetWeight, unit: unit) + (targetWeight == nil ? "" : " " + unit))
                         .monospacedDigit().accessibilityIdentifier("cutTargetWeight")
-                }.listRowBackground(SnoopStyle.surface)
+                }.listRowBackground(ZoopStyle.surface)
             }
-        }.scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Finish date").navigationBarTitleDisplayMode(.inline)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Finish date").navigationBarTitleDisplayMode(.inline)
     }
     private var stepsEditor: some View {
         Form {
@@ -171,8 +171,8 @@ struct WeightGoalSetupView: View {
                             .accessibilityLabel("Daily steps goal").accessibilityIdentifier("cutStepsInput")
                     }
                 }
-            }.listRowBackground(SnoopStyle.surface)
-        }.scrollDismissesKeyboard(.interactively).scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Daily steps").navigationBarTitleDisplayMode(.inline)
+            }.listRowBackground(ZoopStyle.surface)
+        }.scrollDismissesKeyboard(.interactively).scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Daily steps").navigationBarTitleDisplayMode(.inline)
     }
     private var reminderEditor: some View {
         Form {
@@ -182,7 +182,7 @@ struct WeightGoalSetupView: View {
                     if stepsReminder {
                         reminderTime("Time", selection: stepsTime, identifier: "cutStepsReminderTime")
                     }
-                }.listRowBackground(SnoopStyle.surface)
+                }.listRowBackground(ZoopStyle.surface)
             }
             Section {
                 Toggle("Weekly outlook", isOn: $reminder).accessibilityIdentifier("weeklyWeightReminder")
@@ -192,8 +192,8 @@ struct WeightGoalSetupView: View {
                     }.accessibilityIdentifier("weeklyWeightDay")
                     reminderTime("Time", selection: time, identifier: "weeklyWeightTime")
                 }
-            }.listRowBackground(SnoopStyle.surface)
-        }.scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load).navigationTitle("Reminders").navigationBarTitleDisplayMode(.inline)
+            }.listRowBackground(ZoopStyle.surface)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Reminders").navigationBarTitleDisplayMode(.inline)
     }
     @ViewBuilder private func reminderTime(_ title: String, selection: Binding<Date>, identifier: String) -> some View {
         if typeSize.isAccessibilitySize {
@@ -207,7 +207,7 @@ struct WeightGoalSetupView: View {
     }
     private func save(active: Bool) {
         guard let rate else { return }; typing = false; error = nil
-        let input = SnoopAPI.WeightGoalInput(revision: existing?.revision ?? 0, active: active, timezone: existing?.timezone ?? TimeZone.current.identifier,
+        let input = ZoopAPI.WeightGoalInput(revision: existing?.revision ?? 0, active: active, timezone: existing?.timezone ?? TimeZone.current.identifier,
                                            weeklyLossKg: rate, reminderEnabled: reminder, reminderWeekday: weekday, reminderMinute: minute, dailyStepsGoal: hasStepGoal ? parsedSteps : nil, finishDate: hasFinish ? CutPlan.key(finish, calendar: calendar) : nil)
         Task {
             do {

@@ -1,13 +1,13 @@
 import XCTest
-@testable import Snoop
+@testable import Zoop
 
 final class SleepMetricDeltaTests: XCTestCase {
     private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(secondsFromGMT: 0)!; return c }
-    private func row(_ day: String, id: Int64, efficiency: Double? = 0.92, pending: Bool = false, kind: String = "main", status: String = "active", coverage: Int = 28800, temperature: Double? = 32.2, breathing: Double? = 14.5, oxygen: Double? = 98, awake: Int = 1800, revision: Int64 = 1, restingHR: Double? = 52, hrv: Double? = 66, hrvWindows: Int = 40) -> SnoopAPI.SleepSession {
+    private func row(_ day: String, id: Int64, efficiency: Double? = 0.92, pending: Bool = false, kind: String = "main", status: String = "active", coverage: Int = 28800, temperature: Double? = 32.2, breathing: Double? = 14.5, oxygen: Double? = 98, awake: Int = 1800, revision: Int64 = 1, restingHR: Double? = 52, hrv: Double? = 66, hrvWindows: Int = 40) -> ZoopAPI.SleepSession {
         let n = TrendStoreTests.night(day: day), w = n.metrics.window
         return .init(id: id, startTs: n.startTs, endTs: n.endTs, durationS: 28800, kind: kind, edited: false, autoDetected: true, revision: revision, status: status, lastEdit: nil, replacements: [], metricsPending: pending, timezone: "UTC", sleep: .init(window: .init(onset: w.onset, offset: w.offset, timeInBedS: w.timeInBedS, asleepS: w.asleepS, wasoS: awake, efficiency: w.efficiency, coverageS: coverage, disturbances: 1), physiology: .init(restingHr: restingHR, hrvRmssdMs: hrv, hrvWindows: hrvWindows, respiratoryRate: breathing, skinTempC: temperature, spo2Pct: oxygen, spo2Windows: oxygen == nil ? 0 : 10), stages: nil, segments: [], algoVersion: 2, efficiency: efficiency, unknownS: nil, unclassifiedS: nil))
     }
-    private var history: [SnoopAPI.SleepSession] { (0..<7).map { row("2026-10-\(25 + $0)", id: Int64($0 + 1)) } }
+    private var history: [ZoopAPI.SleepSession] { (0..<7).map { row("2026-10-\(25 + $0)", id: Int64($0 + 1)) } }
     func testEfficiencyUsesRelativePercentAndExcludesCurrentNight() {
         let current = row("2026-11-04", id: 20, efficiency: 0.93)
         let result = SleepMetricDelta.nightly(.efficiency, record: current, history: history + [current], calendar: calendar)

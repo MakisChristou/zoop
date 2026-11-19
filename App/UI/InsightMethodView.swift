@@ -27,9 +27,9 @@ struct InsightMethodView: View {
                     Link("Fischer et al. · Measuring sleep regularity", destination: URL(string: "https://pubmed.ncbi.nlm.nih.gov/33864369/")!)
                 }
             }
-            .scrollContentBackground(.hidden).snoopScreen()
+            .scrollContentBackground(.hidden).zoopScreen()
             .navigationTitle("About insights").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }.tint(SnoopStyle.load)
+        }.tint(ZoopStyle.load)
     }
 }

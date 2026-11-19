@@ -11,7 +11,7 @@ struct ProfileAvatar: View {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 Image(systemName: "person").font(.system(size: size * 0.4, weight: .medium))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity).background(SnoopStyle.surface)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).background(ZoopStyle.surface)
             }
         }
         .frame(width: size, height: size).clipShape(Circle())

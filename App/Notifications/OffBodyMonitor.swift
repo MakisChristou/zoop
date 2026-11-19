@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 import OSLog
-import SnoopBattery
+import ZoopBattery
 import UserNotifications
 
 /// Fresh live wear events schedule one reminder per removal episode.

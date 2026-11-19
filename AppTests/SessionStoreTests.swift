@@ -1,6 +1,6 @@
 import XCTest
 import Observation
-@testable import Snoop
+@testable import Zoop
 
 private struct Record: SessionRecord {
     let id: Int64

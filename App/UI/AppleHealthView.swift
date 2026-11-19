@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct AppleHealthView: View {
     @Environment(AppModel.self) private var model
@@ -20,7 +20,7 @@ struct AppleHealthView: View {
                 if connecting { ProgressView("Saving…") }
                 if let last = health.journal.lastSync { LabeledContent("Last synced", value: last.formatted(date: .abbreviated, time: .shortened)) }
                 if let error = health.error {
-                    Text(error).font(.footnote).foregroundStyle(SnoopStyle.unfavourable)
+                    Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable)
                     Button("Retry sync") { health.checkSoon() }.disabled(health.busy)
                 }
             }
@@ -32,7 +32,7 @@ struct AppleHealthView: View {
                 Toggle("Export weight", isOn: savingBinding($exportWeight))
                     .disabled(controlsDisabled)
                 if health.connected && !connecting && ((steps && !health.adapter.canWrite("steps")) || (exportWeight && !health.adapter.canWrite("weight"))) {
-                    Text("Writing is not allowed in Apple Health.").foregroundStyle(SnoopStyle.unfavourable)
+                    Text("Writing is not allowed in Apple Health.").foregroundStyle(ZoopStyle.unfavourable)
                     Button("Review Health permissions") { saveSettings() }
                         .disabled(controlsDisabled)
                 }
@@ -45,12 +45,12 @@ struct AppleHealthView: View {
                 Button("Import weight history") { showWeightImport = true }
                     .accessibilityIdentifier("healthWeightImport")
             } header: { Text("Weight") } footer: {
-                Text("Imported weights sync to your Snoop server. Originals in Health stay unchanged.")
+                Text("Imported weights sync to your Zoop server. Originals in Health stay unchanged.")
             }
             if exportWeight {
                 Section {
-                    Text("Snoop skips dates with another weight it can read. Apple hides read-permission status, so an empty result may mean no access. Weight export can add an overlapping entry.")
-                        .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Text("Zoop skips dates with another weight it can read. Apple hides read-permission status, so an empty result may mean no access. Weight export can add an overlapping entry.")
+                        .font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             Section {
@@ -59,23 +59,23 @@ struct AppleHealthView: View {
                         .disabled(controlsDisabled)
                 }
                 if health.connected {
-                    Button("Export older Snoop history") { showBackfill = true }.disabled(health.busy)
+                    Button("Export older Zoop history") { showBackfill = true }.disabled(health.busy)
                     Button(health.journal.paused ? "Resume syncing" : "Pause syncing") { health.pause(!health.journal.paused) }
                     Button("Disconnect Apple Health") { health.disconnect() }.disabled(health.busy)
-                    Button("Remove Snoop exports", role: .destructive) { confirmRemoval = true }.disabled(health.busy)
+                    Button("Remove Zoop exports", role: .destructive) { confirmRemoval = true }.disabled(health.busy)
                 }
             } footer: { Text("Automatic sharing starts when you connect. Pausing keeps records already in Health.") }
         }
-        .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
+        .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
         .navigationTitle("Apple Health").navigationBarTitleDisplayMode(.inline)
         .onAppear { refreshSettings() }
         .onChange(of: health.connected) { _, _ in refreshSettings() }
         .onChange(of: scenePhase) { _, phase in if phase == .active && !connecting { refreshSettings() } }
         .sheet(isPresented: $showBackfill) { HealthBackfillView() }
         .sheet(isPresented: $showWeightImport) { WeightImportView() }
-        .confirmationDialog("Remove Snoop exports from Health?", isPresented: $confirmRemoval) {
-            Button("Remove Snoop exports", role: .destructive) { Task { await health.removeExports() } }
-        } message: { Text("Removes only exports from this Snoop connection and disconnects Health. Your Snoop history and other apps’ records stay unchanged.") }
+        .confirmationDialog("Remove Zoop exports from Health?", isPresented: $confirmRemoval) {
+            Button("Remove Zoop exports", role: .destructive) { Task { await health.removeExports() } }
+        } message: { Text("Removes only exports from this Zoop connection and disconnects Health. Your Zoop history and other apps’ records stay unchanged.") }
     }
     private var controlsDisabled: Bool { connecting || health.busy || !health.adapter.available }
     private func refreshSettings() {

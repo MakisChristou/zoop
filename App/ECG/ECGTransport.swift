@@ -1,5 +1,5 @@
 import Foundation
-import SnoopProtocol
+import ZoopProtocol
 
 struct ECGDevice: Equatable {
     let serial: String
@@ -18,7 +18,7 @@ enum ECGTransportError: LocalizedError {
         switch self {
         case .disconnected: "WHOOP disconnected. Reconnect before trying again."
         case .busy: "Another ECG command is still finishing."
-        case .storage: "Snoop cannot safely store incoming data. Free some space and try again."
+        case .storage: "Zoop cannot safely store incoming data. Free some space and try again."
         case let .timeout(code): "WHOOP did not acknowledge ECG command \(code)."
         case let .refused(code, result): "WHOOP refused ECG command \(code): \(result)."
         }

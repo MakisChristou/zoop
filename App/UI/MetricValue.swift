@@ -27,6 +27,6 @@ struct MetricValue: View {
     }
 
     @ViewBuilder private var units: some View {
-        if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(SnoopStyle.secondary) }
+        if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(ZoopStyle.secondary) }
     }
 }

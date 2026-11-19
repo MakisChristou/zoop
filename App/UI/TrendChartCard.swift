@@ -1,5 +1,5 @@
 import Charts
-import SnoopData
+import ZoopData
 import SwiftUI
 
 /// Selection stays inside the card; inspecting never rebuilds the history snapshot.
@@ -35,10 +35,10 @@ struct TrendChartCard: View {
                 } label: {
                     Text(insights == nil ? "Comparisons" : "Comparison details")
                         .font(.subheadline).frame(minHeight: 44)
-                }.tint(SnoopStyle.secondary).accessibilityIdentifier("trendComparisons")
+                }.tint(ZoopStyle.secondary).accessibilityIdentifier("trendComparisons")
             }
         }
-        .snoopCard()
+        .zoopCard()
         .onChange(of: metric) { _, _ in selectedDate = nil }
         .onChange(of: interval) { _, _ in selectedDate = nil }
         .onChange(of: series.points) { _, points in
@@ -63,11 +63,11 @@ struct TrendChartCard: View {
                 HStack(spacing: 4) {
                     Text(metric.rawValue)
                     if selected != nil { Image(systemName: "chevron.right").font(.caption2).accessibilityHidden(true) }
-                }.font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                }.font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                 MetricValue(displayed.map { metric.formatted($0.value) } ?? "—", unit: metric.readoutUnit, size: 36)
                     .foregroundStyle(metric.color).accessibilityIdentifier("trendReadingValue")
                 Text(displayed.map { $0.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()) } ?? "No readings")
-                    .font(.caption).foregroundStyle(SnoopStyle.secondary).accessibilityIdentifier("trendReadingDate")
+                    .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("trendReadingDate")
             }
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .accessibilityHidden(selected != nil)
@@ -94,7 +94,7 @@ struct TrendChartCard: View {
                 }
                 if let average = series.average {
                     RuleMark(y: .value("Period average", average))
-                        .foregroundStyle(SnoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                        .foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
                 }
             }
             ForEach(series.points) { point in
@@ -104,7 +104,7 @@ struct TrendChartCard: View {
                     .foregroundStyle(metric.color).symbolSize(range == .week ? 24 : range == .all ? 5 : 12)
             }
             if let selected {
-                RuleMark(x: .value("Selected date", selected.date)).foregroundStyle(SnoopStyle.secondary.opacity(0.6))
+                RuleMark(x: .value("Selected date", selected.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
                 PointMark(x: .value("Date", selected.date), y: .value(metric.rawValue, selected.value))
                     .foregroundStyle(metric.color).symbolSize(65)
             }
@@ -114,14 +114,14 @@ struct TrendChartCard: View {
         .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: range == .week ? 7 : 4)) { value in
-                AxisGridLine().foregroundStyle(SnoopStyle.separator)
+                AxisGridLine().foregroundStyle(ZoopStyle.separator)
                 if let date = value.as(Date.self) {
                     AxisValueLabel { Text(date.formatted(range == .week ? .dateTime.weekday(.narrow) : range == .all ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated))) }
                 }
             }
         }
         .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
-            AxisGridLine().foregroundStyle(SnoopStyle.separator)
+            AxisGridLine().foregroundStyle(ZoopStyle.separator)
             AxisValueLabel { if let number = value.as(Double.self) { Text(metric.axisLabel(number)) } }
         } }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -163,13 +163,13 @@ struct TrendChartCard: View {
             HStack(spacing: 12) {
                 Label("7-day average", systemImage: "line.diagonal").symbolRenderingMode(.hierarchical)
                 Label("Period average", systemImage: "ellipsis")
-            }.font(.caption2).foregroundStyle(SnoopStyle.secondary).fixedSize(horizontal: false, vertical: true)
+            }.font(.caption2).foregroundStyle(ZoopStyle.secondary).fixedSize(horizontal: false, vertical: true)
             if let pattern { TrendWeekdayPattern(metric: metric, series: pattern, calendar: calendar) }
         }
     }
     private func stat(_ title: String, _ value: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption2).foregroundStyle(SnoopStyle.secondary)
+            Text(title).font(.caption2).foregroundStyle(ZoopStyle.secondary)
             Text(value.map(metric.formatted) ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
         }
     }

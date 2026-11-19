@@ -5,7 +5,7 @@ and Health ownership rules. It changes where and how often work happens.
 
 ## Four stages
 
-1. **Measure and protect behavior.** `SnoopData` tests compare rolling values with
+1. **Measure and protect behavior.** `ZoopData` tests compare rolling values with
    the original calculation, check exact dates/DST, chart window boundaries,
    cancellation and cache isolation. `PerformanceNavigationTests` records Trends
    interactions and screenshots using synthetic history.
@@ -42,21 +42,21 @@ receipt validation. The flag is not persisted and is never enabled automatically
 
 Health journals remain scoped by connection and strap. Per-page cursors are saved
 with the records they acknowledge. Imported readings are never re-exported as
-Snoop measurements. Workout exports use [Apple's workout builder](https://developer.apple.com/documentation/healthkit/hkworkoutbuilder);
+Zoop measurements. Workout exports use [Apple's workout builder](https://developer.apple.com/documentation/healthkit/hkworkoutbuilder);
 its completion saves the workout, so there is no second save call.
 
 ## Repeatable checks
 
 ```sh
-for package in SnoopProtocol SnoopSync SnoopBattery SnoopHealth SnoopData; do
+for package in ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData; do
   swift test --package-path "Packages/$package"
 done
 xcodegen generate
-xcodebuild -scheme Snoop -configuration Release \
+xcodebuild -scheme Zoop -configuration Release \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
-xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
-  CODE_SIGNING_ALLOWED=NO -only-testing:SnoopTests test
+xcodebuild -scheme Zoop -destination 'platform=iOS Simulator,name=Zoop UI Review' \
+  CODE_SIGNING_ALLOWED=NO -only-testing:ZoopTests test
 ```
 
 UI tests require an isolated synthetic backend. `PerformanceNavigationTests`
@@ -68,7 +68,7 @@ Run its API with history analysis disabled to keep the visual fixture stable.
 Correction/reset database tests use a different schema per test.
 
 Use Instruments' SwiftUI / CPU Profiler / Animation Hitches templates with the
-`snoop` performance signposts: `Trend preparation`, `API decode`, and
+`Zoop` performance signposts: `Trend preparation`, `API decode`, and
 `Health journal save`. Measure Release on the same device, with a connected strap,
 while switching ranges, scrolling, receiving history, and syncing Health. Keep
 personal data and credentials out of traces attached to public issues.

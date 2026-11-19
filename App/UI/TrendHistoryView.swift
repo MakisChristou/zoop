@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopData
+import ZoopData
 
 /// The same calendar navigation and inspection surface in Trends and Morning.
 struct TrendHistoryView: View {

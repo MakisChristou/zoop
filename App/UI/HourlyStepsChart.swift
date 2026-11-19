@@ -27,7 +27,7 @@ struct HourlyStepsChart: View {
     private var chart: some View {
         Chart(Array(hours.prefix(24).enumerated()), id: \.offset) { hour, steps in
             BarMark(x: .value("Hour", Double(hour) + 0.5), y: .value("Steps", steps))
-                .foregroundStyle(SnoopStyle.steps.opacity(selection == nil || Int(selection ?? -1) == hour ? 1 : 0.35))
+                .foregroundStyle(ZoopStyle.steps.opacity(selection == nil || Int(selection ?? -1) == hour ? 1 : 0.35))
                 .cornerRadius(2)
                 .accessibilityLabel(Self.hourLabel(hour, on: day))
                 .accessibilityValue("\(steps.formatted()) steps")
@@ -38,7 +38,7 @@ struct HourlyStepsChart: View {
             AxisMarks(values: [0, 6, 12, 18]) { value in
                 AxisValueLabel {
                     Text(Self.hourLabel(value.as(Int.self) ?? 0, on: day))
-                        .font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                        .font(.caption2).foregroundStyle(ZoopStyle.secondary)
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 }
             }
@@ -46,8 +46,8 @@ struct HourlyStepsChart: View {
         .chartYAxis {
             if !compact {
                 AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) {
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(SnoopStyle.separator)
-                    AxisValueLabel().font(.caption2).foregroundStyle(SnoopStyle.secondary)
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(ZoopStyle.separator)
+                    AxisValueLabel().font(.caption2).foregroundStyle(ZoopStyle.secondary)
                 }
             }
         }

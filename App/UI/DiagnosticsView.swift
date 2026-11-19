@@ -27,7 +27,7 @@ struct DiagnosticsView: View {
                 if let error = model.uploadStats.lastError ?? model.queueError {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 } else if let blocker = model.uploadBlocker {
-                    Text(blocker).font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                    Text(blocker).font(.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
                 Button {
                     Task { await model.flush() }
@@ -61,7 +61,7 @@ struct DiagnosticsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .snoopScreen()
+        .zoopScreen()
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
     }

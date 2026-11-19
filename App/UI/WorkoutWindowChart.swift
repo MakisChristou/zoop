@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The date fields remain the accessible editing path; chart selection is optional.
 struct WorkoutWindowChart: View {
-    let minutes: [SnoopAPI.Minute]
+    let minutes: [ZoopAPI.Minute]
     let start: Date
     let end: Date
     let split: Date?
@@ -22,18 +22,18 @@ struct WorkoutWindowChart: View {
             if minutes.contains(where: { $0.hr != nil }), end > start {
                 Chart {
                     RectangleMark(xStart: .value("Start", start), xEnd: .value("End", end))
-                        .foregroundStyle(SnoopStyle.load.opacity(0.08))
+                        .foregroundStyle(ZoopStyle.load.opacity(0.08))
                     ForEach(minutes) { minute in
                         if let hr = minute.hr {
                             PointMark(x: .value("Time", minute.ts), y: .value("Heart rate", hr))
-                                .foregroundStyle(SnoopStyle.heartRate).symbolSize(10)
+                                .foregroundStyle(ZoopStyle.heartRate).symbolSize(10)
                         }
                     }
                     if let split {
-                        RuleMark(x: .value("Split at", split)).foregroundStyle(SnoopStyle.load)
+                        RuleMark(x: .value("Split at", split)).foregroundStyle(ZoopStyle.load)
                             .annotation(position: .top) { Text("Split").font(.caption2) }
                     } else if let selected {
-                        RuleMark(x: .value("Selected time", selected)).foregroundStyle(SnoopStyle.secondary)
+                        RuleMark(x: .value("Selected time", selected)).foregroundStyle(ZoopStyle.secondary)
                     }
                 }
                 .chartXScale(domain: start...end)
@@ -44,7 +44,7 @@ struct WorkoutWindowChart: View {
                 .accessibilityLabel("Recorded heart rate during the selected time")
             } else {
                 Text("No heart-rate readings in this range")
-                    .font(.footnote).foregroundStyle(SnoopStyle.secondary).padding(.vertical, 12)
+                    .font(.footnote).foregroundStyle(ZoopStyle.secondary).padding(.vertical, 12)
             }
         }
     }

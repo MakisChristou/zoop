@@ -7,7 +7,10 @@ build/
 .swiftpm/
 .build/
 # XcodeGen output is regenerated from project.yml
-Snoop.xcodeproj/
+Zoop.xcodeproj/
 # Personal signing settings
 Config/Local.xcconfig
 .DS_Store
+
+# Legacy generated project, retained for existing working directories
+Snoop.xcodeproj/

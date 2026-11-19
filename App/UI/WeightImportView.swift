@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightImportView: View {
     private struct PreviewKey: Hashable {
@@ -35,14 +35,14 @@ struct WeightImportView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     if let result {
                         VStack(alignment: .leading, spacing: 14) {
-                            Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(SnoopStyle.load)
+                            Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(ZoopStyle.load)
                             Text(result == 0 ? "Already up to date" : "\(result) \(result == 1 ? "weigh-in" : "weigh-ins") added")
                                 .font(.title2.weight(.semibold))
-                            Text("Your weight chart is ready.").foregroundStyle(SnoopStyle.secondary)
-                        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+                            Text("Your weight chart is ready.").foregroundStyle(ZoopStyle.secondary)
+                        }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
-                            Image(systemName: "heart").font(.title).foregroundStyle(SnoopStyle.load)
+                            Image(systemName: "heart").font(.title).foregroundStyle(ZoopStyle.load)
                             Text("Apple Health").font(.title2.weight(.semibold))
                         }
                         if enabled {
@@ -52,31 +52,31 @@ struct WeightImportView: View {
                                     DatePicker("From", selection: $from, in: ...to, displayedComponents: .date)
                                     DatePicker("Through", selection: $to, in: from...Date(), displayedComponents: .date)
                                 }
-                            }.snoopCard().disabled(importing)
+                            }.zoopCard().disabled(importing)
                             if importing {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text("Importing weigh-ins…").font(.headline)
                                     ProgressView(value: Double(health.importedWeightCount), total: Double(max(preview?.toImport ?? 1, health.importedWeightCount, 1)))
-                                    Text("\(health.importedWeightCount) added").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
-                                }.frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+                                    Text("\(health.importedWeightCount) added").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                             } else if loading {
                                 HStack { ProgressView(); Text("Checking Apple Health…").font(.subheadline) }
-                                    .frame(maxWidth: .infinity, alignment: .leading).snoopCard()
+                                    .frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                             } else if let preview { previewCard(preview) }
                         } else {
                             Text(health.connected ? "Weight imports are off." : "Connect Apple Health to import weigh-ins.")
-                                .font(.subheadline).foregroundStyle(SnoopStyle.secondary).snoopCard()
+                                .font(.subheadline).foregroundStyle(ZoopStyle.secondary).zoopCard()
                         }
                         if let error {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(error).font(.subheadline).foregroundStyle(SnoopStyle.unfavourable)
+                                Text(error).font(.subheadline).foregroundStyle(ZoopStyle.unfavourable)
                                 if preview == nil { Button("Try again") { retry += 1 } }
-                            }.snoopCard()
+                            }.zoopCard()
                         }
                         Label("Originals in Apple Health stay unchanged.", systemImage: "checkmark.shield")
-                            .font(.footnote).foregroundStyle(SnoopStyle.secondary)
+                            .font(.footnote).foregroundStyle(ZoopStyle.secondary)
                     }
-                }.padding(SnoopStyle.gutter)
+                }.padding(ZoopStyle.gutter)
             }
             .safeAreaInset(edge: .bottom) {
                 Button {
@@ -89,10 +89,10 @@ struct WeightImportView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(result == nil && enabled && (loading || importing || preview == nil || (preview?.toImport == 0 && error == nil)))
-                .padding(.horizontal, SnoopStyle.gutter).padding(.vertical, 12).background(SnoopStyle.background)
+                .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)
                 .accessibilityIdentifier("confirmWeightImport")
             }
-            .snoopScreen().tint(SnoopStyle.load)
+            .zoopScreen().tint(ZoopStyle.load)
             .navigationTitle("Import weight history").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(importing).accessibilityIdentifier("closeWeightImport") } }
             .task(id: key) { await refreshPreview() }
@@ -123,16 +123,16 @@ struct WeightImportView: View {
             }
             if let first = preview.first, let last = preview.last {
                 Text(first.formatted(date: .abbreviated, time: .omitted) + " – " + last.formatted(date: .abbreviated, time: .omitted))
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             if preview.alreadySaved > 0 {
-                Text("\(preview.alreadySaved) already saved · skipped").font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("\(preview.alreadySaved) already saved · skipped").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             if preview.total == 0 {
-                Text("Try different dates. If you expect readings here, check Snoop’s weight access in Apple Health.")
-                    .font(.subheadline).foregroundStyle(SnoopStyle.secondary)
+                Text("Try different dates. If you expect readings here, check Zoop’s weight access in Apple Health.")
+                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
-        }.frame(maxWidth: .infinity, alignment: .leading).snoopCard().accessibilityIdentifier("weightImportPreview")
+        }.frame(maxWidth: .infinity, alignment: .leading).zoopCard().accessibilityIdentifier("weightImportPreview")
     }
     private func refreshPreview() async {
         guard !importing, result == nil else { return }

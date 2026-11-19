@@ -27,10 +27,10 @@ struct WorkoutNotice: View {
                     }.accessibilityLabel("Dismiss workout message")
                 }
                 if let error { Text(error).font(.footnote).foregroundStyle(.red) }
-                if let error = model.activity.refreshError { Text(error).font(.footnote).foregroundStyle(SnoopStyle.secondary) }
+                if let error = model.activity.refreshError { Text(error).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
             }
-            .padding(.horizontal, SnoopStyle.gutter)
-            .background(SnoopStyle.surface)
+            .padding(.horizontal, ZoopStyle.gutter)
+            .background(ZoopStyle.surface)
         }
     }
 }

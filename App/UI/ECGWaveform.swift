@@ -7,7 +7,7 @@ struct ECGWaveform: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(label).font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text(label).font(.caption).foregroundStyle(ZoopStyle.secondary)
             Canvas { context, size in
                 guard !samples.isEmpty else { return }
                 let low = Double(samples.min() ?? 0), high = Double(samples.max() ?? 0)
@@ -30,13 +30,13 @@ struct ECGWaveform: View {
                     if offset == 0 { path.move(to: CGPoint(x: x, y: y)) }
                     else { path.addLine(to: CGPoint(x: x, y: y)) }
                 }
-                context.stroke(path, with: .color(SnoopStyle.heartRate), style: StrokeStyle(lineWidth: 1.6, lineJoin: .round))
+                context.stroke(path, with: .color(ZoopStyle.heartRate), style: StrokeStyle(lineWidth: 1.6, lineJoin: .round))
             }
             .frame(height: 150)
             .accessibilityHidden(true)
-            Text("Uncalibrated amplitude").font(.caption2).foregroundStyle(SnoopStyle.secondary)
+            Text("Uncalibrated amplitude").font(.caption2).foregroundStyle(ZoopStyle.secondary)
         }
-        .snoopCard()
+        .zoopCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label), \(samples.count) ECG samples. Amplitude and sample timing are not calibrated.")
     }

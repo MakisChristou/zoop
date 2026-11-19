@@ -1,4 +1,4 @@
-import SnoopData
+import ZoopData
 import Charts
 import SwiftUI
 
@@ -11,9 +11,9 @@ struct TrendsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var history = TrendStore()
     @State private var metric: TrendMetric = .sleep
-    @State private var heatmapNight: SnoopAPI.Night?
+    @State private var heatmapNight: ZoopAPI.Night?
     @State private var detailDay: Date?
-    @State private var detailNight: SnoopAPI.Night?
+    @State private var detailNight: ZoopAPI.Night?
     @State private var showNight = false
 
     var body: some View {
@@ -22,11 +22,11 @@ struct TrendsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     NavigationLink { HealthProgressView() } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "chart.bar.fill").foregroundStyle(SnoopStyle.steps)
+                            Image(systemName: "chart.bar.fill").foregroundStyle(ZoopStyle.steps)
                             Text("Your progress").font(.headline)
                             Spacer()
-                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
-                        }.foregroundStyle(SnoopStyle.text).snoopCard()
+                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                        }.foregroundStyle(ZoopStyle.text).zoopCard()
                     }.buttonStyle(.plain).accessibilityIdentifier("openProgress")
                     chips
                     TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
@@ -35,7 +35,7 @@ struct TrendsView: View {
                     }
                     if let error = history.error { Text(error).font(.footnote).foregroundStyle(.red) }
                 }
-                .padding(.horizontal, SnoopStyle.gutter)
+                .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
             }
             .navigationTitle("Trends")
@@ -46,13 +46,13 @@ struct TrendsView: View {
             .navigationDestination(isPresented: $showNight) {
                 if let detailNight { TrendSleepDetailView(summary: detailNight) }
             }
-            .navigationDestination(for: SnoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
+            .navigationDestination(for: ZoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
             .sheet(item: $heatmapNight) { night in
                 SleepHeatmapDetail(night: night) {
                     heatmapNight = nil; detailNight = night; showNight = true
                 }
             }
-            .refreshable { await SnoopAPI.invalidateReads(); await load() }
+            .refreshable { await ZoopAPI.invalidateReads(); await load() }
             .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
                 if scenePhase == .active { await load() }
             }
@@ -60,8 +60,8 @@ struct TrendsView: View {
     }
 
     // All ranges come from one prepared snapshot. A picker tap only selects a value.
-    private var nights: [SnoopAPI.Night] { history.snapshot.nights }
-    private var days: [SnoopAPI.Day] { history.snapshot.days }
+    private var nights: [ZoopAPI.Night] { history.snapshot.nights }
+    private var days: [ZoopAPI.Day] { history.snapshot.days }
     private var sleepByDay: [Date: Double] { history.snapshot.sleepByDay }
 
     // MARK: - Sections
@@ -76,7 +76,7 @@ struct TrendsView: View {
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12).padding(.vertical, 7).frame(minHeight: 44)
                                 .background(metric == m ? m.color.opacity(0.18) : Color.secondary.opacity(0.12), in: Capsule())
-                                .foregroundStyle(SnoopStyle.text)
+                                .foregroundStyle(ZoopStyle.text)
                                 .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: metric)
                         }
                         .buttonStyle(.plain)

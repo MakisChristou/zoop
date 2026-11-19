@@ -1,12 +1,12 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 /// Body profile rows for a `List`: sex, birth year, weight, height, and the save
 /// button. Stored on the server with the phone's time zone so calories, zones and
 /// local days line up everywhere.
 struct BodyProfileSection: View {
     @Environment(AppModel.self) private var model
-    @State private var profile = SnoopAPI.Profile.empty
+    @State private var profile = ZoopAPI.Profile.empty
     @State private var status: String?
     @State private var saving = false
     @State private var birthYearText = ""
@@ -41,8 +41,8 @@ struct BodyProfileSection: View {
                 NavigationLink { WeightView() } label: {
                     VStack(alignment: .leading, spacing: 5) {
                         LabeledContent("Weight", value: "\((unit == "lb" ? weight.kg * 2.2046226218 : weight.kg).formatted(.number.precision(.fractionLength(1)))) \(unit)")
-                        Text("\(weight.measuredAt.formatted(date: .abbreviated, time: .omitted)) · \(weight.source == "health" ? "Apple Health" : "Snoop")")
-                            .font(.caption).foregroundStyle(SnoopStyle.secondary)
+                        Text("\(weight.measuredAt.formatted(date: .abbreviated, time: .omitted)) · \(weight.source == "health" ? "Apple Health" : "Zoop")")
+                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
                     }
                 }.accessibilityIdentifier("profileLatestWeight")
             } else {
@@ -50,16 +50,16 @@ struct BodyProfileSection: View {
                 HStack(spacing: 4) {
                     TextField("75", text: $weightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         .accessibilityLabel("Weight in kilograms")
-                    Text("kg").foregroundStyle(SnoopStyle.secondary)
+                    Text("kg").foregroundStyle(ZoopStyle.secondary)
                 }
               }
             }
             Button { editingHeight = true } label: {
                 HStack {
-                    Text("Height").foregroundStyle(SnoopStyle.text)
+                    Text("Height").foregroundStyle(ZoopStyle.text)
                     Spacer()
-                    Text(heightText.isEmpty ? "Not set" : "\(heightText) cm").foregroundStyle(SnoopStyle.secondary)
-                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(SnoopStyle.secondary)
+                    Text(heightText.isEmpty ? "Not set" : "\(heightText) cm").foregroundStyle(ZoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
                 }.frame(minHeight: 44)
             }.accessibilityIdentifier("editHeight")
                 .disabled(loading || !loaded)
@@ -70,7 +70,7 @@ struct BodyProfileSection: View {
                 HStack {
                     Label("Save profile", systemImage: "person.crop.circle")
                     Spacer()
-                    if saving { ProgressView() } else if let status { Text(status).foregroundStyle(SnoopStyle.secondary) }
+                    if saving { ProgressView() } else if let status { Text(status).foregroundStyle(ZoopStyle.secondary) }
                 }
             }
             .disabled(saving || loading || !loaded || !Settings.isConfigured || model.strap.serial.isEmpty)
@@ -91,8 +91,8 @@ struct BodyProfileSection: View {
         let serial = model.strap.serial, connection = Settings.connectionID, request = UUID()
         loadID = request; loading = true
         defer { if loadID == request { loading = false } }
-        let fetched: SnoopAPI.Profile
-        do { fetched = try await SnoopAPI.profile(deviceId: serial) ?? .empty }
+        let fetched: ZoopAPI.Profile
+        do { fetched = try await ZoopAPI.profile(deviceId: serial) ?? .empty }
         catch {
             if loadID == request, !Task.isCancelled { loadFailed = true }
             return
@@ -122,7 +122,7 @@ struct BodyProfileSection: View {
         profile.tz = TimeZone.current.identifier
         do {
             let serial = model.strap.serial, connection = Settings.connectionID
-            let saved = try await SnoopAPI.saveProfile(deviceId: serial, profile)
+            let saved = try await ZoopAPI.saveProfile(deviceId: serial, profile)
             guard serial == model.strap.serial, connection == Settings.connectionID else { return }
             profile = saved
             status = "Saved"

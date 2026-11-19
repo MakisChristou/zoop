@@ -1,7 +1,7 @@
 import Foundation
-import SnoopHealth
+import ZoopHealth
 
-extension SnoopAPI {
+extension ZoopAPI {
     struct HealthInfo: Decodable { let namespace: String; let cursor: Int64; let earliest: Date?; let wakeAt: Date? }
     struct HealthPage: Decodable { let namespace: String; let watermark: Int64; let nextCursor: Int64; let done: Bool; let records: [HealthRecord] }
     struct HealthPreparation: Decodable { let nextDay: String?; let done: Bool }

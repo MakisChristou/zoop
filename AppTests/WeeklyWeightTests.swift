@@ -1,8 +1,8 @@
 import XCTest
 import UserNotifications
-@testable import Snoop
+@testable import Zoop
 
-@MainActor private final class WeeklyResponseSlot { var continuation: CheckedContinuation<SnoopAPI.WeeklyWeightResponse, Never>? }
+@MainActor private final class WeeklyResponseSlot { var continuation: CheckedContinuation<ZoopAPI.WeeklyWeightResponse, Never>? }
 
 @MainActor final class WeeklyWeightTests: XCTestCase {
     private var requests: [String: UNNotificationRequest] = [:]
@@ -15,7 +15,7 @@ import UserNotifications
             await self.beforeAdd?(); self.added += 1; self.requests[request.identifier] = request
         }, removePending: { ids in for id in ids { self.requests.removeValue(forKey: id) } }, removeDelivered: { _ in }))
     }
-    private func goal(active: Bool = true, reminder: Bool = true, rate: Double = 0.3) -> SnoopAPI.WeightGoal {
+    private func goal(active: Bool = true, reminder: Bool = true, rate: Double = 0.3) -> ZoopAPI.WeightGoal {
         .init(revision: 1, active: active, startedAt: Date(), paceStartedAt: Date(), timezone: "Europe/Berlin", weeklyLossKg: rate, reminderEnabled: reminder, reminderWeekday: 1, reminderMinute: 1200, updatedAt: Date())
     }
     func testWeeklyScheduleIsScopedRepeatingAndIdempotent() async {

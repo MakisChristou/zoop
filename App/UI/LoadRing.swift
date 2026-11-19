@@ -14,10 +14,10 @@ struct LoadRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(SnoopStyle.track, lineWidth: lineWidth)
+                .stroke(ZoopStyle.track, lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(SnoopStyle.load, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(ZoopStyle.load, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: fraction)
         }

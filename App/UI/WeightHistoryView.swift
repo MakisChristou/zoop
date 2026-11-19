@@ -1,5 +1,5 @@
 import SwiftUI
-import SnoopHealth
+import ZoopHealth
 
 struct WeightHistoryView: View {
     @Environment(AppModel.self) private var model
@@ -12,15 +12,15 @@ struct WeightHistoryView: View {
     }
     var body: some View {
         List {
-            if let saveError { Text(saveError).foregroundStyle(SnoopStyle.unfavourable) }
+            if let saveError { Text(saveError).foregroundStyle(ZoopStyle.unfavourable) }
             ForEach(model.health.rows) { row in
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) { readingDate(row); Spacer(minLength: 8); readingValue(row) }
                     VStack(alignment: .leading, spacing: 8) { readingDate(row); readingValue(row) }
-                }.padding(.vertical, 6).listRowBackground(SnoopStyle.surface)
+                }.padding(.vertical, 6).listRowBackground(ZoopStyle.surface)
             }
         }
-        .scrollContentBackground(.hidden).snoopScreen().tint(SnoopStyle.load)
+        .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
         .navigationTitle("All weigh-ins").navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.health.sync() }
         .sheet(item: $editing) { WeightEntryView(editing: $0) }
@@ -29,13 +29,13 @@ struct WeightHistoryView: View {
                 guard var row = removing else { return }; row.removed = true; saveError = nil
                 Task { do { try await model.health.save(row) } catch { saveError = "Couldn’t delete this weigh-in. Try again." } }; removing = nil
             }
-        } message: { Text("This removes the Snoop measurement and its Snoop export. Other apps’ records stay unchanged.") }
+        } message: { Text("This removes the Zoop measurement and its Zoop export. Other apps’ records stay unchanged.") }
     }
     private func readingDate(_ row: WeightReading) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(row.measuredAt.formatted(date: .abbreviated, time: .omitted)).font(.subheadline.weight(.medium))
-            Text("\(row.measuredAt.formatted(date: .omitted, time: .shortened)) · \(row.sourceName)")
-                .font(.caption).foregroundStyle(SnoopStyle.secondary)
+            Text("\(row.measuredAt.formatted(date: .omitted, time: .shortened)) · \(row.displaySourceName)")
+                .font(.caption).foregroundStyle(ZoopStyle.secondary)
         }.fixedSize(horizontal: false, vertical: true)
     }
     private func readingValue(_ row: WeightReading) -> some View {

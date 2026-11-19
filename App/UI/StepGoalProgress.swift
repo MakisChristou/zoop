@@ -24,18 +24,18 @@ struct StepGoalProgress: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Goal \(target.formatted())").foregroundStyle(SnoopStyle.secondary)
+                Text("Goal \(target.formatted())").foregroundStyle(ZoopStyle.secondary)
                 Spacer()
                 // Keep the symbol mounted so its animation starts after layout.
                 Image(systemName: "checkmark.circle.fill")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(SnoopStyle.favourable)
+                    .foregroundStyle(ZoopStyle.favourable)
                     .opacity(reached && (pendingKey == nil || reduceMotion) ? 1 : 0)
                     .symbolEffect(.bounce, value: reduceMotion ? 0 : celebration)
             }.font(.caption)
             if steps != nil {
                 ProgressView(value: progress, total: Double(max(1, target)))
-                    .tint(reached ? SnoopStyle.favourable : SnoopStyle.steps)
+                    .tint(reached ? ZoopStyle.favourable : ZoopStyle.steps)
             }
         }
         .onGeometryChange(for: Bool.self) { proxy in

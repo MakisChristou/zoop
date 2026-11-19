@@ -1,21 +1,21 @@
-# snoop
+# Zoop
 
 **An open companion app for WHOOP 5.0 and WHOOP MG straps.**
 
-snoop connects to your strap over Bluetooth, pulls live and stored sensor data, and
-uploads the raw frames to your own [snoop-api](https://github.com/MakisChristou/snoop-api)
+Zoop connects to your strap over Bluetooth, pulls live and stored sensor data, and
+uploads the raw frames to your own [Zoop API](https://github.com/MakisChristou/snoop-api)
 server. No WHOOP account, no WHOOP cloud, no subscription.
 
 Pure Swift. The strap protocol is implemented in the app itself.
 
 > **Status: early development.** The app has been exercised with a real strap;
 > protocol coverage and background behavior still need continued hardware testing.
-> See [snoop-api's roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
+> See [Zoop API roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
 
 ## How it works
 
-The official WHOOP app bonds the strap to your iPhone at the OS level. snoop uses that
-same bond, so there is no pairing dance. Quit the official app before using snoop: the
+The official WHOOP app bonds the strap to your iPhone at the OS level. Zoop uses that
+same bond, so there is no pairing dance. Quit the official app before using Zoop: the
 strap talks to one app at a time.
 
 1. Discover the bonded strap and subscribe to the four `fd4b` notification channels.
@@ -35,16 +35,16 @@ Bluetooth).
 ```sh
 cp Config/Local.xcconfig.example Config/Local.xcconfig   # set your team and bundle id
 xcodegen generate
-open Snoop.xcodeproj
+open Zoop.xcodeproj
 ```
 
 Protocol unit tests run without Xcode:
 
 ```sh
-cd Packages/SnoopProtocol && swift test
+cd Packages/ZoopProtocol && swift test
 ```
 
-Enter your snoop-api URL and bearer token during setup, or later under Profile → Advanced.
+Enter your Zoop API URL and bearer token during setup, or later under Profile → Advanced.
 
 ## Navigation
 
@@ -61,13 +61,13 @@ My WHOOP, opened from the connection status or Profile, shows strap and pack per
 and reminders to recharge either battery. Pack readings come from live WHOOP 5/MG
 event 109. Command 151 provides a cached fallback when supported; cached readings
 never trigger notifications. Disconnecting or removing the pack ends its live state.
-Snoop asks for notification permission once, after setup. Alerts are enabled by
+Zoop asks for notification permission once, after setup. Alerts are enabled by
 default at 20%, 10% and 5%, at 100%, and after removing the pack. Change notification
 preferences in Profile → Notifications, with a link to iPhone notification settings.
 
 These are local iOS notifications driven by fresh Bluetooth readings, including
 background Bluetooth updates. Replayed history cannot trigger alerts. Keep Bluetooth
-on and do not force-quit Snoop if you want background reminders. Charging status uses
+on and do not force-quit Zoop if you want background reminders. Charging status uses
 the strap's charger-on/off events. After reconnecting mid-charge, sustained rising
 readings can also detect charging; the screen labels this inference. Query and event
 readings are compared separately to avoid rounding artifacts. The page shows both
@@ -83,7 +83,7 @@ viewing My WHOOP. A rejected pack query stops until reconnect; pushed events con
 Battery policy tests run independently:
 
 ```sh
-cd Packages/SnoopBattery && swift test
+cd Packages/ZoopBattery && swift test
 ```
 
 ## Activity
@@ -115,9 +115,9 @@ server; the phone's time zone goes with it so days are cut at local midnight.
 ## Repository layout
 
 ```
-Packages/SnoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
-Packages/SnoopSync       durable SQLite queue, ordered persistence, upload receipts and retries
-Packages/SnoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
+Packages/ZoopProtocol   format-1 framing, CRCs, record decoding, commands (pure Swift, `swift test`)
+Packages/ZoopSync       durable SQLite queue, ordered persistence, upload receipts and retries
+Packages/ZoopBattery    timestamped battery state and notification policy (pure Swift, `swift test`)
 App/
   Activity/              shared workout state, correction commands and session notifications
   Battery/               iOS notifications and persisted per-strap alert state
@@ -190,14 +190,14 @@ Use a clean simulator install when switching from another fixture namespace.
 ```sh
 xcodegen generate
 TEST_RUNNER_SNOOP_UI_SERVER_URL=http://127.0.0.1:28476 xcodebuild \
-  -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
+  -scheme Zoop -destination 'platform=iOS Simulator,name=Zoop UI Review' \
   CODE_SIGNING_ALLOWED=NO -parallel-testing-enabled NO \
-  -only-testing:SnoopTests -only-testing:SnoopUITests/CalendarNavigationTests \
-  -only-testing:SnoopUITests/LayoutPolishTests \
-  -only-testing:SnoopUITests/MeasurementEntryTests \
-  -only-testing:SnoopUITests/HealthWeightTests \
-  -only-testing:SnoopUITests/TrendSelectionTests \
-  -only-testing:SnoopUITests/MorningInsightsTests test
+  -only-testing:ZoopTests -only-testing:ZoopUITests/CalendarNavigationTests \
+  -only-testing:ZoopUITests/LayoutPolishTests \
+  -only-testing:ZoopUITests/MeasurementEntryTests \
+  -only-testing:ZoopUITests/HealthWeightTests \
+  -only-testing:ZoopUITests/TrendSelectionTests \
+  -only-testing:ZoopUITests/MorningInsightsTests test
 ```
 
 These checks cover vertical scrolling over charts, horizontal paging and held
@@ -209,11 +209,11 @@ and test result bundles belong outside the repository.
 ## Acknowledgements
 
 The wire protocol was understood from public interoperability research, notably the
-NOOP, wearable5.0, Goose and whoop-rs projects. snoop contains no code from any of them.
+NOOP, wearable5.0, Goose and whoop-rs projects. Zoop contains no code from any of them.
 
 ## License
 
-MIT. snoop is an independent project, not affiliated with or endorsed by WHOOP, Inc.
+MIT. Zoop is an independent project, not affiliated with or endorsed by WHOOP, Inc.
 
 ## Reliable history
 
@@ -239,7 +239,7 @@ is not guaranteed while the OS has suspended it.
 Run the failure-path tests with:
 
 ```sh
-swift test --package-path Packages/SnoopSync
+swift test --package-path Packages/ZoopSync
 ```
 
 ## Correction validation
@@ -258,7 +258,7 @@ start its worker, then run:
 
 ```sh
 xcodegen generate
-xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' test
+xcodebuild -scheme Zoop -destination 'platform=iOS Simulator,name=Zoop UI Review' test
 ```
 
 The tests verify selected-day navigation and editing/merge/split/remove/restore.
@@ -310,7 +310,7 @@ Date, device and connection changes fence off older requests.
 
 `MorningInsightsStoreTests` covers refresh, retry, cancellation and stale results.
 For the automatic screen transition test, run `python3 tools/morning-refresh-server.py`
-and then the `SnoopUITests/MorningRefreshTests` test on a simulator. Its loopback API
+and then the `ZoopUITests/MorningRefreshTests` test on a simulator. Its loopback API
 on port 28479 returns Updating for eight seconds and then Learning, while unrelated
 Today endpoints fail. It uses synthetic data and does not require a backend database.
 
@@ -334,7 +334,7 @@ months start on the first, and three-month pages contain three complete months.
 Swipe to the previous/next period, tap a recorded point, or hold then drag to inspect
 readings without paging. Latest returns to the current period. Raw measurements
 remain the default; an optional 7-day moving average lives in Weight options.
-Health readings take priority over Snoop readings on the same date, with all distinct
+Health readings take priority over Zoop readings on the same date, with all distinct
 Health readings retained. Missing days are never zero-filled and gaps of a week or
 more break the line. The chart stays focused on measurements; Weight options contains All weigh-ins
 and Import weight history. Weekly check-in circles remain on Today.
@@ -345,7 +345,7 @@ weight import. Automatic sharing starts at connection time. Weight → options �
 history previews Health readings automatically with All available history enabled;
 turning it off reveals a date range.
 It imports only weights, reports existing readings separately, and never enrolls
-sleep/workout/steps exports. Export older Snoop history is a separate consent action
+sleep/workout/steps exports. Export older Zoop history is a separate consent action
 in Apple Health settings. Legacy combined selections retain both original consents;
 new selections are stored separately. Imports resume from saved per-reading receipts
 and overlapping ranges reuse stable identities.
@@ -360,7 +360,7 @@ splitting, removal, reset and undo do not depend on detector version numbers.
 
 Weight entries are saved durably on the phone before upload, with kg/lb entry,
 history of actual measurements. Imported readings
-retain their date, identity and source and are read-only in Snoop. A visible external
+retain their date, identity and source and are read-only in Zoop. A visible external
 weight takes precedence in the daily summary; imported values are never re-exported.
 The profile follows the newest actual weigh-in by local date, with Apple Health
 preferred within that day. The weight row opens Weight and refreshes after sync;
@@ -370,7 +370,7 @@ current weight backward, and historical analytics use measurements before that d
 end. No measurements are invented for missing days.
 
 Once a day has a reading, the Weight screen hides Log weight. Tap the displayed
-weight or a history value to edit that Snoop measurement; imported Health readings
+weight or a history value to edit that Zoop measurement; imported Health readings
 show their source and remain read-only. Every local save checks the selected
 calendar day, including entries still waiting to upload, and rejects a second
 entry or a move onto an occupied day. Existing imported history is preserved.
@@ -396,12 +396,12 @@ port 28480 for profile, import and native-picker navigation, including large tex
 
 
 Weight export skips visible existing external measurements on the same local date.
-If another source arrives later, Snoop removes only its own redundant Health copy.
+If another source arrives later, Zoop removes only its own redundant Health copy.
 HealthKit does not disclose read-permission denial: an empty query cannot prove an
 empty day. The connection screen therefore makes weight export an explicit opt-in
 and does not promise cross-app deduplication. Pause and disconnect preserve existing
-Health data. Removing Snoop exports is a separate confirmed action scoped to the
-selected backend dataset; other sources and the Snoop server history are untouched.
+Health data. Removing Zoop exports is a separate confirmed action scoped to the
+selected backend dataset; other sources and the Zoop server history are untouched.
 Health consent and progress live in a protected, backup-excluded local journal.
 
 Daily check-ins use local notifications configured in Profile → Notifications.
@@ -410,7 +410,7 @@ ECG is opt-in, defaulting to 20:00. No wake analysis or network round-trip is ne
 to deliver an already scheduled reminder. Times use the phone's local calendar.
 A known weigh-in cancels that day's weight request, including visible Apple Health
 measurements; a saved ECG with samples cancels that day's ECG request. Changes from
-other apps can only cancel a reminder after Snoop observes them. Locked Health
+other apps can only cancel a reminder after Zoop observes them. Locked Health
 storage can delay this, and HealthKit does not disclose denied read access.
 
 The app maintains 28 days of one-shot requests (at most 56 across both check-ins),
@@ -419,7 +419,7 @@ Without another app wake, reminders stop when that horizon expires. Completion,
 disabling reminders, and account changes reconcile pending requests. Old wake-based
 requests are removed. Scheduled-at receipts prevent a second same-day reminder if
 the time is moved after it was due; they do not prove delivery. There is no late
-catch-up when opening Snoop after the selected time. Taps open the weight entry or
+catch-up when opening Zoop after the selected time. Taps open the weight entry or
 ECG page, including after a cold launch. iOS permission, Focus and notification
 settings still govern presentation; there is no APNs service or guaranteed delivery.
 
@@ -440,9 +440,9 @@ Health entries, edits/removals, backfill repetition and a real scheduled reminde
 Simulator UI tests and backend checks do not establish physical Health delivery.
 
 ```sh
-swift test --package-path Packages/SnoopHealth
-xcodebuild -scheme Snoop -destination 'platform=iOS Simulator,name=Snoop UI Review' \
-  -only-testing:SnoopUITests/HealthWeightTests test
+swift test --package-path Packages/ZoopHealth
+xcodebuild -scheme Zoop -destination 'platform=iOS Simulator,name=Zoop UI Review' \
+  -only-testing:ZoopUITests/HealthWeightTests test
 ```
 
 The UI test uses only synthetic `UI-REVIEW` data at a development API. Override
@@ -482,8 +482,8 @@ frames still use the normal durable upload queue and backend ECG decoder. There 
 no new backend API or migration in this slice. `latest-attempt.json` contains only
 command outcomes/counts for targeted troubleshooting, not waveforms or device IDs.
 
-Run `swift test --package-path Packages/SnoopProtocol` and
-`swift test --package-path Packages/SnoopECG`, plus `ECGRecorderTests` and
+Run `swift test --package-path Packages/ZoopProtocol` and
+`swift test --package-path Packages/ZoopECG`, plus `ECGRecorderTests` and
 `ECGUITests` in the app's test scheme. Synthetic tests exercise malformed records,
 refusal, no data, cancellation, lost connection, device isolation and restart cleanup.
 A real clasp-contact recording remains the hardware acceptance check.
@@ -565,10 +565,10 @@ required for step-goal persistence; old clients preserve the setting when omitte
 
 Cut step reminders default to 22:00 and can be changed in cut setup or Profile →
 Notifications. These are phone-local preferences. A one-shot reminder uses today's
-last synced walking-step count, updates as Snoop syncs, and is cancelled when the
+last synced walking-step count, updates as Zoop syncs, and is cancelled when the
 goal is reached, paused, removed, or the cut ends. No data means no reminder; a
 confirmed zero-step day is eligible. The message explicitly says “at your last
-sync” because iOS cannot guarantee a fresh fetch at the chosen time. Snoop must
+sync” because iOS cannot guarantee a fresh fetch at the chosen time. Zoop must
 run or wake and sync that day before the reminder time; future days are never
 scheduled using today's count. Scheduled-at receipts prevent a second reminder
 that day if the time changes after it was due; they do not prove delivery. There
@@ -592,3 +592,14 @@ when the completed goal is first visible, including opening Steps after a
 notification. Presentation has its own daily receipt, so offscreen/background
 updates do not consume the effect and revisits do not repeat it. Reduce Motion
 skips the fill animation and bounce; system haptic preferences still apply.
+
+
+### Zoop rename compatibility
+
+The iPhone app, Xcode scheme and Swift packages are named Zoop. The backend is
+Zoop API; GitHub repository URLs retain their previous names until the repositories
+are renamed. Existing installs must keep their original bundle identifier. Both
+ZOOP_TEAM_ID / ZOOP_BUNDLE_ID and legacy SNOOP_* signing settings are supported.
+Health metadata keys, weight source codes, notification identifiers, Bluetooth
+restoration identifiers and persisted storage names intentionally retain their
+legacy values so an upgrade preserves data, permissions and pending work.
