@@ -320,10 +320,12 @@ Today opens with three circles: Sleep duration, Outlook and daily Load. Sleep fi
 against a personal nightly goal (8 hours by default); Sleep → options → Sleep goal
 saves changes automatically on this iPhone. The selected goal applies to any day
 being viewed. Missing sleep leaves the ring empty, and reaching/exceeding the goal
-fills it without truncating the actual duration. Outlook keeps a complete outline;
+fills it without truncating the actual duration. Outlook uses a neutral outline with a coloured status dot;
 Load fills an arc on the existing 0–21 scale. Outlook uses the server's
 Good/Average/Low/Mixed classification; learning and incomplete states stay neutral.
 Each circle opens its existing detail screen and follows the selected calendar day.
+The circles show loading indicators during requests; existing readings stay visible
+during refreshes, and missing or failed results stop loading.
 The steps count appears in the Steps chart card rather than repeating in the header.
 This is a descriptive outlook, not a validated readiness score or a training recommendation.
 

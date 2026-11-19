@@ -50,6 +50,17 @@ import XCTest
         expectValue("Good", in: app.buttons["openMorningInsights"])
         expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
     }
+    func testLoadingIndicatorsBecomeReadings() {
+        let app = launch(device: "RINGS-SLOW-" + UUID().uuidString)
+        expectValue("Loading", in: app.buttons["openSleepSummary"])
+        expectValue("Loading", in: app.buttons["openMorningInsights"])
+        expectValue("Loading", in: app.buttons["openDayActivity"])
+        shot(app, "Today rings loading")
+        expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
+        expectValue("Learning", in: app.buttons["openMorningInsights"])
+        expectValue("8.4", in: app.buttons["openDayActivity"])
+        shot(app, "Today rings loaded")
+    }
     func testMissingReadingsStayMissing() {
         let app = launch(device: "RINGS-EMPTY")
         expectValue("Retry", in: app.buttons["openMorningInsights"])

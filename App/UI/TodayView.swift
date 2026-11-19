@@ -54,9 +54,6 @@ struct TodayView: View {
                     } else if isViewingToday {
                         TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: selectedSummary, history: []).zoopCard()
                     }
-                    if loading && loadedDay != viewedDay {
-                        ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading day")
-                    }
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
                 }
@@ -105,24 +102,24 @@ struct TodayView: View {
             Button { openSleep(selectedNight) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
-                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS))
+                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading)
             }
             .buttonStyle(.plain).disabled(selectedNight == nil)
             .accessibilityValue(selectedNight.map {
                 let seconds = $0.metrics.window.asleepS
-                return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal"
-            } ?? "No reading")
+                return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal" + (loading ? ", updating" : "")
+            } ?? (loading ? "Loading" : "No reading"))
             .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
             NavigationLink { MorningInsightsView(day: viewedDay) } label: {
                 TodaySummaryRing(title: "Outlook", value: insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—"),
-                                 color: outlookColor)
+                                 color: outlookColor, isLoading: morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync", showsStatusDot: true)
             }
             .buttonStyle(.plain).accessibilityIdentifier("openMorningInsights")
             .accessibilityHint("Opens your nightly comparisons")
             Button { openActivity(viewedDay) } label: {
                 TodaySummaryRing(title: "Load", value: selectedSummary?.load.map {
                     $0.formatted(.number.precision(.fractionLength(1)))
-                } ?? "—", color: ZoopStyle.load, progress: selectedSummary?.load.map { $0 / LoadRing.maximum } ?? 0)
+                } ?? "—", color: ZoopStyle.load, progress: selectedSummary?.load.map { $0 / LoadRing.maximum } ?? 0, isLoading: loading)
             }
             .buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
         }.frame(maxWidth: .infinity)
@@ -143,7 +140,7 @@ struct TodayView: View {
         case "good": ZoopStyle.favourable
         case "average", "mixed": ZoopStyle.typical
         case "low": ZoopStyle.unfavourable
-        default: ZoopStyle.track
+        default: ZoopStyle.secondary
         }
     }
 

@@ -5,6 +5,7 @@ All mutations are in memory and disappear when the process exits.
 """
 import json
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -50,6 +51,7 @@ for i in range(120):
 
 # Independent device scopes let entry tests exercise empty and completed days.
 weight_devices = {}
+slow_devices = {}
 def weight_rows(device):
     if device not in weight_devices:
         rows = [dict(row) for row in weights]
@@ -95,6 +97,9 @@ class Handler(BaseHTTPRequestHandler):
         device, route = parts[2], '/'.join(parts[3:])
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
+        if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days') or route.endswith('/insights')):
+            started = slow_devices.setdefault(device, time.monotonic())
+            time.sleep(max(0, 14 - (time.monotonic() - started)))
         if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
         if route == 'sleeps': return self.send(nights[:limit])
         if route == 'progress':
