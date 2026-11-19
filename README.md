@@ -31,6 +31,22 @@ Zoop uses the Bluetooth bond created by the official WHOOP app. Pair your strap
 there first, then quit that app before connecting with Zoop. Day-to-day syncing uses
 your own server, not the WHOOP cloud.
 
+## Why a backend?
+
+Zoop requires a self-hosted backend. It keeps one history for the iPhone and
+[web app](https://github.com/MakisChristou/zoop-web), and can rerun improved analysis
+on stored recordings while preserving your corrections.
+
+| Approach | Trade-off |
+| --- | --- |
+| **Zoop** | Shared history and server-side analysis; you run the server. |
+| [NOOP](https://github.com/ryanbr/noop) | Local storage and analysis; no server required. |
+| [Goose variants](https://github.com/tigercraft4/goose) | Local-first, with an optional self-hosted backend. |
+| [Official WHOOP](https://www.whoop.com/) | Managed service with proprietary analysis. |
+
+A backend makes history easier to share and reprocess—not inherently more accurate.
+The phone still handles Bluetooth collection; uploads queue during outages.
+
 ## Run it
 
 You need Xcode 16+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), an iPhone
