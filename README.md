@@ -3,14 +3,14 @@
 **An open companion app for WHOOP 5.0 and WHOOP MG straps.**
 
 Zoop connects to your strap over Bluetooth, pulls live and stored sensor data, and
-uploads the raw frames to your own [Zoop API](https://github.com/MakisChristou/snoop-api)
+uploads the raw frames to your own [Zoop API](https://github.com/MakisChristou/zoop-api)
 server. No WHOOP account, no WHOOP cloud, no subscription.
 
 Pure Swift. The strap protocol is implemented in the app itself.
 
 > **Status: early development.** The app has been exercised with a real strap;
 > protocol coverage and background behavior still need continued hardware testing.
-> See [Zoop API roadmap](https://github.com/MakisChristou/snoop-api/blob/main/docs/ROADMAP.md).
+> See [Zoop API roadmap](https://github.com/MakisChristou/zoop-api/blob/main/docs/ROADMAP.md).
 
 ## How it works
 
@@ -597,8 +597,7 @@ skips the fill animation and bounce; system haptic preferences still apply.
 ### Zoop rename compatibility
 
 The iPhone app, Xcode scheme and Swift packages are named Zoop. The backend is
-Zoop API; GitHub repository URLs retain their previous names until the repositories
-are renamed. Existing installs must keep their original bundle identifier. Both
+Zoop API; Repositories are published as zoop and zoop-api. Existing installs must keep their original bundle identifier. Both
 ZOOP_TEAM_ID / ZOOP_BUNDLE_ID and legacy SNOOP_* signing settings are supported.
 Health metadata keys, weight source codes, notification identifiers, Bluetooth
 restoration identifiers and persisted storage names intentionally retain their
