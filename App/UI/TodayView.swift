@@ -58,10 +58,6 @@ struct TodayView: View {
                     }
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
-                    NavigationLink { MorningInsightsView(day: viewedDay) } label: {
-                        HStack { Text("Nightly comparisons"); Spacer(); Image(systemName: "chevron.right").font(ZoopType.caption) }
-                            .font(ZoopType.subheadline).frame(minHeight: 44)
-                    }.accessibilityIdentifier("openMorningInsights")
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
@@ -101,33 +97,47 @@ struct TodayView: View {
 
     private var overview: some View {
         let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
+            ? AnyLayout(VStackLayout(spacing: 24))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return layout {
             Button { openSleep(selectedNight) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selectedNight.map { "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m" } ?? "—")
-                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
-                    Text("Sleep").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                    if let metric = insights?.metrics.first(where: { $0.key == "sleep" }), let delta = metric.visibleDelta {
-                        Text(delta).font(ZoopType.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
-                    }
-                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
-            }.buttonStyle(.plain).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
+                TodaySummaryRing(title: "Sleep", value: selectedNight.map {
+                    "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
+                } ?? "—", color: selectedNight == nil ? ZoopStyle.track : ZoopStyle.sleep)
+            }
+            .buttonStyle(.plain).disabled(selectedNight == nil)
+            .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
+            NavigationLink { MorningInsightsView(day: viewedDay) } label: {
+                TodaySummaryRing(title: "Outlook", value: insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—"),
+                                 color: outlookColor)
+            }
+            .buttonStyle(.plain).accessibilityIdentifier("openMorningInsights")
+            .accessibilityHint("Opens your nightly comparisons")
             Button { openActivity(viewedDay) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selectedSummary?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
-                    Text("Day load").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
-            NavigationLink(value: StepsView.Scope.day) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
-                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
-                    Text("Steps").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityIdentifier("openStepsSummary")
+                TodaySummaryRing(title: "Load", value: selectedSummary?.load.map {
+                    $0.formatted(.number.precision(.fractionLength(1)))
+                } ?? "—", color: ZoopStyle.load, progress: selectedSummary?.load.map { $0 / LoadRing.maximum } ?? 0)
+            }
+            .buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
+        }.frame(maxWidth: .infinity)
+            .background {
+                Canvas { context, size in
+                    for x in stride(from: 8.0, to: size.width, by: 20) {
+                        for y in stride(from: 8.0, to: size.height - 28, by: 20) {
+                            context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.5, height: 1.5)),
+                                         with: .color(ZoopStyle.secondary.opacity(0.12)))
+                        }
+                    }
+                }.accessibilityHidden(true).allowsHitTesting(false)
+            }
+    }
+
+    private var outlookColor: Color {
+        switch insights?.outlook?.state {
+        case "good": ZoopStyle.favourable
+        case "average", "mixed": ZoopStyle.typical
+        case "low": ZoopStyle.unfavourable
+        default: ZoopStyle.track
         }
     }
 
@@ -139,6 +149,8 @@ struct TodayView: View {
                     Spacer()
                     Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 }
+                Text((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
+                    .font(ZoopType.font(size: 28, weight: .medium, relativeTo: .title)).monospacedDigit()
                 if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) {
                     StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
                 } else {

@@ -28,7 +28,7 @@ import XCTest
         let app = launch()
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 25))
         XCTAssertFalse(app.staticTexts["morningOutlookStatus"].exists)
-        XCTAssertGreaterThan(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY)
+        XCTAssertEqual(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY, accuracy: 1)
         shot(app, "Today neutral headline")
         open(app)
         let comparison = app.buttons["trendComparisons"].firstMatch
@@ -87,7 +87,7 @@ import XCTest
         let app = launch(large: true, state: "average")
         let card = app.buttons["openMorningInsights"]
         XCTAssertTrue(card.waitForExistence(timeout: 20))
-        XCTAssertEqual(card.label, "Nightly comparisons")
+        XCTAssertEqual(card.label, "Outlook")
         shot(app, "Compact morning large text top")
         app.swipeUp()
         shot(app, "Compact morning large text comparisons")

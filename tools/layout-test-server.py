@@ -95,6 +95,7 @@ class Handler(BaseHTTPRequestHandler):
         device, route = parts[2], '/'.join(parts[3:])
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
+        if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
         if route == 'sleeps': return self.send(nights[:limit])
         if route == 'progress':
             sparse = device == 'PROGRESS-SPARSE'
@@ -145,6 +146,7 @@ class Handler(BaseHTTPRequestHandler):
         if route.startswith('sleep-sessions/'):
             return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):
+            if device == 'RINGS-EMPTY': return self.send(dict(error='Synthetic unavailable'), 503)
             if device == 'SLEEP-COMPARISON': return self.send(dict(error='Synthetic insights unavailable'), 503)
             if device.startswith('MORNING-CARD-'):
                 state = device.removeprefix('MORNING-CARD-')

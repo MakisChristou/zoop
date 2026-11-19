@@ -316,13 +316,16 @@ and then the `ZoopUITests/MorningRefreshTests` test on a simulator. Its loopback
 on port 28479 returns Updating for eight seconds and then Learning, while unrelated
 Today endpoints fail. It uses synthetic data and does not require a backend database.
 
-Morning outlook uses a compact neutral card above the daily overview: a header
-chevron, status, and three comparison deltas. Degree wording and incomplete-data
-explanations remain when useful; the repeated scale and footer are omitted. Only its
-status and individual comparison deltas carry green, amber or red. The backend
-supplies the classification; mixed signals stay mixed and incomplete/early data
-stays neutral. Details and the method sheet explain the comparisons. This is a
-descriptive outlook, not a validated readiness score or a training recommendation.
+Today opens with three circles: Sleep duration, Outlook and daily Load. Sleep and
+Outlook use complete outlines around existing readings, not percentage scores.
+Only Load fills an arc on the existing 0–21 scale. Outlook uses the server's
+Good/Average/Low/Mixed classification; learning and incomplete states stay neutral.
+Each circle opens its existing detail screen and follows the selected calendar day.
+The steps count appears in the Steps chart card rather than repeating in the header.
+This is a descriptive outlook, not a validated readiness score or a training recommendation.
+
+`TodaySummaryTests` covers all three destinations, selected-day changes, missing
+readings and large text with synthetic data from `tools/layout-test-server.py`.
 
 ## Apple Health and weight
 
