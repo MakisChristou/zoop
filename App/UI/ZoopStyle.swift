@@ -2,12 +2,12 @@ import SwiftUI
 
 /// Shared surfaces and metric colours, resolved in the system's appearance.
 enum ZoopStyle {
-    static let background = adaptive(light: 0xF2F4F5, dark: 0x11191D)
-    static let surface = adaptive(light: 0xFFFFFF, dark: 0x1B252B)
+    static let background = adaptive(light: 0xF2F4F5, dark: 0x0B0C0E)
+    static let surface = adaptive(light: 0xFFFFFF, dark: 0x191B1F)
     static let text = adaptive(light: 0x162229, dark: 0xF3F6F8)
     static let secondary = adaptive(light: 0x586871, dark: 0xA7B4BC)
-    static let separator = adaptive(light: 0xDCE3E7, dark: 0x303C43)
-    static let track = adaptive(light: 0xE2E8EC, dark: 0x35434D)
+    static let separator = adaptive(light: 0xDCE3E7, dark: 0x303236)
+    static let track = adaptive(light: 0xE2E8EC, dark: 0x2B2E33)
     static let load = adaptive(light: 0x006DA8, dark: 0x27AAFF)
     static let sleep = adaptive(light: 0x7061B6, dark: 0xB0A3E5)
     static let steps = adaptive(light: 0x08786F, dark: 0x64D3BD)
