@@ -1,6 +1,7 @@
 # Zoop identity
 
-Fold is the approved Zoop mark. The two separated angular strokes form a Z.
+Refined Fold is the approved Zoop mark. Two separated angular strokes form a Z,
+with angled terminals and a tight central gap.
 
 - `zoop-mark.svg`: transparent, editable vector mark; uses `currentColor`.
 - `zoop-icon.svg`: square icon source with the app background and light mark.
