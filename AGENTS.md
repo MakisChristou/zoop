@@ -3,6 +3,8 @@
 React/TypeScript read-only companion to Zoop API. Develop and test separately from
 production. Never activate a NixOS deployment without explicit approval.
 
+- For every UI change, read and apply [Zoop interface](.agents/skills/zoop-interface/SKILL.md).
+  Its layout, loading, chart accessibility and concise-copy checks are required.
 - Preserve the approved Marc Lou health-page direction: Geist, black/charcoal,
   compact regular headings, purple sleep, blue activity, neutral weight. No welcome
   essays, duplicate facts or invented scores. Use measurements and clear hierarchy.

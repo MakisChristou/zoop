@@ -7,7 +7,7 @@ const day = (n: number) => {
 };
 async function fixture(
   page: Page,
-  { admin = true, empty = false, fail = false } = {},
+  { admin = true, empty = false, fail = false, devices = ["DEMO"] } = {},
 ) {
   let logged = false;
   const writes: string[] = [];
@@ -30,7 +30,7 @@ async function fixture(
     } else if (path.endsWith("/me"))
       body = {
         account: { id: 1, email: "demo@example.test", is_admin: admin },
-        devices: ["DEMO"],
+        devices,
       };
     else if (path.endsWith("/profile")) body = { tz: "UTC" };
     else if (path.endsWith("/insights"))
@@ -191,7 +191,7 @@ async function login(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Today", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Loading your data")).toHaveCount(0);
+  await expect(page.locator(".today-grid")).toBeVisible();
 }
 test("desktop dashboard, five pages, details and admin", async ({ page }) => {
   const errors: string[] = [];
@@ -287,8 +287,17 @@ test("period paging and chart readings are keyboard accessible", async ({
   await page.getByRole("button", { name: "Week", exact: true }).click();
   await page.getByRole("button", { name: "Previous period" }).click();
   await page.getByRole("button", { name: "Next period" }).click();
-  await page.getByText("Readings", { exact: true }).first().click();
-  await expect(page.getByRole("table").first()).toBeVisible();
+  await expect(page.getByText("Readings", { exact: true })).toHaveCount(0);
+  const chart = page.locator(".chart-frame").first();
+  await chart.focus();
+  await chart.press("End");
+  await expect(chart.locator(".chart-tooltip")).toBeVisible();
+  const current = await chart.locator(".chart-tooltip strong").innerText();
+  await chart.press("ArrowLeft");
+  await expect(chart.locator(".chart-tooltip strong")).not.toHaveText(current);
+  await chart.press("Escape");
+  await expect(chart.locator(".chart-tooltip")).toHaveCount(0);
+  await expect(chart.getByRole("table")).toHaveCount(1);
   await page.getByRole("button", { name: "Year", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Year", exact: true }),
@@ -348,10 +357,17 @@ test("wide layouts stay compact, date stays centered and long workout histories 
   expect(await logo.text()).toContain('<title id="title">Zoop</title>');
   await page.getByRole("link", { name: "Activity", exact: true }).click();
   await page.getByRole("button", { name: "Month", exact: true }).click();
-  const card = page.locator(".activity-grid > .panel").last();
+  const card = page
+    .locator(".training-grid > .panel")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Recent activities",
+        exact: true,
+      }),
+    });
   await expect(card.locator(".workout")).toHaveCount(6);
   expect((await card.boundingBox())!.width).toBeLessThan(530);
-  expect((await card.boundingBox())!.height).toBeLessThan(650);
+  expect((await card.boundingBox())!.height).toBeLessThan(800);
   await page
     .getByRole("button", { name: "Next workouts", exact: true })
     .click();
@@ -380,4 +396,221 @@ test("wide layouts stay compact, date stays centered and long workout histories 
     path: "test-results/activity-wide.png",
     fullPage: true,
   });
+});
+
+test("paired charts align and remain aligned at desktop sizes", async ({
+  page,
+}) => {
+  await fixture(page);
+  await login(page);
+  for (const width of [2560, 1440, 1024]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const cards = page.locator(".today-grid > .panel");
+    const a = await cards.nth(0).boundingBox(),
+      b = await cards.nth(1).boundingBox();
+    expect(Math.abs(a!.y - b!.y)).toBeLessThan(1);
+    expect(Math.abs(a!.height - b!.height)).toBeLessThan(1);
+    const plots = page.locator(".today-grid .chart-frame");
+    const c = await plots.nth(0).boundingBox(),
+      d = await plots.nth(1).boundingBox();
+    expect(Math.abs(c!.y - d!.y)).toBeLessThan(1);
+  }
+});
+
+test("slow refresh retains charts, reports completed datasets, and ends on failure", async ({
+  page,
+}) => {
+  await fixture(page);
+  await login(page);
+  const weight = await page
+    .locator(".today-grid .panel-value")
+    .first()
+    .innerText();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/devices/*/weights?*", async (route) => {
+    await held;
+    await route.fulfill({
+      status: 503,
+      json: { error: { message: "Weight history unavailable" } },
+    });
+  });
+  await page.getByRole("button", { name: "Refresh data", exact: true }).click();
+  const progress = page.getByRole("progressbar", { name: "Loading data" });
+  await expect(progress).toBeVisible();
+  await expect(progress).toHaveAttribute("aria-valuenow", "5");
+  await expect(progress).toHaveAttribute("aria-valuemax", "6");
+  await expect(page.locator(".today-grid .panel-value").first()).toHaveText(
+    weight,
+  );
+  release();
+  await expect(progress).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText(
+    "Weight history unavailable",
+  );
+  await expect(page.locator(".today-grid .panel-value").first()).toHaveText(
+    weight,
+  );
+});
+
+test("heatmap supports keyboard navigation, missing days and mobile scrolling", async ({
+  page,
+}) => {
+  await fixture(page);
+  await login(page);
+  await page.getByRole("link", { name: "Activity", exact: true }).click();
+  const map = page.getByRole("group", { name: "Daily activity, past year" });
+  const cell = map.locator('button[tabindex="0"]');
+  await cell.focus();
+  await expect(page.getByRole("tooltip")).toContainText("Load");
+  await cell.press("ArrowLeft");
+  await expect(map.locator("button:focus")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await map.locator("button:focus").press("Home");
+  await map.locator("button:focus").press("Escape");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  expect(await map.locator('[data-level="missing"]').count()).toBeGreaterThan(
+    300,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Re-enter: recent data must be visible rather than the oldest empty months.
+  await page.getByRole("link", { name: "Today", exact: true }).click();
+  await page.getByRole("link", { name: "Activity", exact: true }).click();
+  expect(
+    await page.locator(".heatmap-scroll").evaluate((el) => el.scrollLeft),
+  ).toBeGreaterThan(0);
+});
+
+test("pointer chart selection and reduced-motion initial loading work", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await fixture(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/devices/*/profile", async (route) => {
+    await held;
+    await route.fulfill({ json: { tz: "UTC" } });
+  });
+  await page.goto("/");
+  await page.getByLabel("Email", { exact: true }).fill("demo@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("not-a-real-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("progressbar", { name: "Loading data" }),
+  ).toBeVisible();
+  await expect(page.locator(".skeleton-grid")).toBeVisible();
+  await expect(page.getByText("No readings for this period")).toHaveCount(0);
+  await page.screenshot({ path: "test-results/loading.png" });
+  release();
+  await expect(page.locator(".today-grid")).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: "Loading data" }),
+  ).toHaveCount(0);
+  const chart = page.locator(".chart-frame").first(),
+    plot = chart.locator(".recharts-wrapper");
+  const rect = (await plot.boundingBox())!;
+  await page.mouse.move(
+    rect.x + rect.width * 0.75,
+    rect.y + rect.height * 0.45,
+  );
+  await expect(chart.locator(".chart-tooltip")).toBeVisible();
+  await expect(chart.locator(".chart-tooltip")).not.toContainText(":");
+  await page.screenshot({ path: "test-results/tooltip.png" });
+});
+
+test("switching devices clears cached readings until the new source loads", async ({
+  page,
+}) => {
+  await fixture(page, { devices: ["DEMO", "OTHER"] });
+  await login(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/devices/OTHER/profile", async (route) => {
+    await held;
+    await route.fulfill({ json: { tz: "UTC" } });
+  });
+  await page.getByRole("combobox", { name: "Device" }).selectOption("OTHER");
+  await expect(page.locator(".today-grid")).toHaveCount(0);
+  await expect(page.locator(".skeleton-grid")).toBeVisible();
+  release();
+  await expect(page.locator(".today-grid")).toBeVisible();
+});
+
+test("touch heatmap targets, RTL and 200 percent layout stay usable", async ({
+  page,
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const touch = await context.newPage();
+  await fixture(touch);
+  await login(touch);
+  await touch.getByRole("link", { name: "Activity", exact: true }).click();
+  const cell = touch.locator(".training-heatmap button").last();
+  const box = (await cell.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(24);
+  expect(box.height).toBeGreaterThanOrEqual(24);
+  await touch.screenshot({
+    path: "test-results/activity-touch.png",
+    fullPage: true,
+  });
+  await context.close();
+  await fixture(page);
+  await login(page);
+  await page.evaluate(() => {
+    document.documentElement.dir = "rtl";
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.evaluate(() => {
+    document.documentElement.dir = "ltr";
+    document.body.style.zoom = "2";
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+    .toBe(true);
+  await page.screenshot({ path: "test-results/zoom-200.png", fullPage: true });
+});
+
+test("outlook waiting indicator stays small inside its neutral ring", async ({
+  page,
+}) => {
+  await fixture(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/devices/*/days/*/insights?*", async (route) => {
+    await held;
+    await route.fulfill({
+      json: { state: "ready", outlook: { state: "good" }, metrics: [] },
+    });
+  });
+  await login(page);
+  const spinner = page.getByLabel("Loading outlook");
+  await expect(spinner).toBeVisible();
+  const rect = (await spinner.boundingBox())!;
+  expect(rect.width).toBeLessThan(30);
+  expect(rect.height).toBeLessThan(30);
+  release();
+  await expect(spinner).toHaveCount(0);
 });

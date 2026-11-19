@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -8,8 +9,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ReferenceLine,
+  ReferenceDot,
 } from "recharts";
 import { dateLabel, number } from "./calendar";
 export interface Point {
@@ -35,30 +36,88 @@ export function Chart({
   onOpen?: (day: string) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  if (!data.some((p) => p.value != null))
-    return <div className="empty">No readings for this period</div>;
+  const [hover, setHover] = useState<string | null>(null);
+  const id = useId();
+  const valid = data.filter((p) => p.value != null);
+  const point = valid.find((p) => p.day === (hover ?? selected));
   const label = (key: string) =>
     hourly
       ? new Date(key).toLocaleTimeString(undefined, {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : dateLabel(key);
+      : dateLabel(key, { day: "numeric", month: "short", year: "numeric" });
+  const axisLabel = (x: number) =>
+    hourly
+      ? new Date(x).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : dateLabel(new Date(x).toISOString().slice(0, 10));
   const ChartType = bar ? BarChart : LineChart;
-  const valid = data.filter((p) => p.value != null);
-  const point = valid.find((p) => p.day === selected);
+  const pick = (x: unknown) =>
+    data.find((p) => p.x === Number(x) && p.value != null)?.day ?? null;
+  const pct =
+    point && data.length > 1
+      ? (100 * (point.x - data[0].x)) / (data.at(-1)!.x - data[0].x)
+      : 50;
+  if (!valid.length)
+    return <div className="empty chart-empty">No readings for this period</div>;
   return (
-    <div>
-      <div className="chart" aria-label={`${unit || "Measurement"} history`}>
+    <div
+      className="chart-frame"
+      tabIndex={0}
+      role="group"
+      aria-label={`${unit || "Measurement"} history`}
+      aria-describedby={id}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setSelected(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          setSelected(null);
+          setHover(null);
+          return;
+        }
+        if (e.key === "Enter" && point && onOpen) {
+          e.preventDefault();
+          onOpen(point.day);
+          return;
+        }
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault();
+        setHover(null);
+        const current = valid.findIndex((p) => p.day === selected);
+        const next =
+          e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? valid.length - 1
+              : current < 0
+                ? valid.length - 1
+                : Math.max(
+                    0,
+                    Math.min(
+                      valid.length - 1,
+                      current + (e.key === "ArrowLeft" ? -1 : 1),
+                    ),
+                  );
+        setSelected(valid[next].day);
+      }}
+    >
+      <span className="sr-only" id={id}>
+        Use arrow keys to select a reading.
+        {onOpen ? " Press Enter to open its day." : ""}
+      </span>
+      <div className="chart">
         <ResponsiveContainer width="100%" height={168}>
           <ChartType
             data={data}
+            accessibilityLayer={false}
             margin={{ left: 0, right: 12, top: 12, bottom: 0 }}
-            onClick={(state) => {
-              const label = state?.activeLabel;
-              const p = data.find((p) => p.x === Number(label));
-              if (p?.value != null) setSelected(p.day);
-            }}
+            onMouseMove={(s) => setHover(pick(s?.activeLabel))}
+            onMouseLeave={() => setHover(null)}
+            onClick={(s) => setSelected(pick(s?.activeLabel))}
           >
             <CartesianGrid
               vertical={false}
@@ -70,13 +129,8 @@ export function Chart({
               type="number"
               domain={["dataMin", "dataMax"]}
               scale="time"
-              tickFormatter={(x) =>
-                label(
-                  hourly
-                    ? new Date(x).toISOString()
-                    : new Date(x).toISOString().slice(0, 10),
-                )
-              }
+              padding={bar ? { left: 12, right: 12 } : undefined}
+              tickFormatter={axisLabel}
               tick={{ fill: "var(--muted)", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
@@ -91,27 +145,12 @@ export function Chart({
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip
-              labelFormatter={(x) =>
-                label(
-                  hourly
-                    ? new Date(Number(x)).toISOString()
-                    : new Date(Number(x)).toISOString().slice(0, 10),
-                )
-              }
-              formatter={(v) => [`${number(Number(v), 1)} ${unit}`, ""]}
-              contentStyle={{
-                background: "#202020",
-                border: "1px solid #383838",
-                borderRadius: 10,
-                color: "#fafafa",
-              }}
-            />
             {target != null && (
               <ReferenceLine
                 y={target}
                 stroke="var(--muted)"
                 strokeDasharray="4 4"
+                ifOverflow="extendDomain"
                 label={({ viewBox }) => {
                   const box = viewBox as {
                     x: number;
@@ -130,7 +169,6 @@ export function Chart({
                     </text>
                   );
                 }}
-                ifOverflow="extendDomain"
               />
             )}
             {bar ? (
@@ -147,55 +185,84 @@ export function Chart({
                 type="linear"
                 stroke={color}
                 strokeWidth={2}
+                strokeLinecap="round"
                 connectNulls={false}
                 dot={valid.length < 5 ? { r: 3, fill: color } : false}
-                activeDot={{ r: 4 }}
+                activeDot={false}
                 isAnimationActive={false}
+              />
+            )}
+            {point && (
+              <ReferenceLine
+                x={point.x}
+                stroke="var(--muted)"
+                strokeWidth={1}
+              />
+            )}
+            {point && (
+              <ReferenceDot
+                x={point.x}
+                y={point.value!}
+                r={4}
+                fill={color}
+                stroke="var(--panel)"
+                strokeWidth={2}
               />
             )}
           </ChartType>
         </ResponsiveContainer>
       </div>
       {point && (
-        <button
-          className="reading"
-          onClick={() => onOpen?.(point.day)}
-          disabled={!onOpen}
+        <div
+          className="chart-tooltip"
+          style={{
+            left: `clamp(8px, calc(${pct}% - 85px), calc(100% - 170px))`,
+          }}
         >
-          {label(point.day)} · {number(point.value, 1)} {unit}
-          {onOpen ? " →" : ""}
-        </button>
+          <strong>{label(point.day)}</strong>
+          <div>
+            <span className="muted">{unit || "Value"}</span>
+            <span>
+              {number(point.value, 1)}
+              {onOpen && (
+                <button
+                  className="tooltip-open"
+                  aria-label={`Open ${label(point.day)}`}
+                  onClick={() => onOpen(point.day)}
+                >
+                  <ArrowUpRight size={15} />
+                </button>
+              )}
+            </span>
+          </div>
+        </div>
       )}
-      <details className="data-disclosure">
-        <summary>Readings</summary>
+      <span className="sr-only" aria-live="polite">
+        {selected && point
+          ? `${label(point.day)}: ${number(point.value, 1)} ${unit}`
+          : ""}
+      </span>
+      <div className="sr-only">
         <table>
+          <caption>{unit || "Measurement"} history</caption>
           <thead>
             <tr>
               <th>Date</th>
-              <th>{unit || "Value"}</th>
+              <th>Value</th>
             </tr>
           </thead>
           <tbody>
             {valid.map((p) => (
               <tr key={p.day}>
+                <td>{label(p.day)}</td>
                 <td>
-                  {onOpen ? (
-                    <button
-                      className="text-button"
-                      onClick={() => onOpen(p.day)}
-                    >
-                      {label(p.day)}
-                    </button>
-                  ) : (
-                    label(p.day)
-                  )}
+                  {number(p.value, 1)} {unit}
                 </td>
-                <td>{number(p.value, 1)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </details>
+      </div>
     </div>
   );
 }

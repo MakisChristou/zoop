@@ -17,9 +17,11 @@ test("real API: private data, admin stats, read-only access and session logout",
   await expect(
     page.getByRole("heading", { name: "Today", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Loading your data")).toHaveCount(0);
+  await expect(page.locator(".today-grid")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(page.locator(".number").first()).toContainText("64.2");
+  await expect(page.locator(".today-grid .panel-value").first()).toContainText(
+    "64.2",
+  );
   for (const name of ["Activity", "Sleep", "Trends", "Goals"]) {
     await page.getByRole("link", { name, exact: true }).click();
     await expect(
@@ -56,7 +58,9 @@ test("real API: private data, admin stats, read-only access and session logout",
     .getByLabel("Password", { exact: true })
     .fill(process.env.ZOOP_E2E_PASSWORD!);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.locator(".number").first()).toContainText("89.7");
+  await expect(page.locator(".today-grid .panel-value").first()).toContainText(
+    "89.7",
+  );
   expect((await page.request.get("/v1/admin/stats")).status()).toBe(403);
   expect((await page.request.get("/v1/devices/DEMO-A/profile")).status()).toBe(
     404,

@@ -3,9 +3,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Dumbbell,
-  Footprints,
-  Activity as ActivityIcon,
   LogOut,
   Shield,
   LoaderCircle,
@@ -33,6 +30,8 @@ import {
   type Period,
 } from "./calendar";
 import { Chart } from "./Chart";
+import { LoadingBar, LoadingCards } from "./Loading";
+import { BySport, TrainingHeatmap, SportIcon } from "./Training";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
 type Page = (typeof pages)[number] | "Admin";
 function currentPage(): Page {
@@ -43,6 +42,7 @@ export function App() {
   const [identity, setIdentity] = useState<Identity | null>(null),
     [checking, setChecking] = useState(true),
     [error, setError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState<Page>(currentPage),
     [menu, setMenu] = useState(false),
     [device, setDevice] = useState("");
@@ -76,6 +76,8 @@ export function App() {
     };
   }, []);
   async function logout() {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
       await api("/v1/auth/logout", undefined, {});
       setIdentity(null);
@@ -84,6 +86,8 @@ export function App() {
       location.hash = "Today";
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setSigningOut(false);
     }
   }
   if (checking)
@@ -147,8 +151,13 @@ export function App() {
                   <Shield size={16} /> Admin
                 </a>
               )}
-              <button onClick={logout}>
-                <LogOut size={16} /> Sign out
+              <button onClick={logout} disabled={signingOut}>
+                {signingOut ? (
+                  <LoaderCircle className="spinner" size={16} />
+                ) : (
+                  <LogOut size={16} />
+                )}{" "}
+                Sign out
               </button>
             </div>
           )}
@@ -294,8 +303,9 @@ function Empty({ children }: { children: ReactNode }) {
 }
 function Loading() {
   return (
-    <div className="loading" role="status">
-      <LoaderCircle className="spinner" size={20} /> Loading your data
+    <div className="loading">
+      <LoadingBar />
+      <LoadingCards />
     </div>
   );
 }
@@ -322,11 +332,13 @@ function Ring({
   value,
   color,
   fraction,
+  loading = false,
 }: {
   label: string;
   value: string;
   color: string;
   fraction?: number;
+  loading?: boolean;
 }) {
   return (
     <div className="ring-item">
@@ -355,7 +367,17 @@ function Ring({
             <circle cx="131" cy="70" r="4" fill={color} />
           )}
         </svg>
-        <strong>{value}</strong>
+        <strong>
+          {loading ? (
+            <LoaderCircle
+              className="spinner"
+              size={20}
+              aria-label="Loading outlook"
+            />
+          ) : (
+            value
+          )}
+        </strong>
       </div>
       <span>{label}</span>
     </div>
@@ -371,7 +393,7 @@ function Dashboard({
   picker: ReactNode;
 }) {
   const [refresh, setRefresh] = useState(0);
-  const { data, loading, error } = useDataset(device, refresh);
+  const { data, loading, error, completed } = useDataset(device, refresh);
   const [selected, setSelected] = useState(""),
     [period, setPeriod] = useState<Period>("Month"),
     [detail, setDetail] = useState<Session | null>(null);
@@ -443,7 +465,7 @@ function Dashboard({
             aria-label="Refresh data"
             disabled={loading}
           >
-            <RefreshCw size={16} />
+            <RefreshCw className={loading ? "spinner" : undefined} size={16} />
           </button>
         </div>
       </div>
@@ -494,9 +516,18 @@ function Dashboard({
           )}
         </div>
       )}
-      {loading ? (
-        <Loading />
-      ) : error ? (
+      <div className="refresh-slot">
+        {loading && <LoadingBar value={completed} total={6} />}
+      </div>
+      {error && data && (
+        <p className="error" role="alert">
+          {error}{" "}
+          <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
+        </p>
+      )}
+      {loading && !data ? (
+        <LoadingCards />
+      ) : error && !data ? (
         <div role="alert" className="error">
           {error}{" "}
           <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
@@ -566,36 +597,54 @@ function Workouts({
   return rows.length ? (
     <>
       <div className="timeline">
-        {rows.slice(first, first + size).map((s) => (
-          <button className="workout" key={s.id} onClick={() => onDetail(s)}>
-            <span className="workout-icon">
-              {s.kind === "resistance" ? (
-                <Dumbbell size={19} />
-              ) : s.kind === "walk" ? (
-                <Footprints size={19} />
-              ) : (
-                <ActivityIcon size={19} />
+        {rows.slice(first, first + size).map((session, index, visible) => {
+          const day = dayKey(new Date(session.start_ts), tz);
+          const previous =
+            index > 0
+              ? dayKey(new Date(visible[index - 1].start_ts), tz)
+              : null;
+          const today = dayKey(new Date(), tz);
+          return (
+            <div className="timeline-entry" key={session.id}>
+              {day !== previous && (
+                <div className="timeline-date">
+                  <span />
+                  {day === today
+                    ? "Today"
+                    : day === addDays(today, -1)
+                      ? "Yesterday"
+                      : dateLabel(day, {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                </div>
               )}
-            </span>
-            <span className="workout-title">
-              {title(s.kind)}
-              <small>
-                {new Date(s.start_ts).toLocaleDateString(undefined, {
-                  timeZone: tz,
-                })}{" "}
-                · {duration(s.duration_s)}
-              </small>
-            </span>
-            <span className="load-track">
-              <span
-                style={{
-                  width: `${Math.min(100, ((s.load ?? 0) / 21) * 100)}%`,
-                }}
-              />
-            </span>
-            <span>{number(s.load, 1)}</span>
-          </button>
-        ))}
+              <button className="workout" onClick={() => onDetail(session)}>
+                <span className="workout-icon">
+                  <SportIcon kind={session.kind} />
+                </span>
+                <span className="workout-title">
+                  {title(session.kind)}
+                  <small>
+                    {duration(session.duration_s)}
+                    {session.avg_hr != null
+                      ? ` · ${number(session.avg_hr)} bpm`
+                      : ""}
+                  </small>
+                </span>
+                <span className="load-track">
+                  <span
+                    style={{
+                      width: `${Math.min(100, Math.max(0, ((session.load ?? 0) / 21) * 100))}%`,
+                    }}
+                  />
+                </span>
+                <span className="workout-load">{number(session.load, 1)}</span>
+              </button>
+            </div>
+          );
+        })}
       </div>
       {rows.length > size && (
         <div className="workout-paging">
@@ -771,6 +820,7 @@ function DataView({
           <Ring
             label="Outlook"
             value={insightLoading ? "…" : outlook(insight?.outlook.state)}
+            loading={insightLoading}
             color={
               insight?.outlook.state === "good"
                 ? "var(--green)"
@@ -786,15 +836,16 @@ function DataView({
             fraction={daily?.load != null ? daily.load / 21 : undefined}
           />
         </div>
-        <div className="grid">
+        <div className="grid today-grid">
           <Panel
             title="Weight"
-            aside={<span className="muted small">30 days</span>}
+            aside={
+              <span className="panel-value">
+                {number(latest?.value, 1)} <small>kg</small>
+              </span>
+            }
           >
             {error("weights")}
-            <p className="number">
-              {number(latest?.value, 1)} <small>kg</small>
-            </p>
             {weightChart}
           </Panel>
           <Panel
@@ -810,22 +861,15 @@ function DataView({
               tz={tz}
               rows={workouts
                 .filter((s) => dayKey(new Date(s.start_ts), tz) <= date)
-                .slice(0, 4)}
+                .slice(0, 3)}
               onDetail={onDetail}
             />
           </Panel>
           <Panel
             title="Steps"
-            aside={
-              goal?.goal?.daily_steps_goal ? (
-                <span className="muted small">
-                  Goal {number(goal.goal.daily_steps_goal)}
-                </span>
-              ) : null
-            }
+            aside={<span className="panel-value">{number(daily?.steps)}</span>}
           >
             {error("days")}
-            <p className="number">{number(daily?.steps)}</p>
             <Chart
               data={series(
                 days.map((d) => ({ day: d.day, value: d.steps })),
@@ -835,6 +879,7 @@ function DataView({
               color="var(--blue)"
               bar
               unit="steps"
+              target={goal?.goal?.active ? goal.goal.daily_steps_goal : null}
               onOpen={onDay}
             />
           </Panel>
@@ -888,47 +933,76 @@ function DataView({
         </Panel>
       </div>
     );
-  if (page === "Activity")
+  if (page === "Activity") {
+    const selectedWorkouts = workouts.filter((s) => {
+      const d = dayKey(new Date(s.start_ts), tz);
+      return d >= start && d < end;
+    });
     return (
-      <div className="grid activity-grid">
-        <Panel title="Daily load">
-          {error("days")}
-          <Chart
-            data={series(
-              days.map((d) => ({ day: d.day, value: d.load })),
-              start,
-              end,
+      <>
+        <div className="section-heading">
+          <h2>Training</h2>
+          <span>
+            {selectedWorkouts.length} workouts ·{" "}
+            {duration(
+              selectedWorkouts.reduce((sum, s) => sum + s.duration_s, 0),
             )}
-            color="var(--blue)"
-            bar
-            unit="load"
-            onOpen={onDay}
-          />
-        </Panel>
-        <Panel title="Steps">
-          <Chart
-            data={stepSeries}
-            color="var(--blue)"
-            bar
-            unit="steps"
-            onOpen={onDay}
-          />
-        </Panel>
-        <Panel title="Workouts">
-          {error("workouts")}
-          <Workouts
-            key={`${start}:${end}`}
-            pageSize={6}
-            tz={tz}
-            rows={workouts.filter((s) => {
-              const d = dayKey(new Date(s.start_ts), tz);
-              return d >= start && d < end;
-            })}
-            onDetail={onDetail}
-          />
-        </Panel>
-      </div>
+          </span>
+        </div>
+        <div className="grid training-grid">
+          <Panel
+            title="Every day"
+            wide
+            aside={<span className="muted small">Past year</span>}
+          >
+            {error("days")}
+            <TrainingHeatmap
+              days={days}
+              rows={workouts}
+              tz={tz}
+              end={dayKey(new Date(), tz)}
+              onOpen={onDay}
+            />
+          </Panel>
+          <Panel title="By sport">
+            {error("workouts")}
+            <BySport rows={selectedWorkouts} />
+          </Panel>
+          <Panel title="Recent activities">
+            <Workouts
+              key={`${start}:${end}`}
+              pageSize={6}
+              tz={tz}
+              rows={selectedWorkouts}
+              onDetail={onDetail}
+            />
+          </Panel>
+          <Panel title="Daily load">
+            <Chart
+              data={series(
+                days.map((d) => ({ day: d.day, value: d.load })),
+                start,
+                end,
+              )}
+              color="var(--blue)"
+              bar
+              unit="load"
+              onOpen={onDay}
+            />
+          </Panel>
+          <Panel title="Steps">
+            <Chart
+              data={stepSeries}
+              color="var(--blue)"
+              bar
+              unit="steps"
+              onOpen={onDay}
+            />
+          </Panel>
+        </div>
+      </>
     );
+  }
   if (page === "Trends")
     return (
       <div className="grid">
@@ -1149,15 +1223,20 @@ function Admin() {
           onClick={() => setRefresh((x) => x + 1)}
           disabled={loading}
         >
-          <RefreshCw size={17} />
+          <RefreshCw className={loading ? "spinner" : undefined} size={17} />
         </button>
       </div>
-      {loading ? (
-        <Loading />
-      ) : error ? (
+      <div className="refresh-slot">
+        {loading && <LoadingBar label="Loading admin stats" />}
+      </div>
+      {error && (
         <p className="error" role="alert">
-          {error}
+          {error}{" "}
+          <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
         </p>
+      )}
+      {loading && !data ? (
+        <LoadingCards />
       ) : (
         data && (
           <>
