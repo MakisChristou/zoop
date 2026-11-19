@@ -1,5 +1,7 @@
 # Zoop API
 
+<img src="Brand/zoop-icon.svg" width="96" height="96" alt="Zoop logo" />
+
 ## Profile measurements and photos
 
 Profile weight follows the most recent non-removed measurement by local date,
