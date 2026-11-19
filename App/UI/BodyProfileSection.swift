@@ -28,6 +28,7 @@ struct BodyProfileSection: View {
 
     var body: some View {
         Section {
+            if loading { ZoopLoadingBar(label: "Loading profile") }
             Picker("Sex", selection: $profile.sex) {
                 Text("Not set").tag(String?.none)
                 Text("Male").tag(String?.some("male"))

@@ -23,6 +23,7 @@ struct SleepSessionDetailView: View {
                 }
             }
         }
+        .zoopLoading(saving, label: "Saving sleep")
         .zoopScreen().navigationTitle(row.name).navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

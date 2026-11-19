@@ -71,7 +71,7 @@ struct AnalysisResetView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(row.domains.count == 2 ? "Sleep and workouts" : row.domains.first == "sleep" ? "Sleep" : "Workouts").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                             Text(row.from.formatted(date: .abbreviated, time: .omitted) + " – " + row.to.formatted(date: .abbreviated, time: .omitted)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                            Button("Undo reset") { Task { await undo(row) } }.disabled(saving).frame(minHeight: 44)
+                            Button { Task { await undo(row) } } label: { HStack { Text("Undo reset"); Spacer(); if saving { ProgressView() } } }.disabled(saving).frame(minHeight: 44)
                         }
                     }
                 }.listRowBackground(ZoopStyle.surface)

@@ -47,6 +47,7 @@ struct GoalsView: View {
                 if let error = store.reminder.error { VStack(alignment: .leading) { Text(error).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { model.refreshReminders() }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }.font(ZoopType.footnote) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(ZoopStyle.gutter)
         }.frame(maxWidth: .infinity).zoopScreen().tint(ZoopStyle.text).mainScreenChrome("Goals")
+            .zoopLoading(store.loading, label: "Loading goals")
             .sheet(isPresented: $editing) { WeightGoalSetupView() }
             .sheet(isPresented: $about) { aboutView }
             .task { await store.reload(); await model.battery.refreshAuthorization() }

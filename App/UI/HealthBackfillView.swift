@@ -37,7 +37,7 @@ struct HealthBackfillView: View {
                 Section {
                     if started {
                         Label(model.health.status, systemImage: model.health.busy ? "arrow.triangle.2.circlepath" : "checkmark")
-                        if model.health.busy { ProgressView(); Button("Pause sync") { model.health.pause(true) } }
+                        if model.health.busy { ZoopLoadingBar(label: "Exporting history"); Button("Pause sync") { model.health.pause(true) } }
                         else if model.health.journal.paused { Button("Resume sync") { model.health.pause(false) } }
                         else if model.health.error != nil { Button("Retry sync") { model.health.checkSoon() } }
                     } else if preview != nil {
@@ -50,7 +50,7 @@ struct HealthBackfillView: View {
                             let selected = range; checking = true; error = nil
                             Task { do { preview = try await model.health.preview(selected) } catch { self.error = error.localizedDescription }; checking = false }
                         }.disabled(checking || model.health.busy)
-                        if checking { ProgressView().accessibilityLabel("Preparing history preview") }
+                        if checking { ZoopLoadingBar(label: "Preparing history preview") }
                     }
                 }
             }

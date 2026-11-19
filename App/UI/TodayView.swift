@@ -61,6 +61,7 @@ struct TodayView: View {
                 .padding(.bottom, 24)
             }
             .mainScreenChrome(screenTitle)
+            .zoopLoading(loading, label: "Loading day")
             .onAppear { visible = true }
             .onDisappear { visible = false; morning.stop() }
             .navigationDestination(for: ZoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }

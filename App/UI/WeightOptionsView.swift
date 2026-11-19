@@ -10,6 +10,8 @@ struct WeightOptionsView: View {
     @State private var importing = false
     @State private var exportURL: URL?
     @State private var exportError: String?
+    @State private var preparingExport = false
+    @State private var exportRequest = UUID()
     var body: some View {
         NavigationStack {
             Form {
@@ -30,7 +32,7 @@ struct WeightOptionsView: View {
                             .accessibilityIdentifier("exportWeightCSV")
                             .accessibilityHint("All saved weigh-ins, in kilograms.")
                     } else {
-                        Label("Export CSV", systemImage: "square.and.arrow.up")
+                        HStack { Label("Export CSV", systemImage: "square.and.arrow.up"); Spacer(); if preparingExport { ProgressView().controlSize(.small).accessibilityLabel("Preparing CSV") } }
                             .foregroundStyle(ZoopStyle.secondary)
                             .accessibilityIdentifier("exportWeightCSVUnavailable")
                     }
@@ -43,9 +45,13 @@ struct WeightOptionsView: View {
             .sheet(isPresented: $importing) { WeightImportView() }
             .task { await model.battery.refreshAuthorization() }
             .task(id: model.health.rows) {
+                let request = UUID(); exportRequest = request
+                preparingExport = false
                 exportURL = nil; exportError = nil
                 let rows = model.health.rows, timeZone = TimeZone.current
                 guard !rows.isEmpty else { return }
+                preparingExport = true
+                defer { if exportRequest == request { preparingExport = false } }
                 let result = await Task.detached(priority: .userInitiated) { () -> (URL?, String?) in
                     do {
                         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("WeightExport-" + UUID().uuidString, isDirectory: true)
@@ -55,7 +61,7 @@ struct WeightOptionsView: View {
                         return (url, nil)
                     } catch { return (nil, "Couldn’t prepare CSV. Reopen this page to retry.") }
                 }.value
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, exportRequest == request else { return }
                 exportURL = result.0; exportError = result.1
             }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.battery.refreshAuthorization() } } }

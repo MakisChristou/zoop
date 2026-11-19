@@ -39,6 +39,7 @@ struct HealthProgressView: View {
             Button { showAbout = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About your progress")
         } }
         .zoopScreen()
+        .zoopLoading(store.loading, label: "Loading progress")
         .sheet(isPresented: $showAbout) { ProgressAboutView() }
         .refreshable { await ZoopAPI.invalidateReads(); await load() }
         .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {

@@ -13,14 +13,18 @@ struct WorkoutNotice: View {
                     Text(notice).font(ZoopType.subheadline)
                     Spacer()
                     if let id = model.activity.undoId {
-                        Button("Undo") {
+                        Button {
                             Task {
                                 saving = true
                                 defer { saving = false }
                                 do { try await model.activity.undo(device: model.strap.serial, id: id); error = nil }
                                 catch { self.error = error.localizedDescription }
                             }
+                        } label: {
+                            if saving { ProgressView().controlSize(.small) }
+                            else { Text("Undo") }
                         }.disabled(saving).frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel(saving ? "Restoring workout" : "Undo")
                     }
                     Button { model.activity.dismissNotice(); error = nil } label: {
                         Image(systemName: "xmark").frame(width: 44, height: 44)

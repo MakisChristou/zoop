@@ -17,7 +17,7 @@ struct AppleHealthView: View {
             Section {
                 Label(health.connected ? health.status : "Not connected", systemImage: "heart")
                     .font(ZoopType.headline)
-                if connecting { ProgressView("Saving…") }
+                if connecting || health.busy { ZoopLoadingBar(label: connecting ? "Saving Health settings" : "Syncing Apple Health") }
                 if let last = health.journal.lastSync { LabeledContent("Last synced", value: last.formatted(date: .abbreviated, time: .shortened)) }
                 if let error = health.error {
                     Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable)

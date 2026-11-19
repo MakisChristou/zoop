@@ -21,9 +21,13 @@ struct TrendsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     chips
-                    TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
-                    TrendSleepHeatStrip(byDay: sleepByDay, today: Calendar.current.startOfDay(for: Date()), calendar: .current, selected: heatmapNight?.endTs) { date in
-                        heatmapNight = nights.first { Calendar.current.isDate($0.endTs, inSameDayAs: date) }
+                    if history.loading && nights.isEmpty && days.isEmpty {
+                        Color.clear.frame(height: 300).accessibilityHidden(true)
+                    } else {
+                        TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
+                        TrendSleepHeatStrip(byDay: sleepByDay, today: Calendar.current.startOfDay(for: Date()), calendar: .current, selected: heatmapNight?.endTs) { date in
+                            heatmapNight = nights.first { Calendar.current.isDate($0.endTs, inSameDayAs: date) }
+                        }
                     }
                     NavigationLink { HealthProgressView() } label: {
                         HStack(spacing: 12) {
@@ -40,6 +44,7 @@ struct TrendsView: View {
             }
             .navigationTitle("Trends")
             .mainScreenChrome("Trends")
+            .zoopLoading(history.loading, label: "Loading trends")
             .navigationDestination(item: $detailDay) { day in
                 DayStepsView(day: day, summary: days.first { DayKey.date($0.day) == day }, summariesLoaded: true)
             }

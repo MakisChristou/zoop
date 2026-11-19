@@ -10,6 +10,7 @@ struct DaySteps: View {
 
     @Environment(AppModel.self) private var model
     @State private var loadID = UUID()
+    @State private var refreshing = false
     @State private var state: Loadable = .loading
     @State private var selectedHour: Double?
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 164
@@ -50,6 +51,7 @@ struct DaySteps: View {
             }
             if let data = loaded, !data.bouts.isEmpty { walks(data) }
         }
+        .zoopLoading(refreshing, label: "Loading hourly steps")
         .task(id: "\(model.strap.serial)-\(day.timeIntervalSince1970)-\(refreshID)") { await load() }
     }
 
@@ -118,6 +120,8 @@ struct DaySteps: View {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { state = .failed; return }
         if case .failed = state { state = .loading }
         let request = UUID(); loadID = request
+        refreshing = true
+        defer { if loadID == request { refreshing = false } }
         let serial = model.strap.serial, connection = Settings.connectionID, date = day
         do {
             let rows = try await ZoopAPI.steps(deviceId: serial, day: date)

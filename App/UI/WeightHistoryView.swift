@@ -7,6 +7,7 @@ struct WeightHistoryView: View {
     @State private var editing: WeightReading?
     @State private var removing: WeightReading?
     @State private var saveError: String?
+    @State private var saving = false
     private func value(_ kg: Double) -> String {
         (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) + " " + unit
     }
@@ -21,13 +22,16 @@ struct WeightHistoryView: View {
             }
         }
         .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+        .zoopLoading(saving || model.health.busy, label: "Updating weights")
+        .disabled(saving)
         .navigationTitle("All weigh-ins").navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.health.sync() }
         .sheet(item: $editing) { WeightEntryView(editing: $0) }
         .confirmationDialog("Delete this weigh-in?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button("Delete weigh-in", role: .destructive) {
                 guard var row = removing else { return }; row.removed = true; saveError = nil
-                Task { do { try await model.health.save(row) } catch { saveError = "Couldn’t delete this weigh-in. Try again." } }; removing = nil
+                saving = true
+                Task { defer { saving = false }; do { try await model.health.save(row) } catch { saveError = "Couldn’t delete this weigh-in. Try again." } }; removing = nil
             }
         } message: { Text("This removes the Zoop measurement and its Zoop export. Other apps’ records stay unchanged.") }
     }

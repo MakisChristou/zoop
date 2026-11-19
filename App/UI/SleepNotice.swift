@@ -11,7 +11,19 @@ struct SleepNotice: View {
                     Text(model.sleep.refreshError ?? notice).font(ZoopType.footnote)
                     Spacer()
                     if let id = model.sleep.undoId {
-                        Button("Undo") { Task { saving = true; defer { saving = false }; do { try await model.sleep.undo(device: model.strap.serial, id: id); error = nil } catch { self.error = error.localizedDescription } } }.disabled(saving).frame(minWidth: 44, minHeight: 44)
+                        Button {
+                            Task {
+                                saving = true
+                                defer { saving = false }
+                                do { try await model.sleep.undo(device: model.strap.serial, id: id); error = nil }
+                                catch { self.error = error.localizedDescription }
+                            }
+                        } label: {
+                            if saving { ProgressView().controlSize(.small) }
+                            else { Text("Undo") }
+                        }
+                        .disabled(saving).frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel(saving ? "Restoring sleep" : "Undo")
                     }
                     Button { model.sleep.dismissNotice(); error = nil } label: { Image(systemName: "xmark").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel("Dismiss message")
                 }

@@ -19,6 +19,7 @@ struct StepsView: View {
     @State private var days: Loadable = .loading
     @State private var refreshID = 0
     @State private var loadID = UUID()
+    @State private var refreshing = false
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 164
 
     enum Loadable {
@@ -62,6 +63,7 @@ struct StepsView: View {
             .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
         .zoopScreen()
+        .zoopLoading(refreshing, label: "Loading steps")
         .navigationTitle("Steps")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -239,6 +241,8 @@ struct StepsView: View {
         if case .failed = days { days = .loading }
         let serial = model.strap.serial, connection = Settings.connectionID
         let request = UUID(); loadID = request
+        refreshing = true
+        defer { if loadID == request { refreshing = false } }
         async let w: Void = model.activity.reload(device: serial)
         do {
             let rows = try await ZoopAPI.days(deviceId: serial, limit: 31)

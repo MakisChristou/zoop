@@ -96,6 +96,40 @@ private actor TrendTestServer {
         XCTAssertNil(store.error)
     }
 
+    func testLoadingStaysActiveUntilNewestRequestCompletes() async throws {
+        let server = LoadingGate()
+        let store = TrendStore(loadNights: { try await server.nights($0) }, loadDays: { _ in [] })
+        let first = Task { await store.reload(device: "first", connection: "one", now: now, calendar: calendar) }
+        while !(await server.contains("first")) { await Task.yield() }
+        XCTAssertTrue(store.loading)
+        let second = Task { await store.reload(device: "second", connection: "two", now: now, calendar: calendar) }
+        while !(await server.contains("second")) { await Task.yield() }
+        await server.finish("first")
+        await first.value
+        XCTAssertTrue(store.loading, "An obsolete request must not hide the current loading indicator")
+        XCTAssertTrue(store.snapshot.nights.isEmpty)
+        await server.finish("second")
+        await second.value
+        XCTAssertFalse(store.loading)
+        XCTAssertFalse(store.snapshot.nights.isEmpty)
+    }
+
+    func testLoadingEndsAfterCancellationFailureAndEmptyDevice() async throws {
+        let server = TrendTestServer(); await server.setDelay()
+        let store = TrendStore(loadNights: { try await server.nights($0) }, loadDays: { _ in [] })
+        let request = Task { await store.reload(device: "new", connection: "one", now: now, calendar: calendar) }
+        while await server.count() == 0 { await Task.yield() }
+        XCTAssertTrue(store.loading)
+        request.cancel(); await request.value
+        XCTAssertFalse(store.loading)
+        await server.fail()
+        await store.reload(device: "new", connection: "one", now: now, calendar: calendar)
+        XCTAssertFalse(store.loading)
+        XCTAssertNotNil(store.error)
+        await store.reload(device: "", connection: "one", now: now, calendar: calendar)
+        XCTAssertFalse(store.loading)
+    }
+
     nonisolated static func night(day: String) -> ZoopAPI.Night {
         let wake = DayKey.date(day, timeZone: TimeZone(secondsFromGMT: 0)!)!.addingTimeInterval(9 * 3600)
         let start = wake.addingTimeInterval(-8 * 3600)
@@ -103,5 +137,16 @@ private actor TrendTestServer {
     }
     nonisolated private static func day(_ key: String, steps: Int?) -> ZoopAPI.Day {
         .init(day: key, steps: steps, stepsWalking: steps, walkingS: nil, hrMin: nil, hrAvg: nil, hrMax: nil, skinTempAvg: nil, asleepS: nil, samples: 100, load: nil, trimp: nil, kcal: nil, zonesMin: nil)
+    }
+}
+
+private actor LoadingGate {
+    private var waiting: [String: CheckedContinuation<[ZoopAPI.Night], Error>] = [:]
+    func contains(_ device: String) -> Bool { waiting[device] != nil }
+    func nights(_ device: String) async throws -> [ZoopAPI.Night] {
+        try await withCheckedThrowingContinuation { waiting[device] = $0 }
+    }
+    func finish(_ device: String) {
+        waiting.removeValue(forKey: device)?.resume(returning: [TrendStoreTests.night(day: "2026-11-01")])
     }
 }

@@ -51,6 +51,7 @@ struct MorningInsightsView: View {
             }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
         .navigationTitle("Morning insights").navigationBarTitleDisplayMode(.inline).zoopScreen()
+        .zoopLoading(loading || history.loading, label: "Loading morning insights")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showMethod = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About morning insights")

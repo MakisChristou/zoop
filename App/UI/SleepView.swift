@@ -57,6 +57,7 @@ struct SleepView: View {
                 }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 24)
             }
             .navigationTitle("Sleep").mainScreenChrome("Sleep")
+            .zoopLoading(loading, label: "Loading sleep")
             .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
             .refreshable { await load() }
             .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }

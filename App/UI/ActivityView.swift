@@ -12,6 +12,7 @@ struct ActivityView: View {
     @State private var days: [ZoopAPI.Day] = []
     @State private var error: String?
     @State private var loaded = false
+    @State private var loading = false
     @State private var loadID = UUID()
     @State private var path: [ZoopAPI.Workout] = []
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -42,6 +43,7 @@ struct ActivityView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { WorkoutNotice() }
             .navigationTitle("Activity")
             .mainScreenChrome("Activity")
+            .zoopLoading(loading, label: "Loading activity")
             .navigationDestination(for: ZoopAPI.Workout.self) { WorkoutDetailView(workout: $0) }
         }
         .onChange(of: requestID) { _, _ in path = []; Task { await load() } }
@@ -180,6 +182,8 @@ struct ActivityView: View {
         guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
         let serial = model.strap.serial, connection = Settings.connectionID, day = selectedDay
         let request = UUID(); loadID = request
+        loading = true
+        defer { if loadID == request { loading = false } }
         async let w: Void = model.activity.reload(device: serial, from: day, to: day.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) })
         async let d = ZoopAPI.days(deviceId: serial, limit: 7)
         var failure: String?

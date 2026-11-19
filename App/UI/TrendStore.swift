@@ -8,6 +8,7 @@ import ZoopData
     typealias DaysLoader = @Sendable (String) async throws -> [ZoopAPI.Day]
     private(set) var snapshot = TrendSnapshot()
     private(set) var error: String?
+    private(set) var loading = false
     private var requestID = UUID()
     private var scope: String?
     private let loadNights: NightsLoader
@@ -21,8 +22,11 @@ import ZoopData
     func reload(device: String, connection: String, now: Date = Date(), calendar: Calendar = .current, isCurrent: () -> Bool = { true }) async {
         let source = device + "|" + connection, request = UUID()
         requestID = request
+        loading = false
         if scope != source { scope = source; snapshot = TrendSnapshot(); error = nil }
         guard !device.isEmpty else { error = "Connect your WHOOP to load trends."; return }
+        loading = true
+        defer { if requestID == request { loading = false } }
         do {
             async let nights = loadNights(device)
             async let days = loadDays(device)

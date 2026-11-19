@@ -27,6 +27,7 @@ struct WeightView: View {
                 }
             }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }.accessibilityIdentifier("weightScroll").zoopScreen().tint(ZoopStyle.text)
+        .zoopLoading(model.health.busy, label: "Syncing weights")
         .navigationTitle("Weight").navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
