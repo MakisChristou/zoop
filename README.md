@@ -21,7 +21,7 @@ version. Profile photo tests and measured-weight regressions run in `just test-d
 **Your WHOOP data, on your own server.**
 
 zoop-api is a self-hosted backend for WHOOP 5.0 and WHOOP MG straps. A companion
-iPhone app ([zoop](https://github.com/MakisChristou/snoop)) talks to the strap over
+iPhone app ([zoop](https://github.com/MakisChristou/zoop)) talks to the strap over
 Bluetooth and uploads the raw sensor frames; this service stores them, decodes them, and
 computes sleep and recovery metrics from published methods. No WHOOP account, no WHOOP
 cloud, no subscription.
@@ -405,5 +405,4 @@ with an explicit --config path when retaining an existing snoop.toml file.
 
 Stored weight source codes and record IDs retain their legacy snoop values. These
 are data identifiers, not display names. Applied migrations are unchanged; no
-analysis version bump or history recomputation is required. GitHub URLs retain
-the previous repository names until the repository rename is completed.
+analysis version bump or history recomputation is required. The repositories are published as zoop and zoop-api; older GitHub URLs redirect.
