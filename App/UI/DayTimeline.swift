@@ -57,7 +57,7 @@ struct DayTimeline: View {
             }
             legend
         }
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
@@ -65,18 +65,18 @@ struct DayTimeline: View {
         Group {
             if let m = selected {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Heart rate").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    Text("Heart rate").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                     Spacer()
-                    Text(m.hr.map { "\($0) bpm" } ?? "—").font(.title3.weight(.semibold)).monospacedDigit()
-                    Text(m.ts.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    Text(m.hr.map { "\($0) bpm" } ?? "—").font(ZoopType.font(size: 16, weight: .semibold, relativeTo: .title3)).monospacedDigit()
+                    Text(m.ts.formatted(date: .omitted, time: .shortened)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }.accessibilityElement(children: .combine)
             } else if now != nil {
                 TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: nil, history: [])
             } else {
                 HStack {
-                    Text("Heart rate").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    Text("Heart rate").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                     Spacer()
-                    if let range = hrRange { Text("\(range.lowerBound)–\(range.upperBound) bpm").font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                    if let range = hrRange { Text("\(range.lowerBound)–\(range.upperBound) bpm").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
                 }
             }
         }.frame(minHeight: 44)
@@ -114,9 +114,9 @@ struct DayTimeline: View {
         }
         .chartXScale(domain: dayStart...dayEnd)
         .chartYScale(domain: .automatic(includesZero: false))
-        .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 6)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.hour()) } }
-        .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
-        .frame(height: 150)
+        .chartXAxis { zoopTimeXAxis(ChartPresentation.dateTicks(dayStart...dayEnd)) }
+        .chartYAxis { zoopChartYAxis() }
+        .font(ZoopType.caption2).frame(height: 164)
         .chartOverlay { proxy in
             GeometryReader { geo in
                 if now != nil, let plot = proxy.plotFrame {
@@ -150,7 +150,7 @@ struct DayTimeline: View {
 
     private var skinTemperatureChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Skin temp").font(.caption2.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
+            Text("Skin temp").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             Chart(minutes.filter { $0.skinTempC != nil }) { m in
                 LineMark(x: .value("Time", m.ts), y: .value("°C", m.skinTempC!))
                     .foregroundStyle(ZoopStyle.temperature)
@@ -159,14 +159,14 @@ struct DayTimeline: View {
             .chartXScale(domain: dayStart...dayEnd)
             .chartYScale(domain: .automatic(includesZero: false))
             .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) }
+            .chartYAxis { zoopChartYAxis(count: 2) }
             .frame(height: 56)
         }
     }
 
     private var stepsChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Steps").font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
+            Text("Steps").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
             if let walkingHours {
                 Chart(Array(walkingHours.prefix(24).enumerated()), id: \.offset) { hour, steps in
                     BarMark(x: .value("Hour", Double(hour) + 0.5), y: .value("Steps", steps))
@@ -174,10 +174,10 @@ struct DayTimeline: View {
                 }
                 .chartXScale(domain: 0...24)
                 .chartXAxis(.hidden)
-                .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) }
+                .chartYAxis { zoopChartYAxis(count: 2) }
                 .frame(height: 56)
             } else {
-                Text("Not available").font(.caption).foregroundStyle(ZoopStyle.secondary).frame(height: 56)
+                Text("Not available").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).frame(height: 56)
             }
         }
     }
@@ -191,6 +191,6 @@ struct DayTimeline: View {
             }
             Label { Text("heart rate") } icon: { RoundedRectangle(cornerRadius: 2).fill(ZoopStyle.heartRate.opacity(0.5)).frame(width: 12, height: 8) }
         }
-        .font(.caption2).foregroundStyle(ZoopStyle.secondary)
+        .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
     }
 }

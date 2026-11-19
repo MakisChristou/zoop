@@ -12,7 +12,7 @@ struct DaySteps: View {
     @State private var loadID = UUID()
     @State private var state: Loadable = .loading
     @State private var selectedHour: Double?
-    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 164
 
     enum Loadable {
         case loading
@@ -29,9 +29,9 @@ struct DaySteps: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(ActivityView.dayTitle(day)).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
-                MetricValue(headlineValue, size: 32)
-                Text("Steps").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Text(ActivityView.dayTitle(day)).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+                MetricValue(headlineValue, size: 20)
+                Text("Steps").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             .accessibilityElement(children: .combine)
             if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: day) {
@@ -39,12 +39,12 @@ struct DaySteps: View {
             }
             if case .failed = state {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Couldn’t update steps").font(.headline)
+                    Text("Couldn’t update steps").font(ZoopType.headline)
                     Button("Try again") { Task { await load() } }.frame(minHeight: 44)
                 }.zoopCard()
             } else if noData {
                 Text("No step data for this day.")
-                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             } else {
                 chart
             }
@@ -61,20 +61,20 @@ struct DaySteps: View {
     private var chart: some View {
         VStack(alignment: .leading, spacing: 12) {
             ViewThatFits(in: .horizontal) {
-                HStack { Text("By hour").font(.subheadline.weight(.medium)); Spacer(); selectionLabel }
-                VStack(alignment: .leading, spacing: 4) { Text("By hour").font(.subheadline.weight(.medium)); selectionLabel }
+                HStack { Text("By hour").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)); Spacer(); selectionLabel }
+                VStack(alignment: .leading, spacing: 4) { Text("By hour").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)); selectionLabel }
             }
             if let data = loaded {
                 HourlyStepsChart(hours: data.walkingHours, day: day, interactive: true, selection: $selectedHour)
                     .frame(height: chartHeight)
                 if data.walking == 0 {
-                    Text("No walking recorded").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                    Text("No walking recorded").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
             } else {
                 ProgressView().frame(maxWidth: .infinity).frame(height: chartHeight)
                     .accessibilityLabel("Loading steps")
             }
-        }
+        }.zoopCard()
     }
 
     private var selectionLabel: some View {
@@ -87,16 +87,16 @@ struct DaySteps: View {
                 Text(day.formatted(.dateTime.day().month(.abbreviated)))
             }
         }
-        .font(.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
+        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
     }
 
     private func walks(_ data: ZoopAPI.StepsDay) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Walks").font(.headline).accessibilityAddTraits(.isHeader)
+                Text("Walks").font(ZoopType.headline).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("\(data.bouts.reduce(0) { $0 + $1.durationS } / 60) min total")
-                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
             .padding(.bottom, 12)
             ForEach(data.bouts) { bout in

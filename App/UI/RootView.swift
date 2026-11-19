@@ -104,7 +104,7 @@ struct RootView: View {
         Button { selection = tab } label: {
             VStack(spacing: 5) {
                 Image(systemName: icon).font(.system(size: 19, weight: .regular))
-                Text(title).font(.caption2)
+                Text(title).font(ZoopType.caption2)
             }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

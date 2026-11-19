@@ -19,7 +19,7 @@ struct HeightEntryView: View {
                 VStack(spacing: 24) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         TextField("Not set", text: $draft).keyboardType(.decimalPad).focused($focused)
-                            .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
+                            .font(ZoopType.fixed(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
                             .multilineTextAlignment(.center).frame(maxWidth: 240)
                             .accessibilityLabel("Height in centimetres").accessibilityIdentifier("heightInput")
                             .accessibilityHint("Tap to type a height")
@@ -31,7 +31,7 @@ struct HeightEntryView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button { height = draft; dismiss() } label: {
-                    Text("Done").font(.headline).frame(maxWidth: .infinity, minHeight: 44)
+                    Text("Done").font(ZoopType.headline).frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }.buttonStyle(.borderedProminent).disabled(!draft.isEmpty && number?.isFinite != true)
                     .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)

@@ -34,17 +34,17 @@ struct GoalsView: View {
                 } else if store.loading { ProgressView().frame(maxWidth: .infinity).padding(30) }
                 else if store.loaded {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(store.goal == nil ? "Start your cut" : store.goal?.active == true ? "Your cut is set" : "Cut paused").font(.title2.weight(.semibold))
+                        Text(store.goal == nil ? "Start your cut" : store.goal?.active == true ? "Your cut is set" : "Cut paused").font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
                         Button(store.goal?.active == true ? "Edit goal" : store.goal == nil ? "Start a cut" : "Start a new cut") { editing = true }.buttonStyle(.borderedProminent).foregroundStyle(colorScheme == .dark ? Color.black : Color.white).accessibilityIdentifier("startWeightGoal")
                     }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                 }
                 if let error = store.error {
-                    VStack(alignment: .leading, spacing: 8) { Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { Task { await store.reload() } }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }
+                    VStack(alignment: .leading, spacing: 8) { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { Task { await store.reload() } }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }
                 }
                 if store.goal?.reminderEnabled == true && store.goal?.active == true && model.battery.authorization == .denied {
-                    Button("Allow weekly notifications in Settings") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }.font(.footnote)
+                    Button("Allow weekly notifications in Settings") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }.font(ZoopType.footnote)
                 }
-                if let error = store.reminder.error { VStack(alignment: .leading) { Text(error).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { model.refreshReminders() }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }.font(.footnote) }
+                if let error = store.reminder.error { VStack(alignment: .leading) { Text(error).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { model.refreshReminders() }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }.font(ZoopType.footnote) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(ZoopStyle.gutter)
         }.frame(maxWidth: .infinity).zoopScreen().tint(ZoopStyle.text).mainScreenChrome("Goals")
             .sheet(isPresented: $editing) { WeightGoalSetupView() }
@@ -56,8 +56,8 @@ struct GoalsView: View {
     }
     private func aboutItem(_ title: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.headline).accessibilityAddTraits(.isHeader)
-            Text(detail).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+            Text(title).font(ZoopType.headline).accessibilityAddTraits(.isHeader)
+            Text(detail).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var aboutView: some View {

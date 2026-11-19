@@ -26,6 +26,12 @@
 	<string>Imports weight measurements into Zoop and your Zoop server, and checks for existing weigh-ins.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Shares sleep, workouts, optional steps and weigh-ins recorded in Zoop with Apple Health.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Geist-Regular.otf</string>
+		<string>Geist-Medium.otf</string>
+		<string>Geist-SemiBold.otf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

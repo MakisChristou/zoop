@@ -21,10 +21,10 @@ struct HistoryRangePicker: View {
     private func choice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Text(title).font(.headline)
+                Text(title).font(ZoopType.headline)
                 Spacer()
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3).foregroundStyle(selected ? ZoopStyle.load : ZoopStyle.secondary)
+                    .font(ZoopType.title3).foregroundStyle(selected ? ZoopStyle.load : ZoopStyle.secondary)
             }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).zoopCard()
                 .overlay(RoundedRectangle(cornerRadius: ZoopStyle.radius).strokeBorder(selected ? ZoopStyle.load : .clear, lineWidth: 1))
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? [.isSelected] : [])

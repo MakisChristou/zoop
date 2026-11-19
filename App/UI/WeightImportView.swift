@@ -35,15 +35,15 @@ struct WeightImportView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     if let result {
                         VStack(alignment: .leading, spacing: 14) {
-                            Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(ZoopStyle.load)
+                            Image(systemName: "checkmark.circle").font(ZoopType.largeTitle).foregroundStyle(ZoopStyle.load)
                             Text(result == 0 ? "Already up to date" : "\(result) \(result == 1 ? "weigh-in" : "weigh-ins") added")
-                                .font(.title2.weight(.semibold))
+                                .font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
                             Text("Your weight chart is ready.").foregroundStyle(ZoopStyle.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
-                            Image(systemName: "heart").font(.title).foregroundStyle(ZoopStyle.load)
-                            Text("Apple Health").font(.title2.weight(.semibold))
+                            Image(systemName: "heart").font(ZoopType.title).foregroundStyle(ZoopStyle.load)
+                            Text("Apple Health").font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
                         }
                         if enabled {
                             VStack(spacing: 16) {
@@ -55,26 +55,26 @@ struct WeightImportView: View {
                             }.zoopCard().disabled(importing)
                             if importing {
                                 VStack(alignment: .leading, spacing: 12) {
-                                    Text("Importing weigh-ins…").font(.headline)
+                                    Text("Importing weigh-ins…").font(ZoopType.headline)
                                     ProgressView(value: Double(health.importedWeightCount), total: Double(max(preview?.toImport ?? 1, health.importedWeightCount, 1)))
-                                    Text("\(health.importedWeightCount) added").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                                    Text("\(health.importedWeightCount) added").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                             } else if loading {
-                                HStack { ProgressView(); Text("Checking Apple Health…").font(.subheadline) }
+                                HStack { ProgressView(); Text("Checking Apple Health…").font(ZoopType.subheadline) }
                                     .frame(maxWidth: .infinity, alignment: .leading).zoopCard()
                             } else if let preview { previewCard(preview) }
                         } else {
                             Text(health.connected ? "Weight imports are off." : "Connect Apple Health to import weigh-ins.")
-                                .font(.subheadline).foregroundStyle(ZoopStyle.secondary).zoopCard()
+                                .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary).zoopCard()
                         }
                         if let error {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text(error).font(.subheadline).foregroundStyle(ZoopStyle.unfavourable)
+                                Text(error).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.unfavourable)
                                 if preview == nil { Button("Try again") { retry += 1 } }
                             }.zoopCard()
                         }
                         Label("Originals in Apple Health stay unchanged.", systemImage: "checkmark.shield")
-                            .font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                            .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                     }
                 }.padding(ZoopStyle.gutter)
             }
@@ -84,7 +84,7 @@ struct WeightImportView: View {
                     else if !enabled { showConnection = true }
                     else { beginImport() }
                 } label: {
-                    Text(buttonTitle).font(.headline).frame(maxWidth: .infinity, minHeight: 44)
+                    Text(buttonTitle).font(ZoopType.headline).frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }
                 .buttonStyle(.borderedProminent)
@@ -117,20 +117,20 @@ struct WeightImportView: View {
         VStack(alignment: .leading, spacing: 10) {
             if preview.toImport > 0 {
                 MetricValue(String(preview.toImport), size: 32)
-                Text(preview.toImport == 1 ? "weigh-in to add" : "weigh-ins to add").font(.headline)
+                Text(preview.toImport == 1 ? "weigh-in to add" : "weigh-ins to add").font(ZoopType.headline)
             } else {
-                Text(preview.total == 0 ? "No weigh-ins found" : "All weigh-ins are already saved").font(.headline)
+                Text(preview.total == 0 ? "No weigh-ins found" : "All weigh-ins are already saved").font(ZoopType.headline)
             }
             if let first = preview.first, let last = preview.last {
                 Text(first.formatted(date: .abbreviated, time: .omitted) + " – " + last.formatted(date: .abbreviated, time: .omitted))
-                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             if preview.alreadySaved > 0 {
-                Text("\(preview.alreadySaved) already saved · skipped").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Text("\(preview.alreadySaved) already saved · skipped").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             if preview.total == 0 {
                 Text("Try different dates. If you expect readings here, check Zoop’s weight access in Apple Health.")
-                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).zoopCard().accessibilityIdentifier("weightImportPreview")
     }

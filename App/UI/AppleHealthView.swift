@@ -16,11 +16,11 @@ struct AppleHealthView: View {
         Form {
             Section {
                 Label(health.connected ? health.status : "Not connected", systemImage: "heart")
-                    .font(.headline)
+                    .font(ZoopType.headline)
                 if connecting { ProgressView("Saving…") }
                 if let last = health.journal.lastSync { LabeledContent("Last synced", value: last.formatted(date: .abbreviated, time: .shortened)) }
                 if let error = health.error {
-                    Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable)
+                    Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable)
                     Button("Retry sync") { health.checkSoon() }.disabled(health.busy)
                 }
             }
@@ -50,7 +50,7 @@ struct AppleHealthView: View {
             if exportWeight {
                 Section {
                     Text("Zoop skips dates with another weight it can read. Apple hides read-permission status, so an empty result may mean no access. Weight export can add an overlapping entry.")
-                        .font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             Section {

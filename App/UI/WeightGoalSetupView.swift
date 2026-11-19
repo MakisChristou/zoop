@@ -67,16 +67,16 @@ struct WeightGoalSetupView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     VStack(spacing: 12) {
-                        Text("Weekly loss").font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        Text("Weekly loss").font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2)).accessibilityAddTraits(.isHeader)
                         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 10))
                         layout {
                             TextField("Weekly loss", text: $value).keyboardType(.decimalPad).focused($typing)
-                                .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit().multilineTextAlignment(.center)
+                                .font(ZoopType.fixed(size: min(numberSize, 88), weight: .medium)).monospacedDigit().multilineTextAlignment(.center)
                                 .frame(maxWidth: 180).accessibilityLabel("Weekly loss").accessibilityIdentifier("weeklyLossInput")
-                            Text("\(unit) / week").font(.body).foregroundStyle(ZoopStyle.secondary)
+                            Text("\(unit) / week").font(ZoopType.body).foregroundStyle(ZoopStyle.secondary)
                         }
                         if let rate, let weight = model.health.lastWeight?.kg, weight > 0, rate / weight > 0.01 {
-                            Text("Fast pace · over 1% per week").font(.subheadline).foregroundStyle(ZoopStyle.typical)
+                            Text("Fast pace · over 1% per week").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.typical)
                         }
                         MeasurementRuler(value: ruler, range: (unit == "lb" ? 0.3...2.2 : 0.1...1.0), step: 0.1, unit: "\(unit) per week", label: "Weekly loss ruler", majorTickEvery: 4, onEditing: { typing = false })
                             .accessibilityIdentifier("weeklyLossRuler")
@@ -93,19 +93,19 @@ struct WeightGoalSetupView: View {
                     NavigationLink { reminderEditor } label: {
                         goalRow("Reminders", value: nil)
                     }.buttonStyle(.plain).zoopCard().accessibilityIdentifier("editCutReminders")
-                    if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
-                    if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
-                    if !validFinish { Text("Choose a finish date after the start date.").font(.footnote).foregroundStyle(ZoopStyle.unfavourable) }
-                    if let error { Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
+                    if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if !validFinish { Text("Choose a finish date after the start date.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
+                    if let error { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
                     if editing {
-                        Button("Pause cut", role: .destructive) { confirmPause = true }.font(.subheadline).frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
+                        Button("Pause cut", role: .destructive) { confirmPause = true }.font(ZoopType.subheadline).frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
                     }
                 }.padding(ZoopStyle.gutter)
             }
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 Button { save(active: true) } label: {
-                    HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save" : "Start cut").font(.headline) }
+                    HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save" : "Start cut").font(ZoopType.headline) }
                         .frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                 }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving)
                     .accessibilityIdentifier("saveWeightGoal").padding(ZoopStyle.gutter).background(ZoopStyle.background)
@@ -137,7 +137,7 @@ struct WeightGoalSetupView: View {
                 HStack { Text(title); Spacer(minLength: 12); if let value { Text(value).foregroundStyle(ZoopStyle.secondary).monospacedDigit() } }
                 VStack(alignment: .leading, spacing: 4) { Text(title); if let value { Text(value).foregroundStyle(ZoopStyle.secondary).monospacedDigit() } }
             }
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+            Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
         }.frame(minHeight: 44).padding(.vertical, 4).contentShape(Rectangle())
     }
     private var finishLabel: String {

@@ -24,8 +24,8 @@ enum TrendMetric: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .sleep: ZoopStyle.sleep
         case .restingHr: ZoopStyle.heartRate
-        case .hrv: ZoopStyle.sleep
-        case .breathing: ZoopStyle.steps
+        case .hrv: ZoopStyle.text
+        case .breathing: ZoopStyle.text
         case .skinTemp: ZoopStyle.temperature
         case .steps: ZoopStyle.steps
         case .efficiency: ZoopStyle.sleep

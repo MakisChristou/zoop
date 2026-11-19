@@ -9,7 +9,7 @@ struct RemovedSleepView: View {
             if rows.isEmpty { Text(error ?? "No removed sleep").foregroundStyle(ZoopStyle.secondary).listRowBackground(ZoopStyle.surface) }
             ForEach(rows) { row in
                 NavigationLink { SleepSessionDetailView(initial: row) } label: {
-                    VStack(alignment: .leading, spacing: 4) { Text(row.name); Text(row.startTs.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                    VStack(alignment: .leading, spacing: 4) { Text(row.name); Text(row.startTs.formatted(date: .abbreviated, time: .shortened)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
                 }.listRowBackground(ZoopStyle.surface)
             }
         }.scrollContentBackground(.hidden).zoopScreen().navigationTitle("Removed sleep").navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)

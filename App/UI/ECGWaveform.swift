@@ -7,7 +7,7 @@ struct ECGWaveform: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(label).font(.caption).foregroundStyle(ZoopStyle.secondary)
+            Text(label).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             Canvas { context, size in
                 guard !samples.isEmpty else { return }
                 let low = Double(samples.min() ?? 0), high = Double(samples.max() ?? 0)
@@ -34,7 +34,7 @@ struct ECGWaveform: View {
             }
             .frame(height: 150)
             .accessibilityHidden(true)
-            Text("Uncalibrated amplitude").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+            Text("Uncalibrated amplitude").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
         }
         .zoopCard()
         .accessibilityElement(children: .ignore)

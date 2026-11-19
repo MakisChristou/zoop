@@ -47,8 +47,8 @@ struct MainScreenChrome: ViewModifier {
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
-                        if let subtitle { Text(subtitle).font(.caption).foregroundStyle(ZoopStyle.secondary) }
-                        Text(title == "Today" ? "zoop" : title).font(.title3.weight(.medium)).accessibilityAddTraits(.isHeader)
+                        if let subtitle { Text(subtitle).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
+                        Text(title == "Today" ? "zoop" : title).font(ZoopType.font(size: 16, weight: .medium, relativeTo: .title3)).accessibilityAddTraits(.isHeader)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 10) {

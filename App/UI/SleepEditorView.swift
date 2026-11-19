@@ -48,7 +48,7 @@ struct SleepEditorView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(row.name)
                                         Text(row.startTs.formatted(date: .abbreviated, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
-                                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                                     }
                                     Spacer()
                                     if row.id == mergeId { Image(systemName: "checkmark").accessibilityLabel("Selected") }
@@ -59,7 +59,7 @@ struct SleepEditorView: View {
                     if neighbour != nil {
                         Section {
                             LabeledContent("Sleep period", value: "\(Int(to.timeIntervalSince(from) / 60)) min")
-                            Text("Awake time and missing readings stay separate.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                            Text("Awake time and missing readings stay separate.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                         }.listRowBackground(ZoopStyle.surface)
                     }
                 } else {
@@ -70,7 +70,7 @@ struct SleepEditorView: View {
                 }
                 Section {
                     WorkoutWindowChart(minutes: minutes, start: from, end: max(to, from.addingTimeInterval(1)), split: nil, selected: $selection)
-                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+                    if let chartError { Text(chartError).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary) }
                 }.listRowBackground(ZoopStyle.surface)
                 if let error { Section { Text(error).foregroundStyle(.red).accessibilityLabel("Unable to save. \(error)") }.listRowBackground(ZoopStyle.surface) }
             }

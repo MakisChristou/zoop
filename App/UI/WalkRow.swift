@@ -12,14 +12,14 @@ struct WalkRow: View {
         layout {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(bout.start.formatted(date: .omitted, time: .shortened)) – \(bout.end.formatted(date: .omitted, time: .shortened))")
-                    .font(.subheadline.weight(.medium)).monospacedDigit()
-                Text("\(bout.durationS / 60) min").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).monospacedDigit()
+                Text("\(bout.durationS / 60) min").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(bout.steps.formatted()).font(.subheadline.weight(.semibold)).monospacedDigit()
-                Text("steps").font(.caption).foregroundStyle(ZoopStyle.secondary)
-                if linked { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(ZoopStyle.secondary) }
+                Text(bout.steps.formatted()).font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline)).monospacedDigit()
+                Text("steps").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                if linked { Image(systemName: "chevron.right").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary) }
             }
         }
         .padding(.vertical, 16)

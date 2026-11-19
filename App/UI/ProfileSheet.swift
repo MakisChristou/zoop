@@ -26,9 +26,9 @@ struct ProfileSheet: View {
                         Button { editingPhoto = true } label: { ProfileAvatar(size: 64) }
                             .buttonStyle(.plain).accessibilityLabel("Edit profile photo")
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Personal profile").font(.headline)
+                            Text("Personal profile").font(ZoopType.headline)
                             Button(model.photo.image(for: photoScope) == nil ? "Add photo" : "Change photo") { editingPhoto = true }
-                                .font(.subheadline).frame(minHeight: 44).accessibilityIdentifier("editProfilePhoto")
+                                .font(ZoopType.subheadline).frame(minHeight: 44).accessibilityIdentifier("editProfilePhoto")
                         }
                     }
                     .padding(.vertical, 8)
@@ -43,7 +43,7 @@ struct ProfileSheet: View {
                         HStack {
                             Label("My WHOOP", systemImage: "sensor.tag.radiowaves.forward")
                             Spacer()
-                            Text(statusText).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                            Text(statusText).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                     }
                     .accessibilityLabel("My WHOOP, \(statusText)").accessibilityIdentifier("openDevice")
@@ -87,7 +87,7 @@ struct ProfileSheet: View {
     private var closeControl: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.body.weight(.medium)).frame(minWidth: 44, minHeight: 44)
+                Image(systemName: "xmark").font(ZoopType.font(size: 16, weight: .medium, relativeTo: .body)).frame(minWidth: 44, minHeight: 44)
             }.accessibilityLabel("Close")
         }
     }

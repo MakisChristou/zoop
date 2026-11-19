@@ -11,8 +11,8 @@ struct ECGRecordingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Recording saved", systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(ZoopStyle.favourable)
-                Text("ECG recording").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
+                Label("Recording saved", systemImage: "checkmark.circle").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.favourable)
+                Text("ECG recording").font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).accessibilityAddTraits(.isHeader)
                 Text(recording.startedAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ZoopStyle.secondary)
             }
             ECGWaveform(samples: samples)
@@ -21,13 +21,13 @@ struct ECGRecordingView: View {
                 VStack(alignment: .leading, spacing: 20) { metrics }
             }
             Label("This recording does not include a rhythm assessment.", systemImage: "info.circle")
-                .font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
             if let done { Button("Done", action: done).buttonStyle(ECGActionStyle()) }
             if let exportURL {
                 ShareLink(item: exportURL) { Label("Share recording", systemImage: "square.and.arrow.up") }
                     .buttonStyle(ECGActionStyle(primary: false))
             }
-            if let exportError { Text(exportError).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+            if let exportError { Text(exportError).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary) }
         }
         .task(id: recording.id) {
             let value = recording
@@ -46,12 +46,12 @@ struct ECGRecordingView: View {
     private var metrics: some View {
         Group {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(Int(recording.duration.rounded())) sec").font(.title2.weight(.medium)).monospacedDigit()
-                Text("Capture window").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Text("\(Int(recording.duration.rounded())) sec").font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                Text("Capture window").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(samples.count.formatted()).font(.title2.weight(.medium)).monospacedDigit()
-                Text("ECG samples").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Text(samples.count.formatted()).font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                Text("ECG samples").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
         }
     }

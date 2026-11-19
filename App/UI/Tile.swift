@@ -14,14 +14,14 @@ struct Tile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
+                Text(title).font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
                 if linked {
-                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(ZoopType.font(size: 11, weight: .semibold, relativeTo: .caption2)).foregroundStyle(ZoopStyle.secondary)
                 }
             }
-            MetricValue(value, unit: unit, size: 28)
-            Text(caption).font(.caption).foregroundStyle(ZoopStyle.secondary)
+            MetricValue(value, unit: unit, size: 20)
+            Text(caption).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             Sparkline(values: history, color: color)
                 .frame(height: 22)
                 .padding(.top, 2)
@@ -51,7 +51,7 @@ struct Sparkline: View {
                 }
                 .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
             } else {
-                Text(values.isEmpty ? " " : "1 day").font(.caption2).foregroundStyle(.quaternary)
+                Text(values.isEmpty ? " " : "1 day").font(ZoopType.caption2).foregroundStyle(.quaternary)
             }
         }
     }

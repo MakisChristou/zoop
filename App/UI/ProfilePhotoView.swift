@@ -31,7 +31,7 @@ struct ProfilePhotoView: View {
                                     if working { ProgressView() }
                                     Text(working ? "Saving…" : "Save photo")
                                 }
-                                .font(.headline)
+                                .font(ZoopType.headline)
                                 .frame(maxWidth: .infinity, minHeight: 28)
                                 .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                             }
@@ -50,8 +50,8 @@ struct ProfilePhotoView: View {
                     .buttonBorderShape(.roundedRectangle(radius: ZoopStyle.radius))
                     .disabled(busy || !valid)
                     if preparing { ProgressView("Preparing photo…") }
-                    if let error { Text(error).font(.subheadline).foregroundStyle(ZoopStyle.unfavourable) }
-                    if !valid { Text("Your profile changed. Close this screen and try again.").font(.subheadline) }
+                    if let error { Text(error).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.unfavourable) }
+                    if !valid { Text("Your profile changed. Close this screen and try again.").font(ZoopType.subheadline) }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, ZoopStyle.gutter)
@@ -66,7 +66,7 @@ struct ProfilePhotoView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark").font(.body.weight(.medium))
+                        Image(systemName: "xmark").font(ZoopType.font(size: 16, weight: .medium, relativeTo: .body))
                             .frame(minWidth: 44, minHeight: 44)
                     }
                     .tint(ZoopStyle.text)
@@ -108,7 +108,7 @@ struct ProfilePhotoView: View {
         let foreground = draft == nil ? (colorScheme == .dark ? Color.black : Color.white) : ZoopStyle.text
         return PhotosPicker(selection: $selected, matching: .images) {
             Label(title, systemImage: "photo.on.rectangle")
-                .font(.headline)
+                .font(ZoopType.headline)
                 .frame(maxWidth: .infinity, minHeight: 28)
                 .foregroundStyle(foreground)
         }

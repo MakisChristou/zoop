@@ -47,6 +47,15 @@ Analysis happens on the server; the app shows live values and sync status.
   for measurements and meaningful status; keep navigation and ordinary actions neutral.
   Group related readings on one surface rather than drawing a card around every value.
   Avoid gradients, glowing controls, oversized headings and decorative status banners.
+- **Reference fidelity:** the adopted reference is `https://marclou.com/health`.
+  Use bundled Geist via `ZoopType` (14-point medium panel titles, 11-point axes).
+  Dark chart tokens: background `#0A0A0A`, surface `#171717`, muted `#A1A1A1`,
+  sleep `#8194DC`, activity/steps `#479EEA`, HR/HRV/weight `#FAFAFA`.
+  Cards use 20-point padding and 18-point corners; standard plots are 144 points
+  plus axis labels. Use three left-axis ticks, faint horizontal dashed gridlines,
+  and 2-point round lines. Avoid a dot at every sample; retain isolated samples,
+  selected/latest markers, and sparse cut readings. Do not change the data to
+  imitate a reference curve. Verify visual changes with actual screenshot comparisons.
 - Keep five flat navigation items. Charts retain calendar paging, selection and
   accessible actions. Optional comparisons stay behind a disclosure.
 

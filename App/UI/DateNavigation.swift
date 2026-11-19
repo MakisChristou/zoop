@@ -16,7 +16,7 @@ struct DateNavigation: View {
     var body: some View {
         if typeSize.isAccessibilitySize {
             VStack(spacing: 8) {
-                Text(title).font(.subheadline).multilineTextAlignment(.center)
+                Text(title).font(ZoopType.subheadline).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("dayNavigationTitle")
@@ -27,7 +27,7 @@ struct DateNavigation: View {
                     }.disabled(!canGoBack).accessibilityLabel(previousLabel)
                     Spacer(minLength: 8)
                     if let reset {
-                        Button("Today", action: reset).font(.footnote.weight(.medium))
+                        Button("Today", action: reset).font(ZoopType.font(size: 12, weight: .medium, relativeTo: .footnote))
                             .frame(minWidth: 44, minHeight: 44)
                             .opacity(canReset ? 1 : 0).disabled(!canReset)
                             .accessibilityLabel("Back to today").accessibilityHidden(!canReset)
@@ -52,13 +52,13 @@ struct DateNavigation: View {
             Spacer(minLength: 4)
             HStack(spacing: 6) {
                 if reset != nil {
-                    Text("Today").font(.footnote.weight(.medium)).frame(minWidth: 44, minHeight: 44)
+                    Text("Today").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .footnote)).frame(minWidth: 44, minHeight: 44)
                         .hidden().accessibilityHidden(true)
                 }
-                Text(title).font(.subheadline).multilineTextAlignment(.center).accessibilityIdentifier("dayNavigationTitle")
+                Text(title).font(ZoopType.subheadline).multilineTextAlignment(.center).accessibilityIdentifier("dayNavigationTitle")
                 if let reset {
                     Button("Today", action: reset)
-                        .font(.footnote.weight(.medium))
+                        .font(ZoopType.font(size: 12, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(ZoopStyle.load)
                         .frame(minWidth: 44, minHeight: 44)
                         .opacity(canReset ? 1 : 0)

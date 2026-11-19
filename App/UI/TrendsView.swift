@@ -33,7 +33,7 @@ struct TrendsView: View {
                             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(ZoopStyle.secondary).accessibilityHidden(true)
                         }.foregroundStyle(ZoopStyle.text).zoopCard()
                     }.buttonStyle(.plain).accessibilityIdentifier("openProgress")
-                    if let error = history.error { Text(error).font(.footnote).foregroundStyle(.red) }
+                    if let error = history.error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
@@ -73,7 +73,7 @@ struct TrendsView: View {
                     ForEach(TrendMetric.allCases) { m in
                         Button { metric = m } label: {
                             Text(m.rawValue)
-                                .font(.subheadline.weight(.medium))
+                                .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                                 .padding(.horizontal, 8).frame(minHeight: 44)
                                 .foregroundStyle(metric == m ? ZoopStyle.text : ZoopStyle.secondary)
                                 .overlay(alignment: .bottom) {

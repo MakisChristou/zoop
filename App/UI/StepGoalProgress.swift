@@ -28,11 +28,11 @@ struct StepGoalProgress: View {
                 Spacer()
                 // Keep the symbol mounted so its animation starts after layout.
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.body.weight(.semibold))
+                    .font(ZoopType.font(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(ZoopStyle.favourable)
                     .opacity(reached && (pendingKey == nil || reduceMotion) ? 1 : 0)
                     .symbolEffect(.bounce, value: reduceMotion ? 0 : celebration)
-            }.font(.caption)
+            }.font(ZoopType.caption)
             if steps != nil {
                 ProgressView(value: progress, total: Double(max(1, target)))
                     .tint(reached ? ZoopStyle.favourable : ZoopStyle.steps)

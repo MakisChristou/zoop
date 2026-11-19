@@ -24,7 +24,7 @@ struct NotificationSettingsView: View {
                 Toggle("Battery alerts", isOn: Binding(get: { model.battery.alertsEnabled }, set: { model.battery.alertsEnabled = $0; requestPermission() }))
                 if OffBodyMonitor.available {
                     Toggle(isOn: Binding(get: { model.offBody.enabled }, set: { model.offBody.enabled = $0; requestPermission() })) {
-                        VStack(alignment: .leading, spacing: 3) { Text("Off-body"); Text("After 10 minutes").font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                        VStack(alignment: .leading, spacing: 3) { Text("Off-body"); Text("After 10 minutes").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
                     }.accessibilityIdentifier("offBodyReminderEnabled")
                 }
             }.listRowBackground(ZoopStyle.surface)

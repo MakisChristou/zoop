@@ -11,20 +11,20 @@ struct CutProgressView: View {
             layout {
                 VStack(alignment: .leading, spacing: 4) {
                     if let loss = data.summary.progress?.totalLostKg {
-                        MetricValue(WeeklyWeightPresentation.weight(abs(loss), unit: unit), unit: unit, size: 32)
-                        Text(loss < 0 ? "Gained" : "Lost").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                        MetricValue(WeeklyWeightPresentation.weight(abs(loss), unit: unit), unit: unit, size: 20)
+                        Text(loss < 0 ? "Gained" : "Lost").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                     } else {
-                        Text("No weigh-ins yet").font(.title2.weight(.semibold))
+                        Text("No weigh-ins yet").font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine).accessibilityIdentifier("cutWeightChange")
                 if let time = data.time {
                     VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
                         Text(data.completed ? "Cut finished" : "\(time.remaining) " + (time.remaining == 1 ? "day left" : "days left"))
-                            .font(.subheadline.weight(.medium)).monospacedDigit()
+                            .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).monospacedDigit()
                         if let finish = data.finish {
                             Text((data.completed ? "Ended " : "Ends ") + dateLabel(finish))
-                                .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                         }
                     }.accessibilityElement(children: .combine).accessibilityIdentifier("cutDaysRemaining")
                 }
@@ -48,7 +48,7 @@ struct CutProgressView: View {
             ViewThatFits(in: .horizontal) {
                 HStack { Text(label); Spacer(); Text(value).monospacedDigit() }
                 VStack(alignment: .leading, spacing: 4) { Text(label); Text(value).monospacedDigit() }
-            }.font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+            }.font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             if let fraction {
                 GeometryReader { geometry in
                     Capsule().fill(ZoopStyle.separator)

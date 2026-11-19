@@ -12,11 +12,11 @@ struct WorkoutWindowChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Heart rate").font(.subheadline)
+                Text("Heart rate").font(ZoopType.subheadline)
                 Spacer()
                 if let selected {
                     Text(selected.formatted(date: .omitted, time: .shortened))
-                        .font(.caption).monospacedDigit()
+                        .font(ZoopType.caption).monospacedDigit()
                 }
             }
             if minutes.contains(where: { $0.hr != nil }), end > start {
@@ -31,7 +31,7 @@ struct WorkoutWindowChart: View {
                     }
                     if let split {
                         RuleMark(x: .value("Split at", split)).foregroundStyle(ZoopStyle.load)
-                            .annotation(position: .top) { Text("Split").font(.caption2) }
+                            .annotation(position: .top) { Text("Split").font(ZoopType.caption2) }
                     } else if let selected {
                         RuleMark(x: .value("Selected time", selected)).foregroundStyle(ZoopStyle.secondary)
                     }
@@ -40,11 +40,11 @@ struct WorkoutWindowChart: View {
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartXAxis { AxisMarks(values: .automatic(desiredCount: 3)) { _ in AxisValueLabel(format: .dateTime.hour().minute()) } }
                 .chartXSelection(value: $selected)
-                .frame(height: 150)
+                .chartYAxis { zoopChartYAxis() }.font(ZoopType.caption2).frame(height: 164)
                 .accessibilityLabel("Recorded heart rate during the selected time")
             } else {
                 Text("No heart-rate readings in this range")
-                    .font(.footnote).foregroundStyle(ZoopStyle.secondary).padding(.vertical, 12)
+                    .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary).padding(.vertical, 12)
             }
         }
     }

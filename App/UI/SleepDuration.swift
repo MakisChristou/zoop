@@ -12,12 +12,12 @@ struct SleepDuration: View {
     var body: some View {
         Group {
             if let seconds {
-                (Text("\(seconds / 3600)").font(.system(size: size, weight: .semibold))
-                 + Text("h ").font(.headline)
-                 + Text("\((seconds % 3600) / 60)").font(.system(size: size, weight: .semibold))
-                 + Text("m").font(.headline))
+                (Text("\(seconds / 3600)").font(ZoopType.fixed(size: size, weight: .semibold))
+                 + Text("h ").font(ZoopType.headline)
+                 + Text("\((seconds % 3600) / 60)").font(ZoopType.fixed(size: size, weight: .semibold))
+                 + Text("m").font(ZoopType.headline))
             } else {
-                Text("—").font(.system(size: size, weight: .semibold))
+                Text("—").font(ZoopType.fixed(size: size, weight: .semibold))
             }
         }
         .monospacedDigit()

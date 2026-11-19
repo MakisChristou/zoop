@@ -19,18 +19,18 @@ struct MorningInsightsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                 if error {
                     Button("Couldn’t update insights. Retry") { Task { await load() } }
                         .frame(minHeight: 44).accessibilityIdentifier("retryInsights")
                 }
                 if let insights {
                     HStack {
-                        Text(insights.outlookTitle).font(.headline).foregroundStyle(InsightTone.color(insights.outlook?.state))
+                        Text(insights.outlookTitle).font(ZoopType.headline).foregroundStyle(InsightTone.color(insights.outlook?.state))
                             .accessibilityIdentifier("morningOutlookStatus")
                         Spacer()
                         if insights.isLearning, let outlook = insights.outlook {
-                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                         }
                     }
                     let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))

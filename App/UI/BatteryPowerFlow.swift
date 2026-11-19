@@ -12,7 +12,7 @@ struct BatteryPowerFlow: View {
                 Capsule().fill(.secondary.opacity(0.25)).frame(height: 2)
                 if active {
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold)).foregroundStyle(BatteryColors.flow)
+                        .font(ZoopType.font(size: 12, weight: .bold, relativeTo: .caption)).foregroundStyle(BatteryColors.flow)
                         .offset(x: reduceMotion ? 0 : (phase - 0.5) * 20)
                         .opacity(reduceMotion ? 1 : 0.35 + 0.65 * sin(phase * .pi))
                 }

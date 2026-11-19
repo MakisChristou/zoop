@@ -9,12 +9,12 @@ struct InsightMetricView: View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 7) {
                 Text(metric.key == "resting_hr" ? "Resting HR" : metric.title)
-                    .font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 Text(metric.formatted(metric.value) + (metric.unit.isEmpty ? "" : " " + metric.unit))
-                    .font(.headline).monospacedDigit().foregroundStyle(ZoopStyle.text)
-                if metric.quality != "good" { Text(metric.status).font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                    .font(ZoopType.headline).monospacedDigit().foregroundStyle(ZoopStyle.text)
+                if metric.quality != "good" { Text(metric.status).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
                 Text(metric.visibleDelta ?? " ")
-                    .font(.caption.weight(.semibold)).monospacedDigit()
+                    .font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).monospacedDigit()
                     .foregroundStyle(InsightTone.color(metric.comparison?.signal))
                     .accessibilityHidden(metric.visibleDelta == nil)
             }.frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)

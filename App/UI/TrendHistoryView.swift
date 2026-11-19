@@ -27,7 +27,7 @@ struct TrendHistoryView: View {
                 ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
             TrendChartCard(metric: metric, range: range,
-                           interval: interval, calendar: snapshot.calendar,
+                           interval: interval, now: snapshot.now, calendar: snapshot.calendar,
                            series: snapshot.series(metric, range: range, containing: interval.start),
                            pattern: snapshot.weekdayPattern(metric), insights: insights,
                            canGoBack: destination(-1) != nil, canGoForward: destination(1) != nil,

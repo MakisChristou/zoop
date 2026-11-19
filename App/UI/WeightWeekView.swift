@@ -16,17 +16,17 @@ struct WeightWeekView: View {
                                 if day.recorded {
                                     Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(ZoopStyle.background)
                                 } else {
-                                    Text(day.date, format: .dateTime.day()).font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                                    Text(day.date, format: .dateTime.day()).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                                 }
                             }.frame(width: 25, height: 25)
                                 .overlay { if day.isToday && !day.recorded { Circle().stroke(ZoopStyle.load, lineWidth: 1).padding(-3) } }
-                            Text(day.date, format: .dateTime.weekday(.narrow)).font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                            Text(day.date, format: .dateTime.weekday(.narrow)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                         }.frame(maxWidth: .infinity)
                     }
                 }.accessibilityHidden(true)
             }
             if showsCount || typeSize.isAccessibilitySize { Text("\(summary.count) \(summary.count == 1 ? "weigh-in" : "weigh-ins") this week")
-                .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("weightWeekCompletion") }
+                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("weightWeekCompletion") }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("This week’s weigh-ins")

@@ -39,7 +39,7 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if !workout.isActive {
                     Text(workout.status == "removed" ? "Workout removed" : "Workout replaced")
-                        .font(.headline).padding(.vertical)
+                        .font(ZoopType.headline).padding(.vertical)
                     if workout.status == "removed", let id = workout.lastEdit {
                         Button("Restore workout") { Task { await undo(id) } }.disabled(saving).frame(minHeight: 44)
                     }
@@ -47,16 +47,16 @@ struct WorkoutDetailView: View {
                 } else {
                     hero
                     if workout.metricsPending == true {
-                        HStack { ProgressView(); Text("Updating workout").font(.footnote) }
+                        HStack { ProgressView(); Text("Updating workout").font(ZoopType.footnote) }
                     } else if workout.isPartial {
-                        Label("Partial data", systemImage: "waveform.path").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        Label("Partial data", systemImage: "waveform.path").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                     }
                     stats
                     if workout.zonesMin != nil { zones }
                     heartRate
                 }
                 if workout.isActive { MetricInformation(title: "About load and calories", text: "Load is zone-weighted training impulse (Edwards 1993), displayed on a 0–21 scale. Calories are estimated from heart rate, weight, age and sex (Keytel 2005). Zones use your estimated maximum heart rate.\(workout.trimp.map { " Training impulse: \($0.formatted(.number.precision(.fractionLength(0)))) TRIMP." } ?? "")") }
-                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
             }
             .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
@@ -103,22 +103,22 @@ struct WorkoutDetailView: View {
         return layout {
             ZStack {
                 LoadRing(load: workout.load ?? 0, lineWidth: 8)
-                Image(systemName: kind.icon).font(.title2.weight(.semibold)).foregroundStyle(kind.color)
+                Image(systemName: kind.icon).font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2)).foregroundStyle(kind.color)
             }
             .frame(width: 84, height: 84)
             VStack(alignment: .leading, spacing: 2) {
                 MetricValue(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "Load")
                 Text("\(workout.startTs.formatted(date: .omitted, time: .shortened)) – \(workout.endTs.formatted(date: .omitted, time: .shortened)) · \(ActivityView.dayTitle(workout.startTs).lowercased())")
-                    .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                 if workout.edited {
-                    Text(workout.autoDetected ? "Edited" : "Added").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    Text(workout.autoDetected ? "Edited" : "Added").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 } else if kind == .activity {
-                    Text("Unclassified").font(.caption).foregroundStyle(kind.color)
+                    Text("Unclassified").font(ZoopType.caption).foregroundStyle(kind.color)
                 }
             }
             Spacer(minLength: 0)
         }
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
@@ -133,8 +133,8 @@ struct WorkoutDetailView: View {
         return LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(cells, id: \.0) { title, value, unit in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.caption).foregroundStyle(ZoopStyle.secondary)
-                    MetricValue(value, unit: unit, size: 28)
+                    Text(title).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                    MetricValue(value, unit: unit, size: 20)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
@@ -148,9 +148,9 @@ struct WorkoutDetailView: View {
         let total = max(minutesByZone.reduce(0, +), 1)
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Heart rate zones").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                Text("Heart rate zones").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
-                Text("of max HR, minutes").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                Text("of max HR, minutes").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             GeometryReader { geo in
                 HStack(spacing: 2) {
@@ -170,29 +170,29 @@ struct WorkoutDetailView: View {
             HStack(spacing: 10) {
                 ForEach(Array(minutesByZone.enumerated()), id: \.offset) { zone, min in
                     VStack(spacing: 2) {
-                        Text("\(min)").font(.subheadline.weight(.semibold)).monospacedDigit()
+                        Text("\(min)").font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline)).monospacedDigit()
                             .foregroundStyle(min > 0 ? .primary : .tertiary)
-                        Text(ZoneColors.label(zone)).font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                        Text(ZoneColors.label(zone)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
         }
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private var heartRate: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text("Heart rate").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                Text("Heart rate").font(ZoopType.headline).foregroundStyle(ZoopStyle.text)
                 Spacer()
                 if let m = selected {
                     Text("\(m.ts.formatted(date: .omitted, time: .shortened)) · \(m.hr.map { "\($0) bpm" } ?? "—")")
-                        .font(.caption.weight(.semibold)).monospacedDigit()
+                        .font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).monospacedDigit()
                 } else {
-                    Text(readingsLoaded ? (minutes.contains { $0.hr != nil } ? "bpm" : "No readings") : "Loading…").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    Text(readingsLoaded ? (minutes.contains { $0.hr != nil } ? "bpm" : "No readings") : "Loading…").accessibilityIdentifier("workoutChartState").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }
             }
             Chart {
@@ -206,7 +206,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(ZoopStyle.heartRate.opacity(0.18))
                     LineMark(x: .value("Time", m.ts), y: .value("HR", m.hr!))
                         .foregroundStyle(ZoopStyle.heartRate)
-                        .lineStyle(StrokeStyle(lineWidth: 1.4))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                         .interpolationMethod(.monotone)
                 }
                 if let m = selected {
@@ -216,9 +216,9 @@ struct WorkoutDetailView: View {
             }
             .chartXScale(domain: window)
             .chartYScale(domain: .automatic(includesZero: false))
-            .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.hour().minute()) } }
-            .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
-            .frame(height: 160)
+            .chartXAxis { zoopTimeXAxis(ChartPresentation.dateTicks(window)) }
+            .chartYAxis { zoopChartYAxis() }
+            .font(ZoopType.caption2).frame(height: 164)
             .chartOverlay { proxy in
                 GeometryReader { geo in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -233,7 +233,7 @@ struct WorkoutDetailView: View {
                 }
             }
         }
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 

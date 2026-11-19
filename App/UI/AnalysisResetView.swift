@@ -51,7 +51,7 @@ struct AnalysisResetView: View {
                     LabeledContent("From", value: preview.from.formatted(date: .abbreviated, time: .shortened))
                     LabeledContent("To", value: preview.to.formatted(date: .abbreviated, time: .shortened))
                     LabeledContent("Manual changes", value: String(preview.manualChanges))
-                    if preview.expanded { Text("Includes linked edits outside your selection.").font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+                    if preview.expanded { Text("Includes linked edits outside your selection.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary) }
                     Button(role: .destructive) { Task { await reset() } } label: {
                         HStack { Text(command == nil ? "Reset to automatic" : "Retry reset"); Spacer(); if saving { ProgressView() } }
                     }.foregroundStyle(ZoopStyle.heartRate).disabled(saving).frame(minHeight: 44).accessibilityIdentifier("confirmAnalysisReset")
@@ -61,7 +61,7 @@ struct AnalysisResetView: View {
             if let message {
                 Section {
                     Label(message, systemImage: model.analysisUpdating ? "arrow.triangle.2.circlepath" : "checkmark.circle")
-                        .font(.subheadline)
+                        .font(ZoopType.subheadline)
                 }.listRowBackground(ZoopStyle.surface)
             }
             if let error { Section { Text(error).foregroundStyle(.red) }.listRowBackground(ZoopStyle.surface) }
@@ -69,8 +69,8 @@ struct AnalysisResetView: View {
                 Section("Recent resets") {
                     ForEach(history) { row in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(row.domains.count == 2 ? "Sleep and workouts" : row.domains.first == "sleep" ? "Sleep" : "Workouts").font(.subheadline.weight(.medium))
-                            Text(row.from.formatted(date: .abbreviated, time: .omitted) + " – " + row.to.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                            Text(row.domains.count == 2 ? "Sleep and workouts" : row.domains.first == "sleep" ? "Sleep" : "Workouts").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
+                            Text(row.from.formatted(date: .abbreviated, time: .omitted) + " – " + row.to.formatted(date: .abbreviated, time: .omitted)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                             Button("Undo reset") { Task { await undo(row) } }.disabled(saving).frame(minHeight: 44)
                         }
                     }

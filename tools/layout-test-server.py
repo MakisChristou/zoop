@@ -115,17 +115,26 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
                                   previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))
         if route == 'days': return self.send(days[:limit])
-        if route == 'workouts':
+        if route == 'workouts' or route.startswith('workouts/'):
             if not device.startswith('DESIGN-'): return self.send([])
-            return self.send([dict(id=900+i, start_ts=stamp(today-timedelta(days=i)+timedelta(hours=10)),
+            rows = [dict(id=900+i, start_ts=stamp(today-timedelta(days=i)+timedelta(hours=10)),
                                    end_ts=stamp(today-timedelta(days=i)+timedelta(hours=11)), duration_s=3600,
                                    kind=kind, detected_kind=kind, edited=False, auto_detected=True,
                                    load=7.2-i, avg_hr=112, max_hr=142, trimp=35, zones_min=[25,20,10,5,0],
                                    kcal=240, steps=5200 if kind == 'walk' else 150, revision=1, status='active',
                                    coverage_s=3600, hr_coverage_s=3600, timezone='UTC')
-                              for i, kind in enumerate(['resistance', 'walk', 'resistance'])])
+                              for i, kind in enumerate(['resistance', 'walk', 'resistance'])]
+            return self.send(rows if route == 'workouts' else next((w for w in rows if str(w['id']) == parts[-1]), {}))
         if route == 'sleep-sessions': return self.send(sessions[:limit])
-        if route.endswith('/epochs'): return self.send([])
+        if route.endswith('/epochs'):
+            if not device.startswith('DESIGN-'): return self.send([])
+            session = next((s for s in sessions if str(s['id']) == parts[-2]), sessions[0])
+            start = datetime.fromisoformat(session['start_ts'].replace('Z', '+00:00'))
+            end = datetime.fromisoformat(session['end_ts'].replace('Z', '+00:00'))
+            return self.send([dict(start=stamp(start+timedelta(seconds=i)), hr=55+4*math.sin(i/800),
+                                   hr_variability=3, rmssd=65+12*math.cos(i/1200), resp_rate=14+0.7*math.sin(i/1600),
+                                   move_frac=0.2 if i%2700<120 else 0.01, strap_awake=i%2700<120)
+                              for i in range(0, int((end-start).total_seconds()), 30)])
         if route.startswith('sleep-sessions/'):
             return self.send(next((s for s in sessions if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):

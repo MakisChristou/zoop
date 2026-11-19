@@ -13,9 +13,9 @@ struct RemovedWorkoutsView: View {
             if !loading && rows.isEmpty { Text("No removed workouts").foregroundStyle(ZoopStyle.secondary) }
             ForEach(rows) { workout in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(ActivityKind.named(workout.kind).name).font(.headline)
+                    Text(ActivityKind.named(workout.kind).name).font(ZoopType.headline)
                     Text(workout.startTs.formatted(date: .abbreviated, time: .shortened))
-                        .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                     if let id = workout.lastEdit {
                         Button("Restore workout") {
                             Task {

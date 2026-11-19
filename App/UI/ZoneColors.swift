@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Five heart-rate zones, lowest first, in a cool-to-hot ramp shared by every chart.
 enum ZoneColors {
-    static let all: [Color] = [.gray, .blue, .green, .orange, .red]
+    static let all: [Color] = [ZoopStyle.secondary, ZoopStyle.load, ZoopStyle.favourable, ZoopStyle.typical, ZoopStyle.unfavourable]
 
     static func color(_ zone: Int) -> Color {
         all[min(max(zone, 0), all.count - 1)]

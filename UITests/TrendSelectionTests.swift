@@ -26,7 +26,7 @@ import XCTest
         shot(app, "Sleep reading selected")
         app.buttons["trendOpenDetail"].tap()
         XCTAssertTrue(app.buttons["Sleep options"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["STAGES"].exists)
+        XCTAssertTrue(app.staticTexts["Stages"].exists)
         shot(app, "Selected sleep detail")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(chart.waitForExistence(timeout: 5))

@@ -15,7 +15,7 @@ struct ConnectionStatusLabel: View {
                     Text(model.battery.state.percent.map { "\(Int($0.rounded(.down)))%" } ?? "—").monospacedDigit()
                 } else { Text(status) }
             }
-            .font(.caption).foregroundStyle(ZoopStyle.secondary)
+            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

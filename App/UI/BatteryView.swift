@@ -16,7 +16,7 @@ struct BatteryView: View {
                 if model.battery.authorization == .denied {
                     Button("Turn on notifications") {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
-                    }.font(.caption).foregroundStyle(ZoopStyle.secondary).frame(minHeight: 44)
+                    }.font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).frame(minHeight: 44)
                 }
             }
         }
@@ -52,14 +52,14 @@ struct BatteryView: View {
         return VStack(spacing: 20) {
             layout {
                 VStack(spacing: 12) {
-                    Text("Battery pack").font(.subheadline.weight(.semibold))
+                    Text("Battery pack").font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline))
                     BatteryGauge(percent: pack.percent, flow: packCharging ? .receiving : packSupplying ? .supplying : .none, color: packColor)
                         .frame(maxWidth: 180)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Battery pack")
                         .accessibilityValue(pack.percent.map { "\(Int($0.rounded(.down))) percent. \(packStatus)" } ?? "No pack reading")
                     Text(packStatus)
-                        .font(.caption).foregroundStyle(packColor)
+                        .font(ZoopType.caption).foregroundStyle(packColor)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -69,21 +69,21 @@ struct BatteryView: View {
                     .padding(.top, dynamicTypeSize.isAccessibilitySize ? 0 : 78)
 
                 VStack(spacing: 12) {
-                    Text("WHOOP").font(.subheadline.weight(.semibold))
+                    Text("WHOOP").font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline))
                     BatteryGauge(percent: state.percent, flow: transferring ? .receiving : .none, color: strapColor)
                         .frame(maxWidth: 180)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("WHOOP battery")
                         .accessibilityValue(state.percent.map { "\(Int($0.rounded(.down))) percent\(full ? ", fully charged" : charging ? ", charging" : "")\(current ? "" : ", last known reading")" } ?? "Not available")
                     Text(state.percent == nil ? "No reading" : full ? "Fully charged" : charging ? (inferred ? "Charging · estimated" : "Charging") : !current ? "Last reading" : (state.percent ?? 100) <= 5 ? "Critical" : (state.percent ?? 100) <= 20 ? "Low battery" : "")
-                        .font(.caption).foregroundStyle(strapColor)
+                        .font(ZoopType.caption).foregroundStyle(strapColor)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
             }
             if !current, let at = state.levelAt {
                 Text("Updated \(at.formatted(.relative(presentation: .named)))")
-                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .frame(maxWidth: .infinity).padding(20)

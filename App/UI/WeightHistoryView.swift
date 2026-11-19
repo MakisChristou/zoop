@@ -33,15 +33,15 @@ struct WeightHistoryView: View {
     }
     private func readingDate(_ row: WeightReading) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(row.measuredAt.formatted(date: .abbreviated, time: .omitted)).font(.subheadline.weight(.medium))
+            Text(row.measuredAt.formatted(date: .abbreviated, time: .omitted)).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
             Text("\(row.measuredAt.formatted(date: .omitted, time: .shortened)) · \(row.displaySourceName)")
-                .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
         }.fixedSize(horizontal: false, vertical: true)
     }
     private func readingValue(_ row: WeightReading) -> some View {
         HStack(spacing: 0) {
             Button { editing = row } label: {
-                Text(value(row.kg)).font(.headline).monospacedDigit().fixedSize().frame(minHeight: 44)
+                Text(value(row.kg)).font(ZoopType.headline).monospacedDigit().fixedSize().frame(minHeight: 44)
             }.buttonStyle(.plain).accessibilityHint(row.source == "snoop" ? "Edit this weigh-in" : "View this weigh-in")
             if row.source == "snoop" {
                 Menu {

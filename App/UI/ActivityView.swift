@@ -1,3 +1,4 @@
+import Charts
 import ZoopData
 import SwiftUI
 
@@ -30,7 +31,7 @@ struct ActivityView: View {
                             }
                         }.zoopCard(padding: 16).padding(.horizontal, ZoopStyle.gutter)
                     }
-                    if let error { Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal) }
+                    if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red).padding(.horizontal) }
                 }
                 .padding(.bottom, 24)
             }
@@ -81,45 +82,38 @@ struct ActivityView: View {
         let sessions = workouts.filter { $0.startTs >= week.first?.date ?? .distantPast }.count
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Daily load").font(.subheadline.weight(.medium))
+                Text("Daily load").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                 Spacer()
-                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                Text(sessions == 1 ? "1 session" : "\(sessions) sessions").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
-            Text("Last 7 days").font(.caption).foregroundStyle(ZoopStyle.secondary)
+            Text("Last 7 days").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             if typeSize.isAccessibilitySize {
                 ForEach(week) { day in
                     HStack {
                         Text(Self.dayTitle(day.date))
                         Spacer()
                         Text(day.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—").monospacedDigit()
-                    }.font(.subheadline).padding(.vertical, 4)
+                    }.font(ZoopType.subheadline).padding(.vertical, 4)
                 }
             } else {
-            HStack(alignment: .bottom, spacing: 10) {
-                ForEach(week) { day in
-                    VStack(spacing: 8) {
-                        Text(day.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                            .font(.caption2).monospacedDigit().foregroundStyle(ZoopStyle.secondary)
-                        ZStack(alignment: .bottom) {
-                            Color.clear.frame(height: 110)
-                            if let load = day.load, load > 0 {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(Calendar.current.isDateInToday(day.date) ? ZoopStyle.load : ZoopStyle.load.opacity(0.55))
-                                    .frame(height: max(2, 110 * CGFloat(min(load, LoadRing.maximum) / LoadRing.maximum)))
-                            }
-                        }.frame(width: 12)
-                        Text(day.date.formatted(.dateTime.weekday(.narrow)))
-                            .font(.caption2)
-                            .foregroundStyle(Calendar.current.isDateInToday(day.date) ? ZoopStyle.text : ZoopStyle.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(Self.dayTitle(day.date)), \(day.load.map { "load \($0.formatted(.number.precision(.fractionLength(1))))" } ?? "no data")")
+            Chart(week) { day in
+                if let load = day.load {
+                    BarMark(x: .value("Day", day.date, unit: .day), y: .value("Load", load), width: .ratio(0.65))
+                        .foregroundStyle(ZoopStyle.load).cornerRadius(3)
+                        .accessibilityLabel(Self.dayTitle(day.date))
+                        .accessibilityValue("Load \(load.formatted(.number.precision(.fractionLength(1))))")
                 }
             }
+            .chartYScale(domain: 0...LoadRing.maximum)
+            .chartXAxis { AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisValueLabel(format: .dateTime.day().month(.abbreviated)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+            } }
+            .chartYAxis { zoopChartYAxis() }
+            .frame(height: 164).padding(.top, 10)
+
             }
         }
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
         .padding(.horizontal, ZoopStyle.gutter)
     }
@@ -140,7 +134,7 @@ struct ActivityView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(selectedDay.map(Self.dayTitle) ?? "Workouts").font(ZoopStyle.sectionTitle)
-                if selectedDay != nil { Button("Show all") { selectedDay = nil }.font(.caption).frame(minHeight: 44) }
+                if selectedDay != nil { Button("Show all") { selectedDay = nil }.font(ZoopType.caption).frame(minHeight: 44) }
             }
             Spacer()
             NavigationLink { RemovedWorkoutsView() } label: {
@@ -159,7 +153,7 @@ struct ActivityView: View {
     private func section(_ day: Date, _ items: [ZoopAPI.Workout]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Self.dayTitle(day))
-                .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityAddTraits(.isHeader)
+                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) {
                 ForEach(items) { workout in
                     NavigationLink(value: workout) { WorkoutRow(workout: workout) }
@@ -175,7 +169,7 @@ struct ActivityView: View {
             Text(loaded ? (selectedDay == nil ? "No activities yet" : "No workouts this day") : "Loading…").font(ZoopStyle.sectionTitle)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
+        .padding(20)
         .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
         .padding(.horizontal)
     }

@@ -87,7 +87,7 @@ struct OnboardingView: View {
                 }
             }
             Text(model.strap.state == .ready ? "Found your strap" : "Looking for your strap")
-                .font(.title2.weight(.semibold))
+                .font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
             Text(connectDetail)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(ZoopStyle.secondary)
@@ -153,7 +153,7 @@ private struct Page: View {
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: symbol).font(.system(size: 64)).foregroundStyle(.tint)
-            Text(title).font(.title2.weight(.medium))
+            Text(title).font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2))
             Text(text).multilineTextAlignment(.center).foregroundStyle(ZoopStyle.secondary).padding(.horizontal, 32)
             Spacer()
         }

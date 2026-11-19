@@ -8,7 +8,7 @@ struct TrendWeekdayPattern: View {
     let calendar: Calendar
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Typical \(metric.rawValue.lowercased()) by weekday").font(.subheadline.weight(.medium))
+            Text("Typical \(metric.rawValue.lowercased()) by weekday").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
             Chart(0..<7, id: \.self) { offset in
                 let weekday = (offset + calendar.firstWeekday - 1) % 7 + 1
                 if let value = series.weekdays[weekday] {
@@ -21,8 +21,8 @@ struct TrendWeekdayPattern: View {
             .chartXAxis { AxisMarks(values: Array(0..<7)) { value in
                 AxisValueLabel { if let offset = value.as(Int.self) { Text(calendar.shortStandaloneWeekdaySymbols[(offset + calendar.firstWeekday - 1) % 7]) } }
             } }
-            .chartYAxis(.hidden).frame(height: 100)
-            Text("Past 8 weeks").font(.caption).foregroundStyle(ZoopStyle.secondary)
+            .chartYAxis { zoopChartYAxis() }.font(ZoopType.caption2).frame(height: 164)
+            Text("Past 8 weeks").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
         }.accessibilityIdentifier("weekdayPattern")
     }
 }

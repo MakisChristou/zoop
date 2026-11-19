@@ -7,7 +7,7 @@ struct ECGActionStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.body.weight(.semibold))
+        configuration.label.font(ZoopType.font(size: 16, weight: .semibold, relativeTo: .body))
             .frame(maxWidth: .infinity, minHeight: 28).padding(12)
             .foregroundStyle(primary ? (scheme == .dark ? ZoopStyle.background : Color.white) : ZoopStyle.text)
             .background(primary ? ZoopStyle.text : ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))

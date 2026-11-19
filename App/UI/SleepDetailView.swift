@@ -30,11 +30,11 @@ struct SleepDetailView: View {
                 readout
                 stageChart
                 track("Heart rate", unit: "bpm", color: ZoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
-                track("HRV", unit: "ms", color: ZoopStyle.sleep, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
-                track("Breathing", unit: "/min", color: ZoopStyle.steps, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
+                track("HRV", unit: "ms", color: ZoopStyle.text, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
+                track("Breathing", unit: "/min", color: ZoopStyle.text, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
                 motionTrack
                 MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own.")
-                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
             }
             .padding()
         }
@@ -53,26 +53,26 @@ struct SleepDetailView: View {
     private var readout: some View {
         HStack(alignment: .firstTextBaseline) {
             if let e = selected {
-                Text(e.start.formatted(date: .omitted, time: .shortened)).font(.headline).monospacedDigit()
-                if let stage = selectedStage { Text(stageName(stage)).foregroundStyle(Hypnogram.color(stage)).font(.headline) }
+                Text(e.start.formatted(date: .omitted, time: .shortened)).font(ZoopType.headline).monospacedDigit()
+                if let stage = selectedStage { Text(stageName(stage)).foregroundStyle(Hypnogram.color(stage)).font(ZoopType.headline) }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(e.hr.map { "\(Int($0.rounded())) bpm" } ?? "—")
                     Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(ZoopStyle.secondary)
                 }
-                .font(.subheadline).monospacedDigit()
+                .font(ZoopType.subheadline).monospacedDigit()
             } else {
-                Text("\(onset.formatted(date: .omitted, time: .shortened)) – \(offset.formatted(date: .omitted, time: .shortened))").font(.headline)
+                Text("\(onset.formatted(date: .omitted, time: .shortened)) – \(offset.formatted(date: .omitted, time: .shortened))").font(ZoopType.headline)
                 Spacer()
-                Text("Sleep detail").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                Text("Sleep detail").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .frame(minHeight: 36)
     }
 
     private var stageChart: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Stages").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Stages").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
             Chart {
                 ForEach(Array(night.stages.enumerated()), id: \.offset) { _, seg in
                     RectangleMark(
@@ -87,22 +87,22 @@ struct SleepDetailView: View {
             .chartYScale(domain: 0...4)
             .chartYAxis {
                 AxisMarks(position: .leading, values: [0.45, 1.45, 2.45, 3.45]) { v in
-                    AxisValueLabel { Text(axisLabel(v.as(Double.self) ?? 0)).font(.caption2) }
+                    AxisValueLabel { Text(axisLabel(v.as(Double.self) ?? 0)).font(ZoopType.caption2) }
                 }
             }
-            .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.hour()) } }
+            .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisValueLabel(format: .dateTime.hour()) } }
             .frame(height: 110)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private func track(_ name: String, unit: String, color: Color, values: [(Date, Double)]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text(name).font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
+                Text(name).font(ZoopType.headline).foregroundStyle(ZoopStyle.text)
                 Spacer()
-                Text(unit).font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                Text(unit).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             Chart {
                 ForEach(night.stages.filter { $0.stage == .deep || $0.stage == .rem }, id: \.start) { seg in
@@ -112,32 +112,32 @@ struct SleepDetailView: View {
                 ForEach(grouped(values), id: \.date) { point in
                     LineMark(x: .value("Time", point.date), y: .value(name, point.value), series: .value("Recorded interval", point.group))
                         .foregroundStyle(color)
-                        .lineStyle(StrokeStyle(lineWidth: 1.2))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                         .interpolationMethod(.linear)
                 }
                 if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
             }
             .chartXScale(domain: onset...offset)
             .chartYScale(domain: .automatic(includesZero: false))
-            .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
-            .frame(height: 90)
+            .chartXAxis { zoopTimeXAxis(ChartPresentation.dateTicks(onset...offset)) }
+            .chartYAxis { zoopChartYAxis() }
+            .font(ZoopType.caption2).frame(height: 164)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private var motionTrack: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text("Motion").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary).textCase(.uppercase)
+                Text("Motion").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
-                Text("share of seconds moving").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                Text("share of seconds moving").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
             }
             Chart {
                 ForEach(epochs) { e in
                     BarMark(x: .value("Time", e.start), y: .value("moving", e.moveFrac), width: 2)
-                        .foregroundStyle(e.strapAwake ? Color.orange : Color.secondary.opacity(0.6))
+                        .foregroundStyle(e.strapAwake ? ZoopStyle.typical : ZoopStyle.secondary.opacity(0.6))
                 }
                 if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
             }
@@ -148,7 +148,7 @@ struct SleepDetailView: View {
             .frame(height: 60)
             .chartOverlay { proxy in scrubOverlay(proxy) }
         }
-        .padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
     }
 
     private func scrubOverlay(_ proxy: ChartProxy) -> some View {

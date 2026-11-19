@@ -19,7 +19,7 @@ struct StepsView: View {
     @State private var days: Loadable = .loading
     @State private var refreshID = 0
     @State private var loadID = UUID()
-    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 164
 
     enum Loadable {
         case loading
@@ -103,11 +103,11 @@ struct StepsView: View {
         let with = pts.compactMap(\.steps)
         let average = with.isEmpty ? 0.0 : Double(with.reduce(0, +)) / Double(with.count)
         VStack(alignment: .leading, spacing: 6) {
-            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
-            MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 32)
-            Text("Average steps per day").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+            Text(scope == .week ? "Last 7 days" : "Last 30 days").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+            MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 20)
+            Text("Average steps per day").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             if days.isLoaded, !with.isEmpty {
-                Text(comparisonCaption(with: with)).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                Text(comparisonCaption(with: with)).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -117,9 +117,9 @@ struct StepsView: View {
             chartCard(pts, average: average).opacity(0.35).overlay { ProgressView() }
         case .failed:
             VStack(alignment: .leading, spacing: 8) {
-                Label("Could not load these days", systemImage: "wifi.exclamationmark").font(.headline)
-                Text("Check your connection and try again.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
-                Button("Retry") { Task { await load() } }.buttonStyle(.bordered).font(.subheadline.weight(.medium))
+                Label("Could not load these days", systemImage: "wifi.exclamationmark").font(ZoopType.headline)
+                Text("Check your connection and try again.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+                Button("Retry") { Task { await load() } }.buttonStyle(.bordered).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -127,8 +127,8 @@ struct StepsView: View {
         case .loaded:
             if with.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("No days yet", systemImage: "calendar").font(.headline)
-                    Text("Waiting for a full day of data.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                    Label("No days yet", systemImage: "calendar").font(ZoopType.headline)
+                    Text("Waiting for a full day of data.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -151,7 +151,7 @@ struct StepsView: View {
 
     private func chartCard(_ pts: [DayPoint], average: Double) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Daily steps").font(.subheadline.weight(.medium))
+            Text("Daily steps").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
             Chart {
                 ForEach(pts) { p in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps ?? 0))
@@ -163,17 +163,17 @@ struct StepsView: View {
                         .foregroundStyle(.secondary.opacity(0.5))
                         .lineStyle(StrokeStyle(dash: [3, 3]))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text("Average").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                            Text("Average").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                         }
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: scope == .week ? 1 : 7)) { _ in
                     AxisValueLabel(format: scope == .week ? .dateTime.weekday(.narrow) : .dateTime.day().month(.abbreviated))
-                        .font(.caption2)
+                        .font(ZoopType.caption2)
                 }
             }
-            .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) }
+            .chartYAxis { zoopChartYAxis() }
             .frame(height: chartHeight)
             .accessibilityLabel(scope == .week ? "Walking steps for the last 7 days" : "Walking steps for the last 30 days")
             .accessibilityValue("average \(Int(average.rounded()).formatted()) a day")
@@ -197,14 +197,14 @@ struct StepsView: View {
     /// A visible, accessible alternative to selecting a bar in the chart.
     private func dailyRows(_ points: [DayPoint]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("By day").font(.headline).padding(.bottom, 12).accessibilityAddTraits(.isHeader)
+            Text("By day").font(ZoopType.headline).padding(.bottom, 12).accessibilityAddTraits(.isHeader)
             ForEach(points.reversed()) { point in
                 Button { open(point.date) } label: {
                     HStack {
-                        Text(ActivityView.dayTitle(point.date)).font(.subheadline)
+                        Text(ActivityView.dayTitle(point.date)).font(ZoopType.subheadline)
                         Spacer()
-                        Text(point.steps.map { $0.formatted() } ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
-                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                        Text(point.steps.map { $0.formatted() } ?? "—").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).monospacedDigit()
+                        Image(systemName: "chevron.right").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                     }
                     .padding(.vertical, 15)
                     .overlay(alignment: .top) { Rectangle().fill(ZoopStyle.separator).frame(height: 0.5) }

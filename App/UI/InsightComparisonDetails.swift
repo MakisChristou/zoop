@@ -20,7 +20,7 @@ struct InsightComparisonDetails: View {
                     Text("Sleep timing").fontWeight(.semibold)
                     Text("Falling asleep varied by about \(Int(asleep.rounded())) min; waking up by \(Int(wake.rounded())) min.")
                 }
-            }.font(.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
+            }.font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
         }
     }
 }

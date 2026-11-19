@@ -58,6 +58,85 @@ import XCTest
         app.buttons["tab-Today"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].exists, "Switching tabs preserves the open detail")
     }
+    func testReferenceChartPanels() {
+        let app = launch("trends")
+        let chart = app.otherElements["trendsChart"]
+        XCTAssertTrue(chart.waitForExistence(timeout: 15))
+        app.buttons["HRV"].tap()
+        shot(app, "19 HRV reference")
+        app.buttons["Resting HR"].tap()
+        shot(app, "20 RHR reference")
+        app.buttons["HRV"].tap()
+        let original = chart.frame
+        chart.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["trendOpenDetail"].waitForExistence(timeout: 5))
+        XCTAssertEqual(chart.frame.minY, original.minY, accuracy: 1)
+        shot(app, "21 HRV selected")
+        app.buttons["trendLatest"].tap()
+        XCTAssertFalse(app.buttons["trendOpenDetail"].exists)
+        app.buttons["tab-Today"].tap()
+        XCTAssertTrue(app.buttons["openSteps"].waitForExistence(timeout: 10))
+        shot(app, "22 Today top")
+    }
+    func testSecondaryChartScreens() {
+        let app = launch("sleep")
+        let timeline = app.buttons["sleepTimelineDetails"]
+        XCTAssertTrue(timeline.waitForExistence(timeout: 15)); timeline.tap()
+        XCTAssertTrue(app.staticTexts["Heart rate"].waitForExistence(timeout: 15))
+        app.swipeUp()
+        shot(app, "23 Sleep signal charts")
+        app.buttons["tab-Activity"].tap()
+        let workout = app.buttons["workout-900"]
+        XCTAssertTrue(workout.waitForExistence(timeout: 15)); workout.tap()
+        XCTAssertTrue(app.staticTexts["Heart rate"].waitForExistence(timeout: 10))
+        app.swipeUp()
+        XCTAssertTrue(NSPredicate(format: "label == %@", "bpm").evaluate(with: app.staticTexts["workoutChartState"]))
+        XCTAssertFalse(app.staticTexts["Unused synthetic endpoint"].exists)
+        shot(app, "24 Workout chart")
+        app.buttons["tab-Today"].tap()
+        let steps = app.buttons["openSteps"]
+        reveal(steps, in: app); steps.tap()
+        XCTAssertTrue(app.staticTexts["By hour"].waitForExistence(timeout: 10))
+        shot(app, "25 Steps chart")
+        app.buttons["tab-Trends"].tap()
+        let progress = app.buttons["openProgress"]
+        reveal(progress, in: app); progress.tap()
+        XCTAssertTrue(app.navigationBars["Your progress"].waitForExistence(timeout: 10))
+        shot(app, "26 Progress charts")
+    }
+    func testWeightChartPagingAndInspection() {
+        let app = launch()
+        let weight = app.buttons["todayWeight"].firstMatch
+        reveal(weight, in: app)
+        XCTAssertTrue(app.staticTexts["Logged"].waitForExistence(timeout: 15))
+        weight.tap()
+        let chart = app.otherElements["weightChart"]
+        XCTAssertTrue(chart.waitForExistence(timeout: 10))
+        let current = app.staticTexts["weightChartDates"].label
+        app.buttons["weightPreviousPeriod"].tap()
+        XCTAssertNotEqual(app.staticTexts["weightChartDates"].label, current)
+        chart.coordinate(withNormalizedOffset: .init(dx: 0.8, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: chart.coordinate(withNormalizedOffset: .init(dx: 0.2, dy: 0.5)))
+        XCTAssertEqual(app.staticTexts["weightChartDates"].label, current)
+        let frame = chart.frame
+        chart.coordinate(withNormalizedOffset: .init(dx: 0.2, dy: 0.5))
+            .press(forDuration: 0.35, thenDragTo: chart.coordinate(withNormalizedOffset: .init(dx: 0.7, dy: 0.5)))
+        XCTAssertEqual(app.staticTexts["weightChartHeadline"].label, "Selected weigh-in")
+        XCTAssertEqual(chart.frame.minY, frame.minY, accuracy: 1)
+        shot(app, "28 Weight inspection")
+        app.buttons["weightChartLatest"].tap()
+        XCTAssertFalse(app.buttons["weightChartLatest"].exists)
+    }
+    func testSleepStagePanelComparison() {
+        let app = launch("sleep")
+        XCTAssertTrue(app.buttons["Sleep options"].waitForExistence(timeout: 15))
+        app.coordinate(withNormalizedOffset: .init(dx: 0.95, dy: 0.70))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .init(dx: 0.95, dy: 0.47)))
+        XCTAssertGreaterThan(app.staticTexts["Sleep stages"].frame.minY, app.buttons["openProfile"].frame.maxY + 10)
+        XCTAssertTrue(app.staticTexts["Fell asleep"].isHittable)
+        XCTAssertTrue(app.staticTexts["Woke up"].isHittable)
+        shot(app, "27 Sleep stages")
+    }
     func testGoalsAndProfileFlows() {
         let app = launch("goals", weekly: true)
         XCTAssertTrue(app.otherElements["cutProgress"].waitForExistence(timeout: 15))

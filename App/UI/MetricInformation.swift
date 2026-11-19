@@ -6,9 +6,9 @@ struct MetricInformation: View {
 
     var body: some View {
         DisclosureGroup(title) {
-            Text(text).font(.footnote).foregroundStyle(ZoopStyle.secondary)
+            Text(text).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
         }
-        .font(.subheadline).tint(ZoopStyle.secondary).padding(.vertical, 12)
+        .font(ZoopType.subheadline).tint(ZoopStyle.secondary).padding(.vertical, 12)
     }
 }

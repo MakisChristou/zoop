@@ -14,28 +14,32 @@ struct TrendSleepHeatStrip: View {
         VStack(alignment: .leading, spacing: 12) {
             let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
             layout {
-                Text("Sleep, last 8 weeks").font(.subheadline.weight(.medium))
+                Text("Sleep, last 8 weeks").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                 if !typeSize.isAccessibilitySize { Spacer() }
-                Text("<5h – 8h+").font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                Text("<5h – 8h+").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
             }
-            HStack(spacing: 4) {
-                Color.clear.frame(width: 28, height: 1)
-                ForEach(0..<7, id: \.self) { col in
-                    Text(calendar.veryShortStandaloneWeekdaySymbols[(col + calendar.firstWeekday - 1) % 7])
-                        .font(.caption2).foregroundStyle(ZoopStyle.secondary).frame(maxWidth: .infinity)
-                }
-            }.accessibilityHidden(true).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            VStack(spacing: 4) {
-                ForEach(0..<weeks, id: \.self) { row in
-                    HStack(spacing: 4) {
-                        let date = calendar.date(byAdding: .day, value: row * 7, to: start)!
-                        Text(date.formatted(.dateTime.day().month(.abbreviated)))
-                            .font(.system(size: 10)).foregroundStyle(ZoopStyle.secondary).frame(width: 28)
-                            .accessibilityHidden(true)
-                        ForEach(0..<7, id: \.self) { col in cell(calendar.date(byAdding: .day, value: row * 7 + col, to: start)!) }
+            HStack(alignment: .top, spacing: 8) {
+                VStack(spacing: 4) {
+                    Color.clear.frame(height: 16)
+                    ForEach(0..<7, id: \.self) { day in
+                        Text(day % 2 == 0 ? calendar.veryShortStandaloneWeekdaySymbols[(day + calendar.firstWeekday - 1) % 7] : "")
+                            .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary).frame(height: 28)
+                    }
+                }.frame(width: 12).accessibilityHidden(true)
+                HStack(alignment: .top, spacing: 4) {
+                    ForEach(0..<weeks, id: \.self) { week in
+                        let date = calendar.date(byAdding: .day, value: week * 7, to: start)!
+                        VStack(spacing: 4) {
+                            Text(week == 0 || calendar.component(.month, from: date) != calendar.component(.month, from: calendar.date(byAdding: .day, value: -7, to: date)!) ? date.formatted(.dateTime.month(.abbreviated)) : "")
+                                .font(ZoopType.fixed(size: 11)).foregroundStyle(ZoopStyle.secondary).frame(height: 16).accessibilityHidden(true)
+                            ForEach(0..<7, id: \.self) { day in
+                                cell(calendar.date(byAdding: .day, value: week * 7 + day, to: start)!)
+                            }
+                        }.frame(maxWidth: .infinity)
                     }
                 }
-            }
+            }.dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+
         }.zoopCard()
     }
     private func cell(_ date: Date) -> some View {
@@ -46,7 +50,7 @@ struct TrendSleepHeatStrip: View {
             RoundedRectangle(cornerRadius: 4)
                 .fill(future ? .clear : value == nil ? ZoopStyle.secondary.opacity(opacity) : ZoopStyle.sleep.opacity(opacity))
                 .overlay { if let selected, calendar.isDate(selected, inSameDayAs: date) { RoundedRectangle(cornerRadius: 4).stroke(ZoopStyle.text, lineWidth: 2) } }
-                .frame(maxWidth: .infinity).frame(height: 32).padding(.vertical, 6)
+                .frame(maxWidth: .infinity).frame(height: 18).padding(5).frame(height: 28)
                 .contentShape(Rectangle())
         }.buttonStyle(.plain).disabled(value == nil || future)
             .accessibilityLabel(date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))

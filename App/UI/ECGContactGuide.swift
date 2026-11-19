@@ -8,7 +8,7 @@ struct ECGContactGuide: View {
                 Label("Finger", systemImage: "minus")
                 Label("Thumb", systemImage: "minus")
             }
-            .font(.caption).foregroundStyle(ZoopStyle.secondary) }
+            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
             ZStack {
                 Rectangle().fill(ZoopStyle.track).frame(width: 72, height: 150)
                 RoundedRectangle(cornerRadius: 16).fill(ZoopStyle.background).frame(width: 98, height: 70)

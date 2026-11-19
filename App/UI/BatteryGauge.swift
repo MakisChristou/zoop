@@ -33,9 +33,9 @@ struct BatteryGauge: View {
                         .font(.system(size: 18, weight: .semibold)).foregroundStyle(flow == .none ? color : BatteryColors.flow)
                     HStack(alignment: .firstTextBaseline, spacing: 1) {
                         Text(percent.map { String(Int($0.rounded(.down))) } ?? "—")
-                            .font(.system(size: 36, weight: .semibold, design: .default))
+                            .font(ZoopType.font(size: 20, weight: .semibold))
                             .monospacedDigit().contentTransition(.numericText())
-                        if percent != nil { Text("%").font(.system(size: 14)).foregroundStyle(ZoopStyle.secondary) }
+                        if percent != nil { Text("%").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary) }
                     }
                     .minimumScaleFactor(0.7).lineLimit(1)
                 }

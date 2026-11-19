@@ -27,7 +27,7 @@ struct HealthProgressView: View {
                     SwiftUI.ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
                 }
                 if let error = store.error {
-                    Text(error).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                    Text(error).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                     if store.summary == nil { Button("Try again") { Task { await load() } }.buttonStyle(.bordered) }
                 }
             }
@@ -67,10 +67,10 @@ private struct ProgressDates: View {
     var showComparison = true
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(summary.current.label(timeZone: summary.timeZone)).font(.subheadline.weight(.medium))
+            Text(summary.current.label(timeZone: summary.timeZone)).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
             if showComparison {
                 Text("Compared with \(summary.previous.label(timeZone: summary.timeZone))")
-                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
         }.fixedSize(horizontal: false, vertical: true)
     }
@@ -82,22 +82,22 @@ private struct ProgressCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Label(kind.title, systemImage: kind.symbol).font(.headline)
+                Label(kind.title, systemImage: kind.symbol).font(ZoopType.headline)
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
             }
             VStack(alignment: .leading, spacing: 4) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) { headline; delta }
                     VStack(alignment: .leading, spacing: 6) { headline; delta }
                 }
-                Text(kind.caption).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Text(kind.caption).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             if let metric {
                 ProgressBars(metric: metric, kind: kind)
                 if metric.change == nil {
                     Text(metric.currentCount == 0 ? "Waiting for recorded \(kind == .sleep ? "nights" : "days")" : "\(metric.currentCount) recorded \(kind == .sleep ? "nights" : "days")")
-                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }
             }
         }
@@ -105,11 +105,11 @@ private struct ProgressCard: View {
     }
     private var headline: some View {
         Text(ProgressFormat.value(metric?.current, key: kind.key))
-            .font(.title2.weight(.medium)).monospacedDigit().foregroundStyle(ZoopStyle.text)
+            .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit().foregroundStyle(ZoopStyle.text)
     }
     @ViewBuilder private var delta: some View {
         if let change = metric?.change {
-            Text(ProgressFormat.delta(change, key: kind.key)).font(.subheadline.weight(.semibold))
+            Text(ProgressFormat.delta(change, key: kind.key)).font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline))
                 .foregroundStyle(ProgressFormat.color(change, key: kind.key))
                 .accessibilityLabel("Change: \(ProgressFormat.delta(change, key: kind.key))")
         }
@@ -141,21 +141,21 @@ private struct ProgressBars: View {
             }
             .chartXScale(domain: (0..<8).map(String.init)).chartYScale(domain: 0...ceiling)
             .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(position: .trailing, values: [0, ceiling]) { axis in
-                AxisGridLine().foregroundStyle(ZoopStyle.separator)
+            .chartYAxis { AxisMarks(position: .leading, values: [0, ceiling / 2, ceiling]) { axis in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(ZoopStyle.chartGrid)
                 AxisValueLabel { if let v = axis.as(Double.self) {
                     Text(kind == .sleep ? "\(Int(v / 3600))h" : v.formatted(.number.notation(.compactName)))
-                        .font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                 } }
             } }
-            .frame(height: 110)
+            .frame(height: 164)
             Group {
                 if typeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 8) { legend }
                 } else {
                     HStack(alignment: .top) { legend }
                 }
-            }.font(.caption2).foregroundStyle(ZoopStyle.secondary)
+            }.font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                 .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityIdentifier("progressBars-\(kind.key)")
@@ -193,7 +193,7 @@ private struct ProgressMetricRow: View {
     let metric: ZoopAPI.ProgressSummary.Metric
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(ProgressFormat.title(metric.key)).font(.headline)
+            Text(ProgressFormat.title(metric.key)).font(ZoopType.headline)
             if metric.previous != nil {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 24) { period(previous: true); period(previous: false) }
@@ -201,19 +201,19 @@ private struct ProgressMetricRow: View {
                 }
             } else {
                 Text(ProgressFormat.value(metric.current, key: metric.key))
-                    .font(.title2.weight(.medium)).monospacedDigit()
+                    .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
             }
             if let change = metric.change {
-                Text(ProgressFormat.delta(change, key: metric.key)).font(.headline)
+                Text(ProgressFormat.delta(change, key: metric.key)).font(ZoopType.headline)
                     .foregroundStyle(ProgressFormat.color(change, key: metric.key))
             }
         }.frame(maxWidth: .infinity, alignment: .leading).zoopCard(padding: 20)
     }
     private func period(previous: Bool) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(previous ? "Previous" : "Latest").font(.caption).foregroundStyle(ZoopStyle.secondary)
+            Text(previous ? "Previous" : "Latest").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             Text(ProgressFormat.value(previous ? metric.previous : metric.current, key: metric.key))
-                .font(.title2.weight(.semibold)).monospacedDigit().fixedSize()
+                .font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2)).monospacedDigit().fixedSize()
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -230,16 +230,16 @@ private struct ProgressDetailInfo: View {
                     ForEach(kind.keys, id: \.self) { key in
                         if let metric = summary.metric(key) {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(ProgressFormat.title(key)).font(.headline)
-                                Text(ProgressFormat.definition(key)).font(.subheadline)
+                                Text(ProgressFormat.title(key)).font(ZoopType.headline)
+                                Text(ProgressFormat.definition(key)).font(ZoopType.subheadline)
                                 let unit = ["walking", "strength"].contains(key) ? "weeks" : key == "steps" ? "days" : "nights"
                                 Text("Recorded \(unit): \(metric.previousCount) previous · \(metric.currentCount) latest")
-                                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                             }
                         }
                     }
                     Text(kind == .sleep ? "Comparisons need 21 nights in each period." : "Comparisons need 21 days in each period, or 3 complete weeks for weekly totals.")
-                        .font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(ZoopStyle.gutter)
             }
             .navigationTitle("About \(kind.title.lowercased()) progress").navigationBarTitleDisplayMode(.inline)
@@ -259,7 +259,7 @@ private struct ProgressAboutView: View {
                     Text("Each bar is one week. Gaps mean there isn’t enough recording; they don’t mean zero. Today is left out.")
                     Text("Comparisons need at least 21 recorded days or nights in each period. Activity days need at least 75% recording coverage. Weekly walking and strength totals use complete recorded weeks only.")
                     Text("Your sleep and workout corrections are included. These are changes in your recorded habits, not a health score. More sleep or activity isn’t always better.")
-                }.font(.body).padding(ZoopStyle.gutter)
+                }.font(ZoopType.body).padding(ZoopStyle.gutter)
             }.navigationTitle("About your progress").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }.zoopScreen()
         }

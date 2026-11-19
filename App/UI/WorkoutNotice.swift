@@ -10,7 +10,7 @@ struct WorkoutNotice: View {
         if let notice = model.activity.notice {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(notice).font(.subheadline)
+                    Text(notice).font(ZoopType.subheadline)
                     Spacer()
                     if let id = model.activity.undoId {
                         Button("Undo") {
@@ -26,8 +26,8 @@ struct WorkoutNotice: View {
                         Image(systemName: "xmark").frame(width: 44, height: 44)
                     }.accessibilityLabel("Dismiss workout message")
                 }
-                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
-                if let error = model.activity.refreshError { Text(error).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+                if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
+                if let error = model.activity.refreshError { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary) }
             }
             .padding(.horizontal, ZoopStyle.gutter)
             .background(ZoopStyle.surface)

@@ -42,7 +42,7 @@ struct BodyProfileSection: View {
                     VStack(alignment: .leading, spacing: 5) {
                         LabeledContent("Weight", value: "\((unit == "lb" ? weight.kg * 2.2046226218 : weight.kg).formatted(.number.precision(.fractionLength(1)))) \(unit)")
                         Text("\(weight.measuredAt.formatted(date: .abbreviated, time: .omitted)) · \(weight.source == "health" ? "Apple Health" : "Zoop")")
-                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                     }
                 }.accessibilityIdentifier("profileLatestWeight")
             } else {
@@ -59,7 +59,7 @@ struct BodyProfileSection: View {
                     Text("Height").foregroundStyle(ZoopStyle.text)
                     Spacer()
                     Text(heightText.isEmpty ? "Not set" : "\(heightText) cm").foregroundStyle(ZoopStyle.secondary)
-                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 }.frame(minHeight: 44)
             }.accessibilityIdentifier("editHeight")
                 .disabled(loading || !loaded)

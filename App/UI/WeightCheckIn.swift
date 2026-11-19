@@ -20,7 +20,7 @@ struct WeightCheckIn: View {
                 Text("Weight").font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
                 Rectangle().fill(ZoopStyle.separator).frame(height: 0.5)
                 if summary.today != nil {
-                    Label("Logged", systemImage: "checkmark").font(.caption).foregroundStyle(ZoopStyle.favourable)
+                    Label("Logged", systemImage: "checkmark").font(ZoopType.caption).foregroundStyle(ZoopStyle.favourable)
                 }
             }
             VStack(alignment: .leading, spacing: 16) {
@@ -28,28 +28,29 @@ struct WeightCheckIn: View {
                 headerLayout {
                     NavigationLink { WeightView() } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            MetricValue(summary.latest.map { display($0.kg) } ?? "—", unit: unit, size: 26)
+                            MetricValue(summary.latest.map { display($0.kg) } ?? "—", unit: unit, size: 20)
                             if summary.today == nil {
                                 Text(summary.latest.map { dateLabel($0.measuredAt) } ?? "No weigh-ins yet")
-                                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                             }
                         }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityIdentifier("todayWeight")
                     if summary.today == nil {
-                        Button("Log weight") { adding = true }.font(.subheadline.weight(.medium))
+                        Button("Log weight") { adding = true }.font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                             .buttonStyle(.bordered).frame(minHeight: 44)
                             .accessibilityLabel("Log today’s weight").accessibilityIdentifier("todayLogWeight")
-                    } else { Text("30 days").font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                    } else { Text("30 days").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
                 }
                 if !points.isEmpty {
                     NavigationLink { WeightView() } label: {
                         Chart(points) { point in
                             LineMark(x: .value("Date", point.date), y: .value("Weight", point.kg), series: .value("Segment", point.segment))
-                                .foregroundStyle(ZoopStyle.text).lineStyle(StrokeStyle(lineWidth: 1.5))
+                                .foregroundStyle(ZoopStyle.text).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                             PointMark(x: .value("Date", point.date), y: .value("Weight", point.kg))
-                                .foregroundStyle(ZoopStyle.text).symbolSize(points.count == 1 ? 20 : 3)
-                        }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis(.hidden).chartYAxis(.hidden)
-                            .frame(height: 100).accessibilityHidden(true)
+                                .foregroundStyle(ZoopStyle.text).symbolSize(point.id == points.last?.id ? 50 : points.count == 1 ? 20 : 0)
+                        }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis { AxisMarks(values: .automatic(desiredCount: 3)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary) } }
+                            .chartYAxis { zoopChartYAxis() }
+                            .frame(height: 164).accessibilityHidden(true)
                     }.buttonStyle(.plain).accessibilityLabel("View weight chart")
                 }
                 WeightWeekView(summary: summary, showsCount: false)

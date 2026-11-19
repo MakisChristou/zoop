@@ -25,9 +25,9 @@ struct DiagnosticsView: View {
                     LabeledContent("Duplicates / rejected", value: "\(model.uploadStats.duplicates) / \(model.uploadStats.rejected)")
                 }
                 if let error = model.uploadStats.lastError ?? model.queueError {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+                    Text(error).font(ZoopType.footnote).foregroundStyle(.red)
                 } else if let blocker = model.uploadBlocker {
-                    Text(blocker).font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                    Text(blocker).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                 }
                 Button {
                     Task { await model.flush() }
@@ -50,9 +50,9 @@ struct DiagnosticsView: View {
             Section {
                 LabeledContent("Server", value: Settings.serverURL?.host() ?? "not set")
                 LabeledContent("Sessions checked", value: model.workouts.lastCheckedAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "never")
-                if let error = model.processingError { Text(error).font(.footnote).foregroundStyle(.red) }
+                if let error = model.processingError { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
                 if let error = model.workouts.notificationError ?? model.battery.notificationError {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+                    Text(error).font(ZoopType.footnote).foregroundStyle(.red)
                 }
             } header: {
                 Text("Server")

@@ -7,6 +7,7 @@ struct TrendChartCard: View {
     let metric: TrendMetric
     let range: TrendRange
     let interval: DateInterval
+    let now: Date
     let calendar: Calendar
     let series: TrendSeries
     var pattern: TrendSeries?
@@ -25,20 +26,28 @@ struct TrendChartCard: View {
         return "\(metric.formatted(point.value)) \(metric.readoutUnit), \(point.date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))"
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             periodNavigation
-            readout
-            chart
+            VStack(alignment: .leading, spacing: 20) {
+                readout
+                chart
+            }.padding(.bottom, 6).zoopCard()
             if !series.points.isEmpty {
-                DisclosureGroup(isExpanded: $showComparisons) {
-                    comparisonDetails.padding(.top, 8)
-                } label: {
-                    Text(typeSize.isAccessibilitySize ? "Compare" : insights == nil ? "Comparisons" : "Comparison details")
-                        .font(.subheadline).frame(minHeight: 44)
-                }.tint(ZoopStyle.secondary).accessibilityIdentifier("trendComparisons")
+                let comparisonLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(alignment: .top))
+                comparisonLayout {
+                    DisclosureGroup(isExpanded: $showComparisons) {
+                        comparisonDetails.padding(.top, 8)
+                    } label: {
+                        Text(typeSize.isAccessibilitySize ? "Compare" : "Comparisons")
+                            .font(ZoopType.caption).frame(minHeight: 44)
+                    }.tint(ZoopStyle.secondary).accessibilityIdentifier("trendComparisons")
+                    if selected != nil {
+                        Button("Latest") { selectedDate = nil }.font(ZoopType.caption).frame(minWidth: 44, minHeight: 44)
+                            .accessibilityIdentifier("trendLatest")
+                    }
+                }
             }
         }
-        .zoopCard()
         .onChange(of: metric) { _, _ in selectedDate = nil }
         .onChange(of: interval) { _, _ in selectedDate = nil }
         .onChange(of: series.points) { _, points in
@@ -59,45 +68,49 @@ struct TrendChartCard: View {
     }
     private var periodTitle: some View {
         Text(range.title(interval, calendar: calendar))
-            .font(.subheadline.weight(.medium)).multilineTextAlignment(.center)
+            .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity).accessibilityIdentifier("trendPeriod")
     }
     private var readout: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
-        return layout {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    Text(selected == nil ? "Latest" : "Selected")
-                    if selected != nil { Image(systemName: "chevron.right").font(.caption2).accessibilityHidden(true) }
-                }.font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
-                MetricValue(displayed.map { metric.formatted($0.value) } ?? "—", unit: metric.readoutUnit, size: 28)
-                    .foregroundStyle(ZoopStyle.text).accessibilityIdentifier("trendReadingValue")
-                Text(displayed.map { $0.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()) } ?? "No readings")
-                    .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("trendReadingDate")
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) { metricTitle; Spacer(minLength: 12); readingValue }
+                VStack(alignment: .leading, spacing: 6) { metricTitle; readingValue }
             }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
             .accessibilityHidden(selected != nil)
             .overlay {
                 if selected != nil {
-                    Button { openReading() } label: { Color.clear.contentShape(Rectangle()) }
+                    Button { openReading() } label: { Color.clear.frame(minHeight: 44).contentShape(Rectangle()) }
                         .buttonStyle(.plain).accessibilityLabel("View \(metric == .steps ? "steps" : "sleep") details")
                         .accessibilityValue(description).accessibilityIdentifier("trendOpenDetail")
                 }
             }
-            Button("Latest") { selectedDate = nil }
-                .font(.subheadline.weight(.medium)).buttonStyle(.bordered).buttonBorderShape(.capsule)
-                .frame(minHeight: 44).opacity(selected == nil ? 0 : 1)
-                .allowsHitTesting(selected != nil).accessibilityHidden(selected == nil)
-                .accessibilityIdentifier("trendLatest")
+
         }
     }
+    private var metricTitle: some View {
+        HStack(spacing: 4) {
+            Text(selected.map { $0.date.formatted(.dateTime.day().month(.abbreviated)) } ?? metric.rawValue).font(ZoopType.headline).accessibilityIdentifier("trendReadingDate")
+            if selected != nil { Image(systemName: "chevron.right").font(ZoopType.caption2) }
+        }
+    }
+    private var readingValue: some View {
+        Text((displayed.map { metric.formatted($0.value) } ?? "—") + " " + metric.readoutUnit)
+            .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
+            .accessibilityIdentifier("trendReadingValue")
+    }
+    private var plotDomain: ClosedRange<Date> { ChartPresentation.dateDomain(interval, now: now) }
+    private var axisDates: [Date] { ChartPresentation.dateTicks(plotDomain) }
+    private var axisValues: [Double] { ChartPresentation.ticks(yDomain) }
     private var chart: some View {
-        Chart {
+        let isolated = Set(Dictionary(grouping: series.points) { series.segmentByDate[$0.date] ?? 0 }.values.filter { $0.count == 1 }.compactMap { $0.first?.date })
+        return Chart {
             if showComparisons {
                 ForEach(series.rolling) { point in
                     LineMark(x: .value("Date", point.date), y: .value("7-day average", point.value), series: .value("Series", "mean-\(series.segmentByDate[point.date] ?? 0)"))
-                        .foregroundStyle(metric.color.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                 }
                 if let average = series.average {
                     RuleMark(y: .value("Period average", average))
@@ -106,9 +119,15 @@ struct TrendChartCard: View {
             }
             ForEach(series.points) { point in
                 LineMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value), series: .value("Series", "daily-\(series.segmentByDate[point.date] ?? 0)"))
-                    .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 1.5))
+                    .foregroundStyle(metric.color.opacity(showComparisons ? 0.35 : 1)).lineStyle(StrokeStyle(lineWidth: showComparisons ? 1 : 2, lineCap: .round))
                 PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
-                    .foregroundStyle(metric.color).symbolSize(range == .week ? 24 : range == .all ? 5 : 12)
+                    .foregroundStyle(metric.color).symbolSize(isolated.contains(point.date) ? 30 : 0)
+            }
+            if let point = selected ?? series.points.last {
+                PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
+                    .foregroundStyle(metric.color.opacity(0.18)).symbolSize(170)
+                PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
+                    .foregroundStyle(metric.color).symbolSize(65)
             }
             if let selected {
                 RuleMark(x: .value("Selected date", selected.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
@@ -116,23 +135,22 @@ struct TrendChartCard: View {
                     .foregroundStyle(metric.color).symbolSize(65)
             }
         }
-        .chartXScale(domain: interval.start...interval.end.addingTimeInterval(-1))
-        .chartYScale(domain: yDomain)
-        .chartLegend(.hidden)
+        .chartXScale(domain: plotDomain).chartXScale(range: .plotDimension(startPadding: 0, endPadding: 6))
+        .chartYScale(domain: axisValues[0]...axisValues[2])
+        .chartLegend(.hidden).font(ZoopType.caption2)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: range == .week ? 7 : 4)) { value in
-                AxisGridLine().foregroundStyle(ZoopStyle.separator)
+            AxisMarks(values: axisDates) { value in
                 if let date = value.as(Date.self) {
-                    AxisValueLabel { Text(date.formatted(range == .week ? .dateTime.weekday(.narrow) : range == .all ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated))) }
+                    AxisValueLabel(anchor: value.index == 0 ? .topLeading : value.index == 2 ? .topTrailing : .top) { Text(date.formatted(range == .all ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated))).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary) }
                 }
             }
         }
-        .chartYAxis { AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
-            AxisGridLine().foregroundStyle(ZoopStyle.separator)
-            AxisValueLabel { if let number = value.as(Double.self) { Text(metric.axisLabel(number)) } }
+        .chartYAxis { AxisMarks(position: .leading, values: axisValues) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(ZoopStyle.chartGrid)
+            AxisValueLabel { if let number = value.as(Double.self) { Text(metric.axisLabel(number)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary) } }
         } }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .frame(height: 230)
+        .frame(height: 164)
         .chartOverlay { proxy in
             GeometryReader { geo in
                 if let anchor = proxy.plotFrame {
@@ -165,19 +183,19 @@ struct TrendChartCard: View {
             if let insights { InsightComparisonDetails(insights: insights, metric: metric) }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 2 : 4), alignment: .leading, spacing: 12) {
                 stat("Min", series.minimum); stat("Average", series.average); stat("Max", series.maximum)
-                VStack(alignment: .leading, spacing: 4) { Text("Days").font(.caption2); Text(series.points.count.formatted()).font(.subheadline.weight(.medium)) }
+                VStack(alignment: .leading, spacing: 4) { Text("Days").font(ZoopType.caption2); Text(series.points.count.formatted()).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)) }
             }
             HStack(spacing: 12) {
                 Label("7-day average", systemImage: "line.diagonal").symbolRenderingMode(.hierarchical)
                 Label("Period average", systemImage: "ellipsis")
-            }.font(.caption2).foregroundStyle(ZoopStyle.secondary).fixedSize(horizontal: false, vertical: true)
+            }.font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary).fixedSize(horizontal: false, vertical: true)
             if let pattern { TrendWeekdayPattern(metric: metric, series: pattern, calendar: calendar) }
         }
     }
     private func stat(_ title: String, _ value: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption2).foregroundStyle(ZoopStyle.secondary)
-            Text(value.map(metric.formatted) ?? "—").font(.subheadline.weight(.medium)).monospacedDigit()
+            Text(title).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+            Text(value.map(metric.formatted) ?? "—").font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).monospacedDigit()
         }
     }
     private func openReading() { if let displayed { open(displayed) } }

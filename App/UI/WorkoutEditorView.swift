@@ -61,7 +61,7 @@ struct WorkoutEditorView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(ActivityKind.named(workout.kind).name)
                                         Text(workout.startTs.formatted(date: .abbreviated, time: .shortened) + " – " + workout.endTs.formatted(date: .omitted, time: .shortened))
-                                            .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                                     }
                                     Spacer()
                                     if mergeId == workout.id { Image(systemName: "checkmark").accessibilityLabel("Selected") }
@@ -73,7 +73,7 @@ struct WorkoutEditorView: View {
                     if merged != nil {
                         Section {
                             LabeledContent("Duration", value: "\(Int(previewEnd.timeIntervalSince(previewStart) / 60)) min")
-                            Text("Includes the rest between workouts").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+                            Text("Includes the rest between workouts").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
                         }
                         .listRowBackground(ZoopStyle.surface)
                     }
@@ -94,7 +94,7 @@ struct WorkoutEditorView: View {
                 Section {
                     if loading && minutes.isEmpty { ProgressView("Loading readings") }
                     else { WorkoutWindowChart(minutes: minutes, start: previewStart, end: max(previewEnd, previewStart.addingTimeInterval(1)), split: mode.action == "split" ? split : nil, selected: $chartSelection) }
-                    if let chartError { Text(chartError).font(.footnote).foregroundStyle(ZoopStyle.secondary) }
+                    if let chartError { Text(chartError).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary) }
                 }
                 .listRowBackground(ZoopStyle.surface)
                 if let error {

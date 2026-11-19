@@ -38,8 +38,8 @@ struct WeightEntryView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             MetricValue(display(row.kg), unit: unit, size: 32)
                             Text(row.measuredAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ZoopStyle.secondary)
-                            Text(row.displaySourceName).font(.headline)
-                            Text("Edit this measurement in Apple Health.").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
+                            Text(row.displaySourceName).font(ZoopType.headline)
+                            Text("Edit this measurement in Apple Health.").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
                         }.padding(ZoopStyle.gutter).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else {
@@ -47,7 +47,7 @@ struct WeightEntryView: View {
                         VStack(spacing: 24) {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 TextField("Weight", text: $value).keyboardType(.decimalPad)
-                                    .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
+                                    .font(ZoopType.fixed(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
                                     .multilineTextAlignment(.center).focused($focused).accessibilityLabel("Weight").accessibilityIdentifier("weightInput")
                                     .accessibilityHint("Tap to type a weight")
                                     .frame(maxWidth: 240)
@@ -62,19 +62,19 @@ struct WeightEntryView: View {
                                     ViewThatFits(in: .horizontal) {
                                         HStack { Text("Measured").foregroundStyle(ZoopStyle.secondary); Spacer(); measuredLabel }
                                         VStack(alignment: .leading, spacing: 8) { Text("Measured").foregroundStyle(ZoopStyle.secondary); measuredLabel }
-                                    }.font(.subheadline).frame(minHeight: 44).contentShape(Rectangle())
+                                    }.font(ZoopType.subheadline).frame(minHeight: 44).contentShape(Rectangle())
                                 }.buttonStyle(.plain).accessibilityIdentifier("weightMeasuredDate")
                                 if choosingDate {
                                     DatePicker("Measured", selection: $measuredAt, in: ...Date()).datePickerStyle(.compact)
                                         .labelsHidden().accessibilityLabel("Measurement date and time")
                                 }
                             }.padding(.top, 4)
-                            if let error { Text(error).font(.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
+                            if let error { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightSaveError") }
                         }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 20)
                     }
                     .safeAreaInset(edge: .bottom) {
                         Button(action: save) {
-                            HStack { if saving { ProgressView() }; Text(entry == nil ? "Save weight" : "Save changes").font(.headline) }
+                            HStack { if saving { ProgressView() }; Text(entry == nil ? "Save weight" : "Save changes").font(ZoopType.headline) }
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                         }.buttonStyle(.borderedProminent).disabled(kg == nil || saving).accessibilityIdentifier("saveWeight")
@@ -106,7 +106,7 @@ struct WeightEntryView: View {
     private var measuredLabel: some View {
         HStack(spacing: 5) {
             Text(Calendar.current.isDateInToday(measuredAt) ? "Today, \(measuredAt.formatted(date: .omitted, time: .shortened))" : measuredAt.formatted(date: .abbreviated, time: .shortened))
-            Image(systemName: "chevron.down").font(.caption)
+            Image(systemName: "chevron.down").font(ZoopType.caption)
         }.foregroundStyle(ZoopStyle.text)
     }
     private func display(_ kg: Double) -> String { (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) }

@@ -40,7 +40,7 @@ struct SleepSessionDetailView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let error { Text(error).font(.footnote).foregroundStyle(.red).padding().frame(maxWidth: .infinity).background(ZoopStyle.surface) }
+                if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red).padding().frame(maxWidth: .infinity).background(ZoopStyle.surface) }
                 SleepNotice()
             }
         }

@@ -51,6 +51,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
+        UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]
         UILaunchScreen: {}
         NSHealthShareUsageDescription: "Imports weight measurements into Zoop and your Zoop server, and checks for existing weigh-ins."
         NSHealthUpdateUsageDescription: "Shares sleep, workouts, optional steps and weigh-ins recorded in Zoop with Apple Health."

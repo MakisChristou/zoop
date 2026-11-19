@@ -35,21 +35,19 @@ struct HourlyStepsChart: View {
         .chartXScale(domain: 0...24)
         .chartYScale(domain: 0...max(hours.max() ?? 0, 100))
         .chartXAxis {
-            AxisMarks(values: [0, 6, 12, 18]) { value in
-                AxisValueLabel {
+            AxisMarks(values: [0, 12, 23]) { value in
+                AxisValueLabel(anchor: value.index == 0 ? .topLeading : value.index == 2 ? .topTrailing : .top) {
                     Text(Self.hourLabel(value.as(Int.self) ?? 0, on: day))
-                        .font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 }
             }
         }
         .chartYAxis {
-            if !compact {
-                AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) {
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(ZoopStyle.separator)
-                    AxisValueLabel().font(.caption2).foregroundStyle(ZoopStyle.secondary)
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) {
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(ZoopStyle.chartGrid)
+                    AxisValueLabel().font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                 }
-            }
         }
         .chartPlotStyle { $0.padding(.top, 4) }
         .accessibilityLabel("Steps by hour")

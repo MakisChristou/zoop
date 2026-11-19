@@ -41,7 +41,7 @@ struct TodayView: View {
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
                             Label("Couldn’t update your day. Retry", systemImage: "arrow.clockwise")
-                                .font(.footnote).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .font(ZoopType.footnote).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
                     }
                     if !selectedWorkouts.isEmpty { sessions.padding(.top, 8) }
@@ -59,8 +59,8 @@ struct TodayView: View {
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
                     NavigationLink { MorningInsightsView(day: viewedDay) } label: {
-                        HStack { Text("Nightly comparisons"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
-                            .font(.subheadline).frame(minHeight: 44)
+                        HStack { Text("Nightly comparisons"); Spacer(); Image(systemName: "chevron.right").font(ZoopType.caption) }
+                            .font(ZoopType.subheadline).frame(minHeight: 44)
                     }.accessibilityIdentifier("openMorningInsights")
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
@@ -107,25 +107,25 @@ struct TodayView: View {
             Button { openSleep(selectedNight) } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(selectedNight.map { "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m" } ?? "—")
-                        .font(.title2.weight(.medium)).monospacedDigit()
-                    Text("Sleep").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                    Text("Sleep").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                     if let metric = insights?.metrics.first(where: { $0.key == "sleep" }), let delta = metric.visibleDelta {
-                        Text(delta).font(.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
+                        Text(delta).font(ZoopType.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
                     }
                 }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
             Button { openActivity(viewedDay) } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(selectedSummary?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                        .font(.title2.weight(.medium)).monospacedDigit()
-                    Text("Day load").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                    Text("Day load").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
             NavigationLink(value: StepsView.Scope.day) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
-                        .font(.title2.weight(.medium)).monospacedDigit()
-                    Text("Steps").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
+                    Text("Steps").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("openStepsSummary")
         }
@@ -137,19 +137,19 @@ struct TodayView: View {
                 HStack {
                     metricLabel("Steps", icon: "shoeprints.fill")
                     Spacer()
-                    Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
+                    Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) {
                     StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
                 } else {
                     Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
-                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let steps = currentSteps {
                     HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)
-                        .frame(height: 108).padding(.top, 8).accessibilityHidden(true)
+                        .frame(height: 164).padding(.top, 8).accessibilityHidden(true)
                 } else {
-                    Color.clear.frame(height: 108).padding(.top, 8)
+                    Color.clear.frame(height: 164).padding(.top, 8)
                         .overlay { if loading { ProgressView().controlSize(.small) } }
                         .accessibilityHidden(true)
                 }
@@ -166,9 +166,9 @@ struct TodayView: View {
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Workouts").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                Text("Workouts").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
-                Button("See all") { openActivity(viewedDay) }.font(.caption).frame(minHeight: 44)
+                Button("See all") { openActivity(viewedDay) }.font(ZoopType.caption).frame(minHeight: 44)
             }
             ForEach(selectedWorkouts) { workout in
                 NavigationLink(value: workout) { WorkoutRow(workout: workout) }.buttonStyle(PressableCardStyle())
@@ -184,10 +184,10 @@ struct TodayView: View {
                     ForEach(insights.metrics.filter { $0.key != "sleep" }) { metric in
                         NavigationLink { MorningInsightsView(day: viewedDay) } label: {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(metric.key == "resting_hr" ? "Resting HR" : metric.title).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                Text(metric.key == "resting_hr" ? "Resting HR" : metric.title).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                                 MetricValue(metric.formatted(metric.value), unit: metric.unit, size: 24)
                                 if let delta = metric.visibleDelta {
-                                    Text(delta).font(.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
+                                    Text(delta).font(ZoopType.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
                                 }
                             }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
                         }.buttonStyle(.plain)
@@ -200,7 +200,7 @@ struct TodayView: View {
     }
 
     private func metricLabel(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon).font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
+        Label(title, systemImage: icon).font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
     }
 
     private func sectionHeading(_ title: String) -> some View {
