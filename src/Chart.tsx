@@ -50,7 +50,7 @@ export function Chart({
   return (
     <div>
       <div className="chart" aria-label={`${unit || "Measurement"} history`}>
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={168}>
           <ChartType
             data={data}
             margin={{ left: 0, right: 12, top: 12, bottom: 0 }}

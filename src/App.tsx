@@ -194,10 +194,6 @@ export function App() {
           />
         )}
       </main>
-      <footer>
-        <span>Zoop</span>
-        <span>Read-only · Your data, your server</span>
-      </footer>
     </div>
   );
 }

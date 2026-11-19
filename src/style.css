@@ -245,13 +245,13 @@ nav a:hover {
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 .panel {
   background: var(--panel);
   border: 1px solid #222;
   border-radius: 18px;
-  padding: 24px;
+  padding: 20px;
   min-width: 0;
 }
 .panel-head {
@@ -259,7 +259,7 @@ nav a:hover {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .wide {
   grid-column: 1/-1;
@@ -493,13 +493,6 @@ td:last-child,
 th:last-child {
   text-align: right;
 }
-footer {
-  display: flex;
-  justify-content: space-between;
-  color: #858585;
-  font-size: 11px;
-  margin: 34px 0 24px;
-}
 .updated {
   color: #858585;
   font-size: 11px;
@@ -623,7 +616,7 @@ footer {
     font-size: 20px;
   }
   .panel {
-    padding: 20px;
+    padding: 16px;
   }
   .metrics,
   .wide .metrics,
