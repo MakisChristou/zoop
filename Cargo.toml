@@ -11,12 +11,12 @@ repository = "https://github.com/MakisChristou/snoop-api"
 
 [workspace.dependencies]
 # Internal crates
-snoop-proto = { path = "crates/snoop-proto" }
-snoop-analytics = { path = "crates/snoop-analytics" }
-snoop-config = { path = "crates/snoop-config" }
-snoop-storage = { path = "crates/snoop-storage" }
-snoop-core = { path = "crates/snoop-core" }
-snoop-api = { path = "crates/snoop-api" }
+zoop-proto = { path = "crates/zoop-proto" }
+zoop-analytics = { path = "crates/zoop-analytics" }
+zoop-config = { path = "crates/zoop-config" }
+zoop-storage = { path = "crates/zoop-storage" }
+zoop-core = { path = "crates/zoop-core" }
+zoop-api = { path = "crates/zoop-api" }
 
 # Errors / async
 anyhow = "1.0"

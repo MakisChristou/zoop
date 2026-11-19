@@ -4,8 +4,8 @@
 
 | Component | Responsibility |
 |---|---|
-| iOS app ([snoop](https://github.com/MakisChristou/snoop)) | Holds the Bluetooth connection, reassembles frames, drives the history offload, queues and uploads raw frames. Implements the protocol independently in Swift. |
-| `snoop-api` | Verifies and stores raw frames, decodes them, computes metrics, serves read endpoints. |
+| iOS app ([zoop](https://github.com/MakisChristou/snoop)) | Holds the Bluetooth connection, reassembles frames, drives the history offload, queues and uploads raw frames. Implements the protocol independently in Swift. |
+| `zoop-api` | Verifies and stores raw frames, decodes them, computes metrics, serves read endpoints. |
 | Postgres | The only datastore. |
 
 The phone is deliberately thin: everything that can be recomputed lives on the server,
@@ -43,18 +43,18 @@ where it can be re-run over the full history.
 ## Crates
 
 ```
-snoop-proto      framing, CRCs, reassembly, record/event/response decoding, commands
-snoop-analytics  HRV, baselines, sleep, staging, walking bouts, workouts, zones, energy
+zoop-proto      framing, CRCs, reassembly, record/event/response decoding, commands
+zoop-analytics  HRV, baselines, sleep, staging, walking bouts, workouts, zones, energy
                  (`ALGO_VERSION` keys sleep rows, `WORKOUT_ALGO_VERSION` workouts and strains)
-snoop-config     TOML schema, loading, validation
-snoop-storage    PostgresStore and per-table stores, StorageError/StoreOperation
-snoop-core       Decoder, night and workout analyzers, on-demand steps
-snoop-api        axum router, bearer auth, ingest and read handlers
-snoop            CLI: run | migrate | validate | analyze | analyze-workouts
+zoop-config     TOML schema, loading, validation
+zoop-storage    PostgresStore and per-table stores, StorageError/StoreOperation
+zoop-core       Decoder, night and workout analyzers, on-demand steps
+zoop-api        axum router, bearer auth, ingest and read handlers
+zoop            CLI: run | migrate | validate | analyze | analyze-workouts
 ```
 
-Dependencies point downward only: `snoop` → `snoop-api`/`snoop-core` → `snoop-storage`
-→ `snoop-proto`/`snoop-analytics`. The protocol and analytics crates have no I/O.
+Dependencies point downward only: `zoop` → `zoop-api`/`zoop-core` → `zoop-storage`
+→ `zoop-proto`/`zoop-analytics`. The protocol and analytics crates have no I/O.
 
 ## Schema
 
@@ -75,7 +75,7 @@ Dependencies point downward only: `snoop` → `snoop-api`/`snoop-core` → `snoo
 ## Deployment
 
 The binary is configuration-file driven and has no runtime dependencies beyond Postgres,
-so it packages as a plain systemd unit, a container (`crates/snoop/Dockerfile`), or a
+so it packages as a plain systemd unit, a container (`crates/zoop/Dockerfile`), or a
 NixOS service module. TLS and network exposure are left to the host (reverse proxy or
 a private overlay network).
 

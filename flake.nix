@@ -1,5 +1,5 @@
 {
-  description = "snoop-api: self-hosted backend for WHOOP 5.0 / MG straps";
+  description = "zoop-api: self-hosted backend for WHOOP 5.0 / MG straps";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -21,9 +21,10 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          default = self.packages.${system}.snoop;
-          snoop = pkgs.rustPlatform.buildRustPackage {
-            pname = "snoop";
+          default = self.packages.${system}.zoop;
+          snoop = self.packages.${system}.zoop; # compatibility for existing deployment pins
+          zoop = pkgs.rustPlatform.buildRustPackage {
+            pname = "zoop";
             version = "0.1.0";
             src = pkgs.lib.cleanSourceWith {
               src = ./.;
@@ -41,13 +42,13 @@
                 ]);
             };
             cargoLock.lockFile = ./Cargo.lock;
-            cargoBuildFlags = [ "-p" "snoop" ];
+            cargoBuildFlags = [ "-p" "zoop" ];
             doCheck = false; # tests need no database, but the build sandbox has no network for sqlx macros either way
             nativeBuildInputs = [ pkgs.pkg-config ];
             meta = {
               description = "Self-hosted backend for WHOOP 5.0 / MG straps";
               license = pkgs.lib.licenses.mit;
-              mainProgram = "snoop";
+              mainProgram = "zoop";
             };
           };
         }
@@ -79,8 +80,8 @@
             PGDATA = "./.pgdata";
             PGHOST = "localhost";
             PGPORT = "5433";
-            PGUSER = "snoop";
-            PGDATABASE = "snoop";
+            PGUSER = "zoop";
+            PGDATABASE = "zoop";
           };
         }
       );

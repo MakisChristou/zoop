@@ -28,11 +28,11 @@ semantic payload is retained raw for a future decoder fix.
    database. Record source-frame counts and a digest of immutable payloads. Exercise
    migration 0006 and backfill on the restored copy before production.
 2. Deploy the new backend with `worker.history_enabled=false` (NixOS:
-   `services.snoop.historyEnabled=false`). Migrations apply before service startup.
+   `services.zoop.historyEnabled=false`). Migrations apply before service startup.
    Intake, v1 compatibility and decoding stay enabled; jobs accumulate durably.
 3. Install the upgraded phone app without uninstalling it. Verify legacy pending
    rows migrate intact, new uploads use UUIDs, and per-frame receipts drain the queue.
-4. Enable history processing, restart Snoop and monitor the authenticated processing
+4. Enable history processing, restart Zoop and monitor the authenticated processing
    endpoint. Check failures, the oldest pending date, available day load and retained
    labels. An empty completed day is valid. Backfilled sessions must remain silent.
 5. Verify the pre-existing raw payload digest is unchanged. Keep the backup private.

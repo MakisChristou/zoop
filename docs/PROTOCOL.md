@@ -1,6 +1,6 @@
 # WHOOP 5.0 / MG protocol notes
 
-What `snoop-proto` implements and why. Everything here was learned from public
+What `zoop-proto` implements and why. Everything here was learned from public
 interoperability research and is re-verified against our own hardware as captures
 become available. Offsets are absolute frame offsets.
 

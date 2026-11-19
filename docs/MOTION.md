@@ -1,6 +1,6 @@
 # Motion data on the WHOOP 5.0 / MG
 
-What the strap offers for movement, what the official app uses, and what snoop uses.
+What the strap offers for movement, what the official app uses, and what zoop uses.
 
 ## Three sources
 
@@ -23,7 +23,7 @@ Captures of the official app syncing show it uploading R18, R20 and R26 record b
 computing nothing on the phone. It never enables R21. WHOOP's cloud therefore scores sleep
 from the one-second summary plus optical bursts, not from raw inertial data.
 
-## What snoop uses
+## What zoop uses
 
 R18 only, which is what the official pipeline sees. On a first full night the per-second
 dynamic acceleration separates the strap's states cleanly (asleep median 0.006 g, 95th

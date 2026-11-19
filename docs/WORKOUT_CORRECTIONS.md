@@ -93,7 +93,7 @@ shows `metrics_pending` until calculation completes.
 
 ## Validation and rollout
 
-Run `just ci`, then `just test-db` with an isolated `SNOOP_TEST_DATABASE_URL`. The
+Run `just ci`, then `just test-db` with an isolated `ZOOP_TEST_DATABASE_URL`. The
 correction tests exercise nested undo, partial/missing data, retries, revision
 conflicts, worker fencing, version upgrades, overlap prevention, midnight/DST,
 historical profiles, and HTTP compatibility. Synthetic fixtures contain no personal

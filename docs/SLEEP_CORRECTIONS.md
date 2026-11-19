@@ -77,7 +77,7 @@ back to an earlier snapshot. Recent reset receipts are available after app resta
 ## Validation
 
 `just ci` runs formatting, warnings-as-errors, and unit tests. With an isolated
-`SNOOP_TEST_DATABASE_URL`, `just test-db` also covers the durable worker, retries,
+`ZOOP_TEST_DATABASE_URL`, `just test-db` also covers the durable worker, retries,
 stale confirmations, midnight/DST boundaries, awake breaks, missing-data gaps,
 full-day naps, both-domain reset, undo after recompute, and raw-data preservation.
 Use the synthetic `tools/ui-fixture.sql` for simulator tests; never run fixture

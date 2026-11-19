@@ -35,6 +35,6 @@ Trends ranges or metrics adds no requests. Each overview card has one number,
 one eligible delta and eight bars. Definitions and coverage live in drill-downs
 and About. Existing tabs and chart interactions are unchanged.
 
-Validation: `just ci`; `SNOOP_TEST_DATABASE_URL=... just test-progress-db` uses
+Validation: `just ci`; `ZOOP_TEST_DATABASE_URL=... just test-progress-db` uses
 isolated development schemas. Contracts cover auth, invalid zones, unknown straps,
 effective corrections, removed sessions, missing data and DST day length.

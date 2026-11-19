@@ -1,4 +1,4 @@
-# snoop-api
+# Zoop API
 
 ## Profile measurements and photos
 
@@ -20,8 +20,8 @@ version. Profile photo tests and measured-weight regressions run in `just test-d
 
 **Your WHOOP data, on your own server.**
 
-snoop-api is a self-hosted backend for WHOOP 5.0 and WHOOP MG straps. A companion
-iPhone app ([snoop](https://github.com/MakisChristou/snoop)) talks to the strap over
+zoop-api is a self-hosted backend for WHOOP 5.0 and WHOOP MG straps. A companion
+iPhone app ([zoop](https://github.com/MakisChristou/snoop)) talks to the strap over
 Bluetooth and uploads the raw sensor frames; this service stores them, decodes them, and
 computes sleep and recovery metrics from published methods. No WHOOP account, no WHOOP
 cloud, no subscription.
@@ -35,7 +35,7 @@ Written in Rust. Postgres is the only dependency.
 ## How it works
 
 ```
- WHOOP strap ──BLE──▶ snoop (iOS) ──HTTPS──▶ snoop-api ──▶ Postgres
+ WHOOP strap ──BLE──▶ zoop (iOS) ──HTTPS──▶ zoop-api ──▶ Postgres
                       holds the bond,        verifies CRCs,     raw_frames (source of truth)
                       reassembles frames,    stores raw bytes,  samples, events, ecg_strips
                       uploads in batches     decodes, analyses  sleeps, recoveries, strains
@@ -70,20 +70,20 @@ provides all of them (`nix develop`, or `direnv allow`), and also packages the s
 for NixOS (see Deploying).
 
 ```sh
-cp snoop.dev.toml snoop.toml      # then set server.ingest_token
+cp zoop.dev.toml zoop.toml      # then set server.ingest_token
 just pg-start                     # repo-local Postgres on :5433 and migrations
                                   # (or `just up` to use Docker instead)
 just run                          # API + decode worker
 curl localhost:8471/health
 ```
 
-Point the snoop iOS app at `http://<host>:8471` with the same token.
+Point the zoop iOS app at `http://<host>:8471` with the same token.
 
 ## Configuration
 
-Configuration is a TOML file (`--config`, default `snoop.toml`). Any key can be
-overridden with an environment variable: `SNOOP_SERVER__INGEST_TOKEN`,
-`SNOOP_STORAGE__POSTGRES_URL`, and so on.
+Configuration is a TOML file (`--config`, default `zoop.toml`). Any key can be
+overridden with an environment variable: `ZOOP_SERVER__INGEST_TOKEN`,
+`ZOOP_STORAGE__POSTGRES_URL`, and so on.
 
 ```toml
 [server]
@@ -91,15 +91,15 @@ bind = "0.0.0.0:8471"
 ingest_token = "<openssl rand -hex 32>"
 
 [storage]
-postgres_url = "postgres://snoop:snoop@localhost:5433/snoop"
+postgres_url = "postgres://zoop:zoop@localhost:5433/zoop"
 
 [worker]
 poll_interval_ms = 5000
 batch_size = 500
 ```
 
-`snoop validate --config snoop.toml` checks the file; `snoop migrate` applies schema
-migrations; `snoop run` starts the service; `snoop analyze --device <serial> --night
+`zoop validate --config zoop.toml` checks the file; `zoop migrate` applies schema
+migrations; `zoop run` starts the service; `zoop analyze --device <serial> --night
 YYYY-MM-DD` scores one night and prints the result.
 
 ## API
@@ -126,14 +126,14 @@ All `/v1` and `/v2` routes require `Authorization: Bearer <server.ingest_token>`
 
 ```
 crates/
-  snoop-proto      protocol: framing, records, events, commands
-  snoop-analytics  HRV, baselines; sleep staging in progress
-  snoop-config     TOML configuration and validation
-  snoop-storage    Postgres via sqlx
-  snoop-core       transactional decoder and durable history worker
-  snoop-api        axum HTTP API
-  snoop            binary: run | migrate | validate
-migrations/        schema, applied by `snoop migrate`
+  zoop-proto      protocol: framing, records, events, commands
+  zoop-analytics  HRV, baselines; sleep staging in progress
+  zoop-config     TOML configuration and validation
+  zoop-storage    Postgres via sqlx
+  zoop-core       transactional decoder and durable history worker
+  zoop-api        axum HTTP API
+  zoop            binary: run | migrate | validate
+migrations/        schema, applied by `zoop migrate`
 docs/              architecture, protocol notes, roadmap
 ```
 
@@ -143,17 +143,17 @@ The flake exports a package and a NixOS module. In your system flake:
 
 ```nix
 {
-  inputs.snoop-api.url = "github:MakisChristou/snoop-api";
+  inputs.zoop-api.url = "github:MakisChristou/zoop-api";
 
-  outputs = { nixpkgs, snoop-api, ... }: {
+  outputs = { nixpkgs, zoop-api, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
       modules = [
-        snoop-api.nixosModules.default
+        zoop-api.nixosModules.default
         {
-          services.snoop = {
+          services.zoop = {
             enable = true;
             port = 8471;
-            tokenFile = "/run/secrets/snoop-token";  # the bearer token, nothing else
+            tokenFile = "/run/secrets/zoop-token";  # the bearer token, nothing else
             openFirewall = true;
           };
         }
@@ -168,12 +168,12 @@ start, reads the token through a systemd credential so it never enters the Nix s
 and restarts the service on failure. Put a reverse proxy or a private overlay network
 in front of it if the host is reachable from outside your LAN.
 
-`nix build .#snoop` builds the binary on its own.
+`nix build .#zoop` builds the binary on its own.
 
 ## Development
 
-Database-backed store tests run only when `SNOOP_TEST_DATABASE_URL` points at a migrated
-development database, for example `SNOOP_TEST_DATABASE_URL=postgres://snoop:snoop@localhost:5433/snoop cargo test -p snoop-storage`;
+Database-backed store tests run only when `ZOOP_TEST_DATABASE_URL` points at a migrated
+development database, for example `ZOOP_TEST_DATABASE_URL=postgres://zoop:zoop@localhost:5433/zoop cargo test -p zoop-storage`;
 `just ci` needs no database.
 
 ```sh
@@ -186,12 +186,12 @@ Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
 
 The wire protocol was understood by reading public interoperability research, in
 particular the documentation published by the NOOP, wearable5.0, Goose, whoop-rs and
-OpenStrap projects. snoop-api contains no code from any of them; every line here is an
+OpenStrap projects. zoop-api contains no code from any of them; every line here is an
 independent implementation.
 
 ## License
 
-MIT. snoop-api is an independent project, not affiliated with or endorsed by WHOOP, Inc.
+MIT. zoop-api is an independent project, not affiliated with or endorsed by WHOOP, Inc.
 Metrics are approximations from published methods and are not medical advice.
 
 ### Reliable history and database tests
@@ -200,7 +200,7 @@ The durable history worker replaces the trailing-day loops. It seeds all stored
 sample dates once per device, profile time zone and algorithm-version pair, then
 processes coalesced jobs invalidated by later data. No date range or cursor can
 silently skip an old upload. `worker.history_enabled = false` pauses analysis while
-intake and decoding continue; the same option is `services.snoop.historyEnabled`
+intake and decoding continue; the same option is `services.zoop.historyEnabled`
 in NixOS. The reconciliation interval remains `worker.analysis_interval_s`.
 
 Sleep and workout/day load have independent versions. Their
@@ -217,7 +217,7 @@ notifications. A job failure retains the last result and retries with capped bac
 Run the database recovery suite explicitly against a **development** database:
 
 ```sh
-export SNOOP_TEST_DATABASE_URL=postgres://snoop:snoop@localhost:5433/snoop
+export ZOOP_TEST_DATABASE_URL=postgres://zoop:zoop@localhost:5433/zoop
 just test-db
 ```
 
@@ -276,7 +276,7 @@ Authenticated endpoints:
   source name and expected version. Identical retries are idempotent. Conflicting
   edits return 409; invalid measurements return 400.
 - `POST /v1/devices/{deviceId}/weights/remove-imports` with `ids`: applies explicit
-  Health deletion IDs only to imported mirrors. It cannot remove Snoop weigh-ins.
+  Health deletion IDs only to imported mirrors. It cannot remove Zoop weigh-ins.
 
 All routes use the existing installation bearer-token boundary and device scope.
 The iPhone owns Health permission and source checks. Imported weight is stored only
@@ -302,7 +302,7 @@ acceptance; simulator and database tests cannot prove those behaviors.
 Migrations 0010 and 0011 add rebuildable daily summaries and a per-device weight
 change cursor. They preserve raw samples, analysis versions, correction identities,
 Health export ownership and the existing endpoint formats. Deploy the matching
-server binary and run `snoop migrate` before restarting it. Migration 0010 scans
+server binary and run `zoop migrate` before restarting it. Migration 0010 scans
 existing sample timestamps once to build day markers; allow for that initial cost
 on a large history. A warm day read uses cached aggregates. A dirty/missing day
 reads only that local day and its predecessor sample, preserving counter behavior.
@@ -357,7 +357,7 @@ Calendar matching is informed by Orsama et al., *Weight Rhythms* (2014),
 https://doi.org/10.1159/000356147; that paper does not validate these classifications.
 
 Pure regression cases run in `just ci`. Database regressions use an isolated schema:
-`SNOOP_TEST_DATABASE_URL=<development-url> cargo test -p snoop-api --test weight_goal -- --ignored`.
+`ZOOP_TEST_DATABASE_URL=<development-url> cargo test -p zoop-api --test weight_goal -- --ignored`.
 They cover opt-in, authentication, invalid inputs, source priority, DST, deletion,
 revision conflict, idempotent retries, pause, and preservation of measurement rows.
 
@@ -392,3 +392,18 @@ become generic Activity workouts. All steps, walking bouts and whole-day load
 still count. Workout algorithm version 5 automatically reprocesses existing
 history; manual workout corrections remain authoritative. Sleep detection is
 unchanged.
+
+
+### Zoop API rename compatibility
+
+The workspace crates, executable and configuration examples now use zoop names.
+ZOOP_* configuration variables take precedence; existing SNOOP_* variables remain
+accepted. The Nix module accepts services.zoop and the legacy services.snoop alias,
+and the package has a legacy snoop alias. Existing service, runtime directory and
+database identities remain unchanged to preserve deployments. Use the zoop binary
+with an explicit --config path when retaining an existing snoop.toml file.
+
+Stored weight source codes and record IDs retain their legacy snoop values. These
+are data identifiers, not display names. Applied migrations are unchanged; no
+analysis version bump or history recomputation is required. GitHub URLs retain
+the previous repository names until the repository rename is completed.

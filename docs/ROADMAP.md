@@ -53,8 +53,8 @@ HR-based staging, Task Force 1996 HRV. Each module cites its source.
 
 **Validation.** The strap keeps a single history stream: whichever app drains it owns
 that data, and the other app sees a gap. The official app therefore cannot score a
-night that snoop has already pulled, and vice versa. Validation alternates nights:
-on reference nights the official app syncs and its sleep export is kept; on snoop
+night that zoop has already pulled, and vice versa. Validation alternates nights:
+on reference nights the official app syncs and its sleep export is kept; on zoop
 nights we compute ours. Compare the two populations (onset and wake relative to the
 strap's own sleep flag, stage totals, efficiency) and keep a scorecard per algorithm
 version. The target is agreement within a few minutes on boundaries and within the

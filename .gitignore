@@ -5,5 +5,8 @@
 .DS_Store
 /.pgdata/
 /.direnv/
-/snoop.toml
+/zoop.toml
 /result
+
+# Existing private configuration
+/snoop.toml

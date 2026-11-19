@@ -33,7 +33,7 @@ be shown with `limited` quality but cannot generate comparisons or chart points.
 
 Sources: Plews et al. 2014, doi:10.1123/ijspp.2013-0455 (repeated individual lnRMSSD);
 Fischer et al. 2021, doi:10.1093/sleep/zsab103 (sleep timing variability).
-The study populations and measurement protocols do not validate Snoop as a readiness
+The study populations and measurement protocols do not validate Zoop as a readiness
 or medical tool. Window sizes, data gates and display bands below are explicit
 product conventions, not clinical thresholds or a WHOOP formula.
 
@@ -70,7 +70,7 @@ Sleep/workout algorithm versions and stored data do not change for insights v2.
 
 ## Validation
 
-`just ci` covers the pure comparison rules; `SNOOP_TEST_DATABASE_URL=... just test-db`
+`just ci` covers the pure comparison rules; `ZOOP_TEST_DATABASE_URL=... just test-db`
 includes `insights` API, coverage, correction/reset/undo, and historical-date tests
 against isolated Postgres schemas. Fixtures are synthetic. UI tests use a separate
 synthetic device and server; no screen mirroring is required for phone installation.

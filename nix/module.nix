@@ -1,9 +1,9 @@
-# NixOS module for snoop-api.
+# NixOS module for zoop-api.
 #
-#   services.snoop = {
+#   services.zoop = {
 #     enable = true;
 #     port = 8471;
-#     tokenFile = "/run/secrets/snoop-token";   # contains only the bearer token
+#     tokenFile = "/run/secrets/zoop-token";   # contains only the bearer token
 #     openFirewall = true;
 #   };
 #
@@ -19,8 +19,8 @@ flake:
   ...
 }:
 let
-  cfg = config.services.snoop;
-  configFile = pkgs.writeText "snoop.toml" ''
+  cfg = config.services.zoop;
+  configFile = pkgs.writeText "zoop.toml" ''
     [server]
     bind = "${cfg.bind}:${toString cfg.port}"
     ingest_token = "placeholder-replaced-at-start"
@@ -36,13 +36,15 @@ let
   '';
 in
 {
-  options.services.snoop = {
-    enable = lib.mkEnableOption "snoop-api, the self-hosted WHOOP backend";
+  imports = [ (lib.mkAliasOptionModule [ "services" "snoop" ] [ "services" "zoop" ]) ];
+
+  options.services.zoop = {
+    enable = lib.mkEnableOption "zoop-api, the self-hosted WHOOP backend";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = flake.packages.${pkgs.stdenv.hostPlatform.system}.snoop;
-      description = "The snoop package to run.";
+      default = flake.packages.${pkgs.stdenv.hostPlatform.system}.zoop;
+      description = "The zoop package to run.";
     };
 
     bind = lib.mkOption {
@@ -117,7 +119,7 @@ in
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
 
     systemd.services.snoop = {
-      description = "snoop-api";
+      description = "Zoop API";
       wantedBy = [ "multi-user.target" ];
       after = [
         "network.target"
@@ -139,9 +141,9 @@ in
       environment.RUST_LOG = "info";
       script = ''
         # The token is injected from the credential file; the TOML in the store holds a placeholder.
-        export SNOOP_SERVER__INGEST_TOKEN="$(cat "$CREDENTIALS_DIRECTORY/token")"
-        ${cfg.package}/bin/snoop migrate --config ${configFile}
-        exec ${cfg.package}/bin/snoop run --config ${configFile}
+        export ZOOP_SERVER__INGEST_TOKEN="$(cat "$CREDENTIALS_DIRECTORY/token")"
+        ${cfg.package}/bin/zoop migrate --config ${configFile}
+        exec ${cfg.package}/bin/zoop run --config ${configFile}
       '';
     };
   };

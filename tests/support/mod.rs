@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use chrono::{DateTime, NaiveDate, Utc};
-use snoop_storage::{AnalysisVersions, NewRawFrame, NewSample, PostgresStore};
 use sqlx::PgPool;
 use std::sync::atomic::{AtomicU64, Ordering};
+use zoop_storage::{AnalysisVersions, NewRawFrame, NewSample, PostgresStore};
 
 pub const DEVICE: &str = "TEST-RELIABILITY";
 pub const VERSIONS: AnalysisVersions = AnalysisVersions {
@@ -19,8 +19,8 @@ impl Db {
     pub async fn new() -> Self {
         // Explicitly invoked integration tests must fail, not silently pass, if the
         // test database is missing. Each test owns a fresh schema and migration set.
-        let base = std::env::var("SNOOP_TEST_DATABASE_URL")
-            .expect("set SNOOP_TEST_DATABASE_URL to a development database");
+        let base = std::env::var("ZOOP_TEST_DATABASE_URL")
+            .expect("set ZOOP_TEST_DATABASE_URL to a development database");
         let admin = PgPool::connect(&base).await.expect("test database");
         let schema = format!(
             "reliability_{}_{}",

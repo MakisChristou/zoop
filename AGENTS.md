@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Conventions for contributors and coding agents working in snoop-api. Read before
+Conventions for contributors and coding agents working in zoop-api. Read before
 changing anything.
 
 ## What this is
@@ -20,8 +20,8 @@ recovery and the rest follow.
 - **Pure Rust + Postgres.** No other languages or datastores. Postgres through `sqlx`
   runtime queries and embedded `migrate!`. No ORM, no Redis, no extensions.
 - **Raw frames are the source of truth.** Never delete or rewrite `raw_frames`. Derived
-  tables are rebuilt from them: bump `snoop_proto::PROTO_VERSION` or
-  `snoop_analytics::ALGO_VERSION` instead of editing rows in place.
+  tables are rebuilt from them: bump `zoop_proto::PROTO_VERSION` or
+  `zoop_analytics::ALGO_VERSION` instead of editing rows in place.
 - **Published methods only.** Analytics implement cited, peer-reviewed methods. Each
   module's doc comment names the paper. No WHOOP formulas are reproduced.
 - **Public project.** No personal names, host names, network details or credentials in
@@ -47,8 +47,8 @@ recovery and the rest follow.
   when they come from our own hardware.
 - Doc comments on every public item, `# Errors` on fallible functions, module-level
   `//!` explaining why the module exists. Named constants over magic numbers.
-- Configuration is TOML via `figment`; secrets are `secrecy::SecretString`; `SNOOP_*`
-  env vars override keys. `snoop validate` must pass before `snoop run` proceeds.
+- Configuration is TOML via `figment`; secrets are `secrecy::SecretString`; `ZOOP_*`
+  env vars override keys. `zoop validate` must pass before `zoop run` proceeds.
 - Long-running tasks take a `CancellationToken` and shut down cleanly.
 
 ## Workflow
@@ -56,7 +56,7 @@ recovery and the rest follow.
 ```sh
 nix develop        # or direnv allow; provides rust, postgres, just
 just pg-start      # repo-local Postgres + migrations (or `just up` for Docker)
-just run           # API + decode worker using snoop.dev.toml
+just run           # API + decode worker using zoop.dev.toml
 just ci            # fmt-check, clippy -D warnings, tests — before every commit
 ```
 

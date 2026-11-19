@@ -1,5 +1,5 @@
-# Local development services for snoop: Postgres only. Not for production.
-name: snoop
+# Local development services for zoop: Postgres only. Not for production.
+name: zoop
 
 services:
   # Postgres 18 moved PGDATA to /var/lib/postgresql/<major>/docker and declares the
@@ -8,15 +8,15 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: snoop
-      POSTGRES_PASSWORD: snoop
-      POSTGRES_DB: snoop
+      POSTGRES_USER: zoop
+      POSTGRES_PASSWORD: zoop
+      POSTGRES_DB: zoop
     ports:
       - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U snoop -d snoop"]
+      test: ["CMD-SHELL", "pg_isready -U zoop -d zoop"]
       interval: 5s
       timeout: 3s
       retries: 10
