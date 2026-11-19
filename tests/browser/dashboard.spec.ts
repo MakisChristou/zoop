@@ -294,3 +294,90 @@ test("period paging and chart readings are keyboard accessible", async ({
     page.getByRole("button", { name: "Year", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
 });
+
+test("wide layouts stay compact, date stays centered and long workout histories page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  await fixture(page);
+  await page.route("**/v1/devices/*/workouts?*", async (route) => {
+    await route.fulfill({
+      json: Array.from({ length: 14 }, (_, i) => ({
+        id: i + 1,
+        kind: "resistance",
+        start_ts: day(-i) + "T12:00:00Z",
+        end_ts: day(-i) + "T12:51:00Z",
+        duration_s: 3060,
+        load: 9.3,
+        avg_hr: 121,
+        max_hr: 157,
+      })),
+    });
+  });
+  await login(page);
+  const centered = async () => {
+    const date = await page
+      .locator(".today-period .date-control")
+      .boundingBox();
+    const rings = await page.locator(".rings").boundingBox();
+    expect(
+      Math.abs(date!.x + date!.width / 2 - rings!.x - rings!.width / 2),
+    ).toBeLessThan(2);
+  };
+  await centered();
+  await page
+    .getByRole("button", { name: "Previous period", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Today", exact: true }),
+  ).toBeVisible();
+  await centered();
+  expect(
+    await page
+      .locator(".shell")
+      .evaluate((el) => el.getBoundingClientRect().width),
+  ).toBeLessThanOrEqual(1100);
+  await expect(
+    page.getByText("Read-only · Your data, your server"),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('link[rel="icon"][type="image/svg+xml"]'),
+  ).toHaveAttribute("href", "/zoop.svg");
+  const logo = await page.request.get("/zoop.svg");
+  expect(logo.status()).toBe(200);
+  expect(await logo.text()).toContain('<title id="title">Zoop</title>');
+  await page.getByRole("link", { name: "Activity", exact: true }).click();
+  await page.getByRole("button", { name: "Month", exact: true }).click();
+  const card = page.locator(".activity-grid > .panel").last();
+  await expect(card.locator(".workout")).toHaveCount(6);
+  expect((await card.boundingBox())!.width).toBeLessThan(530);
+  expect((await card.boundingBox())!.height).toBeLessThan(650);
+  await page
+    .getByRole("button", { name: "Next workouts", exact: true })
+    .click();
+  await expect(page.getByText("7–12 of 14", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Next workouts", exact: true })
+    .click();
+  await expect(card.locator(".workout")).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "Next workouts", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Previous workouts", exact: true })
+    .click();
+  await expect(card.locator(".workout")).toHaveCount(6);
+  for (const width of [1920, 1024, 768, 700, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.screenshot({
+    path: "test-results/activity-wide.png",
+    fullPage: true,
+  });
+});

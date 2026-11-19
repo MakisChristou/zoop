@@ -448,7 +448,7 @@ function Dashboard({
         </div>
       </div>
       {page !== "Goals" && (
-        <div className="period-row">
+        <div className={`period-row${page === "Today" ? " today-period" : ""}`}>
           <div className="date-control">
             <button
               aria-label="Previous period"
@@ -551,42 +551,78 @@ function Workouts({
   tz,
   rows,
   onDetail,
+  pageSize,
 }: {
   tz: string;
   rows: Session[];
+  pageSize?: number;
   onDetail: (s: Session) => void;
 }) {
+  const [pageIndex, setPageIndex] = useState(0);
+  const size = pageSize ?? Math.max(1, rows.length);
+  const lastPage = Math.max(0, Math.ceil(rows.length / size) - 1);
+  const currentPage = Math.min(pageIndex, lastPage);
+  const first = currentPage * size;
   return rows.length ? (
-    <div className="timeline">
-      {rows.map((s) => (
-        <button className="workout" key={s.id} onClick={() => onDetail(s)}>
-          <span className="workout-icon">
-            {s.kind === "resistance" ? (
-              <Dumbbell size={19} />
-            ) : s.kind === "walk" ? (
-              <Footprints size={19} />
-            ) : (
-              <ActivityIcon size={19} />
-            )}
+    <>
+      <div className="timeline">
+        {rows.slice(first, first + size).map((s) => (
+          <button className="workout" key={s.id} onClick={() => onDetail(s)}>
+            <span className="workout-icon">
+              {s.kind === "resistance" ? (
+                <Dumbbell size={19} />
+              ) : s.kind === "walk" ? (
+                <Footprints size={19} />
+              ) : (
+                <ActivityIcon size={19} />
+              )}
+            </span>
+            <span className="workout-title">
+              {title(s.kind)}
+              <small>
+                {new Date(s.start_ts).toLocaleDateString(undefined, {
+                  timeZone: tz,
+                })}{" "}
+                · {duration(s.duration_s)}
+              </small>
+            </span>
+            <span className="load-track">
+              <span
+                style={{
+                  width: `${Math.min(100, ((s.load ?? 0) / 21) * 100)}%`,
+                }}
+              />
+            </span>
+            <span>{number(s.load, 1)}</span>
+          </button>
+        ))}
+      </div>
+      {rows.length > size && (
+        <div className="workout-paging">
+          <span className="muted small" aria-live="polite">
+            {first + 1}–{Math.min(first + size, rows.length)} of {rows.length}
           </span>
-          <span className="workout-title">
-            {title(s.kind)}
-            <small>
-              {new Date(s.start_ts).toLocaleDateString(undefined, {
-                timeZone: tz,
-              })}{" "}
-              · {duration(s.duration_s)}
-            </small>
-          </span>
-          <span className="load-track">
-            <span
-              style={{ width: `${Math.min(100, ((s.load ?? 0) / 21) * 100)}%` }}
-            />
-          </span>
-          <span>{number(s.load, 1)}</span>
-        </button>
-      ))}
-    </div>
+          <div>
+            <button
+              className="icon-button"
+              aria-label="Previous workouts"
+              disabled={currentPage === 0}
+              onClick={() => setPageIndex(currentPage - 1)}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Next workouts"
+              disabled={currentPage === lastPage}
+              onClick={() => setPageIndex(currentPage + 1)}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   ) : (
     <Empty>No workouts in this period</Empty>
   );
@@ -854,7 +890,7 @@ function DataView({
     );
   if (page === "Activity")
     return (
-      <div className="grid">
+      <div className="grid activity-grid">
         <Panel title="Daily load">
           {error("days")}
           <Chart
@@ -878,9 +914,11 @@ function DataView({
             onOpen={onDay}
           />
         </Panel>
-        <Panel title="Workouts" wide>
+        <Panel title="Workouts">
           {error("workouts")}
           <Workouts
+            key={`${start}:${end}`}
+            pageSize={6}
             tz={tz}
             rows={workouts.filter((s) => {
               const d = dayKey(new Date(s.start_ts), tz);
