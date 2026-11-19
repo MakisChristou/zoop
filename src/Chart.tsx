@@ -83,7 +83,7 @@ export function Chart({
               minTickGap={50}
             />
             <YAxis
-              width={38}
+              width={52}
               domain={bar ? [0, "auto"] : ["auto", "auto"]}
               tickCount={3}
               tick={{ fill: "var(--muted)", fontSize: 11 }}
