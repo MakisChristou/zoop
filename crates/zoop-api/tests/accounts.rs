@@ -508,3 +508,46 @@ async fn private_mode_requires_provisioning() {
         .unwrap();
     assert!(db.store.private_accounts_ready().await.unwrap());
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn legacy_phone_connection_probe_is_authenticated_and_data_free() {
+    let (_db, app, owner, _) = setup().await;
+    let path = "/v1/devices/_/latest";
+    let (status, body, _) = req(
+        &app,
+        "GET",
+        path,
+        None,
+        Some("owner-phone-token"),
+        json!(null),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, Value::Null);
+    assert_eq!(
+        req(&app, "GET", path, None, Some("wrong-token"), json!(null))
+            .await
+            .0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        req(&app, "GET", path, Some(&owner), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(
+            &app,
+            "GET",
+            "/v1/devices/_/profile",
+            None,
+            Some("owner-phone-token"),
+            json!(null)
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+}

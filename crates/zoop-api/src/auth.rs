@@ -2,7 +2,7 @@ use axum::{
     extract::{Request, State},
     http::header,
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use secrecy::ExposeSecret;
 
@@ -76,6 +76,14 @@ pub(crate) async fn require_bearer(
             && request.method() != Method::HEAD
         {
             return Err(ApiError::Forbidden);
+        }
+        // Older phones use this placeholder solely to test credentials. Return
+        // no device data; all other routes still require explicit ownership.
+        if matches!(principal, Principal::Device(_))
+            && request.uri().path() == "/v1/devices/_/latest"
+            && (request.method() == Method::GET || request.method() == Method::HEAD)
+        {
+            return Ok(axum::Json(serde_json::Value::Null).into_response());
         }
         if request.uri().path() != "/v1/ingest" && request.uri().path() != "/v2/ingest" {
             let params = request
