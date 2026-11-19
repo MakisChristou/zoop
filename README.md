@@ -316,9 +316,12 @@ and then the `ZoopUITests/MorningRefreshTests` test on a simulator. Its loopback
 on port 28479 returns Updating for eight seconds and then Learning, while unrelated
 Today endpoints fail. It uses synthetic data and does not require a backend database.
 
-Today opens with three circles: Sleep duration, Outlook and daily Load. Sleep and
-Outlook use complete outlines around existing readings, not percentage scores.
-Only Load fills an arc on the existing 0–21 scale. Outlook uses the server's
+Today opens with three circles: Sleep duration, Outlook and daily Load. Sleep fills
+against a personal nightly goal (8 hours by default); Sleep → options → Sleep goal
+saves changes automatically on this iPhone. The selected goal applies to any day
+being viewed. Missing sleep leaves the ring empty, and reaching/exceeding the goal
+fills it without truncating the actual duration. Outlook keeps a complete outline;
+Load fills an arc on the existing 0–21 scale. Outlook uses the server's
 Good/Average/Low/Mixed classification; learning and incomplete states stay neutral.
 Each circle opens its existing detail screen and follows the selected calendar day.
 The steps count appears in the Steps chart card rather than repeating in the header.

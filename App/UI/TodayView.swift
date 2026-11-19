@@ -10,6 +10,7 @@ struct TodayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var visible = false
     @State private var now = Date()
+    @AppStorage(SleepGoal.storageKey) private var sleepGoalMinutes = SleepGoal.defaultMinutes
     /// Nil follows today across midnight; a chosen past day stays fixed.
     @State private var selectedDay: Date?
     @State private var loadedDay: Date?
@@ -96,6 +97,7 @@ struct TodayView: View {
     }
 
     private var overview: some View {
+        let sleepGoal = SleepGoal(minutes: sleepGoalMinutes)
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 24))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
@@ -103,9 +105,13 @@ struct TodayView: View {
             Button { openSleep(selectedNight) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
-                } ?? "—", color: selectedNight == nil ? ZoopStyle.track : ZoopStyle.sleep)
+                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS))
             }
             .buttonStyle(.plain).disabled(selectedNight == nil)
+            .accessibilityValue(selectedNight.map {
+                let seconds = $0.metrics.window.asleepS
+                return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal"
+            } ?? "No reading")
             .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
             NavigationLink { MorningInsightsView(day: viewedDay) } label: {
                 TodaySummaryRing(title: "Outlook", value: insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—"),

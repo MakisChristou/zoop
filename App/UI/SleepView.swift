@@ -4,6 +4,7 @@ struct SleepView: View {
     @Environment(AppModel.self) private var model
     @Binding var selected: ZoopAPI.Night?
     @State private var selectedDay = Date()
+    @State private var showGoal = false
     @State private var editor: SleepEditorMode?
     @State private var resetTarget: ZoopAPI.SleepSession?
     @State private var error: String?
@@ -48,6 +49,10 @@ struct SleepView: View {
                         }
                     }
                     if main != nil, let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
+                    if main == nil {
+                        Button("Sleep goal", systemImage: "moon") { showGoal = true }
+                            .font(ZoopType.footnote).frame(minHeight: 44).accessibilityIdentifier("editSleepGoal")
+                    }
                     NavigationLink("Removed sleep") { RemovedSleepView() }.font(ZoopType.footnote).frame(minHeight: 44)
                 }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 24)
             }
@@ -58,6 +63,7 @@ struct SleepView: View {
             .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
             .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         }
+        .sheet(isPresented: $showGoal) { SleepGoalView() }
         .sheet(item: $editor) { SleepEditorView(mode: $0) }
         .sheet(item: $resetTarget) { row in NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(ZoopStyle.background) }
     }
@@ -86,6 +92,9 @@ struct SleepView: View {
                         SleepDuration(seconds: w.asleepS, size: 20)
                         Spacer()
                         Menu {
+                            Button("Sleep goal", systemImage: "moon") { showGoal = true }
+                                .accessibilityIdentifier("editSleepGoal")
+                            Divider()
                             Button("Edit sleep", systemImage: "pencil") { editor = .edit(record) }
                             Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .merge(record) }
                             if let id = record.lastEdit { Button("Undo last change", systemImage: "arrow.uturn.backward") { Task { do { try await model.sleep.undo(device: model.strap.serial, id: id) } catch { self.error = error.localizedDescription } } } }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sleep and Outlook are frames around readings. Only Load has a numeric progress arc.
+/// A reading framed by a circle, with an optional measured progress arc.
 struct TodaySummaryRing: View {
     let title: String
     let value: String

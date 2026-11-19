@@ -21,7 +21,7 @@ import XCTest
     func testThreeReadingsAndDestinations() {
         let app = launch()
         expectValue("Average", in: app.buttons["openMorningInsights"])
-        expectValue("7h 25m", in: app.buttons["openSleepSummary"])
+        expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
         expectValue("8.4", in: app.buttons["openDayActivity"])
         shot(app, "Today summary rings")
         app.buttons["openMorningInsights"].tap()
@@ -41,14 +41,14 @@ import XCTest
     func testSelectedDayUpdatesAllReadings() {
         let app = launch(device: "INSIGHT-REVIEW")
         expectValue("Good", in: app.buttons["openMorningInsights"])
-        expectValue("7h 25m", in: app.buttons["openSleepSummary"])
+        expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
         app.buttons["Previous day"].tap()
         expectValue("Learning", in: app.buttons["openMorningInsights"])
-        XCTAssertNotEqual(app.buttons["openSleepSummary"].value as? String, "7h 25m")
+        XCTAssertNotEqual(app.buttons["openSleepSummary"].value as? String, "7h 25m, 93% of 8h goal")
         shot(app, "Yesterday summary rings")
         app.buttons["Back to today"].tap()
         expectValue("Good", in: app.buttons["openMorningInsights"])
-        expectValue("7h 25m", in: app.buttons["openSleepSummary"])
+        expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
     }
     func testMissingReadingsStayMissing() {
         let app = launch(device: "RINGS-EMPTY")
