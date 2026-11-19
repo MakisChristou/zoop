@@ -26,14 +26,14 @@ struct CutWeeklyChart: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     arrow(-1)
-                    Text("Week \(data.number(week))").font(.headline)
+                    Text("Week \(data.number(week))").font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity).accessibilityIdentifier("cutSelectedWeek")
                     arrow(1)
                 }
                 let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
                 layout {
                     VStack(alignment: .leading, spacing: 4) {
-                        MetricValue(WeeklyWeightPresentation.weight(inspected?.kg ?? week.medianKg, unit: unit), unit: inspected == nil && week.medianKg == nil ? "" : unit, size: 32)
+                        MetricValue(WeeklyWeightPresentation.weight(inspected?.kg ?? week.medianKg, unit: unit), unit: inspected == nil && week.medianKg == nil ? "" : unit, size: 28)
                             .accessibilityIdentifier("cutWeeklyMedian")
                         Text(inspected.map { readingDate($0.date) } ?? (week.medianKg == nil ? "No weigh-ins" : "Weekly median")).font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("cutReadingLabel")
                     }.frame(maxWidth: .infinity, alignment: .leading)
@@ -70,11 +70,11 @@ struct CutWeeklyChart: View {
                 .onChange(of: week.id) { _, _ in inspectedDate = nil }
         }
     }
-    private var paceLabel: some View { Text(WeeklyWeightPresentation.weight(-data.goal.weeklyLossKg, unit: unit, signed: true) + " " + unit + " / week") }
+    private var paceLabel: some View { Text("Target " + WeeklyWeightPresentation.weight(-data.goal.weeklyLossKg, unit: unit, signed: true) + " " + unit + " / week") }
     private func legend(_ label: String, dashed: Bool) -> some View {
         HStack(spacing: 6) {
             Path { p in p.move(to: .init(x: 0, y: 3)); p.addLine(to: .init(x: 20, y: 3)) }
-                .stroke(dashed ? ZoopStyle.secondary : ZoopStyle.load, style: .init(lineWidth: 2, dash: dashed ? [3, 3] : []))
+                .stroke(dashed ? ZoopStyle.secondary : ZoopStyle.text, style: .init(lineWidth: 2, dash: dashed ? [3, 3] : []))
                 .frame(width: 20, height: 6).accessibilityHidden(true)
             Text(label).fixedSize(horizontal: false, vertical: true)
         }.font(.caption).foregroundStyle(ZoopStyle.secondary)
@@ -86,7 +86,7 @@ struct CutWeeklyChart: View {
     private func arrow(_ direction: Int) -> some View {
         let enabled = data.weeks.indices.contains(index + direction)
         return Button { move(direction) } label: { Image(systemName: direction < 0 ? "chevron.left" : "chevron.right").font(.footnote.weight(.semibold)).frame(width: 44, height: 44) }
-            .foregroundStyle(enabled ? ZoopStyle.load : ZoopStyle.secondary.opacity(0.35))
+            .foregroundStyle(enabled ? ZoopStyle.text : ZoopStyle.secondary.opacity(0.35))
             .disabled(!enabled)
             .accessibilityLabel(direction < 0 ? "Previous week" : "Next week")
             .accessibilityIdentifier(direction < 0 ? "cutPreviousWeek" : "cutNextWeek")
@@ -117,12 +117,12 @@ struct CutWeeklyChart: View {
             }
             ForEach(points) { point in
                 LineMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg)), series: .value("Series", "weight"))
-                    .foregroundStyle(ZoopStyle.load).lineStyle(.init(lineWidth: 2, lineCap: .round))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(32)
+                    .foregroundStyle(ZoopStyle.text).lineStyle(.init(lineWidth: 2, lineCap: .round))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.text).symbolSize(32)
             }
             if let point = inspected {
                 RuleMark(x: .value("Selected reading", point.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(70)
+                PointMark(x: .value("Date", point.date), y: .value("Weight", weight(point.kg))).foregroundStyle(ZoopStyle.text).symbolSize(70)
             }
         }.chartXScale(domain: data.domain(for: week)).chartXScale(range: .plotDimension(startPadding: 12, endPadding: 12))
             .chartYScale(domain: scale).chartLegend(.hidden)

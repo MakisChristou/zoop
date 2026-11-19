@@ -60,7 +60,7 @@ import XCTest
         let app = launch()
         let brief = app.buttons["openMorningInsights"]
         reveal(brief, in: app)
-        XCTAssertTrue(app.staticTexts["Learning"].exists)
+        XCTAssertFalse(app.staticTexts["Learning"].exists)
         XCTAssertFalse(app.staticTexts["Early comparisons"].exists)
         brief.tap()
         let detail = app.buttons["trendComparisons"].firstMatch

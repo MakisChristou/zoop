@@ -33,7 +33,7 @@ struct TrendChartCard: View {
                 DisclosureGroup(isExpanded: $showComparisons) {
                     comparisonDetails.padding(.top, 8)
                 } label: {
-                    Text(insights == nil ? "Comparisons" : "Comparison details")
+                    Text(typeSize.isAccessibilitySize ? "Compare" : insights == nil ? "Comparisons" : "Comparison details")
                         .font(.subheadline).frame(minHeight: 44)
                 }.tint(ZoopStyle.secondary).accessibilityIdentifier("trendComparisons")
             }
@@ -46,26 +46,33 @@ struct TrendChartCard: View {
         }
     }
     private var periodNavigation: some View {
-        HStack(spacing: 4) {
-            Button { page(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                .disabled(!canGoBack).accessibilityLabel("Previous period").accessibilityIdentifier("trendPreviousPeriod")
-            Text(range.title(interval, calendar: calendar))
-                .font(.subheadline.weight(.medium)).multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity).accessibilityIdentifier("trendPeriod")
-            Button { page(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
-                .disabled(!canGoForward).accessibilityLabel("Next period").accessibilityIdentifier("trendNextPeriod")
-        }.buttonStyle(.plain)
+        VStack(spacing: 4) {
+            if typeSize.isAccessibilitySize { periodTitle }
+            HStack(spacing: 4) {
+                Button { page(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                    .disabled(!canGoBack).accessibilityLabel("Previous period").accessibilityIdentifier("trendPreviousPeriod")
+                if typeSize.isAccessibilitySize { Spacer() } else { periodTitle }
+                Button { page(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                    .disabled(!canGoForward).accessibilityLabel("Next period").accessibilityIdentifier("trendNextPeriod")
+            }.buttonStyle(.plain)
+        }
+    }
+    private var periodTitle: some View {
+        Text(range.title(interval, calendar: calendar))
+            .font(.subheadline.weight(.medium)).multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity).accessibilityIdentifier("trendPeriod")
     }
     private var readout: some View {
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
         return layout {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 4) {
-                    Text(metric.rawValue)
+                    Text(selected == nil ? "Latest" : "Selected")
                     if selected != nil { Image(systemName: "chevron.right").font(.caption2).accessibilityHidden(true) }
                 }.font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
-                MetricValue(displayed.map { metric.formatted($0.value) } ?? "—", unit: metric.readoutUnit, size: 36)
-                    .foregroundStyle(metric.color).accessibilityIdentifier("trendReadingValue")
+                MetricValue(displayed.map { metric.formatted($0.value) } ?? "—", unit: metric.readoutUnit, size: 28)
+                    .foregroundStyle(ZoopStyle.text).accessibilityIdentifier("trendReadingValue")
                 Text(displayed.map { $0.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()) } ?? "No readings")
                     .font(.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("trendReadingDate")
             }
@@ -99,7 +106,7 @@ struct TrendChartCard: View {
             }
             ForEach(series.points) { point in
                 LineMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value), series: .value("Series", "daily-\(series.segmentByDate[point.date] ?? 0)"))
-                    .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 2))
+                    .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 1.5))
                 PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
                     .foregroundStyle(metric.color).symbolSize(range == .week ? 24 : range == .all ? 5 : 12)
             }
@@ -125,7 +132,7 @@ struct TrendChartCard: View {
             AxisValueLabel { if let number = value.as(Double.self) { Text(metric.axisLabel(number)) } }
         } }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .frame(height: 210)
+        .frame(height: 230)
         .chartOverlay { proxy in
             GeometryReader { geo in
                 if let anchor = proxy.plotFrame {

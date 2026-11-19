@@ -19,26 +19,36 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            TodayView(openSleep: { selectedNight = $0; sleepRequest = UUID(); selection = .sleep }, openActivity: { selectedActivityDay = $0; activityRequest = UUID(); selection = .activity })
-                .tabItem { Label("Today", systemImage: "square.grid.2x2") }
-                .tag(Tab.today)
-            ActivityView(selectedDay: $selectedActivityDay, requestID: activityRequest)
-                .tabItem { Label("Activity", systemImage: "figure.run") }
-                .tag(Tab.activity)
-            SleepView(selected: $selectedNight).id(sleepRequest)
-                .tabItem { Label("Sleep", systemImage: "moon.fill") }
-                .tag(Tab.sleep)
-            TrendsView()
-                .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
-                .tag(Tab.trends)
-            NavigationStack { GoalsView() }
-                .tabItem { Label("Goals", systemImage: "target") }
-                .tag(Tab.goals)
+        // Reserve real space so pushed scroll views cannot extend beneath navigation.
+        VStack(spacing: 0) {
+            TabView(selection: $selection) {
+                TodayView(openSleep: { selectedNight = $0; sleepRequest = UUID(); selection = .sleep }, openActivity: { selectedActivityDay = $0; activityRequest = UUID(); selection = .activity })
+                    .tabItem { Label("Today", systemImage: "square.grid.2x2") }
+                    .tag(Tab.today)
+                    .toolbar(.hidden, for: .tabBar)
+                ActivityView(selectedDay: $selectedActivityDay, requestID: activityRequest)
+                    .tabItem { Label("Activity", systemImage: "figure.run") }
+                    .tag(Tab.activity)
+                    .toolbar(.hidden, for: .tabBar)
+                SleepView(selected: $selectedNight).id(sleepRequest)
+                    .tabItem { Label("Sleep", systemImage: "moon.fill") }
+                    .tag(Tab.sleep)
+                    .toolbar(.hidden, for: .tabBar)
+                TrendsView()
+                    .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
+                    .tag(Tab.trends)
+                    .toolbar(.hidden, for: .tabBar)
+                NavigationStack { GoalsView() }
+                    .tabItem { Label("Goals", systemImage: "target") }
+                    .tag(Tab.goals)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+            .toolbar(.hidden, for: .tabBar)
+            navigationBar
         }
-        .tint(ZoopStyle.load)
+        .background(ZoopStyle.background.ignoresSafeArea())
+        .tint(ZoopStyle.text)
         .foregroundStyle(ZoopStyle.text)
-        .toolbarBackground(ZoopStyle.surface, for: .tabBar)
         .task {
             #if targetEnvironment(simulator)
             if UserDefaults.standard.string(forKey: "demoScreen") != nil { return }
@@ -73,6 +83,36 @@ struct RootView: View {
             if phase == .active { model.refreshReminders(); Task { await model.health.refreshReminderCompletion() }; model.health.activate(model.strap.serial); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
         .onAppear(perform: applyDemoRoute)
+    }
+
+    private var navigationBar: some View {
+        HStack(spacing: 0) {
+            tab(.today, title: "Today", icon: "square.grid.2x2")
+            tab(.activity, title: "Activity", icon: "figure.run")
+            tab(.sleep, title: "Sleep", icon: "moon")
+            tab(.trends, title: "Trends", icon: "chart.line.uptrend.xyaxis")
+            tab(.goals, title: "Goals", icon: "target")
+        }
+        .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 2)
+        .background(ZoopStyle.background)
+        .overlay(alignment: .top) { Rectangle().fill(ZoopStyle.separator).frame(height: 0.5) }
+        .accessibilityElement(children: .contain).accessibilityLabel("Main navigation")
+        .accessibilityIdentifier("mainNavigation")
+    }
+
+    private func tab(_ tab: Tab, title: String, icon: String) -> some View {
+        Button { selection = tab } label: {
+            VStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 19, weight: .regular))
+                Text(title).font(.caption2)
+            }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selection == tab ? ZoopStyle.text : ZoopStyle.secondary)
+        .accessibilityLabel(title).accessibilityIdentifier("tab-\(title)")
+        .accessibilityAddTraits(selection == tab ? .isSelected : [])
+        .accessibilityShowsLargeContentViewer()
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     // A cold-launch tap can arrive before the account journal has loaded.

@@ -33,7 +33,7 @@ struct HealthProgressView: View {
             }
             .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 20)
         }
-        .navigationTitle("Your progress").navigationBarTitleDisplayMode(.large)
+        .navigationTitle("Your progress").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Button { showAbout = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About your progress")
@@ -105,7 +105,7 @@ private struct ProgressCard: View {
     }
     private var headline: some View {
         Text(ProgressFormat.value(metric?.current, key: kind.key))
-            .font(.largeTitle.weight(.semibold)).monospacedDigit().foregroundStyle(ZoopStyle.text)
+            .font(.title2.weight(.medium)).monospacedDigit().foregroundStyle(ZoopStyle.text)
     }
     @ViewBuilder private var delta: some View {
         if let change = metric?.change {
@@ -201,7 +201,7 @@ private struct ProgressMetricRow: View {
                 }
             } else {
                 Text(ProgressFormat.value(metric.current, key: metric.key))
-                    .font(.largeTitle.weight(.semibold)).monospacedDigit()
+                    .font(.title2.weight(.medium)).monospacedDigit()
             }
             if let change = metric.change {
                 Text(ProgressFormat.delta(change, key: metric.key)).font(.headline)

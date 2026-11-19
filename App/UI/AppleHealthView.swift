@@ -66,7 +66,7 @@ struct AppleHealthView: View {
                 }
             } footer: { Text("Automatic sharing starts when you connect. Pausing keeps records already in Health.") }
         }
-        .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+        .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text)
         .navigationTitle("Apple Health").navigationBarTitleDisplayMode(.inline)
         .onAppear { refreshSettings() }
         .onChange(of: health.connected) { _, _ in refreshSettings() }

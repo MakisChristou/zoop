@@ -36,7 +36,7 @@ struct WeightEntryView: View {
                 if let row = entry, row.source == "health" {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
-                            MetricValue(display(row.kg), unit: unit, size: 52)
+                            MetricValue(display(row.kg), unit: unit, size: 32)
                             Text(row.measuredAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ZoopStyle.secondary)
                             Text(row.displaySourceName).font(.headline)
                             Text("Edit this measurement in Apple Health.").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
@@ -45,8 +45,6 @@ struct WeightEntryView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 24) {
-                            Text(entry == nil ? "What did the scale say?" : "Edit your weigh-in")
-                                .font(.title2.weight(.semibold)).multilineTextAlignment(.center).padding(.top, 12)
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 TextField("Weight", text: $value).keyboardType(.decimalPad)
                                     .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
@@ -84,7 +82,7 @@ struct WeightEntryView: View {
                     }
                 }
             }
-            .zoopScreen().tint(ZoopStyle.load)
+            .zoopScreen().tint(ZoopStyle.text)
             .navigationTitle(entry?.source == "health" ? "Weight" : entry == nil ? "Today’s weigh-in" : "Edit weight").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(entry?.source == "health" ? "Done" : "Cancel") { dismiss() }.disabled(saving) } }
             .interactiveDismissDisabled(saving)
@@ -109,7 +107,7 @@ struct WeightEntryView: View {
         HStack(spacing: 5) {
             Text(Calendar.current.isDateInToday(measuredAt) ? "Today, \(measuredAt.formatted(date: .omitted, time: .shortened))" : measuredAt.formatted(date: .abbreviated, time: .shortened))
             Image(systemName: "chevron.down").font(.caption)
-        }.foregroundStyle(ZoopStyle.load)
+        }.foregroundStyle(ZoopStyle.text)
     }
     private func display(_ kg: Double) -> String { (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1))) }
     private func save() {

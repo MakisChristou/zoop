@@ -13,7 +13,7 @@ class Handler(BaseHTTPRequestHandler):
         if len(parts) == 7 and parts[1:3] == ['v1', 'devices'] and parts[4] == 'days' and parts[6] == 'insights':
             device = parts[3]
             first = started.setdefault(device, time.monotonic())
-            state = 'updating' if time.monotonic() - first < 8 else 'ready'
+            state = 'updating' if time.monotonic() - first < 15 else 'ready'
             body = dict(version=2, day=parts[5], timezone='UTC', state=state, sleep_id=1,
                         sleep_revision=1, metrics=[], observations=[], timing=dict(count=0),
                         outlook=dict(state='learning' if state == 'ready' else state,

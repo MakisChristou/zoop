@@ -24,7 +24,6 @@ struct TodayView: View {
     @State private var historyFailed = false
     @State private var morning = MorningInsightsStore()
     private var insights: MorningInsights? { morning.value(for: insightScope) }
-    private var insightsFailed: Bool { morning.failed(for: insightScope) }
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -35,14 +34,9 @@ struct TodayView: View {
                                    previousLabel: "Previous day", nextLabel: "Next day",
                                    previous: { stepDay(-1) }, next: { stepDay(1) },
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
-                    if let insights {
-                        MorningBriefView(insights: insights, day: viewedDay)
-                    } else if insightsFailed {
-                        Button("Couldn’t update morning insights. Retry") { Task { await loadHistory() } }
-                            .font(.footnote).frame(minHeight: 44)
-                    }
-                    if isViewingToday { WeightCheckIn() }
-                    overview
+                    overview.padding(.vertical, 12)
+                    if isViewingToday { WeightCheckIn().padding(.bottom, 12) }
+                    sectionHeading("Activity")
                     stepsCard
                     if historyFailed {
                         Button { Task { await loadHistory() } } label: {
@@ -64,6 +58,10 @@ struct TodayView: View {
                     }
                     sectionHeading("Health metrics").padding(.top, 16)
                     healthMetrics
+                    NavigationLink { MorningInsightsView(day: viewedDay) } label: {
+                        HStack { Text("Nightly comparisons"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
+                            .font(.subheadline).frame(minHeight: 44)
+                    }.accessibilityIdentifier("openMorningInsights")
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
@@ -103,44 +101,33 @@ struct TodayView: View {
 
     private var overview: some View {
         let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return layout {
             Button { openSleep(selectedNight) } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    metricLabel("Sleep", icon: "moon")
-                    SleepDuration(seconds: selectedNight?.metrics.window.asleepS)
-                    Text(selectedNight.map { isViewingToday ? "Last night" : $0.metrics.window.offset.formatted(.dateTime.day().month(.abbreviated)) } ?? "No night recorded")
-                        .font(.caption).foregroundStyle(ZoopStyle.secondary)
-                    if let night = selectedNight, !night.stages.isEmpty {
-                        Hypnogram(segments: night.stages, onset: night.metrics.window.onset, offset: night.metrics.window.offset)
-                            .frame(height: 22).accessibilityHidden(true)
-                    } else {
-                        Sparkline(values: precedingNights.map { Double($0.metrics.window.asleepS) }, color: ZoopStyle.sleep)
-                            .frame(height: 22).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(selectedNight.map { "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m" } ?? "—")
+                        .font(.title2.weight(.medium)).monospacedDigit()
+                    Text("Sleep").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                    if let metric = insights?.metrics.first(where: { $0.key == "sleep" }), let delta = metric.visibleDelta {
+                        Text(delta).font(.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
                     }
-                }
-                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                .zoopCard(padding: 14)
-            }
-            .buttonStyle(PressableCardStyle()).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
+                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
+            }.buttonStyle(.plain).disabled(selectedNight == nil).accessibilityHint("Opens this night in Sleep")
             Button { openActivity(viewedDay) } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    metricLabel("Day load", icon: "waveform.path")
-                    HStack(spacing: 6) {
-                        MetricValue(selectedSummary?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", size: 34)
-                        Spacer(minLength: 0)
-                        if let load = selectedSummary?.load, !typeSize.isAccessibilitySize {
-                            LoadRing(load: load, lineWidth: 4).frame(width: 42, height: 42).accessibilityHidden(true)
-                        }
-                    }
-                    Text("0–21 scale").font(.caption).foregroundStyle(ZoopStyle.secondary)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                .zoopCard(padding: 14)
-            }
-            .buttonStyle(PressableCardStyle()).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(selectedSummary?.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
+                        .font(.title2.weight(.medium)).monospacedDigit()
+                    Text("Day load").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
+            NavigationLink(value: StepsView.Scope.day) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
+                        .font(.title2.weight(.medium)).monospacedDigit()
+                    Text("Steps").font(.caption).foregroundStyle(ZoopStyle.secondary)
+                }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("openStepsSummary")
         }
     }
 
@@ -152,8 +139,6 @@ struct TodayView: View {
                     Spacer()
                     Image(systemName: "chevron.right").font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 }
-                MetricValue((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
-                    .padding(.top, 4)
                 if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) {
                     StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
                 } else {
@@ -162,9 +147,9 @@ struct TodayView: View {
                 }
                 if let steps = currentSteps {
                     HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)
-                        .frame(height: 72).padding(.top, 8).accessibilityHidden(true)
+                        .frame(height: 108).padding(.top, 8).accessibilityHidden(true)
                 } else {
-                    Color.clear.frame(height: 72).padding(.top, 8)
+                    Color.clear.frame(height: 108).padding(.top, 8)
                         .overlay { if loading { ProgressView().controlSize(.small) } }
                         .accessibilityHidden(true)
                 }
@@ -181,7 +166,7 @@ struct TodayView: View {
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                sectionHeading("Activity")
+                Text("Workouts").font(.caption).foregroundStyle(ZoopStyle.secondary)
                 Spacer()
                 Button("See all") { openActivity(viewedDay) }.font(.caption).frame(minHeight: 44)
             }
@@ -192,8 +177,26 @@ struct TodayView: View {
     }
 
     private var healthMetrics: some View {
-        TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
-                        history: precedingDays.compactMap { $0.skinTempAvg })
+        VStack(alignment: .leading, spacing: 16) {
+            if let insights {
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+                layout {
+                    ForEach(insights.metrics.filter { $0.key != "sleep" }) { metric in
+                        NavigationLink { MorningInsightsView(day: viewedDay) } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(metric.key == "resting_hr" ? "Resting HR" : metric.title).font(.caption).foregroundStyle(ZoopStyle.secondary)
+                                MetricValue(metric.formatted(metric.value), unit: metric.unit, size: 24)
+                                if let delta = metric.visibleDelta {
+                                    Text(delta).font(.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
+                                }
+                            }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
+                        }.buttonStyle(.plain)
+                    }
+                }.zoopCard()
+            }
+            TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
+                            history: precedingDays.compactMap { $0.skinTempAvg })
+        }
     }
 
     private func metricLabel(_ title: String, icon: String) -> some View {
@@ -201,7 +204,10 @@ struct TodayView: View {
     }
 
     private func sectionHeading(_ title: String) -> some View {
-        Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+        HStack(spacing: 12) {
+            Text(title).font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
+            Rectangle().fill(ZoopStyle.separator).frame(height: 0.5)
+        }.accessibilityAddTraits(.isHeader)
     }
 
     private var selectedWorkouts: [ZoopAPI.Workout] {

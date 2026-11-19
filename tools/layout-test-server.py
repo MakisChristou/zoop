@@ -115,7 +115,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
                                   previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))
         if route == 'days': return self.send(days[:limit])
-        if route == 'workouts': return self.send([])
+        if route == 'workouts':
+            if not device.startswith('DESIGN-'): return self.send([])
+            return self.send([dict(id=900+i, start_ts=stamp(today-timedelta(days=i)+timedelta(hours=10)),
+                                   end_ts=stamp(today-timedelta(days=i)+timedelta(hours=11)), duration_s=3600,
+                                   kind=kind, detected_kind=kind, edited=False, auto_detected=True,
+                                   load=7.2-i, avg_hr=112, max_hr=142, trimp=35, zones_min=[25,20,10,5,0],
+                                   kcal=240, steps=5200 if kind == 'walk' else 150, revision=1, status='active',
+                                   coverage_s=3600, hr_coverage_s=3600, timezone='UTC')
+                              for i, kind in enumerate(['resistance', 'walk', 'resistance'])])
         if route == 'sleep-sessions': return self.send(sessions[:limit])
         if route.endswith('/epochs'): return self.send([])
         if route.startswith('sleep-sessions/'):

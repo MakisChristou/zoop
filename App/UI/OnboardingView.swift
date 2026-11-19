@@ -5,6 +5,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @State private var page = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(Settings.serverURLKey) private var serverURL = ""
     @AppStorage(Settings.ingestTokenKey) private var ingestToken = ""
 
@@ -21,7 +22,7 @@ struct OnboardingView: View {
                 done.tag(5)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.easeInOut, value: page)
+            .animation(reduceMotion ? nil : .easeInOut, value: page)
 
             ProgressView(value: Double(page + 1), total: Double(pageCount))
                 .padding(.horizontal, 40)
@@ -38,7 +39,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
-        }
+        }.zoopScreen()
     }
 
     private func advance() {
@@ -152,7 +153,7 @@ private struct Page: View {
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: symbol).font(.system(size: 64)).foregroundStyle(.tint)
-            Text(title).font(.title.weight(.semibold))
+            Text(title).font(.title2.weight(.medium))
             Text(text).multilineTextAlignment(.center).foregroundStyle(ZoopStyle.secondary).padding(.horizontal, 32)
             Spacer()
         }

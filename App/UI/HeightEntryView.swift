@@ -17,7 +17,6 @@ struct HeightEntryView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Text("Your height").font(.title2.weight(.semibold)).padding(.top, 20)
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         TextField("Not set", text: $draft).keyboardType(.decimalPad).focused($focused)
                             .font(.system(size: min(numberSize, 88), weight: .medium)).monospacedDigit()
@@ -37,7 +36,7 @@ struct HeightEntryView: View {
                 }.buttonStyle(.borderedProminent).disabled(!draft.isEmpty && number?.isFinite != true)
                     .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)
             }
-            .navigationTitle("Height").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.load)
+            .navigationTitle("Height").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.text)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onAppear { draft = height }
         }.presentationDetents([.large]).presentationDragIndicator(.visible)

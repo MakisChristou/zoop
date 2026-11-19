@@ -54,7 +54,7 @@ struct HealthBackfillView: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text)
             .navigationTitle("Export Zoop history").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onChange(of: from) { _, _ in preview = nil }

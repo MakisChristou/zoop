@@ -25,7 +25,7 @@ struct WorkoutRow: View {
             HStack(spacing: 8) {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(workout.load.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
-                        .font(.title3.weight(.semibold)).monospacedDigit()
+                        .font(.subheadline.weight(.medium)).monospacedDigit()
                     Text("Load").font(.caption2).foregroundStyle(ZoopStyle.secondary)
                 }
                 Image(systemName: "chevron.right").font(.caption2).foregroundStyle(ZoopStyle.secondary)

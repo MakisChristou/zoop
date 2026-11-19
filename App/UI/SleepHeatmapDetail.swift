@@ -9,7 +9,7 @@ struct SleepHeatmapDetail: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    SleepDuration(seconds: night.metrics.window.asleepS, size: 44).foregroundStyle(ZoopStyle.sleep)
+                    SleepDuration(seconds: night.metrics.window.asleepS, size: 32).foregroundStyle(ZoopStyle.sleep)
                     Text("\(night.startTs.formatted(date: .omitted, time: .shortened)) – \(night.endTs.formatted(date: .omitted, time: .shortened))")
                         .font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                     let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(spacing: 16))
@@ -19,7 +19,7 @@ struct SleepHeatmapDetail: View {
                         metric("Resting HR", night.metrics.physiology.restingHr.map { "\(Int($0.rounded())) bpm" } ?? "—")
                     }
                     Button(action: open) { Text("View sleep").font(.headline).frame(maxWidth: .infinity, minHeight: 48) }
-                        .buttonStyle(.borderedProminent).tint(ZoopStyle.load).accessibilityIdentifier("heatmapOpenSleep")
+                        .buttonStyle(.borderedProminent).tint(ZoopStyle.text).accessibilityIdentifier("heatmapOpenSleep")
                 }.padding(ZoopStyle.gutter)
             }.zoopScreen()
                 .navigationTitle(night.endTs.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))

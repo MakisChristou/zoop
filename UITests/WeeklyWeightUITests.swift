@@ -105,8 +105,8 @@ import XCTest
     }
     func testGoalsTabOwnsCutNavigation() {
         let app = launch(screen: "today")
-        XCTAssertTrue(app.tabBars.buttons["Goals"].waitForExistence(timeout: 15))
-        XCTAssertEqual(app.tabBars.buttons.count, 5)
+        XCTAssertTrue(app.buttons["tab-Goals"].waitForExistence(timeout: 15))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab-")).count, 5)
         XCTAssertFalse(app.buttons["todayWeeklyWeight"].exists)
         let weight = app.buttons["todayWeight"].firstMatch
         XCTAssertTrue(weight.waitForExistence(timeout: 10))
@@ -121,16 +121,16 @@ import XCTest
         XCTAssertTrue(app.buttons["weightHistory"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["weightGoalOptions"].exists)
         app.buttons["Done"].tap()
-        app.tabBars.buttons["Goals"].tap()
+        app.buttons["tab-Goals"].tap()
         XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.tabBars.buttons["Goals"].isSelected)
+        XCTAssertTrue(app.buttons["tab-Goals"].isSelected)
         shot(app, "Goals tab current cut")
         tap(app, "editWeightGoal")
         XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5))
         app.buttons["Cancel"].tap()
-        app.tabBars.buttons["Today"].tap()
+        app.buttons["tab-Today"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].exists)
-        app.tabBars.buttons["Goals"].tap()
+        app.buttons["tab-Goals"].tap()
         XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 5))
     }
     func testCutWeekNavigationAndChartSelection() {

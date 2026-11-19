@@ -83,7 +83,7 @@ struct SleepView: View {
         return VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .top) {
-                        SleepDuration(seconds: w.asleepS, size: 48)
+                        SleepDuration(seconds: w.asleepS, size: 32)
                         Spacer()
                         Menu {
                             Button("Edit sleep", systemImage: "pencil") { editor = .edit(record) }
@@ -113,7 +113,7 @@ struct SleepView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
-                                    .frame(height: 96)
+                                    .frame(height: 140).zoopCard(padding: 12)
                                 HStack {
                                     Spacer()
                                     Label("Sleep details", systemImage: "chevron.right")
@@ -132,16 +132,18 @@ struct SleepView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+                .padding(.vertical, 4)
 
                 if let st = night.metrics.stages, !night.stages.isEmpty {
                     let scored = max(st.lightS + st.deepS + st.remS, 1)
                     VStack(alignment: .leading, spacing: 8) {
                         SleepSectionHeader(title: "Sleep stages", comparison: "vs avg").padding(.bottom, 4)
+                        let stageLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+                        stageLayout {
                         StageRow(name: "REM", color: Hypnogram.color(.rem), seconds: st.remS, share: Double(st.remS) / Double(scored), delta: deltas[.rem])
                         StageRow(name: "Deep", color: Hypnogram.color(.deep), seconds: st.deepS, share: Double(st.deepS) / Double(scored), delta: deltas[.deep])
                         StageRow(name: "Light", color: Hypnogram.color(.light), seconds: st.lightS, share: Double(st.lightS) / Double(scored), delta: deltas[.light])
+                        }
                         Text("Stages are estimates").font(.caption).foregroundStyle(ZoopStyle.secondary).padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,7 +162,7 @@ struct SleepView: View {
                         Stat("SpO₂", p.spo2Pct.map { "\(Int($0.rounded()))" } ?? "—", unit: "%", delta: deltas[.oxygen])
                         Stat("Skin temperature", p.skinTempC.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: "°C", delta: deltas[.temperature])
                         Stat("Disturbances", "\(w.disturbances)", delta: deltas[.disturbances])
-                    }
+                    }.zoopCard(padding: 4)
                 }
 
                 let awakenings = night.stages.filter { $0.stage == .wake && $0.start > w.onset && $0.end < w.offset }
@@ -255,32 +257,18 @@ private struct StageRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        Group {
-            if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(name).font(.subheadline.weight(.semibold))
-                    Text(hm(seconds)).font(.subheadline).monospacedDigit()
-                    HStack(alignment: .firstTextBaseline) {
-                        shareLabel
-                        Spacer()
-                        if let delta { SleepDeltaLabel(delta: delta, id: name) }
-                    }
-                    progress
-                }
-            } else {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(name).font(.subheadline.weight(.medium))
-                        shareLabel
-                    }.frame(minWidth: 52, alignment: .leading)
-                    progress.frame(maxWidth: .infinity)
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(hm(seconds)).font(.subheadline.weight(.medium)).monospacedDigit()
-                        if let delta { SleepDeltaLabel(delta: delta, id: name) }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 5, height: 5).accessibilityHidden(true)
+                Text(name).font(.caption).foregroundStyle(ZoopStyle.secondary)
             }
-        }.padding(.vertical, 4)
+            Text(hm(seconds)).font(.subheadline.weight(.medium)).monospacedDigit()
+            progress
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 5) { shareLabel; Spacer(minLength: 0); if let delta { SleepDeltaLabel(delta: delta, id: name) } }
+                VStack(alignment: .leading, spacing: 4) { shareLabel; if let delta { SleepDeltaLabel(delta: delta, id: name) } }
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 4)
     }
 
     private var shareLabel: some View {
@@ -316,18 +304,14 @@ private struct Stat: View {
                 .font(.caption.weight(.medium)).foregroundStyle(ZoopStyle.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value).font(.title2.weight(.semibold)).monospacedDigit()
+                Text(value).font(.title3.weight(.medium)).monospacedDigit()
                 if !unit.isEmpty { Text(unit).font(.subheadline).foregroundStyle(ZoopStyle.secondary) }
             }
             if let delta { SleepDeltaLabel(delta: delta, id: title) }
-            else {
-                Text("—").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
-                    .accessibilityLabel("Comparison not available")
-            }
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(16)
-        .background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        .padding(12)
     }
 }
 
@@ -351,7 +335,7 @@ private struct SleepSectionHeader: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
         layout {
-            Text(title).font(.headline)
+            Text(title).font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
             if !typeSize.isAccessibilitySize { Spacer() }
             Text(comparison).font(.caption).foregroundStyle(ZoopStyle.secondary)
         }

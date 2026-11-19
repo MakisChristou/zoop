@@ -59,7 +59,7 @@ struct ECGView: View {
                 Label(recorder.device == nil ? "WHOOP not connected" : recorder.device?.isMG == true ? "WHOOP MG connected" : "ECG needs WHOOP MG",
                       systemImage: recorder.device == nil ? "antenna.radiowaves.left.and.right.slash" : "checkmark.circle")
                     .font(.caption).foregroundStyle(ZoopStyle.secondary)
-                Text("A moment for\nyour heart.").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("Heart rhythm").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
                 Text("Record your heart rhythm in 30 seconds.").foregroundStyle(ZoopStyle.secondary)
             }
             Image(systemName: "waveform.path.ecg")
@@ -89,7 +89,7 @@ struct ECGView: View {
                 Picker("Wrist wearing WHOOP", selection: $recorder.wrist) {
                     Text("Left wrist").tag(ECGWrist.left)
                     Text("Right wrist").tag(ECGWrist.right)
-                }.pickerStyle(.menu).tint(ZoopStyle.load).accessibilityIdentifier("ecgWrist")
+                }.pickerStyle(.menu).tint(ZoopStyle.text).accessibilityIdentifier("ecgWrist")
             }
             if recorder.device == nil {
                 Text("Connect your WHOOP MG to begin.").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
@@ -111,7 +111,7 @@ struct ECGView: View {
                     Text("seconds remaining").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                 }.frame(maxWidth: .infinity)
                 ECGWaveform(samples: recorder.samples, label: "Live ECG")
-                ProgressView(value: Double(30 - recorder.secondsRemaining), total: 30).tint(ZoopStyle.load)
+                ProgressView(value: Double(30 - recorder.secondsRemaining), total: 30).tint(ZoopStyle.text)
                     .accessibilityLabel("Recording progress")
             } else { ProgressView().frame(maxWidth: .infinity).padding(.vertical, 35) }
             if recorder.phase != .finishing {
@@ -157,13 +157,13 @@ struct ECGView: View {
                     }.zoopCard()
                 }.buttonStyle(PressableCardStyle())
             }
-            if recorder.recordings.count > 3 { Button(showAll ? "Show recent" : "View all recordings") { showAll.toggle() }.tint(ZoopStyle.load) }
+            if recorder.recordings.count > 3 { Button(showAll ? "Show recent" : "View all recordings") { showAll.toggle() }.tint(ZoopStyle.text) }
         }
     }
 
     private func heading(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+            Text(title).font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
             Text(subtitle).foregroundStyle(ZoopStyle.secondary)
         }
     }

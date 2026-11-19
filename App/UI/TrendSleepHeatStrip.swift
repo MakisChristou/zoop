@@ -46,7 +46,7 @@ struct TrendSleepHeatStrip: View {
             RoundedRectangle(cornerRadius: 4)
                 .fill(future ? .clear : value == nil ? ZoopStyle.secondary.opacity(opacity) : ZoopStyle.sleep.opacity(opacity))
                 .overlay { if let selected, calendar.isDate(selected, inSameDayAs: date) { RoundedRectangle(cornerRadius: 4).stroke(ZoopStyle.text, lineWidth: 2) } }
-                .frame(maxWidth: .infinity).frame(height: typeSize.isAccessibilitySize ? 44 : 32)
+                .frame(maxWidth: .infinity).frame(height: 32).padding(.vertical, 6)
                 .contentShape(Rectangle())
         }.buttonStyle(.plain).disabled(value == nil || future)
             .accessibilityLabel(date.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))

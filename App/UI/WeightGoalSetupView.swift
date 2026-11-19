@@ -110,7 +110,7 @@ struct WeightGoalSetupView: View {
                 }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving)
                     .accessibilityIdentifier("saveWeightGoal").padding(ZoopStyle.gutter).background(ZoopStyle.background)
             }
-            .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.load)
+            .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.text)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(model.weeklyWeight.saving) } }
             .interactiveDismissDisabled(model.weeklyWeight.saving)
             .confirmationDialog("Pause your cut?", isPresented: $confirmPause, titleVisibility: .visible) {
@@ -159,7 +159,7 @@ struct WeightGoalSetupView: View {
                         .monospacedDigit().accessibilityIdentifier("cutTargetWeight")
                 }.listRowBackground(ZoopStyle.surface)
             }
-        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Finish date").navigationBarTitleDisplayMode(.inline)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text).navigationTitle("Finish date").navigationBarTitleDisplayMode(.inline)
     }
     private var stepsEditor: some View {
         Form {
@@ -172,7 +172,7 @@ struct WeightGoalSetupView: View {
                     }
                 }
             }.listRowBackground(ZoopStyle.surface)
-        }.scrollDismissesKeyboard(.interactively).scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Daily steps").navigationBarTitleDisplayMode(.inline)
+        }.scrollDismissesKeyboard(.interactively).scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text).navigationTitle("Daily steps").navigationBarTitleDisplayMode(.inline)
     }
     private var reminderEditor: some View {
         Form {
@@ -193,7 +193,7 @@ struct WeightGoalSetupView: View {
                     reminderTime("Time", selection: time, identifier: "weeklyWeightTime")
                 }
             }.listRowBackground(ZoopStyle.surface)
-        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load).navigationTitle("Reminders").navigationBarTitleDisplayMode(.inline)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text).navigationTitle("Reminders").navigationBarTitleDisplayMode(.inline)
     }
     @ViewBuilder private func reminderTime(_ title: String, selection: Binding<Date>, identifier: String) -> some View {
         if typeSize.isAccessibilitySize {

@@ -11,7 +11,7 @@ struct CutProgressView: View {
             layout {
                 VStack(alignment: .leading, spacing: 4) {
                     if let loss = data.summary.progress?.totalLostKg {
-                        MetricValue(WeeklyWeightPresentation.weight(abs(loss), unit: unit), unit: unit, size: 44)
+                        MetricValue(WeeklyWeightPresentation.weight(abs(loss), unit: unit), unit: unit, size: 32)
                         Text(loss < 0 ? "Gained" : "Lost").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
                     } else {
                         Text("No weigh-ins yet").font(.title2.weight(.semibold))
@@ -21,7 +21,7 @@ struct CutProgressView: View {
                 if let time = data.time {
                     VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
                         Text(data.completed ? "Cut finished" : "\(time.remaining) " + (time.remaining == 1 ? "day left" : "days left"))
-                            .font(.headline).monospacedDigit()
+                            .font(.subheadline.weight(.medium)).monospacedDigit()
                         if let finish = data.finish {
                             Text((data.completed ? "Ended " : "Ends ") + dateLabel(finish))
                                 .font(.caption).foregroundStyle(ZoopStyle.secondary)
@@ -52,7 +52,7 @@ struct CutProgressView: View {
             if let fraction {
                 GeometryReader { geometry in
                     Capsule().fill(ZoopStyle.separator)
-                        .overlay(alignment: .leading) { Capsule().fill(ZoopStyle.load).frame(width: geometry.size.width * fraction) }
+                        .overlay(alignment: .leading) { Capsule().fill(ZoopStyle.text).frame(width: geometry.size.width * fraction) }
                 }.frame(height: 6).accessibilityHidden(true)
             }
         }.accessibilityElement(children: .ignore).accessibilityLabel(label).accessibilityValue(value)

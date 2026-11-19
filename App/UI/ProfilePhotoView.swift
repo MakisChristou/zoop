@@ -60,7 +60,7 @@ struct ProfilePhotoView: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .zoopScreen()
-            .tint(ZoopStyle.load)
+            .tint(ZoopStyle.text)
             .navigationTitle("Profile photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

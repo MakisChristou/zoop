@@ -33,7 +33,7 @@ import XCTest
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["openDayActivity"].tap()
         XCTAssertTrue(app.buttons["Show all"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Today"].tap()
+        app.buttons["tab-Today"].tap()
         XCTAssertTrue(app.staticTexts["Yesterday"].waitForExistence(timeout: 5))
         app.buttons["Back to today"].tap()
         XCTAssertFalse(app.buttons["Back to today"].exists)

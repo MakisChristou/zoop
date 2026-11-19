@@ -1,23 +1,26 @@
 import XCTest
 
-/// The synthetic server stays Updating for eight seconds, then returns ready.
-/// The old five-minute Today refresh cannot pass this regression test.
+/// The synthetic server stays Updating for fifteen seconds, then returns ready.
+/// The comparisons detail must refresh without a manual reload.
 @MainActor final class MorningRefreshTests: XCTestCase {
-    func testTodayLeavesUpdatingWithoutPullToRefresh() {
+    func testComparisonsLeaveUpdatingWithoutPullToRefresh() {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", "MORNING-REFRESH-\(UUID().uuidString)",
             "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28479",
             "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "today"]
         app.launch()
+        let link = app.buttons["openMorningInsights"]
+        XCTAssertTrue(link.waitForExistence(timeout: 10))
+        for _ in 0..<12 where !link.isHittable { app.swipeUp() }
+        link.tap()
         let status = app.staticTexts["morningOutlookStatus"].firstMatch
         XCTAssertTrue(status.waitForExistence(timeout: 10))
         XCTAssertEqual(status.label, "Updating")
         let ready = NSPredicate(format: "label == %@", "Learning")
         expectation(for: ready, evaluatedWith: status)
-        waitForExpectations(timeout: 20)
+        waitForExpectations(timeout: 25)
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = "Morning outlook refreshed automatically"; image.lifetime = .keepAlways; add(image)
-        app.buttons["openMorningInsights"].tap()
         XCTAssertTrue(app.navigationBars["Morning insights"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["morningOutlookStatus"].firstMatch.label, "Learning")
     }

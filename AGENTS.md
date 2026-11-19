@@ -42,6 +42,14 @@ Analysis happens on the server; the app shows live values and sync status.
 
 ## UI and UX
 
+- **Flat, chart-led presentation.** Use the shared neutral black/charcoal palette,
+  modest regular-weight headings, thin chart strokes and compact labels. Use colour
+  for measurements and meaningful status; keep navigation and ordinary actions neutral.
+  Group related readings on one surface rather than drawing a card around every value.
+  Avoid gradients, glowing controls, oversized headings and decorative status banners.
+- Keep five flat navigation items. Charts retain calendar paging, selection and
+  accessible actions. Optional comparisons stay behind a disclosure.
+
 - **Let clear controls explain themselves.** Do not add visible tutorial copy for
   obvious interactions, such as "Swipe to adjust" or "Tap the number to type".
   Use familiar controls, clear labels, and visual affordances instead. Keep useful

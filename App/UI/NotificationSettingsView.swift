@@ -52,7 +52,7 @@ struct NotificationSettingsView: View {
                     Button("Retry") { model.refreshReminders() }
                 }
             }.listRowBackground(ZoopStyle.surface)
-        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+        }.scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text)
             .navigationTitle("Notifications").navigationBarTitleDisplayMode(.inline)
             .task { await model.battery.refreshAuthorization(); model.refreshReminders() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.battery.refreshAuthorization(); model.refreshReminders() } } }

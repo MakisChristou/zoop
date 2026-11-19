@@ -88,7 +88,7 @@ struct SleepEditorView: View {
             .task(id: "\(from)-\(to)") { await loadReadings() }
         }
         .environment(\.timeZone, timezone)
-        .tint(ZoopStyle.load).foregroundStyle(ZoopStyle.text).presentationBackground(ZoopStyle.background)
+        .tint(ZoopStyle.text).foregroundStyle(ZoopStyle.text).presentationBackground(ZoopStyle.background)
     }
     private func loadNeighbours() async {
         guard mode.action == "merge" else { return }

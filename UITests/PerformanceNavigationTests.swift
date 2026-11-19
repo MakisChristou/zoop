@@ -14,7 +14,7 @@ import XCTest
     func testTrendsScrollingSwitchingAndReturning() {
         let app = launch()
         XCTAssertTrue(app.buttons["HRV"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'as of '")).firstMatch.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["trendReadingDate"].waitForExistence(timeout: 15))
         shot(app,"Trends initial")
         for range in ["3 months","Year","Month"] {
             let choice = app.segmentedControls.buttons[range]
@@ -26,12 +26,12 @@ import XCTest
         measure(metrics: [XCTOSSignpostMetric.scrollDecelerationMetric, XCTCPUMetric(application: app), XCTMemoryMetric(application: app)], options: options) {
             app.swipeUp(); app.swipeDown()
         }
-        app.tabBars.buttons["Today"].tap()
+        app.buttons["tab-Today"].tap()
         XCTAssertTrue(app.buttons["Previous day"].waitForExistence(timeout: 15))
         app.buttons["Previous day"].tap()
         XCTAssertTrue(app.staticTexts["Yesterday"].waitForExistence(timeout: 10))
         shot(app,"Today previous day")
-        app.tabBars.buttons["Trends"].tap()
+        app.buttons["tab-Trends"].tap()
         XCTAssertTrue(app.buttons["HRV"].waitForExistence(timeout: 10))
         shot(app,"Trends restored")
     }

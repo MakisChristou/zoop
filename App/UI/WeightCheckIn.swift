@@ -15,39 +15,46 @@ struct WeightCheckIn: View {
         (unit == "lb" ? kg * 2.2046226218 : kg).formatted(.number.precision(.fractionLength(1)))
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 16))
-            layout {
-                NavigationLink { WeightView() } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let today = summary.today {
-                            Text("\(display(today.kg)) \(unit)").font(.title3.weight(.semibold)).monospacedDigit()
-                            Label(today.source == "health" ? "Added from Apple Health" : "You’re all set for today", systemImage: "checkmark")
-                                .font(.caption).foregroundStyle(ZoopStyle.favourable)
-                        } else {
-                            Text("Morning check-in").font(.subheadline.weight(.semibold))
-                            Text(summary.latest.map { "\(display($0.kg)) \(unit) · \(dateLabel($0.measuredAt))" } ?? "Log your first weight")
-                                .font(.caption).foregroundStyle(ZoopStyle.secondary)
-                        }
-                    }.frame(maxWidth: .infinity, minHeight: 50, alignment: .leading).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("todayWeight").accessibilityHint("Opens your weight chart and history")
-                if summary.today == nil {
-                    Button("Log") { adding = true }
-                        .font(.subheadline.weight(.semibold)).buttonStyle(.bordered).buttonBorderShape(.capsule)
-                        .frame(minWidth: 62, minHeight: 44).accessibilityLabel("Log today’s weight").accessibilityIdentifier("todayLogWeight")
-                } else if !typeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Text("Weight").font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
+                Rectangle().fill(ZoopStyle.separator).frame(height: 0.5)
+                if summary.today != nil {
+                    Label("Logged", systemImage: "checkmark").font(.caption).foregroundStyle(ZoopStyle.favourable)
+                }
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                let headerLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+                headerLayout {
+                    NavigationLink { WeightView() } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            MetricValue(summary.latest.map { display($0.kg) } ?? "—", unit: unit, size: 26)
+                            if summary.today == nil {
+                                Text(summary.latest.map { dateLabel($0.measuredAt) } ?? "No weigh-ins yet")
+                                    .font(.caption).foregroundStyle(ZoopStyle.secondary)
+                            }
+                        }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityIdentifier("todayWeight")
+                    if summary.today == nil {
+                        Button("Log weight") { adding = true }.font(.subheadline.weight(.medium))
+                            .buttonStyle(.bordered).frame(minHeight: 44)
+                            .accessibilityLabel("Log today’s weight").accessibilityIdentifier("todayLogWeight")
+                    } else { Text("30 days").font(.caption).foregroundStyle(ZoopStyle.secondary) }
+                }
+                if !points.isEmpty {
                     NavigationLink { WeightView() } label: {
                         Chart(points) { point in
                             LineMark(x: .value("Date", point.date), y: .value("Weight", point.kg), series: .value("Segment", point.segment))
-                                .foregroundStyle(ZoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2))
+                                .foregroundStyle(ZoopStyle.text).lineStyle(StrokeStyle(lineWidth: 1.5))
+                            PointMark(x: .value("Date", point.date), y: .value("Weight", point.kg))
+                                .foregroundStyle(ZoopStyle.text).symbolSize(points.count == 1 ? 20 : 3)
                         }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis(.hidden).chartYAxis(.hidden)
-                            .frame(width: 100, height: 44).accessibilityHidden(true)
+                            .frame(height: 100).accessibilityHidden(true)
                     }.buttonStyle(.plain).accessibilityLabel("View weight chart")
                 }
-            }
-            WeightWeekView(summary: summary, showsCount: false)
-        }.zoopCard()
-        .tint(ZoopStyle.load)
+                WeightWeekView(summary: summary, showsCount: false)
+            }.zoopCard()
+        }
         .sheet(isPresented: $adding) { WeightEntryView() }
         .onChange(of: model.health.rows, initial: true) { _, _ in prepare() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { prepare() } }

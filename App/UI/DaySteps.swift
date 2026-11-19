@@ -30,7 +30,7 @@ struct DaySteps: View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(ActivityView.dayTitle(day)).font(.subheadline).foregroundStyle(ZoopStyle.secondary)
-                MetricValue(headlineValue, size: 54)
+                MetricValue(headlineValue, size: 32)
                 Text("Steps").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             .accessibilityElement(children: .combine)

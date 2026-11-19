@@ -20,19 +20,19 @@ struct TrendsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    NavigationLink { HealthProgressView() } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "chart.bar.fill").foregroundStyle(ZoopStyle.steps)
-                            Text("Your progress").font(.headline)
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(ZoopStyle.secondary)
-                        }.foregroundStyle(ZoopStyle.text).zoopCard()
-                    }.buttonStyle(.plain).accessibilityIdentifier("openProgress")
                     chips
                     TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
                     TrendSleepHeatStrip(byDay: sleepByDay, today: Calendar.current.startOfDay(for: Date()), calendar: .current, selected: heatmapNight?.endTs) { date in
                         heatmapNight = nights.first { Calendar.current.isDate($0.endTs, inSameDayAs: date) }
                     }
+                    NavigationLink { HealthProgressView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.fill").font(.system(size: 18)).foregroundStyle(ZoopStyle.steps).accessibilityHidden(true)
+                            Text("Your progress").font(ZoopStyle.sectionTitle).fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(ZoopStyle.secondary).accessibilityHidden(true)
+                        }.foregroundStyle(ZoopStyle.text).zoopCard()
+                    }.buttonStyle(.plain).accessibilityIdentifier("openProgress")
                     if let error = history.error { Text(error).font(.footnote).foregroundStyle(.red) }
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
@@ -74,9 +74,11 @@ struct TrendsView: View {
                         Button { metric = m } label: {
                             Text(m.rawValue)
                                 .font(.subheadline.weight(.medium))
-                                .padding(.horizontal, 12).padding(.vertical, 7).frame(minHeight: 44)
-                                .background(metric == m ? m.color.opacity(0.18) : Color.secondary.opacity(0.12), in: Capsule())
-                                .foregroundStyle(ZoopStyle.text)
+                                .padding(.horizontal, 8).frame(minHeight: 44)
+                                .foregroundStyle(metric == m ? ZoopStyle.text : ZoopStyle.secondary)
+                                .overlay(alignment: .bottom) {
+                                    if metric == m { Rectangle().fill(ZoopStyle.text).frame(height: 2) }
+                                }
                                 .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: metric)
                         }
                         .buttonStyle(.plain)

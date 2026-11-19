@@ -34,7 +34,7 @@ struct MainScreenChrome: ViewModifier {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         ConnectionStatusLabel(compact: true) { request = Request(page: .device) }
                         Button { request = Request(page: nil) } label: {
-                            ProfileAvatar()
+                            ProfileAvatar(size: 32).frame(width: 44, height: 44)
                         }
                         .accessibilityLabel("Profile and settings")
                         .accessibilityIdentifier("openProfile")
@@ -48,13 +48,13 @@ struct MainScreenChrome: ViewModifier {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
                         if let subtitle { Text(subtitle).font(.caption).foregroundStyle(ZoopStyle.secondary) }
-                        Text(title).font(.title.weight(.bold)).accessibilityAddTraits(.isHeader)
+                        Text(title == "Today" ? "zoop" : title).font(.title3.weight(.medium)).accessibilityAddTraits(.isHeader)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 10) {
                         ConnectionStatusLabel { request = Request(page: .device) }
                         Button { request = Request(page: nil) } label: {
-                            ProfileAvatar()
+                            ProfileAvatar(size: 32).frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Profile and settings")
@@ -62,7 +62,7 @@ struct MainScreenChrome: ViewModifier {
                     }
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
-                .padding(.top, 8).padding(.bottom, 18)
+                .padding(.top, 4).padding(.bottom, 8)
                 .foregroundStyle(ZoopStyle.text)
                 .background(ZoopStyle.background)
             }

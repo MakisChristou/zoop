@@ -92,7 +92,7 @@ struct WeightImportView: View {
                 .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 12).background(ZoopStyle.background)
                 .accessibilityIdentifier("confirmWeightImport")
             }
-            .zoopScreen().tint(ZoopStyle.load)
+            .zoopScreen().tint(ZoopStyle.text)
             .navigationTitle("Import weight history").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(importing).accessibilityIdentifier("closeWeightImport") } }
             .task(id: key) { await refreshPreview() }
@@ -116,7 +116,7 @@ struct WeightImportView: View {
     private func previewCard(_ preview: WeightImportPreview) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if preview.toImport > 0 {
-                MetricValue(String(preview.toImport), size: 46)
+                MetricValue(String(preview.toImport), size: 32)
                 Text(preview.toImport == 1 ? "weigh-in to add" : "weigh-ins to add").font(.headline)
             } else {
                 Text(preview.total == 0 ? "No weigh-ins found" : "All weigh-ins are already saved").font(.headline)

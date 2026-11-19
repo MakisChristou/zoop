@@ -26,7 +26,7 @@ struct WeightView: View {
                     }.zoopCard()
                 }
             }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
-        }.accessibilityIdentifier("weightScroll").zoopScreen().tint(ZoopStyle.load)
+        }.accessibilityIdentifier("weightScroll").zoopScreen().tint(ZoopStyle.text)
         .navigationTitle("Weight").navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -42,7 +42,7 @@ struct WeightView: View {
     private var empty: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "chart.xyaxis.line").font(.largeTitle).foregroundStyle(ZoopStyle.load)
-            Text("No weigh-ins yet").font(.title.weight(.semibold))
+            Text("No weigh-ins yet").font(.title2.weight(.medium))
             Button { adding = true } label: {
                 Text("Log your weight").font(.headline).frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
             }.buttonStyle(.borderedProminent).accessibilityIdentifier("logWeight")

@@ -12,7 +12,7 @@ struct ECGRecordingView: View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Recording saved", systemImage: "checkmark.circle").font(.subheadline).foregroundStyle(ZoopStyle.favourable)
-                Text("Your ECG.").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("ECG recording").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
                 Text(recording.startedAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ZoopStyle.secondary)
             }
             ECGWaveform(samples: samples)
@@ -46,11 +46,11 @@ struct ECGRecordingView: View {
     private var metrics: some View {
         Group {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(Int(recording.duration.rounded())) sec").font(.title.weight(.semibold)).monospacedDigit()
+                Text("\(Int(recording.duration.rounded())) sec").font(.title2.weight(.medium)).monospacedDigit()
                 Text("Capture window").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(samples.count.formatted()).font(.title.weight(.semibold)).monospacedDigit()
+                Text(samples.count.formatted()).font(.title2.weight(.medium)).monospacedDigit()
                 Text("ECG samples").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             }
         }

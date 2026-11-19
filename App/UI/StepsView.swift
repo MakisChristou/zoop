@@ -104,7 +104,7 @@ struct StepsView: View {
         let average = with.isEmpty ? 0.0 : Double(with.reduce(0, +)) / Double(with.count)
         VStack(alignment: .leading, spacing: 6) {
             Text(scope == .week ? "Last 7 days" : "Last 30 days").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
-            MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 54)
+            MetricValue(days.isLoaded && !with.isEmpty ? Int(average.rounded()).formatted() : "—", size: 32)
             Text("Average steps per day").font(.subheadline).foregroundStyle(ZoopStyle.secondary)
             if days.isLoaded, !with.isEmpty {
                 Text(comparisonCaption(with: with)).font(.caption).foregroundStyle(ZoopStyle.secondary)

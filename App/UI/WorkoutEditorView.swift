@@ -122,7 +122,7 @@ struct WorkoutEditorView: View {
                 let minute = Date(timeIntervalSince1970: (value.timeIntervalSince1970 / 60).rounded() * 60)
                 if minute > start && minute < end { split = minute }
             }
-        }.tint(ZoopStyle.load).foregroundStyle(ZoopStyle.text)
+        }.tint(ZoopStyle.text).foregroundStyle(ZoopStyle.text)
         .presentationBackground(ZoopStyle.background)
     }
 

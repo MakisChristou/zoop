@@ -5,7 +5,7 @@ import XCTest
     private func launch(large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", "UI-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "trends"]
-        if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
         XCTAssertTrue(app.otherElements["trendsChart"].waitForExistence(timeout: 20))
         return app
@@ -65,12 +65,25 @@ import XCTest
     }
     func testLargeTextSelectionAndResetStayReachable() {
         let app = launch(large: true), chart = app.otherElements["trendsChart"]
-        for _ in 0..<3 where !chart.isHittable { app.swipeUp() }
+        // isHittable is true even when only the chart's edge is visible.
+        // Bring the actual inspection point above the fixed navigation before tapping.
+        for _ in 0..<8 where chart.frame.midY > app.buttons["tab-Trends"].frame.minY - 24 { app.swipeUp() }
         XCTAssertTrue(chart.isHittable)
+        XCTAssertLessThan(chart.frame.midY, app.buttons["tab-Trends"].frame.minY)
         chart.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.5)).tap()
         XCTAssertTrue(app.buttons["trendOpenDetail"].waitForExistence(timeout: 5))
         for _ in 0..<3 where !app.buttons["trendOpenDetail"].isHittable { app.swipeDown() }
         XCTAssertTrue(app.buttons["trendOpenDetail"].isHittable)
+        // At the largest text size, the readout and reset can occupy separate viewports.
+        let latest = app.buttons["trendLatest"]
+        for _ in 0..<12 {
+            let top = app.buttons["openProfile"].frame.maxY + 12
+            let bottom = app.buttons["tab-Trends"].frame.minY - 12
+            if latest.isHittable && latest.frame.midY > top && latest.frame.midY < bottom { break }
+            let moveUp = latest.frame.midY > bottom
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: moveUp ? 0.7 : 0.3))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: moveUp ? 0.3 : 0.7)))
+        }
         XCTAssertTrue(app.buttons["trendLatest"].isHittable)
         shot(app, "Selected reading at largest text size")
         app.buttons["trendLatest"].tap()

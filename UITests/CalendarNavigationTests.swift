@@ -60,8 +60,8 @@ import XCTest
     func testTodayCirclesAndFourTabsWithBatteryInProfile() {
         let app = launch(screen: "")
         XCTAssertTrue(app.otherElements["weightWeekCircles"].waitForExistence(timeout: 20))
-        XCTAssertEqual(app.tabBars.buttons.count, 5)
-        XCTAssertFalse(app.tabBars.buttons["Battery"].exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab-")).count, 5)
+        XCTAssertFalse(app.buttons["tab-Battery"].exists)
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 20))
         shot(app, "Today restored check-ins")
         app.buttons["openDeviceShortcut"].tap()
@@ -77,7 +77,7 @@ import XCTest
         XCTAssertTrue(app.navigationBars["My WHOOP"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Battery pack"].exists)
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.tabBars.buttons["Today"].exists)
+        XCTAssertTrue(app.buttons["tab-Today"].exists)
     }
     func testMorningSharesCalendarChartAndMetricSelection() {
         let app = launch(screen: "")

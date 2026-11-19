@@ -18,8 +18,8 @@ struct InsightMetricView: View {
                     .foregroundStyle(InsightTone.color(metric.comparison?.signal))
                     .accessibilityHidden(metric.visibleDelta == nil)
             }.frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
-                .padding(12).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay { RoundedRectangle(cornerRadius: 12).stroke(selected ? ZoopStyle.sleep : .clear, lineWidth: 1.5) }
+                .padding(.vertical, 12)
+                .overlay(alignment: .bottom) { Rectangle().fill(selected ? ZoopStyle.text : ZoopStyle.separator).frame(height: selected ? 2 : 0.5) }
         }.buttonStyle(.plain)
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier("insightMetric_\(metric.key)")

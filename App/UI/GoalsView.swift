@@ -13,7 +13,7 @@ struct GoalsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if store.goal?.active == true {
                     HStack {
-                        Text("Cut").font(.headline)
+                        Text("Cut").font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
                         Spacer()
                         Menu {
                             Button("Edit goal") { editing = true }.accessibilityIdentifier("editWeightGoal")
@@ -27,6 +27,7 @@ struct GoalsView: View {
                         let data = CutProgressData(goal: goal, summary: summary, now: context.date)
                         VStack(alignment: .leading, spacing: 24) {
                             CutProgressView(data: data, unit: unit)
+                            Divider().overlay(ZoopStyle.separator)
                             CutWeeklyChart(data: data, unit: unit, selection: $selectedWeek)
                         }
                     }
@@ -45,7 +46,7 @@ struct GoalsView: View {
                 }
                 if let error = store.reminder.error { VStack(alignment: .leading) { Text(error).foregroundStyle(ZoopStyle.unfavourable); Button("Retry") { model.refreshReminders() }.foregroundStyle(ZoopStyle.load).frame(minHeight: 44) }.font(.footnote) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(ZoopStyle.gutter)
-        }.frame(maxWidth: .infinity).zoopScreen().tint(ZoopStyle.load).mainScreenChrome("Goals")
+        }.frame(maxWidth: .infinity).zoopScreen().tint(ZoopStyle.text).mainScreenChrome("Goals")
             .sheet(isPresented: $editing) { WeightGoalSetupView() }
             .sheet(isPresented: $about) { aboutView }
             .task { await store.reload(); await model.battery.refreshAuthorization() }

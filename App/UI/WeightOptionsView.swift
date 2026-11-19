@@ -37,7 +37,7 @@ struct WeightOptionsView: View {
                     if let exportError { Text(exportError).foregroundStyle(ZoopStyle.unfavourable) }
                 }
             }
-            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.load)
+            .scrollContentBackground(.hidden).zoopScreen().tint(ZoopStyle.text)
             .navigationTitle("Weight options").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented: $importing) { WeightImportView() }

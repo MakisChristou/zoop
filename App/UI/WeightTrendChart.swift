@@ -67,7 +67,7 @@ struct WeightTrendChart: View {
                     VStack(alignment: .leading, spacing: 10) { headlineLabel; logButton }
                 }
                 Button { if let displayed { openReading(displayed.reading) } } label: {
-                    MetricValue(displayed.map { display($0.kg).formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: unit, size: 52)
+                    MetricValue(displayed.map { display($0.kg).formatted(.number.precision(.fractionLength(1))) } ?? "—", unit: unit, size: 28)
                         .accessibilityIdentifier("weightChartValue")
                 }.buttonStyle(.plain).disabled(displayed == nil)
                     .accessibilityIdentifier("openWeightReading")
@@ -96,7 +96,7 @@ struct WeightTrendChart: View {
                 .accessibilityScrollAction { edge in if edge == .leading { move(-1) }; if edge == .trailing { move(1) } }
             HStack {
                 HStack(spacing: 6) {
-                    if showAverage { Circle().fill(ZoopStyle.load).frame(width: 5, height: 5) }
+                    if showAverage { Circle().fill(ZoopStyle.text).frame(width: 5, height: 5) }
                     Text(showAverage ? "Weight" : "Recorded weigh-ins")
                     if showAverage {
                         Rectangle().fill(ZoopStyle.sleep).frame(width: 12, height: 2)
@@ -143,8 +143,8 @@ struct WeightTrendChart: View {
             }
             ForEach(visible) { point in
                 LineMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg)), series: .value("Series", "weight-\(point.segment)"))
-                    .foregroundStyle(ZoopStyle.load).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                PointMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg))).foregroundStyle(ZoopStyle.load).symbolSize(period == .week || period == .month ? 24 : 10)
+                    .foregroundStyle(ZoopStyle.text).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                PointMark(x: .value("Date", point.date), y: .value("Weight", display(point.kg))).foregroundStyle(ZoopStyle.text).symbolSize(period == .week || period == .month ? 24 : 10)
             }
             if showAverage {
                 ForEach(averages.filter { $0.date >= range.start && $0.date < range.end }) { point in
@@ -154,7 +154,7 @@ struct WeightTrendChart: View {
             }
             if let selected {
                 RuleMark(x: .value("Selected", selected.date)).foregroundStyle(ZoopStyle.secondary.opacity(0.6))
-                PointMark(x: .value("Date", selected.date), y: .value("Weight", display(selected.kg))).foregroundStyle(ZoopStyle.load).symbolSize(80)
+                PointMark(x: .value("Date", selected.date), y: .value("Weight", display(selected.kg))).foregroundStyle(ZoopStyle.text).symbolSize(80)
             }
         }.chartXScale(domain: range.start...range.end).chartYScale(domain: scale.range).chartLegend(.hidden)
         .chartXAxis {

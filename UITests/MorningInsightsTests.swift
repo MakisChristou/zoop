@@ -5,7 +5,7 @@ import XCTest
     private func launch(large: Bool = false, state: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", state.map { "MORNING-CARD-" + $0 } ?? "INSIGHT-REVIEW", "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES"]
-        if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
         if allow.waitForExistence(timeout: 2) { allow.tap() }
@@ -17,29 +17,41 @@ import XCTest
     private func open(_ app: XCUIApplication) {
         let brief = app.buttons["openMorningInsights"]
         XCTAssertTrue(brief.waitForExistence(timeout: 25))
-        for _ in 0..<5 { if brief.isHittable { break }; app.swipeUp() }
+        for _ in 0..<14 {
+            if brief.isHittable && brief.frame.midY < app.buttons["tab-Today"].frame.minY - 24 { break }
+            app.swipeUp()
+        }
         brief.tap()
         XCTAssertTrue(app.navigationBars["Morning insights"].waitForExistence(timeout: 10))
     }
     func testBriefDetailsMethodsAndPreviousDay() {
         let app = launch()
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 25))
-        XCTAssertTrue(app.buttons["openMorningInsights"].label.contains("Good"))
-        XCTAssertLessThan(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY)
+        XCTAssertFalse(app.staticTexts["morningOutlookStatus"].exists)
+        XCTAssertGreaterThan(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY)
         shot(app, "Today neutral headline")
         open(app)
         let comparison = app.buttons["trendComparisons"].firstMatch
-        XCTAssertTrue(comparison.waitForExistence(timeout: 15)); comparison.tap()
-        XCTAssertTrue(app.staticTexts["Based on 14 nights"].firstMatch.exists)
+        XCTAssertTrue(comparison.waitForExistence(timeout: 15))
+        for _ in 0..<12 where !comparison.isHittable || comparison.frame.midY > app.buttons["tab-Today"].frame.minY - 24 { app.swipeUp() }
+        comparison.tap()
+        XCTAssertTrue(app.staticTexts["Based on 14 nights"].firstMatch.waitForExistence(timeout: 5))
         shot(app, "Morning comparisons")
         app.buttons["About morning insights"].tap()
         XCTAssertTrue(app.navigationBars["About insights"].waitForExistence(timeout: 5))
         app.buttons["Done"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<14 {
+            let previous = app.buttons["Previous day"]
+            if previous.isHittable && previous.frame.minY > app.buttons["openProfile"].frame.maxY { break }
+            app.swipeDown()
+        }
         app.buttons["Previous day"].tap()
         XCTAssertTrue(app.staticTexts["Yesterday"].waitForExistence(timeout: 5))
         open(app)
-        XCTAssertTrue(comparison.waitForExistence(timeout: 15)); comparison.tap()
+        XCTAssertTrue(comparison.waitForExistence(timeout: 15))
+        for _ in 0..<12 where !comparison.isHittable || comparison.frame.midY > app.buttons["tab-Today"].frame.minY - 24 { app.swipeUp() }
+        comparison.tap()
         XCTAssertTrue(app.staticTexts["Early baseline · 13 nights"].firstMatch.waitForExistence(timeout: 15))
         shot(app, "Yesterday early baseline")
     }
@@ -62,14 +74,11 @@ import XCTest
             let app = launch(state: state)
             let card = app.buttons["openMorningInsights"]
             XCTAssertTrue(card.waitForExistence(timeout: 20))
+            XCTAssertFalse(app.staticTexts["morningOutlookStatus"].exists)
+            open(app)
             XCTAssertEqual(app.staticTexts["morningOutlookStatus"].firstMatch.label, title)
             XCTAssertFalse(app.staticTexts["Strong"].exists)
             XCTAssertFalse(app.staticTexts["Compared with your usual"].exists)
-            if state == "average" {
-                XCTAssertFalse(app.staticTexts["Close to your usual"].exists)
-                XCTAssertLessThan(card.frame.height, 200)
-                XCTAssertTrue(card.label.contains("HRV"))
-            }
             shot(app, "Compact morning " + state)
             app.terminate()
         }
@@ -78,8 +87,7 @@ import XCTest
         let app = launch(large: true, state: "average")
         let card = app.buttons["openMorningInsights"]
         XCTAssertTrue(card.waitForExistence(timeout: 20))
-        XCTAssertTrue(card.label.contains("HRV"))
-        XCTAssertTrue(card.label.contains("Resting"))
+        XCTAssertEqual(card.label, "Nightly comparisons")
         shot(app, "Compact morning large text top")
         app.swipeUp()
         shot(app, "Compact morning large text comparisons")

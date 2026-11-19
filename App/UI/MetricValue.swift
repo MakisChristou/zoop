@@ -4,9 +4,9 @@ import SwiftUI
 struct MetricValue: View {
     let value: String
     var unit = ""
-    @ScaledMetric(relativeTo: .largeTitle) private var pointSize: CGFloat = 40
+    @ScaledMetric(relativeTo: .largeTitle) private var pointSize: CGFloat = 28
 
-    init(_ value: String, unit: String = "", size: CGFloat = 40) {
+    init(_ value: String, unit: String = "", size: CGFloat = 28) {
         self.value = value
         self.unit = unit
         _pointSize = ScaledMetric(wrappedValue: size, relativeTo: .largeTitle)
@@ -22,7 +22,7 @@ struct MetricValue: View {
     }
 
     private var number: some View {
-        Text(value).font(.system(size: pointSize, weight: .semibold))
+        Text(value).font(.system(size: pointSize, weight: .medium))
             .monospacedDigit().fixedSize(horizontal: false, vertical: true)
     }
 
