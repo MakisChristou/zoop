@@ -1729,3 +1729,104 @@ th:last-child {
 .photo-dialog h2 {
   font-size: 14px;
 }
+
+.sleep-night-slot {
+  min-width: 0;
+}
+.sleep-night {
+  height: 100%;
+}
+.sleep-night-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+}
+.sleep-night-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 500;
+}
+.sleep-night-heading svg {
+  color: var(--muted);
+}
+.sleep-night-duration {
+  display: block;
+  margin-block: 14px 24px;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-timeline {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.sleep-stage-labels {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+.sleep-stage-labels span {
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+.sleep-stage-plot {
+  flex: 1;
+  min-width: 0;
+}
+.sleep-stage-plot svg {
+  display: block;
+  width: 100%;
+  height: 112px;
+  overflow: hidden;
+}
+.sleep-stage-times {
+  position: relative;
+  height: 20px;
+  margin-top: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-stage-times span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.sleep-night-empty {
+  display: block;
+  color: var(--muted);
+  text-align: center;
+  padding: 44px 8px;
+}
+.sleep-grid > .wide {
+  grid-column: auto;
+}
+@media (max-width: 700px) {
+  .sleep-night {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 701px) {
+  .sleep-night-open,
+  .sleep-night-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .sleep-timeline {
+    margin-block: auto;
+  }
+  .sleep-grid .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

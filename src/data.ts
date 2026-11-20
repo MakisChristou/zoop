@@ -22,7 +22,14 @@ export function displayDay(row: DayResponse): Day {
   return { ...row, steps: row.steps_walking ?? null };
 }
 export interface SleepData {
+  segments?: {
+    stage: "wake" | "rem" | "light" | "deep";
+    start: string;
+    end: string;
+  }[];
   window: {
+    onset?: string;
+    offset?: string;
     asleep_s: number;
     efficiency: number | null;
     waso_s: number;
@@ -40,6 +47,7 @@ export interface SleepData {
   partial?: boolean;
 }
 export interface Session {
+  timezone?: string;
   id: number;
   kind: string;
   start_ts: string;

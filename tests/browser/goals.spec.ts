@@ -436,13 +436,18 @@ test("RTL target label fits and maintenance has no artificial deadline", async (
   await expect(label).toHaveText("Target");
   await expect
     .poll(() =>
-      label.evaluate((el) => {
-        const label = el.getBoundingClientRect();
-        const plot = el.closest(".chart")!.getBoundingClientRect();
+      page.evaluate(() => {
+        const el = document.querySelector(
+          ".goal-weight .recharts-reference-line text",
+        );
+        const plot = el?.closest(".chart");
+        if (!el || !plot) return false;
+        const labelBounds = el.getBoundingClientRect(),
+          plotBounds = plot.getBoundingClientRect();
         return (
-          label.width > 0 &&
-          label.left >= plot.left &&
-          label.right <= plot.right
+          labelBounds.width > 0 &&
+          labelBounds.left >= plotBounds.left &&
+          labelBounds.right <= plotBounds.right
         );
       }),
     )

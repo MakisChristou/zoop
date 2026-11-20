@@ -29,6 +29,7 @@ import {
 } from "./calendar";
 import { AccountMenu } from "./AccountMenu";
 import { Chart } from "./Chart";
+import { SleepTimeline } from "./SleepTimeline";
 import { GoalView } from "./Goals";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
@@ -514,22 +515,31 @@ function Dashboard({
             })}
           </span>
         </div>
-        <Panel title={title(detail.kind)}>
-          <div className="metrics">
-            <Metric label="Duration" value={duration(detail.duration_s)} />
-            <Metric label="Load" value={number(detail.load, 1)} />
-            <Metric
-              label="Average heart rate"
-              value={number(detail.avg_hr)}
-              unit="bpm"
-            />
-            <Metric
-              label="Peak heart rate"
-              value={number(detail.max_hr)}
-              unit="bpm"
-            />
+        {detail.sleep ? (
+          <div className="grid">
+            <SleepTimeline sleep={detail} tz={tz} />
+            <Panel title="Sleep stages">
+              <SleepStages sleep={detail} tz={tz} />
+            </Panel>
           </div>
-        </Panel>
+        ) : (
+          <Panel title={title(detail.kind)}>
+            <div className="metrics">
+              <Metric label="Duration" value={duration(detail.duration_s)} />
+              <Metric label="Load" value={number(detail.load, 1)} />
+              <Metric
+                label="Average heart rate"
+                value={number(detail.avg_hr)}
+                unit="bpm"
+              />
+              <Metric
+                label="Peak heart rate"
+                value={number(detail.max_hr)}
+                unit="bpm"
+              />
+            </div>
+          </Panel>
+        )}
       </>
     );
   return (
@@ -764,7 +774,7 @@ function SleepStages({
   sleep: Session | undefined;
   tz: string;
 }) {
-  if (!sleep?.sleep) return <Empty>No sleep recorded</Empty>;
+  if (!sleep?.sleep?.stages) return <Empty>No sleep stages recorded</Empty>;
   const s = sleep.sleep;
   const stages = [
     ["Deep", s.stages.deep_s, "var(--sleep)"],
@@ -772,7 +782,7 @@ function SleepStages({
     ["Light", s.stages.light_s, "#33394d"],
     ["Awake", s.stages.wake_s, "#3b3b3b"],
   ] as const;
-  const total = stages.reduce((n, [, v]) => n + v, 0);
+  const total = s.stages.deep_s + s.stages.rem_s + s.stages.light_s;
   return (
     <>
       <div className="stage-bar" aria-label="Sleep stages">
@@ -789,21 +799,23 @@ function SleepStages({
             </p>
             <strong>{duration(v)}</strong>{" "}
             <span className="muted">
-              {total > 0 ? `${Math.round((v / total) * 100)}%` : ""}
+              {name !== "Awake" && total > 0
+                ? `${Math.round((v / total) * 100)}%`
+                : ""}
             </span>
           </div>
         ))}
       </div>
       <div className="sleep-times">
         {[
-          ["Asleep", sleep.start_ts],
-          ["Awake", sleep.end_ts],
+          ["Fell asleep", s.window.onset ?? sleep.start_ts],
+          ["Woke up", s.window.offset ?? sleep.end_ts],
         ].map(([label, time]) => (
           <div key={label}>
             <span>{label}</span>
             <strong>
               {new Date(time).toLocaleTimeString(undefined, {
-                timeZone: tz,
+                timeZone: sleep.timezone ?? tz,
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -973,13 +985,21 @@ function DataView({
     );
   if (page === "Sleep")
     return (
-      <div className="grid">
+      <div className="grid sleep-grid">
+        <div className="sleep-night-slot">
+          {error("sleeps")}
+          <SleepTimeline
+            sleep={night}
+            tz={tz}
+            onOpen={night ? () => onDetail(night) : undefined}
+          />
+        </div>
         <Panel title="Sleep stages">
           {error("sleeps")}
           <SleepStages sleep={night} tz={tz} />
         </Panel>
         <Panel
-          title="Time asleep"
+          title="Sleep duration"
           aside={
             <span className="muted small">
               {dateLabel(date, { month: "long", year: "numeric" })}
