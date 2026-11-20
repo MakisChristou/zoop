@@ -8,6 +8,9 @@ struct RootView: View {
     @State private var showDevice = false
     @State private var showECG = false
     @State private var showSteps = false
+    private struct GoalLink: Identifiable { let id: Int64; let scope: String }
+    @State private var goalLink: GoalLink?
+    @AppStorage("weightUnit") private var weightUnit = "kg"
     @State private var selection = Tab.today
     @State private var selectedNight: ZoopAPI.Night?
     @State private var selectedActivityDay: Date?
@@ -61,6 +64,9 @@ struct RootView: View {
         }
         .onChange(of: model.battery.openWorkout, initial: true) { _, id in
             if id != nil { selection = .activity }
+        }
+        .sheet(item: $goalLink) { link in
+            if model.health.reminderScope == link.scope { GoalPeriodView(id: link.id, store: model.weeklyWeight, unit: weightUnit) }
         }
         .sheet(isPresented: $showSteps) { NavigationStack { StepsView() } }
         .onChange(of: model.battery.openStepsScope, initial: true) { _, _ in openCheckInNotification() }
@@ -127,7 +133,16 @@ struct RootView: View {
             model.battery.openStepsScope = nil
         }
         if let scope = model.battery.openWeeklyWeightScope {
-            if scope == current { selection = .goals }
+            if scope == current {
+                selection = .goals
+                let id = model.battery.openWeeklyWeightID
+                Task {
+                    await model.weeklyWeight.reload()
+                    guard model.health.reminderScope == scope else { return }
+                    if let id, model.weeklyWeight.goal?.id != id || model.weeklyWeight.goal?.active != true { goalLink = GoalLink(id: id, scope: scope) }
+                }
+            }
+            model.battery.openWeeklyWeightID = nil
             model.battery.openWeeklyWeightScope = nil
         }
         if let scope = model.battery.openWeightScope {

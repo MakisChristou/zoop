@@ -5,11 +5,11 @@ import XCTest
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", state + "-" + UUID().uuidString, "-serverURL", "http://127.0.0.1:28482", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-reminders.stepsEnabled", "YES"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
-        app.launch(); if screen == "weekly-weight" && state == "WEEKLY" { XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 20)) }; return app
+        app.launch(); if screen == "weekly-weight" && state == "WEEKLY" { XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 20)) }; return app
     }
     private func shot(_ app: XCUIApplication, _ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
     private func tap(_ app: XCUIApplication, _ id: String) {
-        if id == "editWeightGoal" || id == "About cut progress" {
+        if id == "editWeightGoal" || id == "About cut progress" || id == "Weekly pace" {
             let options = app.buttons["cutOptions"]
             for _ in 0..<12 where !options.isHittable { app.swipeDown() }
             options.tap()
@@ -74,9 +74,11 @@ import XCTest
     }
     func testSmallPhoneAndAccessibilityText() {
         let app = launch(large: true); shot(app, "Weekly outlook large text")
+        tap(app, "Weekly pace")
         let cutChart = app.otherElements["cutWeeklyChart"]
         for _ in 0..<10 where cutChart.frame.maxY > app.frame.height - 40 { app.swipeUp() }
         XCTAssertTrue(cutChart.isHittable); shot(app, "Cut chart large text")
+        app.buttons["Done"].tap()
         tap(app, "About cut progress"); shot(app, "Info large text")
         let target = app.staticTexts["Target weight"]
         for _ in 0..<8 where !target.isHittable { app.swipeUp() }
@@ -96,9 +98,9 @@ import XCTest
     func testEmptyPausedAndErrorStates() {
         for state in ["EMPTY", "PAUSED", "PENDING", "ERROR"] {
             let app = launch(state: state)
-            let action = app.buttons[state == "ERROR" ? "Retry" : "startWeightGoal"]
+            let action = app.buttons[state == "ERROR" ? "Refresh" : state == "PENDING" ? "cutOptions" : "startWeightGoal"]
             XCTAssertTrue(action.waitForExistence(timeout: 15)); shot(app, "Weekly outlook " + state)
-            if state == "PENDING" { XCTAssertEqual(action.label, "Edit goal") }
+
             if state == "EMPTY" { action.tap(); XCTAssertTrue(app.textFields["weeklyLossInput"].waitForExistence(timeout: 5)); shot(app, "Start cut empty"); app.buttons["Cancel"].tap() }
             app.terminate()
         }
@@ -122,7 +124,7 @@ import XCTest
         XCTAssertFalse(app.buttons["weightGoalOptions"].exists)
         app.buttons["Done"].tap()
         app.buttons["tab-Goals"].tap()
-        XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["tab-Goals"].isSelected)
         shot(app, "Goals tab current cut")
         tap(app, "editWeightGoal")
@@ -131,19 +133,18 @@ import XCTest
         app.buttons["tab-Today"].tap()
         XCTAssertTrue(app.navigationBars["Weight"].exists)
         app.buttons["tab-Goals"].tap()
-        XCTAssertTrue(app.staticTexts["weeklyWeightStatus"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 5))
     }
     func testCutWeekNavigationAndChartSelection() {
         let app = launch()
+        tap(app, "Weekly pace")
         let chart = app.otherElements["cutWeeklyChart"]
         XCTAssertTrue(chart.waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 4")
         shot(app, "Cut progress overview")
-        let remaining = app.descendants(matching: .any)["cutDaysRemaining"].label
         app.buttons["cutPreviousWeek"].tap()
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 3")
         XCTAssertFalse(app.staticTexts["weeklyWeightStatus"].exists, "Do not reuse the current verdict for history")
-        XCTAssertEqual(app.descendants(matching: .any)["cutDaysRemaining"].label, remaining)
         for _ in 0..<4 where chart.frame.maxY > app.frame.height - 130 { app.swipeUp() }
         chart.swipeRight()
         XCTAssertEqual(app.staticTexts["cutSelectedWeek"].label, "Week 2")
@@ -170,6 +171,8 @@ import XCTest
     func testFirstWeekAndOpenEndedCut() {
         for state in ["FIRST", "OPEN"] {
             let app = launch(state: state)
+            XCTAssertTrue(app.buttons["cutOptions"].waitForExistence(timeout: 15))
+            tap(app, "Weekly pace")
             XCTAssertTrue(app.otherElements["cutWeeklyChart"].waitForExistence(timeout: 15))
             if state == "FIRST" {
                 XCTAssertTrue((app.otherElements["cutWeeklyChart"].value as? String ?? "").contains("2 weigh-ins"))

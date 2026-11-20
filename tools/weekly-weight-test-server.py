@@ -23,6 +23,7 @@ class Handler(BaseHTTPRequestHandler):
         raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_GET(self):
         path=urlparse(self.path).path;device=path.split('/')[3] if len(path.split('/'))>3 else ''
+        if path.endswith('/weight-goals'):return self.send(dict(items=[],next_cursor=None))
         if path.endswith('/weight-goal'):
             if device.startswith('EMPTY-'):return self.send(dict(goal=None,summary=None))
             if device.startswith('ERROR-'):return self.send(dict(error='Temporarily unavailable'),500)

@@ -32,6 +32,7 @@ import UserNotifications
         let enabled = goal?.active == true && goal?.reminderEnabled == true && scope != nil && (permission == .authorized || permission == .provisional)
         var desired: [(String, DateComponents, Bool)] = []
         if enabled, let goal, let scope {
+            let identity = scope + ".goal." + (goal.id.map(String.init) ?? String(goal.startedAt.timeIntervalSince1970))
             var date = DateComponents()
             let calendar = CutPlan.calendar(timezone: goal.timezone)
             date.timeZone = calendar.timeZone; date.weekday = goal.reminderWeekday
@@ -43,10 +44,10 @@ import UserNotifications
                     guard let next = calendar.nextDate(after: cursor, matching: date, matchingPolicy: .nextTime), next < end else { break }
                     var exact = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: next)
                     exact.timeZone = calendar.timeZone
-                    desired.append((Self.prefix + scope + "." + CutPlan.key(next, calendar: calendar), exact, false))
+                    desired.append((Self.prefix + identity + "." + CutPlan.key(next, calendar: calendar), exact, false))
                     cursor = next
                 }
-            } else { desired.append((Self.prefix + scope, date, true)) }
+            } else { desired.append((Self.prefix + identity, date, true)) }
         }
         let ids = Set(desired.map { $0.0 })
         let pending = await center.pending()
@@ -62,6 +63,7 @@ import UserNotifications
             content.body = "See how this week compares with your goal."
             content.sound = .default; content.threadIdentifier = "snoop.weekly-weight"
             content.userInfo = ["destination": "weeklyWeight", "scope": scope]
+            if let id = goal?.id { content.userInfo["id"] = id }
             let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: repeats)
             do { try await center.add(.init(identifier: id, content: content, trigger: trigger)) }
             catch { self.error = "Couldn’t schedule your weekly reminder. Try again." }

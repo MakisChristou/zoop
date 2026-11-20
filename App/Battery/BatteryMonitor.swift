@@ -18,6 +18,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
     var openWeightScope: String?
     var openStepsScope: String?
     var openWeeklyWeightScope: String?
+    var openWeeklyWeightID: Int64?
     var openECGScope: String?
     var alertsEnabled: Bool {
         didSet { defaults.set(alertsEnabled, forKey: "battery.alertsEnabled"); if alertsEnabled { evaluateSoon() } }
@@ -267,7 +268,7 @@ final class BatteryMonitor: NSObject, UNUserNotificationCenterDelegate {
         switch destination {
         case "battery": openBattery = true
         case "weight": openWeightScope = scope
-        case "weeklyWeight": openWeeklyWeightScope = scope
+        case "weeklyWeight": openWeeklyWeightID = id; openWeeklyWeightScope = scope
         case "steps": openStepsScope = scope
         case "ecg": openECGScope = scope
         case "workout": openWorkout = id

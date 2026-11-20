@@ -22,7 +22,7 @@ struct WeightGoalSetupView: View {
     @State private var original: ZoopAPI.WeightGoal?
     @State private var initialized = false
     @State private var error: String?
-    @State private var confirmPause = false
+    @State private var conflict = false
     @FocusState private var typing: Bool
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 58.0
     var onSaved: () -> Void = {}
@@ -96,10 +96,12 @@ struct WeightGoalSetupView: View {
                     if rate == nil { Text("Choose \(WeeklyWeightPresentation.weight(0.1, unit: unit))–\(WeeklyWeightPresentation.weight(1, unit: unit)) \(unit) per week.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
                     if hasStepGoal && parsedSteps == nil { Text("Set a daily goal between 1 and 100,000 steps.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
                     if !validFinish { Text("Choose a finish date after the start date.").font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable) }
-                    if let error { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
-                    if editing {
-                        Button("Pause cut", role: .destructive) { confirmPause = true }.font(ZoopType.subheadline).frame(minHeight: 44).accessibilityIdentifier("pauseWeightGoal")
+                    if conflict {
+                        Button("Discard edits and reload") {
+                            Task { await model.weeklyWeight.reload(); if model.weeklyWeight.error == nil { dismiss() } else { error = model.weeklyWeight.error } }
+                        }.font(ZoopType.footnote).frame(minHeight: 44).disabled(model.weeklyWeight.loading)
                     }
+                    if let error { Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.unfavourable).accessibilityIdentifier("weightGoalSaveError") }
                 }.padding(ZoopStyle.gutter)
             }
             .scrollDismissesKeyboard(.interactively)
@@ -107,15 +109,12 @@ struct WeightGoalSetupView: View {
                 Button { save(active: true) } label: {
                     HStack { if model.weeklyWeight.saving { ProgressView() }; Text(editing ? "Save" : "Start cut").font(ZoopType.headline) }
                         .frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-                }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving)
+                }.buttonStyle(.borderedProminent).disabled(rate == nil || !validFinish || (hasStepGoal && parsedSteps == nil) || model.weeklyWeight.saving || conflict)
                     .accessibilityIdentifier("saveWeightGoal").padding(ZoopStyle.gutter).background(ZoopStyle.background)
             }
             .navigationTitle(editing ? "Edit cut" : "Start a cut").navigationBarTitleDisplayMode(.inline).zoopScreen().tint(ZoopStyle.text)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(model.weeklyWeight.saving) } }
             .interactiveDismissDisabled(model.weeklyWeight.saving)
-            .confirmationDialog("Pause your cut?", isPresented: $confirmPause, titleVisibility: .visible) {
-                Button("Pause cut", role: .destructive) { save(active: false) }
-            } message: { Text("Cut reminders stop. Your weigh-ins stay saved.") }
             .onAppear {
                 guard !initialized else { return }; initialized = true
                 original = model.weeklyWeight.goal
@@ -217,7 +216,10 @@ struct WeightGoalSetupView: View {
                 if active && (reminder || (hasStepGoal && stepsReminder)) { await model.battery.requestNotificationsIfNeeded() }
                 model.refreshReminders()
                 dismiss(); onSaved()
-            } catch { self.error = error.localizedDescription }
+            } catch {
+                self.error = error.localizedDescription
+                if let failure = error as? ZoopAPI.Failure, case .server(409, _) = failure { conflict = true }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ import Foundation
 
 extension ZoopAPI {
     struct WeightGoal: Codable, Equatable, Sendable {
+        var id: Int64? = nil
         let revision: Int64
         var active: Bool
         let startedAt: Date
@@ -75,6 +76,29 @@ extension ZoopAPI {
     struct WeeklyWeightResponse: Codable, Sendable {
         let goal: WeightGoal?
         let summary: WeeklyWeightSummary?
+    }
+    struct GoalPeriod: Codable, Identifiable, Sendable {
+        let id: Int64
+        let goal: WeightGoal
+        let endedAt: Date
+        let endReason: String
+        let summary: WeeklyWeightSummary
+        var outcome: String {
+            guard let progress = summary.progress, let current = progress.currentWeightKg else { return "No weigh-ins" }
+            if let target = progress.targetWeightKg, current <= target { return "Target reached" }
+            return endReason == "manual" ? (goal.finishDate == nil ? "Ended" : "Ended early") : endReason == "legacy" ? "Ended" : "Finished"
+        }
+    }
+    struct GoalHistory: Codable, Sendable {
+        let items: [GoalPeriod]
+        let nextCursor: Int64?
+    }
+    static func goalHistory(_ device: String, before: Int64? = nil) async throws -> GoalHistory {
+        let suffix = before.map { "?before=\($0)" } ?? ""
+        return try await get("v1/devices/\(device)/weight-goals" + suffix)
+    }
+    static func goalPeriod(_ device: String, id: Int64) async throws -> GoalPeriod {
+        try await get("v1/devices/\(device)/weight-goals/\(id)")
     }
     static func weeklyWeight(_ device: String) async throws -> WeeklyWeightResponse {
         try await get("v1/devices/\(device)/weight-goal")

@@ -22,7 +22,7 @@ import UserNotifications
                         switch destination {
                         case "ecg": XCTAssertEqual(monitor.openECGScope, "test-scope")
                         case "weight": XCTAssertEqual(monitor.openWeightScope, "test-scope")
-                        case "weeklyWeight": XCTAssertEqual(monitor.openWeeklyWeightScope, "test-scope")
+                        case "weeklyWeight": XCTAssertEqual(monitor.openWeeklyWeightScope, "test-scope"); XCTAssertEqual(monitor.openWeeklyWeightID, 42)
                         case "steps": XCTAssertEqual(monitor.openStepsScope, "test-scope")
                         case "battery": XCTAssertTrue(monitor.openBattery)
                         case "workout": XCTAssertEqual(monitor.openWorkout, 42)

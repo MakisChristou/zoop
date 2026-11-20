@@ -73,6 +73,18 @@ import UserNotifications
         XCTAssertEqual(ready.goal?.weeklyLossKg, 0.3); XCTAssertFalse(ready.saving)
         ready.activate(device: "", scope: nil)
     }
+    func testRestartReplacesReminderIdentityAndRoutesToOriginalGoal() async {
+        let scheduler = scheduler()
+        var first = goal(); first.id = 12
+        scheduler.update(goal: first, scope: "a"); await scheduler.settled()
+        let original = requests.values.first!
+        XCTAssertEqual(original.content.userInfo["id"] as? Int64, 12)
+        var second = first; second.id = 13
+        scheduler.update(goal: second, scope: "a"); await scheduler.settled()
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertNotEqual(requests.values.first?.identifier, original.identifier)
+        XCTAssertEqual(requests.values.first?.content.userInfo["id"] as? Int64, 13)
+    }
     func testFormattingDoesNotShowNegativeZero() {
         XCTAssertEqual(WeeklyWeightPresentation.weight(-0.01, unit: "kg", signed: true), "0.0")
         XCTAssertEqual(WeeklyWeightPresentation.weight(0.3, unit: "kg", signed: true), "+0.3")
