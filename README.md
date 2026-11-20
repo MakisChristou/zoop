@@ -1,50 +1,58 @@
 # Zoop web
 
-A private dashboard for your wearable data. Sleep, activity, weight and goals, connected to [Zoop API](https://github.com/MakisChristou/zoop-api).
+**Your health history, with room to explore.**
 
-React, TypeScript and Recharts. Static files served by Nginx; the Rust API owns authentication and data. Fonts are bundled locally. No analytics or third-party requests.
+A private web dashboard for [Zoop](https://github.com/MakisChristou/zoop).
+Explore sleep, activity, weight and trends on a larger screen, manage your goals,
+and keep everything on your own server.
 
-## Develop
+[iPhone](https://github.com/MakisChristou/zoop) ·
+[API](https://github.com/MakisChristou/zoop-api) ·
+[Web dashboard](https://github.com/MakisChristou/zoop-web)
 
-Use Node 24, or `nix develop`:
+![Today: daily rings, weight and sleep history](docs/screenshots/today.png)
+
+<details>
+<summary>Activity and goals</summary>
+
+![Activity: training history and recent workouts](docs/screenshots/activity.png)
+![Goals: weight progress, daily steps and phase history](docs/screenshots/goals.png)
+
+</details>
+
+*Current UI, captured in the browser with sample data.*
+
+## What you can do
+
+- Explore sleep, activity and weight with interactive charts and heatmaps.
+- Start, edit and end cut, bulk or maintenance goals, and revisit past phases.
+- Update and crop your profile photo; it follows you to the iPhone app.
+- Check ingestion, processing queues and worker health with an admin account.
+
+Each person sees their own data. Admins see operational aggregates, not other
+users' health records. Measurements are read-only on the web; collection and
+measurement edits happen on iPhone.
+
+## Run locally
+
+Use Node 24, or enter the included `nix develop` shell. First set up
+[Zoop API](https://github.com/MakisChristou/zoop-api) with private accounts and
+`web.origin = "http://127.0.0.1:5173"`, then create an account using its
+[account guide](https://github.com/MakisChristou/zoop-api/blob/main/docs/private-web.md).
 
 ```sh
+git clone https://github.com/MakisChristou/zoop-web.git
+cd zoop-web
 npm ci
-npm run dev
+ZOOP_API_URL=http://127.0.0.1:8471 npm run dev
 ```
 
-The dashboard listens on `127.0.0.1:5173` and proxies requests to `127.0.0.1:18471`. Set `ZOOP_API_URL` to change the development upstream. Enable the API's private-account mode with `web.origin = "http://127.0.0.1:5173"` and provision an account first. See the API's `docs/private-web.md`.
-
-## Check
-
-```sh
-npm test
-npm run build
-npx playwright install chromium
-npm run test:e2e
-nix build
-```
-
-On Nix Linux, set `CHROMIUM_PATH=$(command -v chromium)` inside `nix develop`. Browser tests cover navigation, errors, missing data, chart selection, mobile layout and admin visibility. The real-API integration test uses a fresh temporary PostgreSQL cluster and synthetic
-accounts, checks cross-user denial and logout, then removes its fixtures:
-
-```sh
-ZOOP_API_DIR=/path/to/zoop-api nix develop --command bash tools/test-api.sh
-```
-
-This requires a local API checkout and never connects to your configured production
-database. Ordinary PR checks use mock responses; run the real-API test before a
-release or an authentication/API contract change.
-
-## Accounts
-
-An operator creates accounts and assigns devices. Each account sees only its own records. Admins additionally see aggregate ingestion, jobs, worker health and request statistics; admin status does not grant access to other users' health data.
-
-Browser sessions use HttpOnly cookies. You can manage your own cut, bulk and maintenance phases on the web. Each phase has its own steps target and weekly weight outlook. Profile photos can be cropped and updated from the account menu; the same small JPEG is stored in PostgreSQL and used on iPhone. Measurements remain read-only. Photo uploads require the configured origin; goal writes also require the current revision; admin status never bypasses ownership. Password recovery is an operator command in this first version; there is no public registration or email recovery flow.
+Open **http://127.0.0.1:5173** and sign in. `ZOOP_API_URL` selects the development
+API upstream; without it, the proxy defaults to port 18471.
 
 ## Self-host
 
-The flake exports a static package and a NixOS module:
+The flake builds the static site and exports a NixOS module:
 
 ```nix
 imports = [ inputs.zoop-web.nixosModules.default ];
@@ -55,11 +63,27 @@ services.zoop-web = {
 };
 ```
 
-Provision the matching API first, set its exact HTTPS origin, and keep its port private. The module serves both UI and `/v1/` on one origin and enables HTTPS. Configure ACME's email and terms as usual. Building or importing the flake does not deploy it.
+Add `github:MakisChristou/zoop-web` to your flake inputs. Configure ACME's email
+and terms, set the API's exact origin to `https://health.example.com`, and keep its
+port private. The module serves the dashboard and proxies `/v1/` on the same HTTPS
+origin. See [deployment and development](docs/DEVELOPMENT.md) for details.
 
-The dashboard currently loads one year of history, up to 1,000 sleep sessions and 500 workouts, with visible notices when a limit is reached. Missing measurements remain empty. Sleep is displayed without an invented percentage because the iPhone's sleep goal is not yet stored by the API.
+## How it is built
 
-For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
+**React · TypeScript · Recharts · Nginx**
+
+The browser renders backend-owned measurements and uses HttpOnly session cookies.
+Credentials are not stored in localStorage. Fonts are bundled; the app does not
+include analytics or call third-party services.
+
+**Developer preview.** Requires your own Zoop API and an account provisioned by its
+operator. There is no public registration or email password-reset flow. The dashboard
+currently loads up to one year of history, 1,000 sleep sessions and 500 workouts,
+with notices when a limit is reached. These are display limits, not data retention.
+
+## Contribute
+
+See [development and tests](docs/DEVELOPMENT.md), [CONTRIBUTING.md](CONTRIBUTING.md)
 and [SECURITY.md](SECURITY.md).
 
-MIT. Bundled font and dependency licenses remain applicable.
+[MIT license](LICENSE). Bundled fonts retain their own licenses.
