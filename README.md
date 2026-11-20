@@ -18,6 +18,7 @@ Both clients read the same results.
 - Tracks weight goals, weekly pace and past cut, bulk and maintenance phases.
 - Reprocesses history with versioned algorithms while preserving manual corrections.
 - Keeps accounts and devices private, with operational statistics for administrators.
+- Shares selected metrics through revocable, optionally password-protected dashboards.
 
 **Rust + PostgreSQL.** No Redis or object storage. The iPhone owns the Bluetooth
 connection; the server handles storage and analysis. Profile photos are small,
@@ -90,3 +91,6 @@ database for them.
 [MIT license](LICENSE).
 
 Recovery uses a documented [server-side method](docs/recovery.md), shared by iPhone and web.
+
+Shared dashboards expose only the measurements their owner selects. See the
+[sharing contract](docs/sharing.md) for access rules and deployment checks.

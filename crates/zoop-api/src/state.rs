@@ -7,6 +7,7 @@ use zoop_storage::PostgresStore;
 pub struct AppState {
     pub(crate) web: Option<crate::web::WebOptions>,
     pub(crate) telemetry: Arc<crate::telemetry::Telemetry>,
+    pub(crate) share_slots: Arc<tokio::sync::Semaphore>,
     pub(crate) password_slots: Arc<tokio::sync::Semaphore>,
     pub store: PostgresStore,
     pub ingest_token: Arc<SecretString>,
@@ -22,6 +23,7 @@ impl AppState {
         Self {
             web: None,
             telemetry: Arc::default(),
+            share_slots: Arc::new(tokio::sync::Semaphore::new(4)),
             password_slots: Arc::new(tokio::sync::Semaphore::new(4)),
             store,
             ingest_token: Arc::new(ingest_token),

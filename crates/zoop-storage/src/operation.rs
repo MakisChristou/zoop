@@ -3,6 +3,7 @@ use std::fmt;
 /// What the store was doing when it failed. Rendered into every `StorageError`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StoreOperation {
+    Sharing,
     Accounts,
     HealthSync,
     Analysis,
@@ -43,6 +44,7 @@ pub enum StoreOperation {
 impl fmt::Display for StoreOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
+            Self::Sharing => "shared dashboards",
             Self::Accounts => "account access",
             Self::CorrectWorkout => "correct workout",
             Self::Progress => "read progress",

@@ -48,3 +48,48 @@ pub async fn observe_recovery(store: &PostgresStore) -> CoreResult<bool> {
         .await?;
     Ok(true)
 }
+
+/// Bounded public history using the identical calculation and quality gates as insights.
+/// One consistent snapshot supplies all days and their 28-day baselines.
+/// # Errors
+/// Invalid range or database failure.
+pub async fn recovery_history(
+    store: &PostgresStore,
+    device: &str,
+    from: chrono::NaiveDate,
+    to: chrono::NaiveDate,
+    tz: &str,
+) -> CoreResult<Vec<serde_json::Value>> {
+    if to < from || (to - from).num_days() > 365 {
+        return Err(
+            zoop_storage::StorageError::InvalidQuery("Invalid history window.".into()).into(),
+        );
+    }
+    let Some(snapshot) = store
+        .insight_snapshot(device, from - Duration::days(28), to, tz, ALGO_VERSION)
+        .await?
+    else {
+        return Ok(Vec::new());
+    };
+    let mut result = Vec::new();
+    for row in snapshot.nights.iter().filter(|n| n.day >= from) {
+        let nights = snapshot
+            .nights
+            .iter()
+            .filter(|n| n.day >= row.day - Duration::days(28) && n.day <= row.day)
+            .cloned()
+            .collect();
+        let value = from_snapshot(
+            row.day,
+            tz,
+            zoop_storage::InsightSnapshot {
+                nights,
+                pending: row.pending || row.day_pending,
+            },
+        )
+        .recovery
+        .score;
+        result.push(json!({"day":row.day,"value":value}));
+    }
+    Ok(result)
+}

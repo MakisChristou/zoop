@@ -376,3 +376,41 @@ async fn recovery_publication_enqueues_only_existing_dependents_and_keeps_pendin
             .unwrap();
     assert_eq!(current, saved);
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn shared_recovery_history_matches_private_insights_after_corrections() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    for pending in [false, true] {
+        if pending {
+            db.sql("UPDATE sleep_sessions SET metrics_pending=true WHERE end_ts='2025-01-15T07:00:00Z'; INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version) VALUES('TEST-RELIABILITY','sleep','2025-01-16','Europe/London',5)").await;
+        }
+        let history = zoop_core::recovery_history(
+            &db.store,
+            DEVICE,
+            day("2025-01-14"),
+            day("2025-01-20"),
+            "UTC",
+        )
+        .await
+        .unwrap();
+        for point in history {
+            let date = point["day"].as_str().unwrap();
+            let private = morning_insights(&db.store, DEVICE, day(date), "UTC")
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                point["value"],
+                serde_json::to_value(private.recovery.score).unwrap(),
+                "{date}"
+            );
+        }
+    }
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_observations").await,
+        0
+    );
+}

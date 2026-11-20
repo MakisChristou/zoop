@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::Value;
 use sqlx::{FromRow, types::Json};
 /// Effective main sleep plus measured recording coverage and wake evidence.
-#[derive(Debug, FromRow, serde::Serialize)]
+#[derive(Debug, Clone, FromRow, serde::Serialize)]
 pub struct InsightNight {
     pub id: i64,
     pub revision: i64,
@@ -15,6 +15,8 @@ pub struct InsightNight {
     pub end_ts: DateTime<Utc>,
     pub duration_s: i64,
     pub metrics: Json<Value>,
+    /// Pending work on this calendar day, matching the private insights gate.
+    pub day_pending: bool,
     pub pending: bool,
     pub complete: bool,
     pub hr_samples: i64,
@@ -78,6 +80,7 @@ WITH ranked AS (
  AND end_ts < ($3::date+1)::timestamp AT TIME ZONE $4
 )
 SELECT s.id,s.revision,s.day_count,s.day,s.timezone,s.start_ts,s.end_ts,s.duration_s,s.metrics,
+ EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='sleep' AND j.day=s.day AND j.algo_version=$5 AND j.generation>j.completed_generation) AS day_pending,
  (s.metrics_pending OR EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=s.device_id AND j.kind='sleep' AND j.algo_version=$5 AND j.day=(s.end_ts AT TIME ZONE s.timezone)::date AND j.tz=s.timezone AND j.generation>j.completed_generation)) AS pending,
  (s.fixed OR ((SELECT count(*)>=270 AND count(*) FILTER(WHERE band_state<>2)>=150
  FROM samples WHERE device_id=$1 AND ts>=s.start_ts-interval '5 minutes' AND ts<s.start_ts)
