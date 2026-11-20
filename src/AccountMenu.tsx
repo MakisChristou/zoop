@@ -40,10 +40,18 @@ export function AccountMenu({
     return () => controller.abort();
   }, [device]);
   useEffect(() => {
-    if (!photo) return;
-    const next = URL.createObjectURL(photo);
-    setURL(next);
-    return () => URL.revokeObjectURL(next);
+    if (!photo) {
+      setURL("");
+      return;
+    }
+    // The deployed image policy permits data URLs, not blob URLs. Keep it strict.
+    const reader = new FileReader();
+    reader.onload = () => setURL(String(reader.result));
+    reader.readAsDataURL(photo);
+    return () => {
+      reader.onload = null;
+      reader.abort();
+    };
   }, [photo]);
   useEffect(() => {
     const close = () => setMenu(false);

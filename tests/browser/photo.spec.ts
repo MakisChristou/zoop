@@ -1,5 +1,21 @@
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 async function fixture(page: Page) {
+  const module = readFileSync(
+    new URL("../../nix/module.nix", import.meta.url),
+    "utf8",
+  );
+  const imagePolicy = module.match(/img-src [^;]+/)![0];
+  await page.route("http://127.0.0.1:5173/", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        "content-security-policy": imagePolicy,
+      },
+    });
+  });
   const uploads: Buffer[] = [];
   let saved: Buffer | null = null,
     reject = false;
@@ -112,10 +128,28 @@ test("crop, keyboard positioning, save and reload share a small JPEG", async ({
   await expect(
     page.getByRole("button", { name: "Account menu" }).locator("img"),
   ).toBeVisible();
+  const avatar = page
+    .getByRole("button", { name: "Account menu" })
+    .locator("img");
+  await expect
+    .poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBe(512);
+  const firstURL = await avatar.getAttribute("src");
+  await open(page);
+  await choose(page);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect.poll(() => avatar.getAttribute("src")).not.toBe(firstURL);
+  await expect
+    .poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBe(512);
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Account menu" }).locator("img"),
   ).toBeVisible();
+  await expect
+    .poll(() => avatar.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBe(512);
 });
 test("cancel does not upload and failed upload retains crop for retry", async ({
   page,

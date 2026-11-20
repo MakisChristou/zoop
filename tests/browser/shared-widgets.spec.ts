@@ -224,3 +224,108 @@ test("empty richer widgets remain honest", async ({ page }) => {
     }),
   ).toBeVisible();
 });
+
+for (const width of [320, 768, 1440, 2560]) {
+  test(`mixed widget orders keep compact heights at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1100 });
+    const data = fixture("2026-10-22");
+    data.widgets = [data.widgets[2], data.widgets[0], data.widgets[1]];
+    await page.route("**/v1/**", (route) => route.fulfill({ json: data }));
+    await page.goto("/#share/" + token);
+    const cards = page.locator(".shared-widget");
+    await expect(cards).toHaveCount(3);
+    await expect
+      .poll(async () => Math.round((await cards.nth(1).boundingBox())!.height))
+      .toBeLessThan(430);
+    const boxes = await cards.evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      }),
+    );
+    expect(boxes[2].h).toBeLessThan(350);
+    if (width > 768) {
+      expect(boxes[1].y).toBeCloseTo(boxes[0].y, 0);
+      expect(boxes[2].x).toBeCloseTo(boxes[1].x, 0);
+      expect(boxes[2].y - boxes[1].y - boxes[1].h).toBeGreaterThanOrEqual(15);
+      expect(boxes[2].y - boxes[1].y - boxes[1].h).toBeLessThan(18);
+    }
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i],
+          b = boxes[j];
+        expect(
+          a.x + a.w <= b.x + 1 ||
+            b.x + b.w <= a.x + 1 ||
+            a.y + a.h <= b.y + 1 ||
+            b.y + b.h <= a.y + 1,
+        ).toBe(true);
+      }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `/tmp/zoop-layout-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Next workouts" }).click();
+    await expect(page.locator(".timeline-entry")).toHaveCount(4);
+    await expect
+      .poll(async () => Math.round((await cards.nth(0).boundingBox())!.height))
+      .toBeLessThan(650);
+    await page.evaluate(() => {
+      document.documentElement.dir = "rtl";
+      document.documentElement.style.zoom = "2";
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  });
+}
+
+test("single widgets stay bounded and all mixed orders avoid stretching", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  const data = fixture("2026-10-22"),
+    original = [...data.widgets];
+  await page.route("**/v1/**", (route) => route.fulfill({ json: data }));
+  for (const order of [
+    [0],
+    [1],
+    [2],
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+  ]) {
+    data.widgets = order.map((i) => original[i]);
+    await page.goto("/#share/" + token);
+    await page.reload();
+    const cards = page.locator(".shared-widget");
+    await expect(cards).toHaveCount(order.length);
+    await expect
+      .poll(async () =>
+        cards.evaluateAll((els) =>
+          els.every((el) => el.getBoundingClientRect().height > 100),
+        ),
+      )
+      .toBe(true);
+    if (order.length === 1) {
+      const box = (await cards.first().boundingBox())!;
+      expect(box.width).toBeLessThanOrEqual(540);
+      expect(Math.abs(box.x + box.width / 2 - 720)).toBeLessThan(2);
+    }
+    for (let i = 0; i < order.length; i++)
+      if (order[i] !== 2)
+        expect((await cards.nth(i).boundingBox())!.height).toBeLessThan(430);
+  }
+});

@@ -2041,9 +2041,6 @@ th:last-child {
 .share-preview > .shared-content > .share-heading {
   margin-top: 24px;
 }
-.share-preview .grid {
-  grid-template-columns: 1fr;
-}
 .share-reading {
   display: flex;
   align-items: baseline;
@@ -2102,14 +2099,8 @@ th:last-child {
   .share-editor {
     grid-template-columns: 1fr;
   }
-  .share-preview .grid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 @media (max-width: 560px) {
-  .share-preview .grid {
-    grid-template-columns: 1fr;
-  }
   .share-heading {
     gap: 12px;
   }
@@ -2228,9 +2219,6 @@ th:last-child {
 .share-controls .share-actions button {
   justify-content: center;
 }
-.share-preview .grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-}
 .shared-shell .brand {
   flex: none;
 }
@@ -2281,4 +2269,31 @@ th:last-child {
   .heatmap-scoped .heatmap-layout {
     max-width: none;
   }
+}
+
+/* Cards choose their own height; grid placement never stretches a compact widget. */
+.shared-content {
+  container-type: inline-size;
+}
+.shared-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1px;
+  column-gap: 16px;
+  align-items: start;
+}
+.shared-cell {
+  min-width: 0;
+}
+@container (max-width: 640px) {
+  .shared-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.shared-grid:has(> .shared-cell:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shared-grid:has(> .shared-cell:not(.shared-wide):only-child) {
+  max-width: 540px;
+  margin-inline: auto;
 }

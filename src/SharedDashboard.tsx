@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { BySport, TrainingHeatmap, RecentActivities } from "./Training";
+import { SharedCell } from "./SharedGrid";
 import { Chart } from "./Chart";
 import { LoadingBar } from "./Loading";
 import { dateLabel, number, duration, dayKey } from "./calendar";
@@ -143,13 +144,17 @@ export function DashboardPreview({
           </span>
         )}
       </div>
-      <div className="grid">
+      <div className="shared-grid">
         {data.widgets.map((widget) => (
-          <SharedCard
+          <SharedCell
             key={`${widget.key}:${data.from}:${data.to}`}
-            widget={widget}
-            data={data}
-          />
+            wide={
+              widget.key === "activity_heatmap" &&
+              (Date.parse(data.to) - Date.parse(data.from)) / 86400000 > 90
+            }
+          >
+            <SharedCard widget={widget} data={data} />
+          </SharedCell>
         ))}
       </div>
     </section>
@@ -167,9 +172,8 @@ function SharedCard({
     meta = widgets[key];
   const rows = (widget.activities ?? []).map((row, i) => ({ ...row, key: i }));
   if (key === "activity_heatmap") {
-    const wide = (Date.parse(data.to) - Date.parse(data.from)) / 86400000 > 90;
     return (
-      <section className={`panel shared-widget${wide ? " shared-wide" : ""}`}>
+      <section className="panel shared-widget">
         <h2>{meta.label}</h2>
         <TrainingHeatmap
           days={points.map((p) => ({ day: p.day, load: p.value }))}
