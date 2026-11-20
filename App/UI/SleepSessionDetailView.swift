@@ -14,7 +14,7 @@ struct SleepSessionDetailView: View {
     var body: some View {
         Group {
             if row.isActive, let night = row.night {
-                SleepDetailView(night: night, sessionID: row.id)
+                SleepDetailView(night: night, sessionID: row.id, timezone: TimeZone(identifier: row.timezone ?? "") ?? .current)
             } else {
                 ContentUnavailableView {
                     Label(row.status == "removed" ? "Sleep removed" : row.status == "superseded" ? "Sleep replaced" : "Updating sleep", systemImage: "moon.zzz")

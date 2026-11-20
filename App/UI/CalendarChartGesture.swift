@@ -7,8 +7,12 @@ struct CalendarChartGesture: UIViewRepresentable {
     var select: (CGPoint) -> Void
     var page: (Int) -> Void
     var endInspection: () -> Void = {}
+    var allowsPaging = true
     func makeUIView(context: Context) -> Surface { Surface() }
-    func updateUIView(_ view: Surface, context: Context) { view.select = select; view.page = page; view.endInspection = endInspection }
+    func updateUIView(_ view: Surface, context: Context) {
+        view.select = select; view.page = page; view.endInspection = endInspection
+        for case let gesture as IntentGesture in view.gestureRecognizers ?? [] { gesture.allowsPaging = allowsPaging }
+    }
 
     final class Surface: UIView {
         var select: (CGPoint) -> Void = { _ in }
@@ -32,6 +36,7 @@ struct CalendarChartGesture: UIViewRepresentable {
     }
 
     private final class IntentGesture: UIGestureRecognizer {
+        var allowsPaging = true
         private(set) var origin = CGPoint.zero
         private(set) var point = CGPoint.zero
         private(set) var inspect = false
@@ -54,6 +59,7 @@ struct CalendarChartGesture: UIViewRepresentable {
                 guard max(x, y) >= 6 else { return }
                 hold?.invalidate(); hold = nil
                 if y >= x { state = .failed; return }
+                inspect = !allowsPaging
                 state = .began
             } else if state == .began || state == .changed { state = .changed }
         }

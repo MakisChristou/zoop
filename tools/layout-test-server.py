@@ -51,6 +51,18 @@ for i in range(120):
 
 
 def sleep_rows(device):
+    if device.startswith('DESIGN-SLEEP-'):
+        rows = copy.deepcopy(sessions)
+        row = rows[0]
+        start = datetime.fromisoformat(row['start_ts'].replace('Z', '+00:00'))
+        pattern = ['light', 'deep', 'deep', 'light', 'rem', 'rem', 'light', 'wake', 'light']
+        segments = [dict(stage=pattern[i % len(pattern)], start=stamp(start+timedelta(minutes=5*i)),
+                         end=stamp(start+timedelta(minutes=5*(i+1)))) for i in range(90)]
+        row['sleep']['segments'] = segments
+        counts = {stage: sum(300 for seg in segments if seg['stage'] == stage) for stage in ['deep', 'light', 'rem', 'wake']}
+        row['sleep']['stages'].update({stage+'_s': count for stage, count in counts.items()})
+        row['sleep']['window']['asleep_s'] = 27000-counts['wake']
+        return rows
     if not device.startswith('SLEEP-LAYOUT'): return sessions
     rows = copy.deepcopy(sessions)
     rows[0]['sleep']['stages'].update(deep_s=5100, rem_s=5700, light_s=15900)
@@ -158,6 +170,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(rows if route == 'workouts' else next((w for w in rows if str(w['id']) == parts[-1]), {}))
         if route == 'sleep-sessions': return self.send(sleep_rows(device)[:limit])
         if route.endswith('/epochs'):
+            if device.startswith('DESIGN-SLEEP-ERROR-') and device not in slow_devices:
+                slow_devices[device] = True
+                return self.send(dict(error='Synthetic signal failure'), 503)
             if not device.startswith('DESIGN-'): return self.send([])
             session = next((s for s in sessions if str(s['id']) == parts[-2]), sessions[0])
             start = datetime.fromisoformat(session['start_ts'].replace('Z', '+00:00'))
@@ -165,7 +180,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send([dict(start=stamp(start+timedelta(seconds=i)), hr=55+4*math.sin(i/800),
                                    hr_variability=3, rmssd=65+12*math.cos(i/1200), resp_rate=14+0.7*math.sin(i/1600),
                                    move_frac=0.2 if i%2700<120 else 0.01, strap_awake=i%2700<120)
-                              for i in range(0, int((end-start).total_seconds()), 30)])
+                              for i in range(0, int((end-start).total_seconds()), 30) if not (device.startswith('DESIGN-SLEEP-') and 10800 < i < 11400)])
         if route.startswith('sleep-sessions/'):
             return self.send(next((s for s in sleep_rows(device) if str(s['id']) == parts[-1]), {}))
         if route.endswith('/insights'):

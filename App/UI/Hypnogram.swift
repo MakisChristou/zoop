@@ -6,6 +6,7 @@ struct Hypnogram: View {
     let onset: Date
     let offset: Date
     var timezone: TimeZone = .current
+    var selection: Binding<Date?>? = nil
     @ScaledMetric(relativeTo: .caption2) private var rowHeight: CGFloat = 28
     private let stages: [ZoopAPI.Night.Stage] = [.wake, .rem, .light, .deep]
 
@@ -20,23 +21,8 @@ struct Hypnogram: View {
     private func name(_ stage: ZoopAPI.Night.Stage) -> String {
         switch stage { case .wake: "Awake"; case .rem: "REM"; case .light: "Light"; case .deep: "Deep" }
     }
-    private var ticks: [Date] {
-        guard offset > onset else { return [] }
-        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = timezone
-        let step = max(1, Int(ceil(offset.timeIntervalSince(onset) / 10800)))
-        guard var tick = calendar.nextDate(after: onset.addingTimeInterval(-1), matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime) else { return [] }
-        var result: [Date] = []
-        while tick <= offset && result.count < 4 {
-            result.append(tick)
-            guard let next = calendar.date(byAdding: .hour, value: step, to: tick), next > tick else { break }
-            tick = next
-        }
-        return result
-    }
-    private func time(_ date: Date) -> String {
-        let formatter = DateFormatter(); formatter.timeZone = timezone; formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
+    private var ticks: [Date] { SleepChartTime.ticks(from: onset, to: offset, timezone: timezone) }
+    private func time(_ date: Date) -> String { SleepChartTime.label(date, timezone: timezone) }
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 0) {
@@ -66,12 +52,26 @@ struct Hypnogram: View {
                                     .offset(x: x, y: rowHeight * (CGFloat(row) + 0.5) - 4)
                             }
                         }
+                        if let date = selection?.wrappedValue {
+                            Rectangle().fill(ZoopStyle.secondary.opacity(0.5)).frame(width: 1)
+                                .offset(x: CGFloat(date.timeIntervalSince(onset) / total) * geometry.size.width)
+                        }
                     }.clipped()
+                    .overlay {
+                        if let selection {
+                            CalendarChartGesture(select: { point in
+                                let fraction = min(max(point.x / max(geometry.size.width, 1), 0), 1)
+                                selection.wrappedValue = onset.addingTimeInterval(total * fraction)
+                            }, page: { _ in }, endInspection: { selection.wrappedValue = nil }, allowsPaging: false)
+                                .accessibilityHidden(true)
+                        }
+                    }
                 }.frame(height: rowHeight * 4)
                 GeometryReader { geometry in
                     let total = max(offset.timeIntervalSince(onset), 1)
                     ForEach(ticks, id: \.self) { tick in
                         Text(time(tick)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                             .fixedSize().position(x: max(20, min(geometry.size.width - 20, CGFloat(tick.timeIntervalSince(onset) / total) * geometry.size.width)), y: 8)
                     }
                 }.frame(height: 20)

@@ -1,24 +1,22 @@
 import Charts
 import SwiftUI
 
-/// The night, full screen: stages on top, then heart rate, HRV and motion drawn on the
-/// same time axis so the staging can be judged against the physiology by eye.
+/// Server-recorded sleep signals, with one shared time selection across the night.
 struct SleepDetailView: View {
     let night: ZoopAPI.Night
     var sessionID: Int64? = nil
+    var timezone: TimeZone = .current
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var epochs: [ZoopAPI.Epoch] = []
     @State private var scrub: Date?
     @State private var error: String?
+    @State private var loading = true
 
     private var onset: Date { night.metrics.window.onset }
     private var offset: Date { night.metrics.window.offset }
-
-    private var selected: ZoopAPI.Epoch? {
-        guard let scrub else { return nil }
-        return epochs.min { abs($0.start.timeIntervalSince(scrub)) < abs($1.start.timeIntervalSince(scrub)) }
-    }
-
+    private var domain: ClosedRange<Date> { onset...max(offset, onset.addingTimeInterval(1)) }
+    private var ticks: [Date] { SleepChartTime.ticks(from: onset, to: offset, timezone: timezone) }
     private var selectedStage: ZoopAPI.Night.Stage? {
         guard let scrub else { return nil }
         return night.stages.first { $0.start <= scrub && scrub < $0.end }?.stage
@@ -27,16 +25,25 @@ struct SleepDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                readout
-                stageChart
-                track("Heart rate", unit: "bpm", color: ZoopStyle.heartRate, values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
-                track("HRV", unit: "ms", color: ZoopStyle.text, values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
-                track("Breathing", unit: "/min", color: ZoopStyle.text, values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
-                motionTrack
-                MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own.")
-                if let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
+                stageCard
+                if loading {
+                    ProgressView("Loading signals").font(ZoopType.footnote)
+                        .frame(maxWidth: .infinity, minHeight: 144).zoopCard()
+                } else if let error {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Couldn’t load signals").font(ZoopStyle.sectionTitle)
+                        Text(error).font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+                        Button("Try again") { Task { await load() } }.frame(minHeight: 44)
+                    }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
+                } else {
+                    track("Heart rate", unit: "bpm", values: epochs.compactMap { e in e.hr.map { (e.start, $0) } })
+                    track("HRV", unit: "ms", values: epochs.compactMap { e in e.rmssd.map { (e.start, $0) } })
+                    track("Breathing", unit: "/min", values: epochs.compactMap { e in e.respRate.map { (e.start, $0) } })
+                    motionTrack
+                }
+                MetricInformation(title: "About these signals", text: "Sleep stages are estimated from motion, heart rate, HRV and breathing. The charts show the signals used in that estimate; they do not confirm sleep stages on their own. Motion is the share of each interval spent moving; yellow marks intervals the strap recorded as awake.")
             }
-            .padding()
+            .padding(ZoopStyle.gutter)
         }
         .zoopScreen()
         .toolbar(.visible, for: .navigationBar)
@@ -46,168 +53,167 @@ struct SleepDetailView: View {
     }
 
     private var title: String {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: night.nightOf).map { "Night of " + $0.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) } ?? night.nightOf
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = timezone
+        guard let date = f.date(from: night.nightOf) else { return night.nightOf }
+        f.setLocalizedDateFormatFromTemplate("EEE d MMM")
+        return "Night of " + f.string(from: date)
     }
+    private func time(_ date: Date) -> String { SleepChartTime.label(date, timezone: timezone) }
 
-    private var readout: some View {
-        HStack(alignment: .firstTextBaseline) {
-            if let e = selected {
-                Text(e.start.formatted(date: .omitted, time: .shortened)).font(ZoopType.headline).monospacedDigit()
-                if let stage = selectedStage { Text(stageName(stage)).foregroundStyle(Hypnogram.color(stage)).font(ZoopType.headline) }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(e.hr.map { "\(Int($0.rounded())) bpm" } ?? "—")
-                    Text(e.rmssd.map { "\(Int($0.rounded())) ms" } ?? "—").foregroundStyle(ZoopStyle.secondary)
+    private var stageCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Time asleep").font(ZoopStyle.sectionTitle)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    SleepDuration(seconds: night.metrics.window.asleepS, size: 24)
+                    stageReadout
                 }
-                .font(ZoopType.subheadline).monospacedDigit()
             } else {
-                Text("\(onset.formatted(date: .omitted, time: .shortened)) – \(offset.formatted(date: .omitted, time: .shortened))").font(ZoopType.headline)
-                Spacer()
-                Text("Sleep detail").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    SleepDuration(seconds: night.metrics.window.asleepS, size: 24)
+                    Spacer(minLength: 16)
+                    stageReadout
+                }
             }
-        }
-        .frame(minHeight: 36)
+            if night.stages.isEmpty {
+                Text("Stages unavailable").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+            } else {
+                Hypnogram(segments: night.stages, onset: onset, offset: offset, timezone: timezone, selection: $scrub)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
     }
 
-    private var stageChart: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Stages").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
-            Chart {
-                ForEach(Array(night.stages.enumerated()), id: \.offset) { _, seg in
-                    RectangleMark(
-                        xStart: .value("from", seg.start), xEnd: .value("to", seg.end),
-                        yStart: .value("level", level(seg.stage)), yEnd: .value("level", level(seg.stage) + 0.9)
-                    )
-                    .foregroundStyle(Hypnogram.color(seg.stage))
-                }
-                if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
-            }
-            .chartXScale(domain: onset...offset)
-            .chartYScale(domain: 0...4)
-            .chartYAxis {
-                AxisMarks(position: .leading, values: [0.45, 1.45, 2.45, 3.45]) { v in
-                    AxisValueLabel { Text(axisLabel(v.as(Double.self) ?? 0)).font(ZoopType.caption2) }
-                }
-            }
-            .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisValueLabel(format: .dateTime.hour()) } }
-            .frame(height: 110)
-            .chartOverlay { proxy in scrubOverlay(proxy) }
-        }
-        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+    private var stageReadout: some View {
+        Text(scrub.map { "\(time($0)) · \(stageName(selectedStage))" } ?? "\(time(onset)) – \(time(offset))")
+            .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
+            .accessibilityIdentifier("sleepDetailSelection")
     }
 
-    private func track(_ name: String, unit: String, color: Color, values: [(Date, Double)]) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text(name).font(ZoopType.headline).foregroundStyle(ZoopStyle.text)
-                Spacer()
-                Text(unit).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+    private func track(_ name: String, unit: String, values: [(Date, Double)]) -> some View {
+        let points = grouped(values)
+        let selected = scrub.flatMap { date in points.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) } }
+        // Do not present a nearby sample as a reading inside a missing interval.
+        let reading = selected.flatMap { point in scrub.map { abs(point.date.timeIntervalSince($0)) <= 30 } == true ? point : nil }
+        return VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(name).font(ZoopStyle.sectionTitle)
+                Spacer(minLength: 12)
+                Text(reading.map { "\($0.value.formatted(.number.precision(.fractionLength(name == "Breathing" ? 1 : 0)))) \(unit)" } ?? (scrub == nil ? unit : "— \(unit)"))
+                    .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).monospacedDigit()
             }
-            Chart {
-                ForEach(night.stages.filter { $0.stage == .deep || $0.stage == .rem }, id: \.start) { seg in
-                    RectangleMark(xStart: .value("from", seg.start), xEnd: .value("to", seg.end))
-                        .foregroundStyle(Hypnogram.color(seg.stage).opacity(0.14))
+            if points.isEmpty {
+                Text("No readings").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 144)
+            } else {
+                Chart {
+                    ForEach(points, id: \.date) { point in
+                        LineMark(x: .value("Time", point.date), y: .value(name, point.value), series: .value("Recorded interval", point.group))
+                            .foregroundStyle(ZoopStyle.text)
+                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                            .interpolationMethod(.linear)
+                        if point.isIsolated {
+                            PointMark(x: .value("Time", point.date), y: .value(name, point.value))
+                                .foregroundStyle(ZoopStyle.text).symbolSize(12)
+                        }
+                    }
+                    if let scrub {
+                        RuleMark(x: .value("Time", scrub)).foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1))
+                    }
+                    if let marker = scrub == nil ? points.last : reading {
+                        PointMark(x: .value("Time", marker.date), y: .value(name, marker.value))
+                            .foregroundStyle(ZoopStyle.text.opacity(0.12)).symbolSize(130)
+                        PointMark(x: .value("Time", marker.date), y: .value(name, marker.value))
+                            .foregroundStyle(ZoopStyle.text).symbolSize(25)
+                    }
                 }
-                ForEach(grouped(values), id: \.date) { point in
-                    LineMark(x: .value("Time", point.date), y: .value(name, point.value), series: .value("Recorded interval", point.group))
-                        .foregroundStyle(color)
-                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .interpolationMethod(.linear)
-                }
-                if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
+                .chartXScale(domain: domain)
+                .chartYScale(domain: .automatic(includesZero: false))
+                .chartXAxis { timeAxis }
+                .chartYAxis { zoopChartYAxis() }
+                .font(ZoopType.caption2).frame(height: 164)
+                .chartOverlay { proxy in scrubOverlay(proxy) }
+                .environment(\.layoutDirection, .leftToRight)
+                .accessibilityLabel("\(name) during sleep")
+                .accessibilityIdentifier("sleepSignal-\(name)")
             }
-            .chartXScale(domain: onset...offset)
-            .chartYScale(domain: .automatic(includesZero: false))
-            .chartXAxis { zoopTimeXAxis(ChartPresentation.dateTicks(onset...offset)) }
-            .chartYAxis { zoopChartYAxis() }
-            .font(ZoopType.caption2).frame(height: 164)
-            .chartOverlay { proxy in scrubOverlay(proxy) }
-        }
-        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        }.zoopCard()
     }
 
     private var motionTrack: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text("Motion").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
+                Text("Motion").font(ZoopStyle.sectionTitle)
                 Spacer()
-                Text("share of seconds moving").font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+                Text("%").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
             }
-            Chart {
-                ForEach(epochs) { e in
-                    BarMark(x: .value("Time", e.start), y: .value("moving", e.moveFrac), width: 2)
-                        .foregroundStyle(e.strapAwake ? ZoopStyle.typical : ZoopStyle.secondary.opacity(0.6))
+            if epochs.isEmpty {
+                Text("No readings").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+            } else {
+                Chart {
+                    ForEach(epochs) { e in
+                        BarMark(x: .value("Time", e.start), y: .value("Moving (%)", e.moveFrac * 100), width: 2)
+                            .foregroundStyle(e.strapAwake ? ZoopStyle.typical : ZoopStyle.secondary.opacity(0.6))
+                    }
+                    if let scrub { RuleMark(x: .value("Time", scrub)).foregroundStyle(ZoopStyle.secondary.opacity(0.5)) }
                 }
-                if let scrub { RuleMark(x: .value("scrub", scrub)).foregroundStyle(.primary.opacity(0.6)) }
+                .chartXScale(domain: domain)
+                .chartYScale(domain: 0...100)
+                .chartXAxis { timeAxis }
+                .chartYAxis { zoopChartYAxis() }
+                .frame(height: 110)
+                .chartOverlay { proxy in scrubOverlay(proxy) }
+                .environment(\.layoutDirection, .leftToRight)
+                .accessibilityLabel("Motion during sleep")
             }
-            .chartXScale(domain: onset...offset)
-            .chartYScale(domain: 0...1)
-            .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisValueLabel(format: .dateTime.hour()) } }
-            .chartYAxis(.hidden)
-            .frame(height: 60)
-            .chartOverlay { proxy in scrubOverlay(proxy) }
-        }
-        .padding(20).background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+        }.zoopCard()
     }
 
+    private var timeAxis: some AxisContent {
+        AxisMarks(values: ticks) { mark in
+            AxisValueLabel {
+                if let date = mark.as(Date.self) { Text(time(date)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary) }
+            }
+        }
+    }
     private func scrubOverlay(_ proxy: ChartProxy) -> some View {
         GeometryReader { geo in
-            Rectangle().fill(.clear).contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let x = value.location.x - geo[proxy.plotFrame!].origin.x
-                            scrub = proxy.value(atX: x, as: Date.self)
-                        }
-                        .onEnded { _ in scrub = nil }
-                )
+            CalendarChartGesture(select: { point in
+                guard let anchor = proxy.plotFrame else { return }
+                let frame = geo[anchor]
+                let x = min(max(0, point.x - frame.minX), frame.width)
+                scrub = proxy.value(atX: x, as: Date.self)
+            }, page: { _ in }, endInspection: { scrub = nil }, allowsPaging: false)
+                .accessibilityHidden(true)
         }
     }
-
-    private func level(_ stage: ZoopAPI.Night.Stage) -> Double {
-        switch stage {
-        case .deep: 0
-        case .light: 1
-        case .rem: 2
-        case .wake: 3
-        }
+    private func stageName(_ stage: ZoopAPI.Night.Stage?) -> String {
+        switch stage { case .wake: "Awake"; case .light: "Light"; case .deep: "Deep"; case .rem: "REM"; case nil: "No stage" }
     }
 
-    private func axisLabel(_ v: Double) -> String {
-        switch v {
-        case ..<1: "Deep"
-        case ..<2: "Light"
-        case ..<3: "REM"
-        default: "Awake"
-        }
-    }
-
-    private func stageName(_ s: ZoopAPI.Night.Stage) -> String {
-        switch s {
-        case .wake: "Awake"
-        case .light: "Light"
-        case .deep: "Deep"
-        case .rem: "REM"
-        }
-    }
-
-    private struct SignalPoint { let date: Date; let value: Double; let group: Int }
+    private struct SignalPoint { let date: Date; let value: Double; let group: Int; let isIsolated: Bool }
     private func grouped(_ values: [(Date, Double)]) -> [SignalPoint] {
+        let values = values.filter { $0.1.isFinite && domain.contains($0.0) }
         var group = 0
         return values.enumerated().map { i, point in
-            if i > 0, point.0.timeIntervalSince(values[i - 1].0) > 30 { group += 1 }
-            return SignalPoint(date: point.0, value: point.1, group: group)
+            let gapBefore = i == 0 || point.0.timeIntervalSince(values[i - 1].0) > 30
+            let gapAfter = i == values.count - 1 || values[i + 1].0.timeIntervalSince(point.0) > 30
+            if gapBefore { group += 1 }
+            return SignalPoint(date: point.0, value: point.1, group: group, isIsolated: gapBefore && gapAfter)
         }
     }
-
     private func load() async {
+        loading = true; error = nil; scrub = nil
         do {
-            if let sessionID { epochs = try await ZoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
-            else { epochs = try await ZoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
-            error = nil
+            let readings: [ZoopAPI.Epoch]
+            if let sessionID { readings = try await ZoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
+            else { readings = try await ZoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
+            guard !Task.isCancelled else { return }
+            epochs = readings.filter { domain.contains($0.start) }.sorted { $0.start < $1.start }
+            loading = false
         } catch {
-            self.error = error.localizedDescription
+            guard !Task.isCancelled else { return }
+            self.error = error.localizedDescription; loading = false
         }
     }
 }
