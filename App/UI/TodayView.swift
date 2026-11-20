@@ -58,8 +58,7 @@ struct TodayView: View {
                     } else if isViewingToday {
                         TodayLiveMetric(kind: .heartRate, isViewingToday: true, summary: selectedSummary, history: []).zoopCard()
                     }
-                    sectionHeading("Health metrics").padding(.top, 16)
-                    healthMetrics
+                    healthMetrics.padding(.top, 16)
                 }
                 .padding(.horizontal, ZoopStyle.gutter)
                 .padding(.bottom, 24)
@@ -224,26 +223,10 @@ struct TodayView: View {
     }
 
     private var healthMetrics: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if let insights {
-                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
-                layout {
-                    ForEach(insights.metrics.filter { $0.key != "sleep" }) { metric in
-                        NavigationLink { MorningInsightsView(day: viewedDay) } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(metric.key == "resting_hr" ? "Resting HR" : metric.title).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                MetricValue(metric.formatted(metric.value), unit: metric.unit, size: 24)
-                                if let delta = metric.visibleDelta {
-                                    Text(delta).font(ZoopType.caption).foregroundStyle(InsightTone.color(metric.comparison?.signal))
-                                }
-                            }.frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
-                        }.buttonStyle(.plain)
-                    }
-                }.zoopCard()
-            }
-            TodayLiveMetric(kind: .temperature, isViewingToday: isViewingToday, summary: selectedSummary,
-                            history: precedingDays.compactMap { $0.skinTempAvg })
-        }
+        TodayHealthMetrics(insights: insights, physiology: selectedNight?.metrics.physiology,
+                           day: viewedDay, isToday: isViewingToday,
+                           isLoading: loading || morning.loading,
+                           openSleep: { openSleep(selectedNight) })
     }
 
     private func metricLabel(_ title: String, icon: String) -> some View {
@@ -328,14 +311,6 @@ struct TodayView: View {
 
     private var selectedNight: ZoopAPI.Night? {
         nights.first { Calendar.current.isDate($0.metrics.window.offset, inSameDayAs: viewedDay) }
-    }
-
-    private var precedingNights: [ZoopAPI.Night] {
-        nights.filter { Calendar.current.startOfDay(for: $0.metrics.window.offset) <= viewedDay }.reversed()
-    }
-
-    private var precedingDays: [ZoopAPI.Day] {
-        days.filter { StepsView.day($0.day).map { $0 <= viewedDay } == true }
     }
 
     private var screenTitle: String {
