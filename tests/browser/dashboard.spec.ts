@@ -120,6 +120,13 @@ async function fixture(
         ? { goal: null, summary: null }
         : {
             goal: {
+              id: 1,
+              revision: 1,
+              pace_started_at: day(-4) + "T08:00:00Z",
+              updated_at: today + "T08:00:00Z",
+              reminder_enabled: false,
+              reminder_weekday: 1,
+              reminder_minute: 1200,
               active: true,
               started_at: day(-4) + "T08:00:00Z",
               finish_date: day(23),
@@ -147,6 +154,8 @@ async function fixture(
               },
             },
           };
+    else if (path.endsWith("/weight-goals"))
+      body = { items: [], next_cursor: null };
     else if (path.endsWith("/admin/stats")) {
       status = admin ? 200 : 403;
       body = {

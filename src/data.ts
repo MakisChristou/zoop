@@ -54,6 +54,13 @@ export interface Weight {
 }
 export interface Goal {
   goal: null | {
+    id: number;
+    revision: number;
+    pace_started_at: string;
+    updated_at: string;
+    reminder_enabled: boolean;
+    reminder_weekday: number;
+    reminder_minute: number;
     active: boolean;
     started_at: string;
     finish_date: string | null;
@@ -62,6 +69,7 @@ export interface Goal {
     daily_steps_goal: number | null;
   };
   summary: null | {
+    start?: string;
     state: string;
     week_number: number;
     median_kg: number | null;
@@ -127,12 +135,13 @@ export async function api<T>(
   path: string,
   signal?: AbortSignal,
   body?: unknown,
+  method?: "PUT" | "POST",
 ): Promise<T> {
   const r = await fetch(path, {
     signal,
     credentials: "same-origin",
     cache: "no-store",
-    method: body === undefined ? "GET" : "POST",
+    method: method ?? (body === undefined ? "GET" : "POST"),
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

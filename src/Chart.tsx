@@ -24,6 +24,9 @@ export function Chart({
   unit = "",
   bar = false,
   target,
+  targetLabel,
+  height = 168,
+  latestMarker = false,
   hourly = false,
   onOpen,
 }: {
@@ -33,6 +36,9 @@ export function Chart({
   bar?: boolean;
   hourly?: boolean;
   target?: number | null;
+  targetLabel?: string;
+  height?: number;
+  latestMarker?: boolean;
   onOpen?: (day: string) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -40,6 +46,7 @@ export function Chart({
   const id = useId();
   const valid = data.filter((p) => p.value != null);
   const point = valid.find((p) => p.day === (hover ?? selected));
+  const marker = point ?? (latestMarker ? valid.at(-1) : null);
   const label = (key: string) =>
     hourly
       ? new Date(key).toLocaleTimeString(undefined, {
@@ -110,7 +117,7 @@ export function Chart({
         {onOpen ? " Press Enter to open its day." : ""}
       </span>
       <div className="chart">
-        <ResponsiveContainer width="100%" height={168}>
+        <ResponsiveContainer width="100%" height={height}>
           <ChartType
             data={data}
             accessibilityLayer={false}
@@ -165,7 +172,7 @@ export function Chart({
                       fill="var(--muted)"
                       fontSize={11}
                     >
-                      Target {number(target, 1)}
+                      {targetLabel ?? `Target ${number(target, 1)}`}
                     </text>
                   );
                 }}
@@ -199,10 +206,10 @@ export function Chart({
                 strokeWidth={1}
               />
             )}
-            {point && (
+            {marker && (
               <ReferenceDot
-                x={point.x}
-                y={point.value!}
+                x={marker.x}
+                y={marker.value!}
                 r={4}
                 fill={color}
                 stroke="var(--panel)"

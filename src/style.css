@@ -1141,3 +1141,331 @@ th:last-child {
     min-height: 44px;
   }
 }
+
+/* Goals follows the chart / progress rows / dated timeline hierarchy. */
+.goals-page {
+  max-width: 984px;
+  margin-inline: auto;
+}
+.goal-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  color: var(--muted);
+}
+.goal-section h2 {
+  font-size: 14px;
+  font-weight: 500;
+}
+.goal-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+}
+.goal-section .primary {
+  padding: 8px 14px;
+  min-height: 40px;
+}
+.goals-card {
+  padding: 24px;
+}
+.goals-card > header {
+  min-height: 0;
+  border-bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.goals-card > header h2 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+.goal-current-weight {
+  font-size: 16px;
+  font-weight: 500;
+}
+.goal-current-weight small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.goal-lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: stretch;
+}
+.goal-lower.single {
+  grid-template-columns: 1fr;
+}
+.goal-progress-row {
+  margin-bottom: 26px;
+}
+.goal-progress-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.goal-row-label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.goal-row-label svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.goal-row-label small {
+  border-radius: 20px;
+  background: var(--track);
+  color: var(--muted);
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.goal-progress-row .progress-track {
+  height: 6px;
+  margin: 10px 0 0 28px;
+}
+.goal-values {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 24px;
+}
+.goal-values span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.goal-values strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+.goal-timeline {
+  position: relative;
+}
+.goal-timeline:before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 18px;
+  top: 9px;
+  bottom: 25px;
+  width: 1px;
+  background: var(--border);
+}
+.goal-period-date {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-inline-start: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  position: relative;
+}
+.goal-period-date:before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+.goal-period-row {
+  display: flex;
+  width: 100%;
+  text-align: start;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 20px;
+  min-height: 64px;
+  position: relative;
+  background: none;
+  border: 0;
+}
+.goal-period-icon {
+  width: 37px;
+  height: 37px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.goal-period-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+.goal-period-row strong {
+  margin-inline-start: auto;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.goal-period-row .goal-success {
+  color: var(--green);
+}
+.goal-options {
+  position: relative;
+}
+.goal-options > summary {
+  list-style: none;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.goal-options > summary::-webkit-details-marker {
+  display: none;
+}
+.goal-options > div {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 100%;
+  width: 160px;
+  padding: 8px;
+  z-index: 5;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #0006;
+}
+.goal-options button {
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 10px;
+  min-height: 44px;
+}
+.goal-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+}
+.goal-dialog::backdrop {
+  background: #000a;
+}
+.goal-dialog > header {
+  min-height: 0;
+  border-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.goal-dialog h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+.goal-dialog > header button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.goal-dialog label {
+  display: block;
+  margin: 18px 0 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.goal-dialog input:not([type="checkbox"]),
+.goal-dialog select {
+  width: 100%;
+  min-height: 44px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+}
+.goal-dialog .goal-checkbox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+}
+.goal-dialog details {
+  margin-top: 20px;
+}
+.goal-dialog summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 10px;
+}
+.goal-save {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  width: 100%;
+  min-height: 44px;
+}
+.goal-more {
+  min-height: 44px;
+  margin-top: 12px;
+  color: var(--muted);
+}
+.goal-week-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.goal-week-nav button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.goal-archive .goals-card {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+@media (max-width: 760px) {
+  .goal-lower {
+    grid-template-columns: 1fr;
+  }
+  .goals-card {
+    padding: 20px;
+  }
+}
+@media (max-width: 360px) {
+  .goal-progress-row > div:first-child {
+    align-items: flex-start;
+  }
+  .goal-period-row {
+    gap: 8px;
+  }
+  .goal-period-row strong {
+    font-size: 12px;
+  }
+}

@@ -1,6 +1,6 @@
 # Zoop web
 
-A private, read-only dashboard for your wearable data. Sleep, activity, weight and goals, connected to [Zoop API](https://github.com/MakisChristou/zoop-api).
+A private dashboard for your wearable data. Sleep, activity, weight and goals, connected to [Zoop API](https://github.com/MakisChristou/zoop-api).
 
 React, TypeScript and Recharts. Static files served by Nginx; the Rust API owns authentication and data. Fonts are bundled locally. No analytics or third-party requests.
 
@@ -40,7 +40,7 @@ release or an authentication/API contract change.
 
 An operator creates accounts and assigns devices. Each account sees only its own records. Admins additionally see aggregate ingestion, jobs, worker health and request statistics; admin status does not grant access to other users' health data.
 
-Browser sessions use HttpOnly cookies. Browser health writes are rejected by the API. Password recovery is an operator command in this first version; there is no public registration or email recovery flow.
+Browser sessions use HttpOnly cookies. You can start, edit and end your own cut goals on the web. All other health data remains read-only. Goal writes require the configured origin and the current revision; admin status never bypasses ownership. Password recovery is an operator command in this first version; there is no public registration or email recovery flow.
 
 ## Self-host
 

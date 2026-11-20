@@ -30,6 +30,7 @@ import {
   type Period,
 } from "./calendar";
 import { Chart } from "./Chart";
+import { GoalView } from "./Goals";
 import { LoadingBar, LoadingCards } from "./Loading";
 import { BySport, TrainingHeatmap, SportIcon } from "./Training";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
@@ -541,6 +542,8 @@ function Dashboard({
               </p>
             )}
             <DataView
+              device={device}
+              onGoalSaved={() => setRefresh((x) => x + 1)}
               page={page}
               data={data}
               date={date}
@@ -735,6 +738,8 @@ function SleepStages({
   );
 }
 function DataView({
+  device,
+  onGoalSaved,
   page,
   data,
   date,
@@ -745,6 +750,8 @@ function DataView({
   onDetail,
   onDay,
 }: {
+  device: string;
+  onGoalSaved: () => void;
   page: Page;
   data: Dataset;
   date: string;
@@ -1035,7 +1042,12 @@ function DataView({
   return (
     <>
       {error("goal")}
-      <GoalView data={data} />
+      <GoalView
+        key={device}
+        device={device}
+        data={data}
+        onSaved={onGoalSaved}
+      />
     </>
   );
 }
@@ -1054,160 +1066,6 @@ function outlook(state: string | undefined) {
         no_sleep: "No sleep",
       } as Record<string, string>
     )[state ?? ""] ?? "—"
-  );
-}
-function GoalView({ data }: { data: Dataset }) {
-  const [week, setWeek] = useState<number | null>(null);
-  const g = data.goal?.goal,
-    s = data.goal?.summary,
-    p = s?.progress;
-  if (!g?.active)
-    return (
-      <Panel title="No active goal">
-        <Empty>No active goal. Set one in the iPhone app.</Empty>
-      </Panel>
-    );
-  const today = dayKey(new Date(), g.timezone),
-    begin = dayKey(new Date(g.started_at), g.timezone),
-    finish = g.finish_date;
-  const daysLeft = finish
-    ? Math.max(
-        0,
-        Math.round(
-          (atDay(finish).getTime() - atDay(today).getTime()) / 86400000,
-        ),
-      )
-    : null;
-  const elapsed = finish
-    ? Math.max(
-        0,
-        Math.min(
-          100,
-          ((atDay(today).getTime() - atDay(begin).getTime()) /
-            (atDay(finish).getTime() - atDay(begin).getTime())) *
-            100,
-        ),
-      )
-    : null;
-  const progress =
-    p?.starting_weight_kg != null &&
-    p.target_weight_kg != null &&
-    p.current_weight_kg != null &&
-    p.starting_weight_kg > p.target_weight_kg
-      ? Math.max(
-          0,
-          Math.min(
-            100,
-            ((p.starting_weight_kg - p.current_weight_kg) /
-              (p.starting_weight_kg - p.target_weight_kg)) *
-              100,
-          ),
-        )
-      : null;
-  const allWeeks = s?.weeks.filter((w) => w.end >= begin) ?? [];
-  const index = Math.min(week ?? allWeeks.length - 1, allWeeks.length - 1),
-    w = allWeeks[index];
-  const observations =
-    p?.weigh_ins.filter((v) => w && v.day >= w.start && v.day <= w.end) ?? [];
-  return (
-    <div className="grid">
-      <Panel
-        title="Cut"
-        aside={
-          <span className="muted">
-            {daysLeft != null ? `${daysLeft} days left` : ""}
-          </span>
-        }
-      >
-        <p className="number">
-          {number(
-            p?.total_lost_kg == null ? null : Math.abs(p.total_lost_kg),
-            1,
-          )}{" "}
-          <small>kg {(p?.total_lost_kg ?? 0) < 0 ? "gained" : "lost"}</small>
-        </p>
-        {p?.total_lost_kg == null && (
-          <p className="muted small">Waiting for weigh-ins</p>
-        )}
-        <div className="progress-track">
-          <span style={{ width: `${progress ?? 0}%` }} />
-        </div>
-        <div className="spread muted small">
-          <span>{number(p?.starting_weight_kg, 1)} kg</span>
-          <span>Target {number(p?.target_weight_kg, 1)} kg</span>
-        </div>
-        {elapsed != null && (
-          <div className="time-progress">
-            <span className="muted small">
-              Time elapsed · {number(elapsed)}%
-            </span>
-            <div className="progress-track">
-              <span
-                style={{ width: `${elapsed}%`, background: "var(--muted)" }}
-              />
-            </div>
-          </div>
-        )}
-      </Panel>
-      <Panel
-        title="Weekly progress"
-        aside={
-          <div className="date-control">
-            <button
-              aria-label="Previous goal week"
-              disabled={index <= 0}
-              onClick={() => setWeek(index - 1)}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span>Week {index + 1}</span>
-            <button
-              aria-label="Next goal week"
-              disabled={index >= allWeeks.length - 1}
-              onClick={() => setWeek(index + 1)}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        }
-      >
-        {w ? (
-          <>
-            <Chart
-              data={series(
-                observations.map((o) => ({ day: o.day, value: o.kg })),
-                w.start,
-                addDays(w.end, 1),
-              )}
-              unit="kg"
-              target={p?.target_weight_kg}
-            />
-            <div className="spread muted small">
-              <span>Median {number(w.median_kg, 1)} kg</span>
-              <span>{w.count} weigh-ins</span>
-            </div>
-          </>
-        ) : (
-          <Empty>Waiting for the first week</Empty>
-        )}
-      </Panel>
-      {g.daily_steps_goal && (
-        <Panel title="Daily steps" wide>
-          <p className="number">
-            {number(data.days.find((d) => d.day === today)?.steps)}{" "}
-            <small>/ {number(g.daily_steps_goal)}</small>
-          </p>
-          <div className="progress-track">
-            <span
-              style={{
-                width: `${Math.min(100, ((data.days.find((d) => d.day === today)?.steps ?? 0) / g.daily_steps_goal) * 100)}%`,
-                background: "var(--blue)",
-              }}
-            />
-          </div>
-        </Panel>
-      )}
-    </div>
   );
 }
 function Admin() {

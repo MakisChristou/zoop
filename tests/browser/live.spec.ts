@@ -29,6 +29,36 @@ test("real API: private data, admin stats, read-only access and session logout",
     ).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   }
+  await page.getByRole("button", { name: "Start a goal", exact: true }).click();
+  await page.getByRole("button", { name: "Start cut", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Progress", exact: true }),
+  ).toBeVisible();
+  const before = await (
+    await page.request.get("/v1/devices/DEMO-A/weight-goal")
+  ).json();
+  await page.getByLabel("Goal options").click();
+  await page.getByRole("button", { name: "End goal", exact: true }).click();
+  await page.getByRole("button", { name: "End cut", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Maintenance", exact: true }),
+  ).toBeVisible();
+  const archive = await (
+    await page.request.get("/v1/devices/DEMO-A/weight-goals")
+  ).json();
+  expect(archive.items).toHaveLength(1);
+  expect(archive.items[0].id).toBe(before.goal.id);
+  expect(archive.items[0].summary.progress.current_weight_kg).toBe(64.2);
+  expect(archive.items[0].summary.progress.total_lost_kg).toBe(0);
+  await page.getByRole("button", { name: "Start a goal", exact: true }).click();
+  await page.getByRole("button", { name: "Start cut", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Progress", exact: true }),
+  ).toBeVisible();
+  const after = await (
+    await page.request.get("/v1/devices/DEMO-A/weight-goal")
+  ).json();
+  expect(after.goal.id).not.toBe(before.goal.id);
   expect((await page.request.get("/v1/devices/DEMO-B/profile")).status()).toBe(
     404,
   );
