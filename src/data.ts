@@ -94,7 +94,15 @@ export interface Goal {
 export interface Insights {
   state: string;
   outlook: { state: string };
-  metrics: { key: string; current: number | null }[];
+  metrics: {
+    key: string;
+    value?: number | null;
+    comparison?: {
+      delta: number | null;
+      unit: string;
+      signal: string | null;
+    } | null;
+  }[];
 }
 export interface AdminStats {
   pipeline: {

@@ -213,7 +213,7 @@ nav a:hover {
   display: flex;
   justify-content: center;
   gap: 55px;
-  padding: 0 0 34px;
+  padding: 0 0 8px;
 }
 .ring-item {
   width: 140px;
@@ -228,11 +228,20 @@ nav a:hover {
   width: 100%;
   transform: rotate(-90deg);
 }
-.ring strong {
+.ring-reading {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.ring-reading small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ring strong {
   font-size: 24px;
   letter-spacing: -0.7px;
   font-weight: 500;
@@ -1467,5 +1476,53 @@ th:last-child {
   }
   .goal-period-row strong {
     font-size: 12px;
+  }
+}
+
+.outlook-status {
+  margin: 0 auto 22px;
+  width: fit-content;
+  max-width: 100%;
+}
+.outlook-status > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+}
+.outlook-status > summary::-webkit-details-marker {
+  display: none;
+}
+.outlook-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+.outlook-chevron {
+  color: var(--muted);
+}
+.outlook-status[open] .outlook-chevron {
+  transform: rotate(90deg);
+}
+.outlook-detail {
+  padding: 16px 20px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.outlook-detail .metrics {
+  gap: 24px;
+}
+.outlook-detail .text-button {
+  margin-top: 16px;
+}
+@media (max-width: 390px) {
+  .ring-reading small {
+    font-size: 10px;
   }
 }

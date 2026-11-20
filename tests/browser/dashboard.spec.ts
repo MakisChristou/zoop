@@ -598,7 +598,7 @@ test("touch heatmap targets, RTL and 200 percent layout stay usable", async ({
   await page.screenshot({ path: "test-results/zoom-200.png", fullPage: true });
 });
 
-test("outlook waiting indicator stays small inside its neutral ring", async ({
+test("outlook waiting indicator stays small below the rings", async ({
   page,
 }) => {
   await fixture(page);
@@ -613,11 +613,89 @@ test("outlook waiting indicator stays small inside its neutral ring", async ({
     });
   });
   await login(page);
-  const spinner = page.getByLabel("Loading outlook");
+  const spinner = page.getByLabel("Updating outlook");
   await expect(spinner).toBeVisible();
   const rect = (await spinner.boundingBox())!;
   expect(rect.width).toBeLessThan(30);
   expect(rect.height).toBeLessThan(30);
   release();
   await expect(spinner).toHaveCount(0);
+});
+
+test("steps ring uses the current goal and outlook opens without another ring", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.route("**/v1/devices/*/days/*/insights?*", (route) =>
+    route.fulfill({
+      json: {
+        state: "ready",
+        outlook: { state: "good" },
+        metrics: [
+          {
+            key: "hrv",
+            value: 83,
+            comparison: { delta: 5, unit: "percent", signal: "favourable" },
+          },
+          {
+            key: "resting_hr",
+            value: 50,
+            comparison: { delta: -3, unit: "bpm", signal: "favourable" },
+          },
+        ],
+      },
+    }),
+  );
+  await login(page);
+  await expect(page.locator(".ring-item > span")).toHaveText([
+    "Sleep",
+    "Steps",
+    "Load",
+  ]);
+  const ring = page.locator(".ring-item").nth(1);
+  await expect(ring).toContainText("10,930");
+  await expect(ring).toContainText("of 10,000");
+  await expect(
+    page.locator(".today-grid .panel-head").filter({ hasText: "10,930" }),
+  ).toHaveCount(0);
+  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
+    "stroke-dasharray",
+    "383 383",
+  );
+  await page.locator(".outlook-status summary").click();
+  await expect(page.locator(".outlook-detail")).toContainText("+5%");
+  await expect(page.locator(".outlook-detail")).toContainText("−3 bpm");
+  for (const width of [320, 768, 1440, 2560]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/steps-outlook-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.getByRole("button", { name: "Previous period" }).click();
+  await expect(ring).not.toContainText("of 10,000");
+  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
+    "stroke-dasharray",
+    "0 383",
+  );
+  await expect(page.locator(".outlook-status")).not.toHaveAttribute("open");
+});
+
+test("missing steps do not become zero or completed progress", async ({
+  page,
+}) => {
+  await fixture(page, { empty: true });
+  await login(page);
+  const ring = page.locator(".ring-item").nth(1);
+  await expect(ring.locator("strong")).toHaveText("—");
+  await expect(ring.locator("small")).toHaveCount(0);
+  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
+    "stroke-dasharray",
+    "0 383",
+  );
 });

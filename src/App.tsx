@@ -31,6 +31,7 @@ import {
 } from "./calendar";
 import { Chart } from "./Chart";
 import { GoalView } from "./Goals";
+import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
 import { BySport, TrainingHeatmap, SportIcon } from "./Training";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
@@ -333,12 +334,14 @@ function Ring({
   value,
   color,
   fraction,
+  subtitle,
   loading = false,
 }: {
   label: string;
   value: string;
   color: string;
   fraction?: number;
+  subtitle?: string;
   loading?: boolean;
 }) {
   return (
@@ -368,20 +371,121 @@ function Ring({
             <circle cx="131" cy="70" r="4" fill={color} />
           )}
         </svg>
-        <strong>
-          {loading ? (
-            <LoaderCircle
-              className="spinner"
-              size={20}
-              aria-label="Loading outlook"
-            />
-          ) : (
-            value
-          )}
-        </strong>
+        <div className="ring-reading">
+          <strong>
+            {loading ? (
+              <LoaderCircle
+                className="spinner"
+                size={20}
+                aria-label={`Loading ${label.toLowerCase()}`}
+              />
+            ) : (
+              value
+            )}
+          </strong>
+          {!loading && subtitle && <small>{subtitle}</small>}
+        </div>
       </div>
       <span>{label}</span>
     </div>
+  );
+}
+function OutlookStatus({
+  insight,
+  loading,
+}: {
+  insight: Insights | null;
+  loading: boolean;
+}) {
+  const state =
+    insight?.state === "ready" ? insight.outlook?.state : insight?.state;
+  const tone =
+    state === "good"
+      ? "var(--green)"
+      : state === "low"
+        ? "var(--red)"
+        : state === "average" || state === "mixed"
+          ? "var(--muted)"
+          : "var(--muted)";
+  const metrics = (insight?.metrics ?? []).filter(
+    (m) => m.value != null && ["sleep", "hrv", "resting_hr"].includes(m.key),
+  );
+  return (
+    <details className="outlook-status">
+      <summary>
+        <span className="muted">Outlook</span>
+        {loading ? (
+          <LoaderCircle
+            className="spinner"
+            size={13}
+            aria-label="Updating outlook"
+          />
+        ) : (
+          <span className="outlook-dot" style={{ background: tone }} />
+        )}
+        <span>{loading && !insight ? "Updating" : outlook(state)}</span>
+        <ChevronRight
+          size={13}
+          className="outlook-chevron"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="outlook-detail">
+        {metrics.length ? (
+          <div className="metrics">
+            {metrics.map((m) => {
+              const comparison = m.comparison;
+              const delta = comparison?.delta;
+              const unit =
+                m.key === "hrv" ? "ms" : m.key === "resting_hr" ? "bpm" : "";
+              const deltaText =
+                delta == null
+                  ? null
+                  : `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${comparison?.unit === "seconds" ? duration(Math.abs(delta)) : number(Math.abs(delta), 0)}${comparison?.unit === "percent" ? "%" : comparison?.unit === "bpm" ? " bpm" : ""}`;
+              return (
+                <div key={m.key}>
+                  <Metric
+                    label={
+                      m.key === "sleep"
+                        ? "Time asleep"
+                        : m.key === "hrv"
+                          ? "HRV"
+                          : "Resting HR"
+                    }
+                    value={
+                      m.key === "sleep" ? duration(m.value) : number(m.value)
+                    }
+                    unit={unit}
+                  />
+                  {deltaText && (
+                    <span
+                      className="small"
+                      style={{
+                        color:
+                          comparison?.signal === "favourable"
+                            ? "var(--green)"
+                            : comparison?.signal === "unfavourable"
+                              ? "var(--red)"
+                              : "var(--muted)",
+                      }}
+                    >
+                      {deltaText}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="muted small">
+            {loading ? "Updating" : "No comparisons yet"}
+          </p>
+        )}
+        <a href="#Sleep" className="text-button">
+          View sleep
+        </a>
+      </div>
+    </details>
   );
 }
 function Dashboard({
@@ -763,6 +867,7 @@ function DataView({
   onDay: (day: string) => void;
 }) {
   const { tz, days, sleeps, workouts, goal } = data;
+  const stepTarget = stepsTarget(goal?.goal ?? null, date, tz);
   const main = sleeps
     .filter((s) => s.kind === "main" && s.sleep)
     .sort((a, b) => a.end_ts.localeCompare(b.end_ts));
@@ -825,15 +930,16 @@ function DataView({
             color="var(--sleep)"
           />
           <Ring
-            label="Outlook"
-            value={insightLoading ? "…" : outlook(insight?.outlook.state)}
-            loading={insightLoading}
-            color={
-              insight?.outlook.state === "good"
-                ? "var(--green)"
-                : insight?.outlook.state === "low"
-                  ? "var(--red)"
-                  : "var(--muted)"
+            label="Steps"
+            value={number(daily?.steps)}
+            subtitle={
+              stepTarget == null ? undefined : `of ${number(stepTarget)}`
+            }
+            color="var(--text)"
+            fraction={
+              stepTarget != null && daily?.steps != null
+                ? daily.steps / stepTarget
+                : 0
             }
           />
           <Ring
@@ -843,6 +949,7 @@ function DataView({
             fraction={daily?.load != null ? daily.load / 21 : undefined}
           />
         </div>
+        <OutlookStatus key={date} insight={insight} loading={insightLoading} />
         <div className="grid today-grid">
           <Panel
             title="Weight"
@@ -874,7 +981,7 @@ function DataView({
           </Panel>
           <Panel
             title="Steps"
-            aside={<span className="panel-value">{number(daily?.steps)}</span>}
+            aside={<span className="muted small">7 days</span>}
           >
             {error("days")}
             <Chart
@@ -886,7 +993,7 @@ function DataView({
               color="var(--blue)"
               bar
               unit="steps"
-              target={goal?.goal?.active ? goal.goal.daily_steps_goal : null}
+              target={stepTarget}
               onOpen={onDay}
             />
           </Panel>
@@ -1063,6 +1170,7 @@ function outlook(state: string | undefined) {
         learning: "Learning",
         updating: "Updating",
         insufficient: "Learning",
+        awaiting_sync: "Updating",
         no_sleep: "No sleep",
       } as Record<string, string>
     )[state ?? ""] ?? "—"
