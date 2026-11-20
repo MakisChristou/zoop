@@ -88,3 +88,5 @@ database for them.
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 [MIT license](LICENSE).
+
+Recovery uses a documented [server-side method](docs/recovery.md), shared by iPhone and web.

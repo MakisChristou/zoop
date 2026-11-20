@@ -53,6 +53,7 @@ impl PostgresStore {
     .bind(&job.device_id).bind(job.day).bind(workout_version).execute(&mut *tx).await.map_err(fail)?;
         }
         complete(&mut tx,job,json!({"sleep_version":job.algo_version,"timezone":job.tz,"window":"full local wake-up day"})).await?;
+        crate::recovery_store::invalidate(&mut tx, &job.device_id, job.day, &job.tz).await?;
         tx.commit().await.map_err(fail)?;
         Ok(true)
     }

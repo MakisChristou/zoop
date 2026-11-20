@@ -49,9 +49,19 @@ impl HistoryWorker {
                 }
                 if Instant::now() >= next_seed {
                     self.store.seed_history(Self::versions()).await?;
+                    self.store
+                        .seed_recovery(zoop_analytics::recovery::RECOVERY_VERSION)
+                        .await?;
                     next_seed = Instant::now() + self.reconcile_interval;
                 }
-                self.pass().await
+                let observed = match crate::observe_recovery(&self.store).await {
+                    Ok(value) => value,
+                    Err(error) => {
+                        warn!(%error, "recovery observation remains retryable");
+                        false
+                    }
+                };
+                self.pass().await.map(|busy| busy || observed)
             }
             .await;
             let busy = match result {

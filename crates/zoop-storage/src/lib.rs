@@ -12,10 +12,12 @@ mod error;
 mod frame_store;
 mod health_store;
 mod insight_store;
+mod recovery_store;
 pub use health_store::{
     HealthExport, HealthInfo, HealthPage, HealthPreparation, WeightChanges, WeightInput,
     WeightReading,
 };
+pub use recovery_store::RecoveryJob;
 mod label_store;
 pub use insight_store::{InsightNight, InsightSnapshot};
 mod operation;

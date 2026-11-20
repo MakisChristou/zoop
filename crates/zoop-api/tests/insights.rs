@@ -231,3 +231,148 @@ async fn edits_reset_and_undo_refresh_brief_without_mutating_raw_data() {
         .unwrap();
     assert_eq!(later.metrics[0].baseline.count, 14);
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_contract_uses_current_measurements_and_get_is_read_only() {
+    let db = fixture().await;
+    // Legacy or absent measurement identifiers must not quietly mix with v5.
+    assert_eq!(brief(&db).await["recovery"]["state"], "insufficient_data");
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    let before = db.count("SELECT count(*) FROM recovery_observations").await;
+    let r = brief(&db).await;
+    assert_eq!(r["recovery"]["state"], "ready");
+    assert_eq!(r["recovery"]["score"], 2);
+    assert_eq!(r["recovery"]["baseline_count"], 14);
+    assert_eq!(r["recovery"]["recent_count"], 7);
+    assert_eq!(r["recovery"]["reference_seconds"], 28800);
+    assert_eq!(r["recovery"]["band"], "low");
+    assert_eq!(
+        before,
+        db.count("SELECT count(*) FROM recovery_observations").await
+    );
+    assert_eq!(db.count("SELECT count(*) FROM recovery_jobs").await, 0);
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','4') WHERE end_ts='2025-01-01T07:00:00Z'").await;
+    assert_eq!(brief(&db).await["recovery"]["baseline_count"], 13);
+    assert_eq!(brief(&db).await["recovery"]["state"], "learning");
+    db.sql("UPDATE sleep_sessions SET metrics_pending=true WHERE end_ts='2025-01-15T07:00:00Z'")
+        .await;
+    assert_eq!(brief(&db).await["recovery"]["state"], "updating");
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_revisions_retries_and_bounded_bootstrap_preserve_observations() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    db.store.seed_recovery(1).await.unwrap();
+    let count = db.count("SELECT count(*) FROM recovery_jobs").await;
+    assert_eq!(count, 20);
+    db.store.seed_recovery(1).await.unwrap();
+    assert_eq!(db.count("SELECT count(*) FROM recovery_jobs").await, count);
+    // A crashed claim is retried; no partially saved observation exists.
+    let claimed = db.store.claim_recovery(1).await.unwrap().unwrap();
+    db.sql("UPDATE recovery_jobs SET available_at=now() WHERE generation>completed_generation")
+        .await;
+    while zoop_core::observe_recovery(&db.store).await.unwrap() {}
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_observations").await,
+        20
+    );
+    let initial: Value =
+        sqlx::query_scalar("SELECT result FROM recovery_observations WHERE day='2025-01-15'")
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    assert_eq!(initial, brief(&db).await["recovery"]);
+    let provenance: Value =
+        sqlx::query_scalar("SELECT inputs FROM recovery_observations WHERE day='2025-01-15'")
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    assert_eq!(provenance["nights"][0]["hrv"]["value"], 50.0);
+    assert_eq!(provenance["nights"][0]["measurement_version"], 5);
+    assert!(provenance["nights"][0].get("metrics").is_none());
+    assert!(provenance["nights"][0].get("stages").is_none());
+
+    // Changed source values append, rather than overwrite, a source/result pair.
+    db.sql("UPDATE sleep_sessions SET revision=revision+1,metrics=jsonb_set(metrics,'{sleep,window,asleep_s}','3000') WHERE end_ts='2025-01-15T07:00:00Z'; UPDATE recovery_jobs SET generation=generation+1,available_at=now() WHERE day='2025-01-15'").await;
+    assert!(zoop_core::observe_recovery(&db.store).await.unwrap());
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_observations WHERE day='2025-01-15'")
+            .await,
+        2
+    );
+    assert_eq!(db.count("SELECT count(DISTINCT input_fingerprint) FROM recovery_observations WHERE day='2025-01-15'").await,2);
+    // An older completion cannot erase concurrent invalidation.
+    db.sql("UPDATE recovery_jobs SET generation=generation+1,available_at=now()")
+        .await;
+    db.store
+        .record_recovery(&claimed, "stale-test", &serde_json::json!({}), &initial)
+        .await
+        .unwrap();
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_jobs WHERE generation>completed_generation")
+            .await,
+        20
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_jobs WHERE day>(now() AT TIME ZONE tz)::date")
+            .await,
+        0
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_rejects_duplicate_pending_main_and_isolates_device_and_saved_timezone() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    let expected = brief(&db).await["recovery"].clone();
+    db.store
+        .upsert_device("OTHER-RECOVERY", "TEST", None)
+        .await
+        .unwrap();
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,metrics,fixed,metrics_pending) SELECT 'OTHER-RECOVERY',start_ts,end_ts,kind,detected_kind,timezone,metrics,true,true FROM sleep_sessions").await;
+    assert_eq!(brief(&db).await["recovery"], expected);
+    let other_zone = morning_insights(&db.store, DEVICE, day("2025-01-15"), "Europe/London")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(other_zone.recovery.state, "insufficient_data");
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,metrics,fixed,metrics_pending) SELECT device_id,start_ts+interval '1 second',end_ts,kind,detected_kind,timezone,metrics,false,true FROM sleep_sessions WHERE device_id='TEST-RELIABILITY' AND end_ts='2025-01-14T07:00:00Z'").await;
+    assert_eq!(brief(&db).await["recovery"]["state"], "ambiguous_history");
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_publication_enqueues_only_existing_dependents_and_keeps_pending_reads_empty() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    db.store
+        .request_analysis(DEVICE, "sleep", day("2025-01-15"), "UTC", 5, false)
+        .await
+        .unwrap();
+    assert_eq!(brief(&db).await["recovery"]["state"], "updating");
+    assert!(brief(&db).await["recovery"]["score"].is_null());
+    let worker = HistoryWorker::new(db.store.clone(), true, std::time::Duration::from_secs(60));
+    assert!(worker.pass().await.unwrap());
+    assert_eq!(db.count("SELECT count(*) FROM recovery_jobs").await, 6);
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_jobs WHERE day<'2025-01-15' OR day>'2025-01-20'")
+            .await,
+        0
+    );
+    while zoop_core::observe_recovery(&db.store).await.unwrap() {}
+    let current = brief(&db).await["recovery"].clone();
+    let saved: Value =
+        sqlx::query_scalar("SELECT result FROM recovery_observations WHERE day='2025-01-15'")
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    assert_eq!(current, saved);
+}

@@ -6,6 +6,8 @@ mod error;
 mod history;
 mod insights;
 pub use insights::morning_insights;
+mod recovery;
+pub use recovery::observe_recovery;
 mod night;
 mod sleep_sessions;
 mod workouts;

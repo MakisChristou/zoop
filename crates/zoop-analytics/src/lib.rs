@@ -8,6 +8,7 @@ pub mod energy;
 pub mod hrv;
 pub mod insights;
 pub mod interval;
+pub mod recovery;
 pub mod respiration;
 pub mod sleep;
 pub mod stages;

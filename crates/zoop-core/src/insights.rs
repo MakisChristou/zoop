@@ -5,7 +5,7 @@ use zoop_analytics::{
     ALGO_VERSION,
     insights::{self, MorningInsights, Night, Reading},
 };
-use zoop_storage::{InsightNight, PostgresStore};
+use zoop_storage::{InsightNight, InsightSnapshot, PostgresStore};
 const MAX_UNKNOWN_SLEEP_SECONDS: f64 = 120.0;
 const MIN_CARDIAC_COVERAGE: f64 = 0.90;
 const MIN_HRV_WINDOWS: f64 = 6.0;
@@ -31,15 +31,40 @@ pub async fn morning_insights(
     else {
         return Ok(None);
     };
-    let nights = snapshot.nights.into_iter().map(input).collect::<Vec<_>>();
-    Ok(Some(insights::calculate(
-        day,
-        tz,
-        &nights,
-        snapshot.pending,
-    )))
+    Ok(Some(from_snapshot(day, tz, snapshot)))
 }
-fn input(row: InsightNight) -> Night {
+pub(crate) fn from_snapshot(
+    day: NaiveDate,
+    tz: &str,
+    snapshot: InsightSnapshot,
+) -> MorningInsights {
+    let mut recovery_nights = Vec::new();
+    for row in &snapshot.nights {
+        let mut night = input_ref(row);
+        // Old measurement versions cannot supply evidence for the current formula.
+        if row
+            .metrics
+            .pointer("/sleep/algo_version")
+            .and_then(serde_json::Value::as_i64)
+            != Some(i64::from(ALGO_VERSION))
+        {
+            if row.day != day {
+                continue;
+            }
+            night.hrv.quality = "limited";
+        }
+        recovery_nights.push(night.clone());
+        if row.day_count > 1 {
+            recovery_nights.push(night);
+        }
+    }
+    let nights = snapshot.nights.iter().map(input_ref).collect::<Vec<_>>();
+    let mut brief = insights::calculate(day, tz, &nights, snapshot.pending);
+    brief.recovery =
+        zoop_analytics::recovery::calculate(day, tz, &recovery_nights, snapshot.pending);
+    brief
+}
+pub(crate) fn input_ref(row: &InsightNight) -> Night {
     let metric = |key: &str| {
         row.metrics
             .pointer(key)
@@ -87,6 +112,6 @@ fn input(row: InsightNight) -> Night {
         ),
         onset_minute: row.onset_minute,
         wake_minute: row.wake_minute,
-        timezone: row.timezone,
+        timezone: row.timezone.clone(),
     }
 }

@@ -95,6 +95,7 @@ pub struct MorningInsights {
     pub observations: Vec<String>,
     pub timing: Timing,
     pub outlook: Outlook,
+    pub recovery: crate::recovery::Recovery,
 }
 /// Creates a historical or current brief. Later dates are never included.
 pub fn calculate(
@@ -124,6 +125,7 @@ pub fn calculate(
         sleep_revision: current.map(|n| n.revision),
         timing: timing(day, nights),
         outlook: outlook::summarize(&metrics, state),
+        recovery: crate::recovery::calculate(day, timezone, nights, pending),
         metrics,
         observations,
     }

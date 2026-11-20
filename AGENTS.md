@@ -24,6 +24,11 @@ recovery and the rest follow.
   `zoop_analytics::ALGO_VERSION` instead of editing rows in place.
 - **Published methods only.** Analytics implement cited, peer-reviewed methods. Each
   module's doc comment names the paper. No WHOOP formulas are reproduced.
+  Approved exception: Zoop Recovery v1 is an explicitly documented, independently
+  versioned product index (see `docs/recovery.md`). Its formula and display bands
+  are conventions, not a validated clinical method or WHOOP's algorithm. Keep
+  the published-method requirement for underlying physiology and other analytics.
+
 - **Public project.** No personal names, host names, network details or credentials in
   code, docs, examples or commit messages. Everything deployment-specific is
   configuration.

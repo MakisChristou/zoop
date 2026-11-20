@@ -807,3 +807,49 @@ async fn browser_photo_upload_is_owner_scoped_and_requires_origin() {
         assert_eq!(app.clone().oneshot(request).await.unwrap().status(), status);
     }
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_endpoint_remains_owner_scoped_for_web_and_phone() {
+    let (_db, app, owner, member) = setup().await;
+    let own = "/v1/devices/TEST-RELIABILITY/days/2025-01-15/insights?tz=UTC";
+    let other = "/v1/devices/OTHER/days/2025-01-15/insights?tz=UTC";
+    assert_eq!(
+        req(
+            &app,
+            "GET",
+            own,
+            None,
+            Some("owner-phone-token"),
+            json!(null)
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        req(
+            &app,
+            "GET",
+            other,
+            None,
+            Some("owner-phone-token"),
+            json!(null)
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(&app, "GET", own, Some(&member), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(&app, "GET", other, Some(&owner), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+}
