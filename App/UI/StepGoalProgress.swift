@@ -26,7 +26,7 @@ struct StepGoalProgress: View {
     var body: some View {
         Group {
             if ringPresentation {
-                TodaySummaryRing(title: "Steps", value: steps.map { (Double(max(0, $0)) / Double(max(1, target))).formatted(.percent.precision(.fractionLength(0))) } ?? "—", color: ZoopStyle.text,
+                TodaySummaryRing(title: "Steps", value: steps?.formatted() ?? "—", color: ZoopStyle.text,
                                  progress: steps == nil ? nil : progress / Double(max(1, target)),
                                  isLoading: isLoading)
             } else {
