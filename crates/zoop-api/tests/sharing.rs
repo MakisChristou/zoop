@@ -576,3 +576,147 @@ async fn rich_widgets_disclose_only_their_selected_fields_and_bounds() {
         .unwrap();
     assert_eq!(earliest, Some(support::day("2024-12-31")));
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn daily_rings_share_one_bounded_day_and_match_private_recovery() {
+    let (db, app, owner, member) = setup().await;
+    let raw = db.raw(1).await;
+    sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id) SELECT $1,'2025-01-01T06:00:00Z'::timestamptz+make_interval(days=>d,secs=>n),55,ARRAY[1000,1020],0,0,2,$2 FROM generate_series(0,19)d CROSS JOIN generate_series(0,3599)n").bind(support::DEVICE).bind(raw).execute(&db.pool).await.unwrap();
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,fixed,metrics) SELECT 'TEST-RELIABILITY','2025-01-01T06:00:00Z'::timestamptz+make_interval(days=>d),'2025-01-01T07:00:00Z'::timestamptz+make_interval(days=>d),'main','main','UTC',true,jsonb_build_object('sleep',jsonb_build_object('algo_version',5,'window',jsonb_build_object('asleep_s',3600,'coverage_s',3600),'physiology',jsonb_build_object('resting_hr',55,'hrv_rmssd_ms',50,'hrv_windows',12))) FROM generate_series(0,19)d; INSERT INTO strains(device_id,day,algo_version,load) VALUES('TEST-RELIABILITY','2025-01-15',1,12)").await;
+    let mut body = input(json!(["daily_rings"]));
+    body["config"]["range"] = json!("fixed");
+    body["config"]["from"] = json!("2025-01-14");
+    body["config"]["to"] = json!("2025-01-15");
+    body["config"]["layout"] = json!([{"key":"daily_rings","x":0,"y":2}]);
+    let (status, share, _) =
+        req(&app, "POST", "/v1/shares", Some(&owner), None, body.clone()).await;
+    assert_eq!(status, StatusCode::OK, "{share}");
+    let token = share["token"].as_str().unwrap();
+    for pending in [false, true] {
+        if pending {
+            db.sql("UPDATE sleep_sessions SET metrics_pending=true WHERE end_ts='2025-01-15T07:00:00Z'").await;
+        }
+        let (status, data, _) = visit(&app, token, "", Some(2020)).await;
+        assert_eq!(status, StatusCode::OK, "{data}");
+        assert_eq!(data["layout"], body["config"]["layout"]);
+        let ring = &data["widgets"][0];
+        assert_eq!(ring["day"], "2025-01-15");
+        assert_eq!(ring["load"].as_f64(), Some(12.0));
+        let private = zoop_core::morning_insights(
+            &db.store,
+            support::DEVICE,
+            support::day("2025-01-15"),
+            "UTC",
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            ring["recovery"],
+            json!({"version":private.recovery.version,"method":private.recovery.method,"score":private.recovery.score,"band":private.recovery.band,"state":private.recovery.state})
+        );
+        if !pending {
+            assert!(private.recovery.score.is_some());
+            assert_eq!(ring["sleep_seconds"], 3600);
+        } else {
+            assert!(ring["sleep_seconds"].is_null());
+        }
+        for hidden in [
+            "hrv_rmssd_ms",
+            "resting_hr",
+            "components",
+            "limiting",
+            "baseline_count",
+            "device_id",
+            "sleep_id",
+        ] {
+            assert!(!data.to_string().contains(hidden), "{hidden}");
+        }
+    }
+    assert_eq!(
+        req(
+            &app,
+            "POST",
+            "/v1/shares/preview",
+            Some(&member),
+            None,
+            json!({"device_id":support::DEVICE,"config":body["config"]})
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    body["config"]["to"] = json!("2025-01-21");
+    let (status, empty, _) = req(
+        &app,
+        "POST",
+        "/v1/shares/preview",
+        Some(&owner),
+        None,
+        json!({"device_id":support::DEVICE,"config":body["config"]}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{empty}");
+    assert!(empty["widgets"][0]["sleep_seconds"].is_null());
+    assert!(empty["widgets"][0]["load"].is_null());
+    body["config"]["layout"][0]["x"] = json!(1);
+    assert_eq!(
+        req(
+            &app,
+            "POST",
+            "/v1/shares/preview",
+            Some(&owner),
+            None,
+            json!({"device_id":support::DEVICE,"config":body["config"]})
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn heatmap_year_expands_only_the_explicitly_selected_widget() {
+    let (db, app, owner, _) = setup().await;
+    db.sql(r#"INSERT INTO workout_sessions(device_id,start_ts,end_ts,kind,detected_kind,metrics) VALUES
+    ('TEST-RELIABILITY','2023-12-01T12:00:00Z','2023-12-01T13:00:00Z','walk','walk','{"load":4}'),
+    ('TEST-RELIABILITY','2024-12-01T12:00:00Z','2024-12-01T13:00:00Z','walk','walk','{"load":5}'),
+    ('TEST-RELIABILITY','2025-01-02T12:00:00Z','2025-01-02T13:00:00Z','walk','walk','{"load":6}');
+    INSERT INTO strains(device_id,day,algo_version,load) VALUES
+    ('TEST-RELIABILITY','2023-12-01',1,4),('TEST-RELIABILITY','2024-12-01',1,5),('TEST-RELIABILITY','2025-01-02',1,6);"#).await;
+    let mut body = input(json!(["activity_heatmap", "recent_workouts", "load"]));
+    body["config"]["range"] = json!("fixed");
+    body["config"]["from"] = json!("2025-01-01");
+    body["config"]["to"] = json!("2025-01-03");
+    for expanded in [false, true, false] {
+        body["config"]["heatmap_year"] = json!(expanded);
+        let (status, share, _) =
+            req(&app, "POST", "/v1/shares", Some(&owner), None, body.clone()).await;
+        assert_eq!(status, StatusCode::OK, "{share}");
+        let (_, data, _) = visit(&app, share["token"].as_str().unwrap(), "", Some(2023)).await;
+        assert_eq!(data["from"], "2025-01-01");
+        let heat = &data["widgets"][0];
+        assert_eq!(
+            heat["activities"].as_array().unwrap().len(),
+            if expanded { 2 } else { 1 }
+        );
+        assert_eq!(
+            heat["points"].as_array().unwrap().len(),
+            if expanded { 2 } else { 1 }
+        );
+        assert_eq!(
+            heat["from"],
+            if expanded { "2024-01-05" } else { "2025-01-01" }
+        );
+        assert_eq!(heat["to"], "2025-01-03");
+        assert_eq!(
+            data["widgets"][1]["activities"].as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(data["widgets"][2]["points"].as_array().unwrap().len(), 1);
+        assert!(!data.to_string().contains("2023-12-01"));
+        assert_eq!(data.to_string().contains("2024-12-01"), expanded);
+    }
+}

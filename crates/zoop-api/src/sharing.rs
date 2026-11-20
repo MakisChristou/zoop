@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use zoop_auth::{digest, hash_password, random_token, verify_password};
 use zoop_storage::SharedDashboard;
-const WIDGETS: [&str; 11] = [
+mod layout;
+const WIDGETS: [&str; 12] = [
     "sleep",
     "recovery",
     "load",
@@ -23,6 +24,7 @@ const WIDGETS: [&str; 11] = [
     "activity_heatmap",
     "recent_workouts",
     "by_sport",
+    "daily_rings",
 ];
 const MAX_HISTORY_DAYS: i64 = 365;
 
@@ -41,6 +43,10 @@ pub(crate) struct Config {
     #[serde(default)]
     to: Option<NaiveDate>,
     widgets: Vec<String>,
+    #[serde(default)]
+    layout: Vec<layout::Placement>,
+    #[serde(default)]
+    heatmap_year: bool,
 }
 fn default_range() -> String {
     "last30".into()
@@ -83,6 +89,11 @@ pub(crate) struct Preview {
     year: Option<i32>,
 }
 fn validate(config: &Config) -> Result<(), ApiError> {
+    if !layout::valid(&config.layout, &config.widgets) {
+        return Err(ApiError::BadRequest(
+            "Choose a layout without overlapping widgets.".into(),
+        ));
+    }
     if config.title.trim().is_empty()
         || config.title.len() > 80
         || config.display_name.len() > 80
@@ -375,20 +386,50 @@ async fn project(
     let mut widgets = Vec::new();
     for key in &config.widgets {
         match key.as_str() {
-            "activity_heatmap" => {
-                let points = s
+            "daily_rings" => {
+                // One date for all three readings. Never substitute older non-null values.
+                let sleep = s
+                    .store
+                    .shared_points(device, &tz, to, to, "sleep", zoop_analytics::ALGO_VERSION)
+                    .await?;
+                let load = s
                     .store
                     .shared_points(
                         device,
                         &tz,
-                        from,
+                        to,
                         to,
                         "load",
                         zoop_analytics::WORKOUT_ALGO_VERSION,
                     )
                     .await?;
-                let activities = s.store.shared_activity_days(device, &tz, from, to).await?;
-                widgets.push(json!({"key":key,"points":points,"activities":activities}));
+                let brief = zoop_core::morning_insights(&s.store, device, to, &tz).await?;
+                let recovery = brief.map(|b| json!({"version":b.recovery.version,"method":b.recovery.method,"score":b.recovery.score,"band":b.recovery.band,"state":b.recovery.state}));
+                widgets.push(json!({"key":key,"day":to,"sleep_seconds":sleep.first().and_then(|p| p.get("value")),"load":load.first().and_then(|p|p.get("value")),"recovery":recovery}));
+                continue;
+            }
+            "activity_heatmap" => {
+                let heatmap_from = if config.heatmap_year {
+                    to - Duration::days(364)
+                } else {
+                    from
+                };
+                let points = s
+                    .store
+                    .shared_points(
+                        device,
+                        &tz,
+                        heatmap_from,
+                        to,
+                        "load",
+                        zoop_analytics::WORKOUT_ALGO_VERSION,
+                    )
+                    .await?;
+                let activities = s
+                    .store
+                    .shared_activity_days(device, &tz, heatmap_from, to)
+                    .await?;
+                widgets.push(json!({"key":key,"from":heatmap_from,"to":to,"points":points,"activities":activities}));
                 continue;
             }
             "recent_workouts" => {
@@ -438,7 +479,7 @@ async fn project(
         today
     };
     Ok(
-        json!({"title":config.title,"display_name":config.display_name,"photo":photo,"timezone":tz,"from":from,"to":to,"paged":config.range!="last30" && (upper-lower).num_days()>MAX_HISTORY_DAYS,"first_year":lower.year(),"last_year":upper.year(),"widgets":widgets}),
+        json!({"title":config.title,"display_name":config.display_name,"photo":photo,"timezone":tz,"from":from,"to":to,"paged":config.range!="last30" && (upper-lower).num_days()>MAX_HISTORY_DAYS,"first_year":lower.year(),"last_year":upper.year(),"widgets":widgets,"layout":config.layout}),
     )
 }
 

@@ -1,9 +1,12 @@
 # Shared dashboards
 
 Owners choose one device, explicit metrics and their order. Visitors receive only selected widgets. Daily series cover: sleep duration, Recovery, Load, filtered steps,
-workout count, weight, HRV and resting heart rate. Three optional activity cards
+workout count, weight, HRV and resting heart rate. Optional summary and activity cards
 reuse the private dashboard presentation:
 
+- **Daily rings:** sleep duration, Recovery score/state/band/version and Load for the last
+  day of the shared period. All three use the same date; missing readings stay empty.
+  Recovery uses the private insights calculation, without exposing its inputs.
 - **Every day:** daily Load plus per-day, per-sport workout counts and duration totals.
 - **Recent activities:** local date, sport, duration and Load for each workout.
 - **By sport:** workout counts and duration totals grouped by sport.
@@ -49,7 +52,7 @@ quality-gated calculation as private insights, from one bounded snapshot includi
 28 prior days. No client derives scores. Missing measurements stay null. Reading
 steps may refresh the existing derived daily cache; it never edits health records.
 
-Limits: 50 dashboards per account, eleven distinct allowlisted widgets, 16 KiB request
+Limits: 50 dashboards per account, twelve distinct allowlisted widgets, 16 KiB request
 bodies, four concurrent projections, existing four-slot password hashing bound,
 120 public requests/minute globally and 30/minute per resolved share. Rate-limit
 keys are bounded (one global key and one per existing share), not attacker-supplied.
@@ -73,3 +76,17 @@ are opt-in: migration creates no links. Deploying requires operator approval.
 
 No embed support, public directory, uploads, account login delegation or general
 public health API is provided by this slice.
+
+## Layout
+
+Each widget has a fixed footprint in a two-column grid. Owners drag handles or use
+arrow keys to place widgets; colliding pieces move to free positions. Width and height
+are not editable. The server rejects overlaps, unknown keys and out-of-bounds rows.
+Layouts are stored inside the existing config JSON; no migration is required. Legacy
+links with no layout receive an automatic layout. Mobile viewers stack widgets in
+visual reading order. A year-shaped heatmap leaves dates outside the shared period
+blank and disabled; its shape does not widen the authorized data range.
+
+The optional `heatmap_year` setting shares the 365 days ending on the displayed
+period’s last day for the activity heatmap only. It defaults to false, so existing
+links retain their selected scope. Other widgets still use the dashboard period.

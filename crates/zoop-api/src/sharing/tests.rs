@@ -8,6 +8,8 @@ fn config(range: &str) -> Config {
         from: None,
         to: None,
         widgets: vec!["steps".into()],
+        layout: vec![],
+        heatmap_year: false,
     }
 }
 fn date(s: &str) -> NaiveDate {
@@ -57,4 +59,36 @@ fn rejects_unknown_duplicate_and_empty_widgets() {
     assert!(validate(&c).is_err());
     c.widgets.clear();
     assert!(validate(&c).is_err());
+}
+
+#[test]
+fn layout_rejects_overlaps_unknown_keys_and_out_of_bounds() {
+    let mut c = config("last30");
+    c.widgets = vec!["daily_rings".into(), "steps".into()];
+    c.layout = vec![
+        layout::Placement {
+            key: "daily_rings".into(),
+            x: 0,
+            y: 0,
+        },
+        layout::Placement {
+            key: "steps".into(),
+            x: 0,
+            y: 3,
+        },
+    ];
+    assert!(validate(&c).is_ok());
+    c.layout[1].y = 2;
+    assert!(validate(&c).is_err());
+    c.layout[1].y = 3;
+    c.layout[0].x = 1;
+    assert!(validate(&c).is_err());
+    c.layout[0].x = 0;
+    c.layout[1].y = u16::MAX;
+    assert!(validate(&c).is_err());
+    c.layout[1].y = 3;
+    c.layout[1].key = "weight".into();
+    assert!(validate(&c).is_err());
+    c.layout.clear();
+    assert!(validate(&c).is_ok());
 }
