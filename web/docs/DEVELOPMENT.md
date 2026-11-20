@@ -26,8 +26,11 @@ data, errors and admin visibility. They use synthetic responses. For API contrac
 and authentication changes, also run the integration test:
 
 ```sh
-ZOOP_API_DIR=/path/to/zoop-api nix develop --command bash tools/test-api.sh
+bash tools/test-api.sh
 ```
+
+The script defaults to the sibling `../server` workspace; `ZOOP_API_DIR` can
+override it. Run it in the existing web development shell.
 
 This creates a temporary PostgreSQL cluster and synthetic accounts, verifies
 cross-user denial and logout, and removes its fixtures. It does not use the
@@ -47,7 +50,7 @@ proxy, serve the built files and preserve the same-origin API arrangement.
 Provision the API first. Its private-account mode requires an administrator and
 explicit device ownership. Set its exact public browser origin, without a trailing
 slash, and keep the API and database ports off the public network. See the
-[account guide](https://github.com/MakisChristou/zoop-api/blob/main/docs/private-web.md).
+[account guide](../../server/docs/private-web.md).
 
 ## Accounts and writes
 

@@ -39,7 +39,7 @@ import { Chart } from "./Chart";
 import { SleepTimeline } from "./SleepTimeline";
 import { GoalView } from "./Goals";
 import { recoveryPending } from "./recovery";
-import { RecoveryRing } from "./Recovery";
+import { RecoveryRing } from "./RecoveryRing";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
 import {
@@ -48,7 +48,7 @@ import {
   activityRows,
   RecentActivities,
 } from "./Training";
-import { Sharing } from "./Sharing";
+import { Sharing } from "./SharingSettings";
 import { SharedDashboard } from "./SharedDashboard";
 import { publicToken } from "./sharing";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;

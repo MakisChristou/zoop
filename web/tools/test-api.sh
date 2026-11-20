@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Run inside `nix develop`. Requires a local API checkout; never uses a supplied DB URL.
+# Run inside the web development shell; never uses a supplied DB URL.
 set -euo pipefail
-: "${ZOOP_API_DIR:?Set ZOOP_API_DIR to the Zoop API source checkout}"
+web=$(cd "$(dirname "$0")/.." && pwd)
+cd "$web"
+ZOOP_API_DIR=${ZOOP_API_DIR:-"$web/../server"}
 api=$(cd "$ZOOP_API_DIR" && pwd)
 (cd "$api" && nix develop --command cargo build --locked -p zoop)
 binary="$api/target/debug/zoop"

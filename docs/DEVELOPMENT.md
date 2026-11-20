@@ -1,6 +1,6 @@
 # Development
 
-Start with the [setup guide](../README.md#run-it) and [repository conventions](../AGENTS.md).
+Start with the [iPhone setup](IPHONE_SETUP.md) and [contribution guide](../CONTRIBUTING.md).
 
 ## Code layout
 
@@ -18,9 +18,9 @@ Start with the [setup guide](../README.md#run-it) and [repository conventions](.
 | `Config` | Shared settings and ignored local signing configuration |
 | `project.yml` | XcodeGen project definition |
 
-Analysis runs in [Zoop API](https://github.com/MakisChristou/zoop-api).
-Its [architecture](https://github.com/MakisChristou/zoop-api/blob/main/docs/ARCHITECTURE.md)
-and [protocol](https://github.com/MakisChristou/zoop-api/blob/main/docs/PROTOCOL.md)
+Analysis runs in [Zoop API](../server/README.md).
+Its [architecture](../server/docs/ARCHITECTURE.md)
+and [protocol](../server/docs/PROTOCOL.md)
 documents describe the shared system.
 
 ## Checks

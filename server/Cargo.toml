@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.0"
 license = "MIT"
-repository = "https://github.com/MakisChristou/snoop-api"
+repository = "https://github.com/MakisChristou/zoop"
 
 [workspace.dependencies]
 # Internal crates

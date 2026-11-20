@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# Build from the workspace root:
-# docker build -f crates/zoop/Dockerfile -t zoop .
+# Build from the Zoop repository root (server-only build context):
+# docker build -f server/crates/zoop/Dockerfile -t zoop server
 
 FROM lukemathwalker/cargo-chef:latest-rust-1.97-bookworm AS chef
 WORKDIR /app

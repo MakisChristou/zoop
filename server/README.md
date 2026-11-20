@@ -2,14 +2,14 @@
 
 **Keep the recordings. Improve the analysis. Own the history.**
 
-Zoop API is the self-hosted backend for [Zoop for iPhone](https://github.com/MakisChristou/zoop)
-and [Zoop web](https://github.com/MakisChristou/zoop-web). It stores raw WHOOP 5.0 / MG
+Zoop API is the self-hosted backend for [Zoop for iPhone](../docs/IPHONE_SETUP.md)
+and [Zoop web](../web/README.md). It stores raw WHOOP 5.0 / MG
 recordings in PostgreSQL and turns them into sleep, activity, weight and health trends.
 Both clients read the same results.
 
-[iPhone](https://github.com/MakisChristou/zoop) ·
-[API](https://github.com/MakisChristou/zoop-api) ·
-[Web dashboard](https://github.com/MakisChristou/zoop-web)
+[iPhone](../docs/IPHONE_SETUP.md) ·
+[API](README.md) ·
+[Web dashboard](../web/README.md)
 
 ## What it does
 
@@ -30,48 +30,37 @@ affiliated with WHOOP and does not reproduce WHOOP's proprietary scores.
 
 ## Run locally
 
-The [Nix](https://nixos.org/download/) development shell supplies Rust, PostgreSQL
-and `just`:
+Install the Rust version pinned in `rust-toolchain.toml`, Docker and `just`.
+From the repository root:
 
 ```sh
-git clone https://github.com/MakisChristou/zoop-api.git
-cd zoop-api
-nix develop
-just pg-start
+cd server
+just up
 just run
 ```
 
-In another terminal:
+`just up` starts the development PostgreSQL container and applies migrations.
+The database uses port **5433** and the API uses **8471**. Check it with
+`curl http://127.0.0.1:8471/health`. `just down` stops the database without deleting
+its volume. The example credentials are for development only.
 
-```sh
-curl http://127.0.0.1:8471/health
-```
+## Self-hosting
 
-The development database runs on port **5433** and the API on **8471**.
-`just pg-stop` stops the database without deleting it. The example credentials
-are for local development only. Docker Compose supplies an alternative development
-database, not a complete production installation.
+The complete Compose installation is [planned](../docs/SELF_HOSTING_PLAN.md).
+The current `docker-compose.yml` starts only the development database.
 
-## Self-host
+For the current manual setup, build the Rust binary, provide PostgreSQL and a TOML
+configuration, then follow the [operations reference](docs/OPERATIONS.md) and
+[account guide](docs/private-web.md). Account creation and password recovery
+currently use the operator CLI.
 
-The flake provides a server package and a [NixOS module](nix/module.nix).
-For other hosts, build the Rust binary and provide a PostgreSQL database and TOML
-configuration; see the [operations reference](docs/OPERATIONS.md).
+Network access is the operator's choice. Zoop does not provision a public hostname,
+reverse proxy, certificates or a VPN. Serve the web app and `/v1/` on the same
+origin, keep PostgreSQL private, and configure the exact browser origin.
+The current iPhone app requires HTTPS except for loopback development URLs.
 
-Before connecting the apps:
-
-1. Set up HTTPS, keep PostgreSQL private and bind the API behind your reverse proxy.
-2. Apply migrations and follow the [account setup guide](docs/private-web.md) to
-   create an administrator, assign devices and enable private accounts.
-3. Connect the iPhone and [web dashboard](https://github.com/MakisChristou/zoop-web)
-   to that server.
-
-Accounts and password recovery are managed through the operator CLI. There is no
-public registration or hosted Zoop service. Admin statistics do not grant access
-to other users' health records.
-
-Back up PostgreSQL and test a restore. Raw recordings are the source of truth;
-derived results can be rebuilt, but your only copy of the original data cannot.
+Back up PostgreSQL and test a restore. Original recordings cannot be recovered
+by rerunning analysis if the database's only copy is lost.
 
 ## Develop
 

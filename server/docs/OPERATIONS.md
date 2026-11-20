@@ -182,7 +182,7 @@ development database, for example `ZOOP_TEST_DATABASE_URL=postgres://zoop:zoop@l
 just ci            # fmt-check, clippy -D warnings, tests
 ```
 
-Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
+Conventions for contributors and coding agents are in [AGENTS.md](../AGENTS.md).
 
 ## Acknowledgements
 
@@ -407,10 +407,10 @@ with an explicit --config path when retaining an existing snoop.toml file.
 
 Stored weight source codes and record IDs retain their legacy snoop values. These
 are data identifiers, not display names. Applied migrations are unchanged; no
-analysis version bump or history recomputation is required. The repositories are published as zoop and zoop-api; older GitHub URLs redirect.
+analysis version bump or history recomputation is required. The iPhone app, API and web dashboard now share the Zoop repository; API source is under `server/`.
 
-For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
-and [SECURITY.md](SECURITY.md).
+For contributions and vulnerability reporting, see [CONTRIBUTING.md](../CONTRIBUTING.md)
+and [SECURITY.md](../SECURITY.md).
 
 
 ### Saved goal periods

@@ -1,4 +1,4 @@
-name: CI
+name: Server checks
 
 on:
   push:
@@ -12,6 +12,10 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: server
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,6 +31,7 @@ jobs:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
+          rust-src-dir: server
           components: rustfmt
       - run: cargo fmt --all --check
 
@@ -39,6 +44,7 @@ jobs:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
+          rust-src-dir: server
           components: clippy
       - run: cargo clippy --all-targets --all-features --locked
 
@@ -50,6 +56,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          rust-src-dir: server
       - run: cargo test --all-features --locked
 
   database:
@@ -73,4 +81,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          rust-src-dir: server
       - run: cargo test --workspace --locked -- --include-ignored

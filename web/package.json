@@ -35,6 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MakisChristou/zoop-web.git"
+    "url": "https://github.com/MakisChristou/zoop.git",
+    "directory": "web"
   }
 }

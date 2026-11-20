@@ -4,14 +4,12 @@
 
 **Your wearable data, on your own server.**
 
-Zoop is an independent iPhone app for WHOOP 5.0 and WHOOP MG. Track sleep,
-activity, weight and long-term trends with software you can inspect and host yourself.
-The phone collects your recordings; [Zoop API](https://github.com/MakisChristou/zoop-api)
-keeps your history and runs the analysis.
+Zoop collects recordings from your WHOOP and keeps them on your own server.
+Explore sleep, recovery, activity and weight through the iPhone app and web dashboard.
+Keep the original data, export it, and rerun analysis as the software improves.
 
-[iPhone](https://github.com/MakisChristou/zoop) ·
-[API](https://github.com/MakisChristou/zoop-api) ·
-[Web dashboard](https://github.com/MakisChristou/zoop-web)
+[iPhone setup](docs/IPHONE_SETUP.md) · [Server](server/README.md) ·
+[Web dashboard](web/README.md) · [Contributing](CONTRIBUTING.md)
 
 <p align="center">
   <img src="docs/screenshots/today.png" width="195" alt="Today: sleep, recovery and load rings with daily activity" />
@@ -23,67 +21,41 @@ keeps your history and runs the analysis.
 
 ## What you can do
 
-- Explore sleep stages, nightly measurements and comparisons with your usual nights.
-- Follow your daily Recovery index, calculated by the server from sleep, HRV and resting heart rate.
-- Review detected walks and strength sessions, daily steps and training load.
-- Log weight and follow cut, bulk or maintenance goals with a weekly outlook.
-- Correct sleep and workouts without losing the original recordings.
+- Explore sleep stages, nightly measurements and your daily Recovery index.
+- Review detected workouts, daily steps and training load.
+- Track weight and cut, bulk or maintenance goals.
+- Correct sleep and workouts while keeping the original recordings.
 - Sync with Apple Health, export weight as CSV and record ECG on WHOOP MG.
+- Share selected charts through revocable links with optional passwords and expiry.
 
-**Developer preview.** Build from source; there is no App Store release yet.
-Health estimates and ECG recording are experimental, not medical diagnoses.
-Zoop is not affiliated with WHOOP.
+## Get started
 
-## Run it
+You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a server with PostgreSQL.
+The server is required; the phone keeps an upload queue during connection outages.
 
-You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and your own
-[Zoop API server](https://github.com/MakisChristou/zoop-api). Build with Xcode and
-[XcodeGen](https://github.com/yonaskolb/XcodeGen); the verified toolchain is
-Xcode 27.2 / XcodeGen 2.46.0. Device builds need an Apple development team with
-HealthKit signing support.
+1. Set up the [server and accounts](server/README.md).
+2. Run the [web dashboard](web/README.md).
+3. Build and connect the [iPhone app](docs/IPHONE_SETUP.md).
 
-```sh
-git clone https://github.com/MakisChristou/zoop.git
-cd zoop
-cp Config/Local.xcconfig.example Config/Local.xcconfig
-```
-
-1. Set your development team and a unique bundle ID in `Config/Local.xcconfig`.
-   This file is ignored by Git.
-2. Generate and open the project:
-
-   ```sh
-   xcodegen generate
-   open Zoop.xcodeproj
-   ```
-
-3. Select the **Zoop** scheme and your iPhone, then Run.
-4. Enter your server's HTTPS URL and sign in with an account created by its administrator.
-
-Pair the strap in the official WHOOP app first, then quit that app before connecting
-with Zoop. Keep the existing Bluetooth bond. A simulator can preview the interface,
-but cannot collect strap data.
+**Developer preview.** Installation currently requires developer tools, including
+Xcode and an Apple development team with HealthKit signing support. There is no
+App Store release yet. The included Compose file starts a development database;
+a complete Compose installation is [planned](docs/SELF_HOSTING_PLAN.md).
 
 ## How it works
 
-**SwiftUI · CoreBluetooth · SQLite · Swift Charts**
+| Component | Technology | Source |
+| --- | --- | --- |
+| iPhone | SwiftUI, CoreBluetooth, SQLite | `App/`, `Packages/` |
+| Server | Rust, PostgreSQL | `server/` |
+| Web | React, TypeScript, Recharts | `web/` |
 
-The app saves sensor frames locally before uploading them and retries until the
-server confirms receipt. Analysis runs in Rust on your server, with PostgreSQL
-holding the original recordings and derived history. The iPhone and web dashboard
-use the same backend metrics; live Bluetooth readings stay on the phone.
+The phone collects recordings. The server stores them and computes the metrics
+shown by both clients. Accounts keep each person's data private; administrators
+see operational statistics without access to other people's health records.
 
-A backend is required. The local queue protects collection during connection
-outages; it is not a standalone offline analytics mode. Keeping the original data
-lets you back it up and rerun improved analysis later, while preserving corrections.
+Health estimates are not medical diagnoses. Zoop is independently implemented
+and is not affiliated with WHOOP. Public interoperability research informs the
+strap protocol; other projects' protocol code is not bundled.
 
-## Contribute
-
-Start with [development and tests](docs/DEVELOPMENT.md),
-[contributing](CONTRIBUTING.md) and the [visual style guide](docs/VISUAL_STYLE.md).
-Report vulnerabilities through [SECURITY.md](SECURITY.md).
-
-The strap protocol is independently implemented, informed by public interoperability
-research from NOOP, wearable5.0, Goose and whoop-rs. Their code is not bundled.
-
-[MIT license](LICENSE).
+[Contribute](CONTRIBUTING.md) · [Report a vulnerability](SECURITY.md) · [MIT license](LICENSE)

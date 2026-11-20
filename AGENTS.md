@@ -3,7 +3,23 @@
 Conventions for contributors and coding agents working in Zoop. Read before changing
 anything.
 
-## What this is
+## Repository scope
+
+This repository contains the iPhone app at the root, the Rust API in `server/`,
+and the React dashboard in `web/`. Read `server/AGENTS.md` or `web/AGENTS.md` for
+those workspaces. The Swift, Bluetooth, Xcode and iPhone UI instructions below
+apply only to the iPhone app. Ownership, privacy and metric-parity rules apply to all.
+
+- Run component checks from their workspace; workflows live in root `.github/`.
+- Preserve existing history. Do not archive the former repositories, rewrite history,
+  change visibility or activate deployments without explicit approval.
+- Self-hosting is operator-managed Docker Compose. Do not bundle a TLS proxy,
+  provision certificates, modify host infrastructure or choose network exposure for
+  the operator. They choose Caddy, Nginx, a VPN or another access arrangement.
+- Public website/docs/demo work is separate from personal installations. Demo data
+  must be synthetic and must never share production credentials or a database.
+
+## iPhone app
 
 A SwiftUI iPhone app for WHOOP 5.0 / MG straps. It owns the Bluetooth link, decodes
 enough of the protocol to drive the strap, and uploads raw frames to a Zoop API server.
@@ -17,7 +33,7 @@ Analysis happens on the server; the app shows live values and sync status.
   code, or copy their fixtures.
 - **Pure Swift.** No Rust bridge, no third-party protocol libraries. The protocol layer
   (`Packages/ZoopProtocol`) mirrors the byte layouts documented in Zoop API's
-  `docs/PROTOCOL.md`; when the two disagree, fix the document first.
+  `server/docs/PROTOCOL.md`; when the two disagree, fix the document first.
 - **Never drop frames.** Every complete frame goes to the local queue before anything
   else. Uploads are batched, retried, and removed only after a matching per-frame stored or duplicate receipt. A 2xx alone is insufficient.
 - **Respect the single bond.** The app uses the OS bond the official WHOOP app created.
@@ -101,7 +117,7 @@ official WHOOP app. Quit the official app before testing.
 
 ## When unsure
 
-Zoop API's `docs/ARCHITECTURE.md`, `docs/PROTOCOL.md` and `docs/ROADMAP.md` are the
+`server/docs/ARCHITECTURE.md`, `server/docs/PROTOCOL.md` and `server/docs/ROADMAP.md` are the
 shared source of truth; this repo follows them.
 
 ## Metric parity

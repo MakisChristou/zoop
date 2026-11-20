@@ -1,6 +1,6 @@
 import { recoveryScoreReading } from "./recovery";
 import { Ring } from "./Ring";
-import { RecoveryRingFace } from "./Recovery";
+import { RecoveryRingFace } from "./RecoveryRing";
 import { layoutFor, type Placement } from "./shareLayout";
 import { useEffect, useState, type FormEvent } from "react";
 import { BySport, TrainingHeatmap, RecentActivities } from "./Training";

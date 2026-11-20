@@ -90,7 +90,7 @@ ci: fmt-check clippy test
 
 # Install git pre-commit hooks.
 hooks-install:
-    pre-commit install
+    cd .. && pre-commit install
 
 # Install dev tooling not already provided by the Rust toolchain.
 install-tools:

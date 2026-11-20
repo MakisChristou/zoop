@@ -3,14 +3,16 @@ repos:
     hooks:
       - id: cargo-fmt
         name: cargo fmt
-        entry: cargo fmt --all --check
+        entry: bash -c 'cd server && cargo fmt --all --check'
         language: system
+        files: ^server/
         pass_filenames: false
         types_or: [rust]
 
       - id: cargo-check
         name: cargo check
-        entry: cargo check --workspace --all-targets --all-features --locked
+        entry: bash -c 'cd server && cargo check --workspace --all-targets --all-features --locked'
         language: system
+        files: ^server/
         pass_filenames: false
         types_or: [rust, toml]

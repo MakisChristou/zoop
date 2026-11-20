@@ -2,13 +2,13 @@
 
 **Your health history, with room to explore.**
 
-A private web dashboard for [Zoop](https://github.com/MakisChristou/zoop).
+A private web dashboard for [Zoop](../README.md).
 Explore sleep, activity, weight and trends on a larger screen, manage your goals,
 and keep everything on your own server.
 
-[iPhone](https://github.com/MakisChristou/zoop) ·
-[API](https://github.com/MakisChristou/zoop-api) ·
-[Web dashboard](https://github.com/MakisChristou/zoop-web)
+[iPhone](../docs/IPHONE_SETUP.md) ·
+[API](../server/README.md) ·
+[Web dashboard](README.md)
 
 ![Today: daily rings, weight and sleep history](docs/screenshots/today.png)
 
@@ -36,14 +36,14 @@ measurement edits happen on iPhone.
 
 ## Run locally
 
-Use Node 24, or enter the included `nix develop` shell. First set up
-[Zoop API](https://github.com/MakisChristou/zoop-api) with private accounts and
+Use Node 24. First set up
+[Zoop API](../server/README.md) with private accounts and
 `web.origin = "http://127.0.0.1:5173"`, then create an account using its
-[account guide](https://github.com/MakisChristou/zoop-api/blob/main/docs/private-web.md).
+[account guide](../server/docs/private-web.md).
 
 ```sh
-git clone https://github.com/MakisChristou/zoop-web.git
-cd zoop-web
+git clone https://github.com/MakisChristou/zoop.git
+cd zoop/web
 npm ci
 ZOOP_API_URL=http://127.0.0.1:8471 npm run dev
 ```
@@ -53,21 +53,13 @@ API upstream; without it, the proxy defaults to port 18471.
 
 ## Self-host
 
-The flake builds the static site and exports a NixOS module:
+`npm run build` produces static files in `dist/`. Serve those files and proxy
+`/v1/` to Zoop API on the same origin. Set the API's `web.origin` to the exact
+browser address. Choose your own reverse proxy or private-network arrangement;
+Zoop does not manage certificates or public exposure.
 
-```nix
-imports = [ inputs.zoop-web.nixosModules.default ];
-services.zoop-web = {
-  enable = true;
-  domain = "health.example.com";
-  apiUrl = "http://127.0.0.1:8471";
-};
-```
-
-Add `github:MakisChristou/zoop-web` to your flake inputs. Configure ACME's email
-and terms, set the API's exact origin to `https://health.example.com`, and keep its
-port private. The module serves the dashboard and proxies `/v1/` on the same HTTPS
-origin. See [deployment and development](docs/DEVELOPMENT.md) for details.
+A complete Docker Compose setup is [planned](../docs/SELF_HOSTING_PLAN.md).
+Current development and integration checks are in the [development guide](docs/DEVELOPMENT.md).
 
 ## How it is built
 
