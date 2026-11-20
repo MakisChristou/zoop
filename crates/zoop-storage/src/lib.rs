@@ -2,6 +2,7 @@
 //! are rebuilt from them whenever the protocol version advances.
 
 mod share_store;
+mod share_widgets;
 pub use share_store::SharedDashboard;
 mod accounts;
 pub use accounts::{Account, AdminSnapshot, LoginAccount};

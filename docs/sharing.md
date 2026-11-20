@@ -1,9 +1,17 @@
 # Shared dashboards
 
-Owners choose one device, explicit metrics and their order. Visitors receive only
-selected daily scalar series: sleep duration, Recovery, Load, filtered steps,
-workout count, weight, HRV and resting heart rate. No raw frames, ECG, workout
-metadata, email or device/account identifiers are returned. Display name and photo
+Owners choose one device, explicit metrics and their order. Visitors receive only selected widgets. Daily series cover: sleep duration, Recovery, Load, filtered steps,
+workout count, weight, HRV and resting heart rate. Three optional activity cards
+reuse the private dashboard presentation:
+
+- **Every day:** daily Load plus per-day, per-sport workout counts and duration totals.
+- **Recent activities:** local date, sport, duration and Load for each workout.
+- **By sport:** workout counts and duration totals grouped by sport.
+
+These cards have separate selection keys; existing links never gain them implicitly.
+Only active, fully derived, completed workouts within the selected range are included.
+No raw frames, ECG, exact workout timestamps, workout IDs, heart-rate summaries,
+email or device/account identifiers are returned. Display name and photo
 are opt-in; empty identity fields disclose nothing.
 
 ## Access
@@ -41,11 +49,14 @@ quality-gated calculation as private insights, from one bounded snapshot includi
 28 prior days. No client derives scores. Missing measurements stay null. Reading
 steps may refresh the existing derived daily cache; it never edits health records.
 
-Limits: 50 dashboards per account, eight distinct allowlisted widgets, 16 KiB request
+Limits: 50 dashboards per account, eleven distinct allowlisted widgets, 16 KiB request
 bodies, four concurrent projections, existing four-slot password hashing bound,
 120 public requests/minute globally and 30/minute per resolved share. Rate-limit
 keys are bounded (one global key and one per existing share), not attacker-supplied.
 A busy public endpoint returns 429 rather than starting unlimited work.
+Recent activities is bounded to 10,000 workouts per year page; larger results request
+a shorter period rather than silently truncating. The other activity cards aggregate
+in the database and do not expose individual workout rows.
 
 ## Verification and rollout
 

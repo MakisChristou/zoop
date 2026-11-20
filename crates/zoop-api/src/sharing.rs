@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use zoop_auth::{digest, hash_password, random_token, verify_password};
 use zoop_storage::SharedDashboard;
-const WIDGETS: [&str; 8] = [
+const WIDGETS: [&str; 11] = [
     "sleep",
     "recovery",
     "load",
@@ -20,6 +20,9 @@ const WIDGETS: [&str; 8] = [
     "weight",
     "hrv",
     "resting_hr",
+    "activity_heatmap",
+    "recent_workouts",
+    "by_sport",
 ];
 const MAX_HISTORY_DAYS: i64 = 365;
 
@@ -84,7 +87,7 @@ fn validate(config: &Config) -> Result<(), ApiError> {
         || config.title.len() > 80
         || config.display_name.len() > 80
         || config.widgets.is_empty()
-        || config.widgets.len() > 8
+        || config.widgets.len() > WIDGETS.len()
         || config
             .widgets
             .iter()
@@ -371,6 +374,35 @@ async fn project(
     let (from, to) = window(config, today, earliest, year)?;
     let mut widgets = Vec::new();
     for key in &config.widgets {
+        match key.as_str() {
+            "activity_heatmap" => {
+                let points = s
+                    .store
+                    .shared_points(
+                        device,
+                        &tz,
+                        from,
+                        to,
+                        "load",
+                        zoop_analytics::WORKOUT_ALGO_VERSION,
+                    )
+                    .await?;
+                let activities = s.store.shared_activity_days(device, &tz, from, to).await?;
+                widgets.push(json!({"key":key,"points":points,"activities":activities}));
+                continue;
+            }
+            "recent_workouts" => {
+                let activities = s.store.shared_activities(device, &tz, from, to).await?;
+                widgets.push(json!({"key":key,"activities":activities}));
+                continue;
+            }
+            "by_sport" => {
+                let sports = s.store.shared_sports(device, &tz, from, to).await?;
+                widgets.push(json!({"key":key,"sports":sports}));
+                continue;
+            }
+            _ => {}
+        }
         let version = if ["sleep", "hrv", "resting_hr"].contains(&key.as_str()) {
             zoop_analytics::ALGO_VERSION
         } else {

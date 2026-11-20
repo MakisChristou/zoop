@@ -458,3 +458,121 @@ async fn defaults_date_windows_and_password_edits_are_enforced_server_side() {
         StatusCode::PAYLOAD_TOO_LARGE
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn rich_widgets_disclose_only_their_selected_fields_and_bounds() {
+    let (db, app, owner, member) = setup().await;
+    db.sql(r#"INSERT INTO workout_sessions(device_id,start_ts,end_ts,kind,detected_kind,metrics) VALUES
+ ('TEST-RELIABILITY','2025-01-02T12:00:00Z','2025-01-02T13:00:00Z','resistance','resistance','{"load":8.5,"avg_hr":123,"kcal":450,"steps":999}'),
+ ('TEST-RELIABILITY','2025-01-02T15:00:00Z','2025-01-02T15:40:00Z','walk','walk','{"load":5.2,"avg_hr":110}'),
+ ('TEST-RELIABILITY','2025-01-02T16:00:00Z','2025-01-02T16:40:00Z','walk','walk','{"load":4.1}'),
+ ('TEST-RELIABILITY','2024-12-31T12:00:00Z','2024-12-31T13:00:00Z','resistance','resistance','{"load":9}'),
+ ('OTHER','2025-01-02T12:00:00Z','2025-01-02T13:00:00Z','walk','walk','{"load":20}');
+ INSERT INTO strains(device_id,day,algo_version,load) VALUES('TEST-RELIABILITY','2025-01-02',1,12);
+ INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name) VALUES('TEST-RELIABILITY','old-weight','2020-01-01T00:00:00Z',70,'health','synthetic');"#).await;
+    for key in [
+        "activity_heatmap",
+        "recent_workouts",
+        "by_sport",
+        "workouts",
+    ] {
+        let mut body = input(json!([key]));
+        body["config"]["range"] = json!("fixed");
+        body["config"]["from"] = json!("2025-01-01");
+        body["config"]["to"] = json!("2025-01-03");
+        let (status, s, _) =
+            req(&app, "POST", "/v1/shares", Some(&owner), None, body.clone()).await;
+        assert_eq!(status, StatusCode::OK, "{s}");
+        let token = s["token"].as_str().unwrap();
+        let (status, data, _) = visit(&app, token, "", Some(2020)).await;
+        assert_eq!(status, StatusCode::OK, "{data}");
+        let w = &data["widgets"][0];
+        assert_eq!(w["key"], key);
+        assert_eq!(data["from"], "2025-01-01");
+        assert_eq!(data["first_year"], 2025);
+        let serialized = data.to_string();
+        for hidden in [
+            "avg_hr",
+            "kcal",
+            "start_ts",
+            "end_ts",
+            "device_id",
+            "detected_kind",
+            "revision",
+            "source_name",
+            "2024-12-31",
+            "old-weight",
+        ] {
+            assert!(
+                !serialized.contains(hidden),
+                "{key} leaks {hidden}: {serialized}"
+            );
+        }
+        match key {
+            "activity_heatmap" => {
+                assert_eq!(w["points"][0]["value"].as_f64(), Some(12.0));
+                let rows = w["activities"].as_array().unwrap();
+                assert_eq!(rows.len(), 2);
+                let walk = rows.iter().find(|r| r["kind"] == "walk").unwrap();
+                assert_eq!(walk["count"], 2);
+                assert_eq!(walk["duration_s"], 4800);
+                assert!(walk.get("load").is_none());
+                assert!(walk.get("id").is_none());
+            }
+            "recent_workouts" => {
+                let rows = w["activities"].as_array().unwrap();
+                assert_eq!(rows.len(), 3);
+                assert_eq!(rows[0]["kind"], "walk");
+                assert_eq!(rows[2]["duration_s"], 3600);
+                assert_eq!(rows[2]["load"].as_f64(), Some(8.5));
+                assert!(w.get("sports").is_none());
+                assert!(rows[0].get("id").is_none());
+            }
+            "by_sport" => {
+                assert_eq!(
+                    w["sports"],
+                    json!([{"kind":"walk","seconds":4800,"count":2},{"kind":"resistance","seconds":3600,"count":1}])
+                );
+                assert!(w.get("activities").is_none());
+                assert!(w.get("points").is_none());
+            }
+            _ => {
+                assert_eq!(w["points"][0]["value"], 3);
+                assert!(w.get("activities").is_none());
+            }
+        }
+        assert_eq!(
+            req(
+                &app,
+                "POST",
+                "/v1/shares/preview",
+                Some(&member),
+                None,
+                json!({"device_id":support::DEVICE,"config":body["config"]})
+            )
+            .await
+            .0,
+            StatusCode::NOT_FOUND
+        );
+    }
+    db.sql("UPDATE workout_sessions SET metrics_pending=true WHERE kind='resistance'; UPDATE workout_sessions SET status='removed' WHERE start_ts='2025-01-02T16:00:00Z' AND device_id='TEST-RELIABILITY'").await;
+    let rows = db
+        .store
+        .shared_activities(
+            support::DEVICE,
+            "UTC",
+            support::day("2025-01-01"),
+            support::day("2025-01-03"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["kind"], "walk");
+    let earliest = db
+        .store
+        .shared_earliest(support::DEVICE, "UTC", &["by_sport".into()])
+        .await
+        .unwrap();
+    assert_eq!(earliest, Some(support::day("2024-12-31")));
+}
