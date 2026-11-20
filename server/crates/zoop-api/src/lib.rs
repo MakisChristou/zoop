@@ -16,6 +16,7 @@ mod profile;
 mod profile_photo;
 mod progress;
 mod query;
+mod setup;
 mod sharing;
 mod sleep_sessions;
 mod sleeps;
@@ -170,6 +171,11 @@ pub fn build_router(state: AppState) -> Router {
                 )
                 .route("/v1/public/dashboard", post(sharing::visit))
                 .layer(axum::extract::DefaultBodyLimit::max(16 * 1024)),
+        )
+        .merge(
+            Router::new()
+                .route("/v1/setup", get(setup::status).post(setup::complete))
+                .layer(axum::extract::DefaultBodyLimit::max(4096)),
         )
         .route("/v1/auth/login", post(web::login))
         .route("/v1/auth/native/login", post(web::native_login))

@@ -84,7 +84,7 @@ pub(crate) async fn me(
         _ => return Err(ApiError::Forbidden),
     };
     Ok(Json(
-        json!({"account":a,"devices":s.store.account_devices(a.id).await?}),
+        json!({"account":a,"devices":s.store.account_devices(a.id).await?,"pending_devices":s.store.pending_account_devices(a.id).await?}),
     ))
 }
 pub(crate) async fn admin(

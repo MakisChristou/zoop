@@ -139,9 +139,12 @@ function PrivateApp() {
         connectionError={error}
       />
     );
-  const selected = identity.devices.includes(device)
+  const availableDevices = identity.devices.filter(
+    (d) => !identity.pending_devices?.includes(d),
+  );
+  const selected = availableDevices.includes(device)
     ? device
-    : identity.devices[0];
+    : availableDevices[0];
   return (
     <div className="shell">
       <a className="skip" href="#content">
@@ -183,10 +186,17 @@ function PrivateApp() {
             <Empty>No access to this page.</Empty>
           )
         ) : !selected ? (
-          <Empty>
-            No device linked yet. Ask your server administrator to link your
-            strap.
-          </Empty>
+          <section className="panel onboarding">
+            <h1>Connect your iPhone</h1>
+            <p>
+              {identity.pending_devices?.length
+                ? "Your band is linked. Open Zoop on your iPhone to upload its first recordings."
+                : "Link your band from the server, then sign in on your iPhone."}
+            </p>
+            <button onClick={() => location.reload()}>
+              Check for recordings
+            </button>
+          </section>
         ) : page === "Shares" ? (
           <Sharing
             key={identity.account.id + ":" + selected}
@@ -198,14 +208,14 @@ function PrivateApp() {
             page={page}
             device={selected}
             picker={
-              identity.devices.length > 1 ? (
+              availableDevices.length > 1 ? (
                 <label className="device-picker">
                   Device
                   <select
                     value={selected}
                     onChange={(e) => setDevice(e.target.value)}
                   >
-                    {identity.devices.map((d) => (
+                    {availableDevices.map((d) => (
                       <option key={d}>{d}</option>
                     ))}
                   </select>
@@ -227,12 +237,36 @@ function Login({
 }) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [setup, setSetup] = useState<boolean | null>(null);
+  const [checkError, setCheckError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const c = new AbortController();
+    setCheckError(false);
+    api<{ available: boolean }>("/v1/setup", c.signal)
+      .then((status) => setSetup(status.available === true))
+      .catch((e) => {
+        if (c.signal.aborted) return;
+        if (e.status === 404) setSetup(false);
+        else setCheckError(true);
+      });
+    return () => c.abort();
+  }, [attempt]);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fields = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
     try {
+      if (setup) {
+        await api("/v1/setup", undefined, {
+          code: fields.get("code"),
+          email: fields.get("email"),
+          password: fields.get("password"),
+          device: fields.get("device") || null,
+        });
+        setSetup(false);
+      }
       await api("/v1/auth/login", undefined, {
         email: fields.get("email"),
         password: fields.get("password"),
@@ -250,8 +284,34 @@ function Login({
         <span className="brand">zoop</span>
       </header>
       <main className="login">
-        <h1>Sign in to Zoop</h1>
+        <h1>{setup ? "Set up Zoop" : "Sign in to Zoop"}</h1>
+        {setup === null && !checkError && (
+          <LoadingBar label="Checking server" />
+        )}
+        {checkError && (
+          <p className="error" role="alert">
+            Couldn’t check this server.{" "}
+            <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+              Retry
+            </button>
+          </p>
+        )}
         <form onSubmit={submit}>
+          {setup && (
+            <div>
+              <label htmlFor="setup-code">Setup code</label>
+              <input
+                id="setup-code"
+                name="code"
+                type="password"
+                autoComplete="off"
+                required
+                maxLength={256}
+                aria-describedby="setup-code-help"
+              />
+              <p id="setup-code-help">From the server’s setup command.</p>
+            </div>
+          )}
           <label>
             Email
             <input
@@ -267,24 +327,53 @@ function Login({
             <input
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete={setup ? "new-password" : "current-password"}
+              minLength={setup ? 12 : undefined}
               required
               maxLength={256}
             />
           </label>
+          {setup && (
+            <details>
+              <summary>Connect a band (optional)</summary>
+              <label>
+                Strap serial
+                <input name="device" autoComplete="off" maxLength={128} />
+              </label>
+              <p>You can assign a band later from the server.</p>
+            </details>
+          )}
           {(error || connectionError) && (
             <p className="error" role="alert">
               {error || connectionError}
             </p>
           )}
-          <button className="primary" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+          <button
+            className="primary"
+            disabled={busy || setup === null || checkError}
+          >
+            {busy
+              ? setup
+                ? "Creating account…"
+                : "Signing in…"
+              : setup
+                ? "Create admin account"
+                : "Sign in"}
           </button>
         </form>
-        <details>
-          <summary>Need access?</summary>
-          <p>Ask your server administrator for an account or password reset.</p>
-        </details>
+        {!setup && (
+          <details>
+            <summary>Need access?</summary>
+            <p>
+              Ask your server administrator for an account or password reset.
+            </p>
+          </details>
+        )}
+        {location.protocol === "http:" && (
+          <p className="muted">
+            HTTP connection · Use a trusted network or VPN.
+          </p>
+        )}
       </main>
     </div>
   );

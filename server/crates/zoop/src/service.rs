@@ -28,7 +28,8 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
             store
                 .private_accounts_ready()
                 .await
-                .context("checking private-account readiness")?,
+                .context("checking private-account readiness")?
+                || (config.web.setup_token.is_some() && store.setup_available().await?),
             "Private accounts require an enabled admin and an owner for every existing device. Provision accounts and bind devices before enabling web access."
         );
     }
@@ -52,6 +53,9 @@ pub(crate) async fn run(config: Config) -> anyhow::Result<()> {
             origin: config.web.origin.clone(),
             secure_cookie: config.web.origin.starts_with("https://"),
         });
+    }
+    if let Some(token) = config.web.setup_token {
+        state = state.with_setup_token(token);
     }
     let app = zoop_api::build_router(state);
     let listener = TcpListener::bind(&config.server_config.bind)

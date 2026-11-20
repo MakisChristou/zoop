@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known synthetic hex token in configuration unit tests, including pre-rename history"
+condition = "AND"
+paths = ['''(^|/)crates/(snoop|zoop)-config/src/tests\.rs$''']
+regexTarget = "secret"
+regexes = ['''^0123456789abcdef0123456789abcdef$''']

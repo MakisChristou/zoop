@@ -7,6 +7,7 @@ use zoop_config::Config;
 mod accounts;
 mod cli;
 mod commands;
+mod healthcheck;
 mod service;
 
 use cli::{Cli, Command};
@@ -24,6 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command.unwrap_or(Command::Run) {
         Command::Account { action } => accounts::run(&config, action).await,
+        Command::Healthcheck => healthcheck::run(&config).await,
         Command::Run => service::run(config).await,
         Command::Validate => commands::validate(&config),
         Command::Migrate => commands::migrate(&config.storage_config).await,

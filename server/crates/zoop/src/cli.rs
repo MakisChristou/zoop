@@ -16,6 +16,8 @@ pub(crate) struct Cli {
 pub(crate) enum Command {
     /// Run the API server and the decode worker (default).
     Run,
+    /// Probe local API and worker readiness for container health checks.
+    Healthcheck,
     /// Provision or recover a private account (operator-only, no public registration).
     Account {
         #[command(subcommand)]
@@ -52,6 +54,7 @@ pub(crate) enum AccountCommand {
         #[arg(long)]
         email: String,
         #[arg(long)]
+        /// Protected file, or - to read the password from standard input.
         password_file: PathBuf,
         #[arg(long)]
         admin: bool,
@@ -75,6 +78,7 @@ pub(crate) enum AccountCommand {
         #[arg(long)]
         email: String,
         #[arg(long)]
+        /// Protected file, or - to read the password from standard input.
         password_file: PathBuf,
     },
     /// Disable all account access and revoke tokens and sessions.

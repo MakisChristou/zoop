@@ -7,3 +7,29 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /server
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      rust:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      web:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /web
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /server/crates/zoop
+    schedule:
+      interval: weekly

@@ -1,0 +1,87 @@
+name: zoop
+
+x-api: &api
+  image: zoop-api:local
+  build:
+    context: server
+    dockerfile: crates/zoop/Dockerfile
+  environment:
+    ZOOP_STORAGE__POSTGRES_URL: postgres://zoop:${ZOOP_DB_PASSWORD:?Run tools/setup.sh first}@database:5432/zoop
+    ZOOP_SERVER__INGEST_TOKEN: ${ZOOP_INGEST_TOKEN:?Run tools/setup.sh first}
+    ZOOP_WEB__ORIGIN: ${ZOOP_ORIGIN:?Set the exact browser origin}
+    ZOOP_WEB__SETUP_TOKEN: ${ZOOP_SETUP_CODE:?Run tools/setup.sh first}
+  volumes:
+    - ./deploy/zoop.toml:/etc/zoop/zoop.toml:ro
+  networks: [private]
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+services:
+  database:
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_USER: zoop
+      POSTGRES_DB: zoop
+      POSTGRES_PASSWORD: ${ZOOP_DB_PASSWORD:?Run tools/setup.sh first}
+    volumes:
+      - database:/var/lib/postgresql
+    networks: [private]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U zoop -d zoop']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    <<: *api
+    command: [migrate, --config, /etc/zoop/zoop.toml]
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *api
+    command: [run, --config, /etc/zoop/zoop.toml]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD, /usr/local/bin/zoop, healthcheck, --config, /etc/zoop/zoop.toml]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+
+  web:
+    image: zoop-web:local
+    build:
+      context: web
+    ports:
+      - '${ZOOP_BIND:-127.0.0.1}:${ZOOP_PORT:-8080}:8080'
+    networks: [default, private]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  database:
+
+networks:
+  private:
+    internal: true

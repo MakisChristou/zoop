@@ -8,7 +8,7 @@ Zoop collects recordings from your WHOOP and keeps them on your own server.
 Explore sleep, recovery, activity and weight through the iPhone app and web dashboard.
 Keep the original data, export it, and rerun analysis as the software improves.
 
-[iPhone setup](docs/IPHONE_SETUP.md) · [Server](server/README.md) ·
+[Self-hosting](docs/SELF_HOSTING.md) · [iPhone setup](docs/IPHONE_SETUP.md) ·
 [Web dashboard](web/README.md) · [Contributing](CONTRIBUTING.md)
 
 <p align="center">
@@ -30,17 +30,24 @@ Keep the original data, export it, and rerun analysis as the software improves.
 
 ## Get started
 
-You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a server with PostgreSQL.
+You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a server running Docker Compose.
 The server is required; the phone keeps an upload queue during connection outages.
 
-1. Set up the [server and accounts](server/README.md).
-2. Run the [web dashboard](web/README.md).
-3. Build and connect the [iPhone app](docs/IPHONE_SETUP.md).
+```sh
+git clone https://github.com/MakisChristou/zoop.git
+cd zoop
+./tools/setup.sh
+docker compose up -d --build --wait
+./tools/setup.sh --show-code
+```
 
-**Developer preview.** Installation currently requires developer tools, including
-Xcode and an Apple development team with HealthKit signing support. There is no
-App Store release yet. The included Compose file starts a development database;
-a complete Compose installation is [planned](docs/SELF_HOSTING_PLAN.md).
+Open **http://localhost:8080** and create your admin account using the setup code.
+Then connect the [iPhone app](docs/IPHONE_SETUP.md). See [self-hosting](docs/SELF_HOSTING.md)
+for LAN access, accounts, backups and updates. Choose your own proxy or VPN.
+
+**Developer preview.** The server builds from source. The iPhone app currently
+requires Xcode and an Apple development team with HealthKit signing support.
+An App Store release is planned; [pre-launch checks](docs/APP_STORE.md) remain.
 
 ## How it works
 

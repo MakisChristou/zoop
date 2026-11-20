@@ -72,6 +72,9 @@ const fn default_history_enabled() -> bool {
 /// Private-account browser access is disabled until an explicit migration rollout.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct WebConfig {
+    /// Optional high-entropy operator code; setup is disabled once accounts exist.
+    #[serde(default)]
+    pub setup_token: Option<SecretString>,
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]

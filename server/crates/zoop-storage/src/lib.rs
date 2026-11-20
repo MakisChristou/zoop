@@ -5,6 +5,7 @@ mod share_store;
 mod share_widgets;
 pub use share_store::SharedDashboard;
 mod accounts;
+mod setup;
 pub use accounts::{Account, AdminSnapshot, LoginAccount};
 mod analysis_store;
 mod day_store;

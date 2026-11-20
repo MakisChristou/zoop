@@ -5,6 +5,7 @@ use zoop_storage::PostgresStore;
 
 #[derive(Clone, Debug)]
 pub struct AppState {
+    pub(crate) setup_token: Option<Arc<SecretString>>,
     pub(crate) web: Option<crate::web::WebOptions>,
     pub(crate) telemetry: Arc<crate::telemetry::Telemetry>,
     pub(crate) share_slots: Arc<tokio::sync::Semaphore>,
@@ -19,9 +20,15 @@ impl AppState {
         self.web = Some(options);
         self
     }
+    /// Enable first-admin setup with a high-entropy operator code.
+    pub fn with_setup_token(mut self, token: SecretString) -> Self {
+        self.setup_token = Some(Arc::new(token));
+        self
+    }
     pub fn new(store: PostgresStore, ingest_token: SecretString) -> Self {
         Self {
             web: None,
+            setup_token: None,
             telemetry: Arc::default(),
             share_slots: Arc::new(tokio::sync::Semaphore::new(4)),
             password_slots: Arc::new(tokio::sync::Semaphore::new(4)),

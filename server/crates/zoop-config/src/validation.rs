@@ -35,8 +35,7 @@ impl Config {
         let mut issues = Vec::new();
         if self.web.enabled {
             let valid = url::Url::parse(&self.web.origin).is_ok_and(|u| {
-                let local = matches!(u.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
-                (u.scheme() == "https" || (u.scheme() == "http" && local))
+                matches!(u.scheme(), "https" | "http")
                     && u.host_str().is_some()
                     && u.username().is_empty()
                     && u.password().is_none()
@@ -46,8 +45,16 @@ impl Config {
                     && !self.web.origin.ends_with('/')
             });
             if !valid {
-                issues.push(ValidationIssue{level:IssueLevel::Error,message:"web.origin must be an HTTPS origin without path; HTTP is allowed only on loopback for development".into()});
+                issues.push(ValidationIssue{level:IssueLevel::Error,message:"web.origin must be an HTTP or HTTPS origin without path, credentials, query or fragment".into()});
             }
+        }
+        if self.web.setup_token.as_ref().is_some_and(|token| {
+            !self.web.enabled || !(32..=256).contains(&token.expose_secret().len())
+        }) {
+            issues.push(ValidationIssue {
+                level: IssueLevel::Error,
+                message: "web.setup_token requires private accounts and 32–256 bytes".into(),
+            });
         }
         let token = self.server_config.ingest_token.expose_secret();
 

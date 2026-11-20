@@ -1,0 +1,39 @@
+name: Compose installation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: zoop-test-ci
+      ZOOP_PORT: '18080'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check configuration generation
+        run: python3 tools/test-setup.py
+      - name: Generate disposable credentials
+        run: ./tools/setup.sh http://127.0.0.1:18080
+      - name: Build and start
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: Test setup, isolation, restart and restore
+        run: python3 tools/test-compose.py
+      - name: Stop disposable stack
+        if: always()
+        run: |
+          docker compose down -v
+          docker compose -p zoop-test-ci-restore down -v

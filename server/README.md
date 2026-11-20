@@ -46,8 +46,8 @@ its volume. The example credentials are for development only.
 
 ## Self-hosting
 
-The complete Compose installation is [planned](../docs/SELF_HOSTING_PLAN.md).
-The current `docker-compose.yml` starts only the development database.
+Use the root [Docker Compose installation](../docs/SELF_HOSTING.md) for the full
+stack. This directory's `docker-compose.yml` starts only a development database.
 
 For the current manual setup, build the Rust binary, provide PostgreSQL and a TOML
 configuration, then follow the [operations reference](docs/OPERATIONS.md) and

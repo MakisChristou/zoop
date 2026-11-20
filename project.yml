@@ -55,6 +55,9 @@ targets:
         UILaunchScreen: {}
         NSHealthShareUsageDescription: "Imports weight measurements into Zoop and your Zoop server, and checks for existing weigh-ins."
         NSHealthUpdateUsageDescription: "Shares sleep, workouts, optional steps and weigh-ins recorded in Zoop with Apple Health."
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: "Connects to the Zoop server you choose on your local network."
         NSBluetoothAlwaysUsageDescription: "Connects to your WHOOP strap to read heart-rate and sensor data."
         UIBackgroundModes: [bluetooth-central]
         UIApplicationSceneManifest:

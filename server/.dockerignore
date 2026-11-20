@@ -12,3 +12,7 @@
 !migrations/**
 !tests/
 !tests/**
+
+# Ignore macOS metadata even inside allowlisted source directories.
+**/._*
+**/.DS_Store

@@ -22,8 +22,11 @@ cp Config/Local.xcconfig.example Config/Local.xcconfig
    ```
 
 3. Select the **Zoop** scheme and your iPhone, then Run.
-4. Enter your server's HTTPS URL and sign in with an account created by its administrator.
+4. Enter your server's HTTP or HTTPS URL and sign in with an account created by its administrator.
 
 Pair the strap in the official WHOOP app first, then quit that app before connecting
 with Zoop. Keep the existing Bluetooth bond. A simulator can preview the interface,
 but cannot collect strap data.
+
+For HTTP, use a trusted LAN or VPN and allow local-network access when iOS asks.
+See [server setup](SELF_HOSTING.md) for addresses and device ownership.

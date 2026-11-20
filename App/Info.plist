@@ -20,12 +20,19 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Connects to your WHOOP strap to read heart-rate and sensor data.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Imports weight measurements into Zoop and your Zoop server, and checks for existing weigh-ins.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Shares sleep, workouts, optional steps and weigh-ins recorded in Zoop with Apple Health.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connects to the Zoop server you choose on your local network.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Geist-Regular.otf</string>

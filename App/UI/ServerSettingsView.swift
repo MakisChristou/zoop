@@ -40,6 +40,9 @@ struct ServerSignInSection: View {
                 Button("Sign in") { perform { try await ServerSignIn.signIn(server: server, email: email, password: password); password = ""; replacingLegacy = false } }
                     .disabled(server.isEmpty || email.isEmpty || password.isEmpty)
             }
+            if server.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http://") {
+                Text("HTTP connection · Use a trusted network or VPN.").font(.footnote).foregroundStyle(ZoopStyle.secondary)
+            }
             if busy { ProgressView().accessibilityLabel("Connecting") }
             if let error { Text(error).foregroundStyle(.red) }
         }

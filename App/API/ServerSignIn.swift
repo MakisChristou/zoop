@@ -8,7 +8,7 @@ enum ServerSignIn {
         case address, rejected, unavailable, changed
         var errorDescription: String? {
             switch self {
-            case .address: "Use an HTTPS server address."
+            case .address: "Use an HTTP or HTTPS server address."
             case .rejected: "Email or password wasn’t accepted."
             case .unavailable: "Couldn’t sign in. Check your server and try again."
             case .changed: "Server connection changed. Try again."
@@ -20,7 +20,7 @@ enum ServerSignIn {
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil,
               url.query == nil, url.fragment == nil,
               url.path.isEmpty || url.path == "/",
-              url.scheme == "https" || (url.scheme == "http" && ["127.0.0.1", "localhost", "[::1]"].contains(host))
+              url.scheme == "https" || url.scheme == "http"
         else { throw Failure.address }
         return url
     }

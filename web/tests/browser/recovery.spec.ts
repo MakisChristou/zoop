@@ -27,7 +27,9 @@ async function fixture(page: Page) {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
     let status = 200;
-    if (path.endsWith("/login")) {
+    if (path === "/v1/setup") {
+      body = { available: false };
+    } else if (path.endsWith("/login")) {
       logged = true;
       body = { id: 1 };
     } else if (!logged) {

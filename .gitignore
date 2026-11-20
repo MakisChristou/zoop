@@ -14,3 +14,7 @@ Config/Local.xcconfig
 
 # Legacy generated project, retained for existing working directories
 Snoop.xcodeproj/
+
+# Self-hosted installation secrets and local backups
+/.env
+/backups/

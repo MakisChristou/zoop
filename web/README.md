@@ -58,7 +58,8 @@ API upstream; without it, the proxy defaults to port 18471.
 browser address. Choose your own reverse proxy or private-network arrangement;
 Zoop does not manage certificates or public exposure.
 
-A complete Docker Compose setup is [planned](../docs/SELF_HOSTING_PLAN.md).
+The [Docker Compose installation](../docs/SELF_HOSTING.md) runs the dashboard, API
+and PostgreSQL together, with first-admin setup in the browser.
 Current development and integration checks are in the [development guide](docs/DEVELOPMENT.md).
 
 ## How it is built

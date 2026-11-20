@@ -4,6 +4,15 @@ use anyhow::{Context, ensure};
 use secrecy::ExposeSecret;
 use zoop_storage::PostgresStore;
 fn secret(path: &std::path::Path) -> anyhow::Result<String> {
+    if path == std::path::Path::new("-") {
+        use std::io::Read;
+        let mut text = String::new();
+        std::io::stdin()
+            .take(513)
+            .read_to_string(&mut text)
+            .context("reading credential from standard input")?;
+        return Ok(text.trim_end_matches(['\n', '\r']).to_owned());
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

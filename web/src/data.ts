@@ -6,6 +6,7 @@ export interface Account {
 export interface Identity {
   account: Account;
   devices: string[];
+  pending_devices?: string[];
 }
 export interface Day {
   day: string;

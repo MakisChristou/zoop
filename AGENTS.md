@@ -18,6 +18,10 @@ apply only to the iPhone app. Ownership, privacy and metric-parity rules apply t
   the operator. They choose Caddy, Nginx, a VPN or another access arrangement.
 - Public website/docs/demo work is separate from personal installations. Demo data
   must be synthetic and must never share production credentials or a database.
+- App Store distribution is part of the launch plan. Complete `docs/APP_STORE.md`
+  before public launch; submitting a build still requires separate approval.
+- Installation changes must pass the disposable Compose setup/isolation/restart/
+  restore test in `tools/test-compose.py`. Never run it against personal data.
 
 ## iPhone app
 

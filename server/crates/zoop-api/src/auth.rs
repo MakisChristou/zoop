@@ -135,7 +135,7 @@ pub(crate) async fn require_bearer(
 }
 
 /// Length-independent comparison so timing does not leak how many bytes matched.
-fn constant_time_eq(a: &str, b: &str) -> bool {
+pub(crate) fn constant_time_eq(a: &str, b: &str) -> bool {
     let a = a.as_bytes();
     let b = b.as_bytes();
     let mut diff = u8::from(a.len() != b.len());

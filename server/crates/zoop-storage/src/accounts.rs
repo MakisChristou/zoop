@@ -115,6 +115,13 @@ impl PostgresStore {
         .await
         .map_err(fail)
     }
+    /// List owned reservations that have not received a device upload yet.
+    /// # Errors
+    /// Database failure.
+    pub async fn pending_account_devices(&self, id: i64) -> StorageResult<Vec<String>> {
+        sqlx::query_scalar("SELECT o.device_id FROM device_owners o LEFT JOIN devices d ON d.id=o.device_id WHERE o.account_id=$1 AND d.id IS NULL ORDER BY o.device_id")
+            .bind(id).fetch_all(self.pool()).await.map_err(fail)
+    }
     /// Persist a hashed iPhone credential, including an explicitly imported legacy token.
     /// # Errors
     /// Unknown account, duplicate token or database failure.

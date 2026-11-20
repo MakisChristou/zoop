@@ -78,10 +78,12 @@ final class CredentialStoreTests: XCTestCase {
         XCTAssertEqual(Settings.healthScope(device: "A", credential: rotated), Settings.healthScope(device: "A", credential: legacy))
     }
     func testLoginRejectsUnsafeOrAmbiguousServerURLs() throws {
-        for url in ["http://public.example", "https://user:password@example.test", "https://example.test/path", "https://example.test?x=1", "file:///tmp/a", "https://example.test#fragment"] {
+        for url in ["https://user:password@example.test", "https://example.test/path", "https://example.test?x=1", "file:///tmp/a", "https://example.test#fragment"] {
             XCTAssertThrowsError(try ServerSignIn.address(url), url)
         }
         XCTAssertNoThrow(try ServerSignIn.address("https://server.example"))
-        XCTAssertNoThrow(try ServerSignIn.address("http://127.0.0.1:18471"))
+        for url in ["http://127.0.0.1:18471", "http://192.168.1.10:8080", "http://zoop.local:8080", "http://[fd00::1]:8080", "http://server.example:8080"] {
+            XCTAssertNoThrow(try ServerSignIn.address(url))
+        }
     }
 }

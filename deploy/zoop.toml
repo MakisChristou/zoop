@@ -1,0 +1,6 @@
+# Credentials and the operator's browser origin are provided by Compose.
+[server]
+bind = "0.0.0.0:8471"
+[storage]
+[web]
+enabled = true

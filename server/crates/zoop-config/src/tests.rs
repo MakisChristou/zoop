@@ -45,12 +45,15 @@ postgres_url = "mysql://nope"
 }
 
 #[test]
-fn web_origin_requires_https_except_loopback() {
+fn web_origin_accepts_operator_http_and_https_origins() {
     for (origin, valid) in [
         ("https://zoop.example", true),
         ("http://127.0.0.1:5173", true),
         ("http://localhost:5173", true),
-        ("http://public.example", false),
+        ("http://public.example", true),
+        ("http://192.168.1.10:8080", true),
+        ("http://[fd00::1]:8080", true),
+        ("file:///tmp/zoop", false),
         ("https://zoop.example/path", false),
         ("https://zoop.example/", false),
         ("https://user:secret@zoop.example", false),

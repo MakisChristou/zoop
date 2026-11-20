@@ -18,7 +18,9 @@ async function fixture(
     let body: unknown = null;
     let status = 200;
     if (r.method() !== "GET") writes.push(path);
-    if (path.endsWith("/login")) {
+    if (path === "/v1/setup") {
+      body = { available: false };
+    } else if (path.endsWith("/login")) {
       logged = true;
       body = { id: 1 };
     } else if (path.endsWith("/logout")) {
