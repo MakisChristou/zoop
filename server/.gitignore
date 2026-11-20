@@ -1,0 +1,14 @@
+/target
+/refs/
+/captures/
+*.toml.local
+.DS_Store
+/.pgdata/
+/.direnv/
+/zoop.toml
+/result
+
+# Existing private configuration
+/snoop.toml
+
+.pgdata-web/

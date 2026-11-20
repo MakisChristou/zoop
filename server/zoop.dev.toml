@@ -1,0 +1,15 @@
+# Development configuration. Copy to zoop.toml and set a real token for anything
+# beyond local testing. `just pg-start` then `just run`.
+
+[server]
+bind = "127.0.0.1:8471"
+# Bearer token the iOS app sends on every request. DEV ONLY value; validation WARNs.
+ingest_token = "dev-token-change-me"
+
+[storage]
+postgres_url = "postgres://zoop:zoop@localhost:5433/zoop"
+
+[worker]
+# How often the decode loop looks for pending raw frames when idle.
+poll_interval_ms = 5000
+batch_size = 500

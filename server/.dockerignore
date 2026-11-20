@@ -1,0 +1,14 @@
+# Build context is an allowlist: never send local databases, captures, tokens or Git history.
+**
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!rustfmt.toml
+!LICENSE
+!README.md
+!crates/
+!crates/**
+!migrations/
+!migrations/**
+!tests/
+!tests/**
