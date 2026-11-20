@@ -46,7 +46,10 @@ struct TodayView: View {
                         }
                     }
                     if !selectedWorkouts.isEmpty { sessions.padding(.top, 8) }
-                    if isViewingToday { WeightCheckIn().padding(.bottom, 12) }
+                    if isViewingToday {
+                        sectionHeading("Weight").padding(.top, 8)
+                        WeightCheckIn().padding(.bottom, 12)
+                    }
                     if !currentMinutes.isEmpty {
                         sectionHeading("Daily timeline").padding(.top, 14)
                         DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? now : nil,
