@@ -1,9 +1,9 @@
 import XCTest
 
 @MainActor final class TodayHealthTilesTests: XCTestCase {
-    private func open(large: Bool = false, empty: Bool = false) -> XCUIApplication {
+    private func open(large: Bool = false, empty: Bool = false, device: String = "INSIGHT-REVIEW") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", empty ? "RINGS-EMPTY" : "INSIGHT-REVIEW", "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "",
+        app.launchArguments = ["-demoSerial", empty ? "RINGS-EMPTY" : device, "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "",
                                "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
         let tile = app.buttons["todayHealth-hrv"]
@@ -45,6 +45,15 @@ import XCTest
         XCTAssertTrue(temperature.isHittable)
         XCTAssertLessThanOrEqual(temperature.frame.maxX, app.frame.maxX)
         shot(app, "Health tiles large text lower readings")
+    }
+    func testNightlyCardiacReadingsSurviveUnavailableOutlook() {
+        // This scope deliberately returns an insights error but valid nightly measurements.
+        let app = open(device: "SLEEP-COMPARISON")
+        let hrv = app.buttons["todayHealth-hrv"], rhr = app.buttons["todayHealth-restingHR"]
+        XCTAssertTrue(hrv.label.contains("75 ms"))
+        XCTAssertTrue(rhr.label.contains("55 bpm"))
+        XCTAssertFalse(hrv.label.contains("+18%"))
+        shot(app, "Nightly HRV and resting HR without outlook")
     }
     func testMissingReadingsStayMissing() {
         let app = open(empty: true)

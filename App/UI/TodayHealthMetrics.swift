@@ -68,17 +68,16 @@ struct TodayHealthMetrics: View {
         }
     }
 
-    private func insight(_ kind: Kind) -> MorningInsights.Metric? {
-        guard insights?.state == "ready" else { return nil }
-        let key = kind == .hrv ? "hrv" : "resting_hr"
-        return insights?.metrics.first { $0.key == key }
+    private func cardiac(_ kind: Kind) -> TodayCardiacReading {
+        TodayCardiacReading(key: kind == .hrv ? "hrv" : "resting_hr",
+                            insights: insights, physiology: physiology)
     }
 
     private func reading(_ kind: Kind) -> Double? {
         let value: Double?
         switch kind {
         // Keep the same server metric definitions and comparisons as Outlook.
-        case .hrv, .restingHR: value = insight(kind)?.value
+        case .hrv, .restingHR: value = cardiac(kind).value
         case .breathing: value = physiology?.respiratoryRate
         case .oxygen: value = (physiology?.spo2Windows ?? 0) > 0 ? physiology?.spo2Pct : nil
         case .temperature: value = physiology?.skinTempC
@@ -89,7 +88,7 @@ struct TodayHealthMetrics: View {
 
     private func tile(_ kind: Kind) -> some View {
         let value = reading(kind)
-        let metric = kind == .hrv || kind == .restingHR ? insight(kind) : nil
+        let metric = kind == .hrv || kind == .restingHR ? cardiac(kind).metric : nil
         let delta = value == nil ? nil : metric?.visibleDelta
         let decimals = kind == .breathing || kind == .temperature ? 1 : 0
         return VStack(alignment: .leading, spacing: 10) {
