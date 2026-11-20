@@ -14,6 +14,7 @@
   --blue: #479eea;
   --sleep: #8194dc;
   --green: #49cf88;
+  --yellow: #f0c55b;
   --red: #f16c79;
 }
 * {
@@ -1829,4 +1830,77 @@ th:last-child {
   .sleep-grid .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.recovery-ring {
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.recovery-refresh {
+  margin-inline-start: 5px;
+  vertical-align: middle;
+}
+.recovery-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+.recovery-score {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.recovery-score strong {
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+}
+.recovery-metrics {
+  margin: 0;
+}
+.recovery-metrics > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.recovery-metrics dt,
+.recovery-metrics small,
+.recovery-influence > span {
+  color: var(--muted);
+}
+.recovery-metrics dd {
+  margin: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.recovery-metrics small {
+  font-size: 12px;
+}
+.recovery-influence {
+  display: grid;
+  gap: 4px;
+  margin: 20px 0;
+}
+.recovery-about {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.recovery-about summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.recovery-about p {
+  margin: 0 0 8px;
 }

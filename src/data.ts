@@ -113,7 +113,26 @@ export interface Goal {
     };
   };
 }
+export interface Recovery {
+  version: number;
+  method: string;
+  state: string;
+  score: number | null;
+  baseline_count: number;
+  recent_count: number;
+  reference_seconds: number;
+  components: {
+    hrv: number;
+    resting_hr: number;
+    last_sleep: number;
+    recent_sleep: number;
+  } | null;
+  limiting: string[];
+  conflict: boolean;
+  band: "low" | "moderate" | "high" | null;
+}
 export interface Insights {
+  recovery?: Recovery | null;
   state: string;
   outlook: { state: string };
   metrics: {

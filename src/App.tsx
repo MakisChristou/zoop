@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -31,6 +37,8 @@ import { AccountMenu } from "./AccountMenu";
 import { Chart } from "./Chart";
 import { SleepTimeline } from "./SleepTimeline";
 import { GoalView } from "./Goals";
+import { recoveryPending } from "./recovery";
+import { RecoveryRing } from "./Recovery";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
 import { BySport, TrainingHeatmap, SportIcon } from "./Training";
@@ -480,12 +488,56 @@ function Dashboard({
   const tz = data?.tz ?? "UTC",
     today = dayKey(new Date(), tz),
     date = selected || today;
+  const [insightRefresh, setInsightRefresh] = useState(0);
+  const insightPoll = useRef({ key: "", count: 0 });
   const insights = useRead<Insights>(
     data
       ? endpoint(device, `days/${date}/insights?tz=${encodeURIComponent(tz)}`)
       : null,
-    refresh,
+    refresh + insightRefresh,
   );
+  useEffect(() => {
+    const key = `${device}:${date}:${tz}:${refresh}`;
+    if (insightPoll.current.key !== key)
+      insightPoll.current = { key, count: 0 };
+    if (
+      page !== "Today" ||
+      insights.loading ||
+      insights.error ||
+      !recoveryPending(insights.data)
+    )
+      return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (document.visibilityState !== "visible") return;
+      const awaiting =
+        insights.data?.state === "awaiting_sync" ||
+        insights.data?.recovery?.state === "awaiting_sync";
+      timer = setTimeout(
+        () => {
+          insightPoll.current.count += 1;
+          setInsightRefresh((value) => value + 1);
+        },
+        awaiting || insightPoll.current.count >= 6 ? 30_000 : 5_000,
+      );
+    };
+    schedule();
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", schedule);
+    };
+  }, [
+    device,
+    date,
+    tz,
+    refresh,
+    page,
+    insights.data,
+    insights.loading,
+    insights.error,
+  ]);
   const [start, end] = bounds(date, period),
     earliest = addDays(today, -365);
   const previous =
@@ -626,7 +678,7 @@ function Dashboard({
           <>
             {page === "Today" && insights.error && (
               <p role="alert" className="error small">
-                Outlook unavailable. {insights.error}
+                Morning data unavailable. {insights.error}
               </p>
             )}
             <DataView
@@ -915,15 +967,10 @@ function DataView({
             value={duration(night?.sleep?.window.asleep_s)}
             color="var(--sleep)"
           />
-          <Ring
-            label="Steps"
-            value={number(daily?.steps)}
-            color="var(--text)"
-            fraction={
-              stepTarget != null && daily?.steps != null
-                ? daily.steps / stepTarget
-                : 0
-            }
+          <RecoveryRing
+            key={`${device}:${date}:${tz}`}
+            insight={insight}
+            loading={insightLoading}
           />
           <Ring
             label="Load"
@@ -964,7 +1011,7 @@ function DataView({
           </Panel>
           <Panel
             title="Steps"
-            aside={<span className="muted small">7 days</span>}
+            aside={<span className="panel-value">{number(daily?.steps)}</span>}
           >
             {error("days")}
             <Chart

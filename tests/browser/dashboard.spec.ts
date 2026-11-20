@@ -623,7 +623,7 @@ test("outlook waiting indicator stays small below the rings", async ({
   await expect(spinner).toHaveCount(0);
 });
 
-test("steps ring uses the current goal and outlook opens without another ring", async ({
+test("steps stay in Today and outlook opens below the recovery ring", async ({
   page,
 }) => {
   await fixture(page);
@@ -650,19 +650,14 @@ test("steps ring uses the current goal and outlook opens without another ring", 
   await login(page);
   await expect(page.locator(".ring-item > span")).toHaveText([
     "Sleep",
-    "Steps",
+    "Recovery",
     "Load",
   ]);
-  const ring = page.locator(".ring-item").nth(1);
-  await expect(ring).toContainText("10,930");
-  await expect(ring.locator("small")).toHaveCount(0);
-  await expect(
-    page.locator(".today-grid .panel-head").filter({ hasText: "10,930" }),
-  ).toHaveCount(0);
-  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
-    "stroke-dasharray",
-    "383 383",
-  );
+  const steps = page
+    .locator(".today-grid > .panel")
+    .filter({ has: page.getByRole("heading", { name: "Steps", exact: true }) });
+  await expect(steps.locator(".panel-value")).toHaveText("10,930");
+  await expect(page.locator(".recovery-ring strong")).toHaveText("—");
   await page.locator(".outlook-status summary").click();
   await expect(page.locator(".outlook-detail")).toContainText("+5%");
   await expect(page.locator(".outlook-detail")).toContainText("−3 bpm");
@@ -679,11 +674,7 @@ test("steps ring uses the current goal and outlook opens without another ring", 
     });
   }
   await page.getByRole("button", { name: "Previous period" }).click();
-  await expect(ring).not.toContainText("of 10,000");
-  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
-    "stroke-dasharray",
-    "0 383",
-  );
+  await expect(steps.locator(".panel-value")).toHaveText("10,760");
   await expect(page.locator(".outlook-status")).not.toHaveAttribute("open");
 });
 
@@ -692,16 +683,14 @@ test("missing steps do not become zero or completed progress", async ({
 }) => {
   await fixture(page, { empty: true });
   await login(page);
-  const ring = page.locator(".ring-item").nth(1);
-  await expect(ring.locator("strong")).toHaveText("—");
-  await expect(ring.locator("small")).toHaveCount(0);
-  await expect(ring.locator("circle").nth(1)).toHaveAttribute(
-    "stroke-dasharray",
-    "0 383",
-  );
+  const steps = page
+    .locator(".today-grid > .panel")
+    .filter({ has: page.getByRole("heading", { name: "Steps", exact: true }) });
+  await expect(steps.locator(".panel-value")).toHaveText("—");
+  await expect(steps).toContainText("No readings for this period");
 });
 
-test("steps ring counts filtered walking steps and encodes percentage only in the arc", async ({
+test("steps section counts filtered walking steps and retains the goal", async ({
   page,
 }) => {
   await fixture(page);
@@ -729,13 +718,11 @@ test("steps ring counts filtered walking steps and encodes percentage only in th
     }),
   );
   await login(page);
-  const ring = page.locator(".ring-item").nth(1);
-  await expect(ring.locator("strong")).toHaveText("4,714");
-  await expect(ring).not.toContainText("%");
-  const arc = await ring
-    .locator("circle")
-    .nth(1)
-    .getAttribute("stroke-dasharray");
-  expect(parseFloat(arc!)).toBeCloseTo((4714 / 8000) * 383, 2);
+  const steps = page
+    .locator(".today-grid > .panel")
+    .filter({ has: page.getByRole("heading", { name: "Steps", exact: true }) });
+  await expect(steps.locator(".panel-value")).toHaveText("4,714");
+  await expect(steps).not.toContainText("%");
+  await expect(steps).toContainText("8,000");
   await page.screenshot({ path: "test-results/steps-filtered-count.png" });
 });
