@@ -104,7 +104,7 @@ struct TodayView: View {
             Button { openSleep(selectedNight) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
-                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading, subtitle: "of \(sleepGoal.title)")
+                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading)
             }
             .buttonStyle(.plain).disabled(selectedNight == nil)
             .accessibilityValue(selectedNight.map {

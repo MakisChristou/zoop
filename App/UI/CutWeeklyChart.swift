@@ -16,7 +16,7 @@ struct CutWeeklyChart: View {
     private var targetPath: [(date: Date, kg: Double)] { week.map { data.targetPath(in: $0) } ?? [] }
     private var inspected: CutProgressData.Point? { points.first { $0.date == inspectedDate } }
     private var scale: ClosedRange<Double> {
-        let values = (points.map(\.kg) + targetPath.map(\.kg)).map(weight)
+        let values = (points.map(\.kg) + targetPath.map(\.kg) + [data.summary.maintenanceLowerKg, data.summary.maintenanceUpperKg].compactMap { $0 }).map(weight)
         let low = values.min() ?? 60, high = values.max() ?? low
         let padding = max((high - low) * 0.15, unit == "lb" ? 1 : 0.5)
         return (low - padding)...(high + padding)
@@ -43,7 +43,9 @@ struct CutWeeklyChart: View {
                             Text(WeeklyWeightPresentation.title(data.summary.state)).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
                                 .foregroundStyle(WeeklyWeightPresentation.color(data.summary.state)).accessibilityIdentifier("weeklyWeightStatus")
                         }
-                        if let change = data.change(week) {
+                        if week.start == data.summary.start, let pace = data.summary.trendKgPerWeek {
+                            Text(WeeklyWeightPresentation.weight(pace, unit: unit, signed: true) + " " + unit + " / week").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                        } else if let change = data.change(week) {
                             Text(WeeklyWeightPresentation.weight(change, unit: unit, signed: true) + " " + unit + " this week")
                                 .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary).accessibilityIdentifier("cutWeeklyChange")
                         }
@@ -51,7 +53,7 @@ struct CutWeeklyChart: View {
                     }.multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
                 }
                 chart(week).frame(height: min(chartHeight, 280)).dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .accessibilityElement(children: .ignore).accessibilityLabel("Cut weight chart")
+                    .accessibilityElement(children: .ignore).accessibilityLabel("Goal weight chart")
                     .accessibilityValue(inspected.map { "\(readingDate($0.date)), \(WeeklyWeightPresentation.weight($0.kg, unit: unit)) \(unit)" } ?? "\(points.count) weigh-ins. Week \(data.number(week)), weekly median \(WeeklyWeightPresentation.weight(week.medianKg, unit: unit)) \(unit)")
                     .accessibilityIdentifier("cutWeeklyChart")
                     .accessibilityHint("Swipe up or down to select a week.")
@@ -70,7 +72,7 @@ struct CutWeeklyChart: View {
                 .onChange(of: week.id) { _, _ in inspectedDate = nil }
         }
     }
-    private var paceLabel: some View { Text("Target " + WeeklyWeightPresentation.weight(-data.goal.weeklyLossKg, unit: unit, signed: true) + " " + unit + " / week") }
+    private var paceLabel: some View { Text(week.map { data.date($0.end) < data.goal.paceStartedAt } == true ? "Previous pace" : data.goal.kind == "maintenance" ? "Maintain weight" : "Target " + WeeklyWeightPresentation.weight(data.goal.signedRate, unit: unit, signed: true) + " " + unit + " / week") }
     private func legend(_ label: String, dashed: Bool) -> some View {
         HStack(spacing: 6) {
             Path { p in p.move(to: .init(x: 0, y: 3)); p.addLine(to: .init(x: 20, y: 3)) }
@@ -111,6 +113,9 @@ struct CutWeeklyChart: View {
     }
     private func chart(_ week: ZoopAPI.WeightWeek) -> some View {
         Chart {
+            if let lower = data.summary.maintenanceLowerKg, let upper = data.summary.maintenanceUpperKg {
+                RectangleMark(xStart: .value("Start", data.domain(for: week).lowerBound), xEnd: .value("End", data.domain(for: week).upperBound), yStart: .value("Lower range", weight(lower)), yEnd: .value("Upper range", weight(upper))).foregroundStyle(ZoopStyle.text.opacity(0.06))
+            }
             ForEach(Array(targetPath.enumerated()), id: \.offset) { _, point in
                 LineMark(x: .value("Date", point.date), y: .value("Target", weight(point.kg)), series: .value("Series", "target"))
                     .foregroundStyle(ZoopStyle.secondary).lineStyle(.init(lineWidth: 1.5, dash: [4, 3]))

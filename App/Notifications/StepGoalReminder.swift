@@ -22,13 +22,17 @@ import UserNotifications
     @ObservationIgnored private var scope: String?
     @ObservationIgnored private var device = ""
     @ObservationIgnored private var connection = ""
-    @ObservationIgnored private var snapshot: Snapshot?
+    private var snapshot: Snapshot?
     @ObservationIgnored private var receipts: [String: Date]
     @ObservationIgnored private var lastFetch: Date?
     @ObservationIgnored private var fetch: Task<Void, Never>?
     @ObservationIgnored private var request = UUID()
     @ObservationIgnored private var revision = 0
     @ObservationIgnored private var worker: Task<Void, Never>?
+    var currentSteps: Int? {
+        guard let snapshot, snapshot.day == CutPlan.key(clock(), calendar: calendar()) else { return nil }
+        return snapshot.steps
+    }
     private static let prefix = "snoop.steps-goal."
 
     init(defaults: UserDefaults = .standard, center: ReminderNotificationClient = .live, clock: @escaping () -> Date = Date.init, calendar: @escaping () -> Calendar = { .current }, loader: @escaping Loader = { device, date in try await StepGoalReminder.load(device, date) }) {

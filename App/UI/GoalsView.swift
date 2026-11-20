@@ -38,8 +38,14 @@ struct GoalsView: View {
                         GoalWeightChart(
                             readings: data.summary.progress?.weighIns ?? [],
                             timezone: data.goal.timezone, unit: unit,
-                            target: data.summary.progress?.targetWeightKg)
+                            target: data.summary.progress?.targetWeightKg, lower: data.summary.maintenanceLowerKg, upper: data.summary.maintenanceUpperKg)
                         GoalProgressCard(data: data, unit: unit)
+                        if let target = CutTargets.steps(goal: store.goal, day: Date()) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack { Text("Steps").font(ZoopStyle.sectionTitle); Spacer(); Text(model.stepsReminder.currentSteps?.formatted() ?? "—").font(ZoopType.subheadline).monospacedDigit() }
+                                StepGoalProgress(steps: model.stepsReminder.currentSteps, target: target)
+                            }.zoopCard()
+                        }
                     } else if store.goal?.active != true {
                         GoalWeightChart(
                             readings: maintenanceReadings, timezone: TimeZone.current.identifier,
@@ -101,9 +107,11 @@ struct GoalsView: View {
                         Section("Weekly weight") {
                             Text("Weekly median. Comparisons need 4 weigh-ins across 5 days.")
                         }
-                        Section("Your pace") { Text("A single slow week isn’t a stall.") }
-                        Section("Target weight") {
-                            Text("Based on your rate and finish date. A goal, not a prediction.")
+                        Section("Your pace") { Text("Three qualifying weeks establish your trend. A single slow week isn’t a stall.") }
+                        if store.goal?.kind == "maintenance" {
+                            Section("Maintenance range") { Text("A fixed reference from your first full week, or a weight you choose. It won’t follow gradual drift.") }
+                        } else {
+                            Section("Target weight") { Text("Based on your rate and finish date. A goal, not a prediction.") }
                         }
                     }.navigationTitle("About").toolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -113,8 +121,8 @@ struct GoalsView: View {
                 }
             }
             .sheet(item: $selectedPeriod) { GoalPeriodView(id: $0.id, store: store, unit: unit) }
-            .confirmationDialog("End this cut?", isPresented: $ending, titleVisibility: .visible) {
-                Button("End cut") {
+            .confirmationDialog("End this goal?", isPresented: $ending, titleVisibility: .visible) {
+                Button("End goal") {
                     Task {
                         do {
                             actionError = nil
@@ -125,7 +133,7 @@ struct GoalsView: View {
                 }.disabled(store.saving)
                 Button("Keep going", role: .cancel) {}
             } message: {
-                Text("Cut reminders stop. Your history stays.")
+                Text("Maintenance starts next. Your history stays.")
             }
             .task {
                 await refresh()
@@ -142,7 +150,7 @@ struct GoalsView: View {
     private var header: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                Text(store.goal?.active == true ? "Cut" : "Maintenance").font(
+                Text(store.goal?.title ?? "Maintenance").font(
                     ZoopStyle.sectionTitle)
                 Spacer(minLength: 4)
                 if store.goal?.active == true {
@@ -153,9 +161,9 @@ struct GoalsView: View {
                     Menu {
                         Button("Edit goal") { editing = true }.accessibilityIdentifier(
                             "editWeightGoal")
-                        Button("End goal") { ending = true }
+                        if store.goal?.kind != "maintenance" { Button("End goal") { ending = true } }
                         if data != nil { Button("Weekly pace") { weekly = true } }
-                        Button("About cut progress") { about = true }
+                        Button("About weight outlook") { about = true }
                     } label: {
                         if store.saving {
                             ProgressView().frame(width: 44, height: 44)
@@ -174,6 +182,10 @@ struct GoalsView: View {
                 Text("\(time.remaining) days left").font(ZoopType.caption).foregroundStyle(
                     ZoopStyle.secondary
                 ).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let summary = store.summary {
+                Text(WeeklyWeightPresentation.title(summary.state)).font(ZoopType.caption)
+                    .foregroundStyle(WeeklyWeightPresentation.color(summary.state)).frame(maxWidth: .infinity, alignment: .leading)
             }
             Divider().overlay(ZoopStyle.separator)
         }.padding(.bottom, 8)
@@ -195,13 +207,13 @@ struct GoalsView: View {
                             selectedPeriod = period
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "arrow.down.right").font(ZoopType.body).frame(
+                                Image(systemName: period.goal.kind == "bulk" ? "arrow.up.right" : period.goal.kind == "maintenance" ? "arrow.right" : "arrow.down.right").font(ZoopType.body).frame(
                                     width: 36, height: 36
                                 )
                                 .background(ZoopStyle.surface, in: Circle()).overlay(
                                     Circle().stroke(ZoopStyle.separator, lineWidth: 1))
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Cut").font(ZoopType.subheadline)
+                                    Text(period.goal.title).font(ZoopType.subheadline)
                                     Text(period.outcome).font(ZoopType.caption).foregroundStyle(
                                         period.outcome == "Target reached"
                                             ? ZoopStyle.favourable : ZoopStyle.secondary)

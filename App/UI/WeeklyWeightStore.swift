@@ -106,7 +106,7 @@ import Observation
     }
     func endCurrent() async throws {
         guard let goal, goal.active else { return }
-        try await save(.init(revision: goal.revision, active: false, timezone: goal.timezone,
+        try await save(.init(phase: goal.kind, revision: goal.revision, active: false, timezone: goal.timezone,
             weeklyLossKg: goal.weeklyLossKg, reminderEnabled: goal.reminderEnabled,
             reminderWeekday: goal.reminderWeekday, reminderMinute: goal.reminderMinute,
             dailyStepsGoal: goal.dailyStepsGoal, finishDate: goal.finishDate))

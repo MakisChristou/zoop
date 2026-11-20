@@ -7,6 +7,8 @@ struct GoalWeightChart: View {
     let timezone: String
     let unit: String
     var target: Double? = nil
+    var lower: Double? = nil
+    var upper: Double? = nil
     @State private var selected: Date?
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var height = 164.0
@@ -37,7 +39,7 @@ struct GoalWeightChart: View {
     private var displayed: Point? { picked ?? points.last }
     private func value(_ kg: Double) -> Double { unit == "lb" ? kg * 2.2046226218 : kg }
     private var range: ClosedRange<Double> {
-        let values = points.map { value($0.kg) } + (target.map { [value($0)] } ?? [])
+        let values = points.map { value($0.kg) } + ([target, lower, upper].compactMap { $0 }.map(value))
         let low = values.min() ?? 60
         let high = values.max() ?? low
         let padding = max(0.5, (high - low) * 0.15)
@@ -102,6 +104,12 @@ struct GoalWeightChart: View {
         let all = points
         let counts = Dictionary(grouping: all, by: \.segment).mapValues(\.count)
         return Chart {
+            if let lower, let upper {
+                RectangleMark(xStart: .value("Start", domain.lowerBound), xEnd: .value("End", domain.upperBound), yStart: .value("Lower range", value(lower)), yEnd: .value("Upper range", value(upper)))
+                    .foregroundStyle(ZoopStyle.text.opacity(0.06))
+                RuleMark(y: .value("Lower range", value(lower))).foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(.init(lineWidth: 1, dash: [4, 4]))
+                RuleMark(y: .value("Upper range", value(upper))).foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(.init(lineWidth: 1, dash: [4, 4]))
+            }
             if let target {
                 RuleMark(y: .value("Target", value(target))).foregroundStyle(ZoopStyle.secondary)
                     .lineStyle(.init(lineWidth: 1, dash: [4, 4]))

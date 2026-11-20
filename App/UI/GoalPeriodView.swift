@@ -25,7 +25,7 @@ struct GoalPeriodView: View {
                         GoalWeightChart(
                             readings: period.summary.progress?.weighIns ?? [],
                             timezone: period.goal.timezone, unit: unit,
-                            target: period.summary.progress?.targetWeightKg)
+                            target: period.summary.progress?.targetWeightKg, lower: period.summary.maintenanceLowerKg, upper: period.summary.maintenanceUpperKg)
                         GoalProgressCard(data: data, unit: unit, endedAt: period.endedAt)
                         DisclosureGroup("Weekly pace") {
                             CutWeeklyChart(data: data, unit: unit, selection: $selectedWeek)
@@ -37,7 +37,7 @@ struct GoalPeriodView: View {
                         Button("Retry") { Task { await load() } }.frame(minHeight: 44)
                     }
                 }.padding(ZoopStyle.gutter)
-            }.zoopScreen().navigationTitle("Cut").navigationBarTitleDisplayMode(.inline)
+            }.zoopScreen().navigationTitle(period?.goal.title ?? "Goal").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }

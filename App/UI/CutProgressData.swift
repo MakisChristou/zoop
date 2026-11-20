@@ -31,7 +31,7 @@ struct CutProgressData {
         self.finish = finish
         let today = calendar.startOfDay(for: now)
         self.today = today
-        let pace = calendar.startOfDay(for: goal.paceStartedAt)
+        let pace = calendar.startOfDay(for: goal.startedAt)
         var available = summary.weeks.filter {
             guard let end = CutPlan.date($0.end, calendar: calendar), let begin = CutPlan.date($0.start, calendar: calendar) else { return false }
             return end >= pace && begin <= today && (finish == nil || begin <= finish!)
@@ -50,7 +50,7 @@ struct CutProgressData {
     var completed: Bool { finish.map { today > $0 } ?? false }
     var plannedLoss: Double? {
         guard let initial = summary.progress?.startingWeightKg, let target = summary.progress?.targetWeightKg,
-              initial.isFinite, target.isFinite, initial > target else { return nil }
+              initial.isFinite, target.isFinite, (goal.kind == "bulk" ? target > initial : initial > target) else { return nil }
         return initial - target
     }
     var weightFraction: Double? {

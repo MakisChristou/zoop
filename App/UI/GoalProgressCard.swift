@@ -8,9 +8,11 @@ struct GoalProgressCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Text("Progress").font(ZoopStyle.sectionTitle)
-            if let loss = data.summary.progress?.totalLostKg {
+            if data.goal.kind == "maintenance" {
+                row("Maintaining", icon: "clock", badge: nil, value: "\(max(0, data.days(data.start, data.today))) days", fraction: nil)
+            } else if let loss = data.summary.progress?.totalLostKg {
                 row(
-                    loss < 0 ? "Weight gained" : "Weight lost", icon: "arrow.down.right",
+                    loss < 0 ? "Weight gained" : "Weight lost", icon: loss < 0 ? "arrow.up.right" : "arrow.down.right",
                     badge: data.weightFraction.map {
                         $0.formatted(.percent.precision(.fractionLength(0)))
                     },
@@ -31,8 +33,13 @@ struct GoalProgressCard: View {
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
                 : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
             layout {
-                item("Start", weight: data.summary.progress?.startingWeightKg)
-                item("Target", weight: data.summary.progress?.targetWeightKg)
+                if data.goal.kind == "maintenance" {
+                    item("Lower range", weight: data.summary.maintenanceLowerKg)
+                    item("Upper range", weight: data.summary.maintenanceUpperKg)
+                } else {
+                    item("Start", weight: data.summary.progress?.startingWeightKg)
+                    item("Target", weight: data.summary.progress?.targetWeightKg)
+                }
                 if let finish = data.finish {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Planned finish").font(ZoopType.caption).foregroundStyle(
@@ -42,7 +49,7 @@ struct GoalProgressCard: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            if endedAt != nil, data.time == nil {
+            if endedAt != nil, data.time == nil, data.goal.kind != "maintenance" {
                 Text("\(max(0,data.days(data.start,data.today))) days").font(ZoopType.caption)
                     .foregroundStyle(ZoopStyle.secondary)
             }

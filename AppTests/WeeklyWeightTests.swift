@@ -73,20 +73,34 @@ import UserNotifications
         XCTAssertEqual(ready.goal?.weeklyLossKg, 0.3); XCTAssertFalse(ready.saving)
         ready.activate(device: "", scope: nil)
     }
-    func testRestartReplacesReminderIdentityAndRoutesToOriginalGoal() async {
+    func testPhaseTransitionKeepsOneReminderRoutingToCurrentGoal() async {
         let scheduler = scheduler()
         var first = goal(); first.id = 12
         scheduler.update(goal: first, scope: "a"); await scheduler.settled()
         let original = requests.values.first!
-        XCTAssertEqual(original.content.userInfo["id"] as? Int64, 12)
-        var second = first; second.id = 13
+        XCTAssertNil(original.content.userInfo["id"])
+        var second = first; second.id = 13; second.phase = "maintenance"; second.weeklyLossKg = 0
         scheduler.update(goal: second, scope: "a"); await scheduler.settled()
         XCTAssertEqual(requests.count, 1)
-        XCTAssertNotEqual(requests.values.first?.identifier, original.identifier)
-        XCTAssertEqual(requests.values.first?.content.userInfo["id"] as? Int64, 13)
+        XCTAssertEqual(requests.values.first?.identifier, original.identifier)
+        XCTAssertNil(requests.values.first?.content.userInfo["id"])
     }
     func testFormattingDoesNotShowNegativeZero() {
         XCTAssertEqual(WeeklyWeightPresentation.weight(-0.01, unit: "kg", signed: true), "0.0")
         XCTAssertEqual(WeeklyWeightPresentation.weight(0.3, unit: "kg", signed: true), "+0.3")
     }
+    func testPhaseInputsPreserveReferenceUnlessExplicitlyCleared() throws {
+        var input = ZoopAPI.WeightGoalInput(phase: "maintenance", revision: 1, active: true, timezone: "UTC", weeklyLossKg: 0, reminderEnabled: true, reminderWeekday: 1, reminderMinute: 1200)
+        func payload() throws -> [String: Any] { try JSONSerialization.jsonObject(with: JSONEncoder().encode(input)) as! [String: Any] }
+        XCTAssertNil(try payload()["maintenanceReferenceKg"])
+        input.clearMaintenanceReference = true
+        XCTAssertTrue(try payload()["maintenanceReferenceKg"] is NSNull)
+        input.clearMaintenanceReference = false; input.maintenanceReferenceKg = 64.25
+        XCTAssertEqual(try payload()["maintenanceReferenceKg"] as? Double, 64.25)
+        var bulk = goal(); bulk.phase = "bulk"; bulk.weeklyLossKg = 0.2
+        XCTAssertEqual(bulk.signedRate, 0.2)
+        bulk.phase = "maintenance"
+        XCTAssertEqual(bulk.signedRate, 0)
+    }
+
 }

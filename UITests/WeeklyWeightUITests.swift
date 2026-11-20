@@ -9,7 +9,7 @@ import XCTest
     }
     private func shot(_ app: XCUIApplication, _ name: String) { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a) }
     private func tap(_ app: XCUIApplication, _ id: String) {
-        if id == "editWeightGoal" || id == "About cut progress" || id == "Weekly pace" {
+        if id == "editWeightGoal" || id == "About weight outlook" || id == "Weekly pace" {
             let options = app.buttons["cutOptions"]
             for _ in 0..<12 where !options.isHittable { app.swipeDown() }
             options.tap()
@@ -19,7 +19,7 @@ import XCTest
         for _ in 0..<12 {
             let save = app.buttons["saveWeightGoal"]
             if id.hasPrefix("editCut"), save.exists {
-                let top = app.navigationBars["Edit cut"].frame.maxY + 24
+                let top = app.navigationBars["Edit goal"].frame.maxY + 24
                 if button.frame.midY < top {
                     app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
                 } else if button.frame.midY >= save.frame.minY - 24 || !button.isHittable {
@@ -37,7 +37,7 @@ import XCTest
     }
     func testOutlookAndConfigurableGoal() {
         let app = launch(); XCTAssertTrue(app.otherElements["cutProgress"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook")
-        tap(app, "About cut progress"); XCTAssertTrue(app.staticTexts["About"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook info"); app.buttons["Done"].tap()
+        tap(app, "About weight outlook"); XCTAssertTrue(app.staticTexts["About"].waitForExistence(timeout: 5)); shot(app, "Weekly outlook info"); app.buttons["Done"].tap()
         tap(app, "editWeightGoal")
         let input = app.textFields["weeklyLossInput"]; XCTAssertTrue(input.waitForExistence(timeout: 5))
         shot(app, "Focused cut setup")
@@ -79,7 +79,7 @@ import XCTest
         for _ in 0..<10 where cutChart.frame.maxY > app.frame.height - 40 { app.swipeUp() }
         XCTAssertTrue(cutChart.isHittable); shot(app, "Cut chart large text")
         app.buttons["Done"].tap()
-        tap(app, "About cut progress"); shot(app, "Info large text")
+        tap(app, "About weight outlook"); shot(app, "Info large text")
         let target = app.staticTexts["Target weight"]
         for _ in 0..<8 where !target.isHittable { app.swipeUp() }
         XCTAssertTrue(target.isHittable); shot(app, "Info ending large text"); app.buttons["Done"].tap()
@@ -238,4 +238,35 @@ import XCTest
         shot(app, "Completed steps large text")
     }
 
+
+    func testPhaseScreensAndPercentageRing() {
+        for phase in ["BULK", "MAINTENANCE"] {
+            let app = launch(screen: "weekly-weight", state: phase)
+            XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 20))
+            XCTAssertTrue(app.staticTexts[phase == "BULK" ? "Bulk" : "Maintenance"].firstMatch.exists)
+            shot(app, phase + " goal")
+            tap(app, "Weekly pace")
+            XCTAssertTrue(app.otherElements["cutWeeklyChart"].waitForExistence(timeout: 8))
+            shot(app, phase + " weekly outlook")
+            app.buttons["Done"].tap()
+            tap(app, "editWeightGoal")
+            XCTAssertTrue(app.segmentedControls["goalPhase"].waitForExistence(timeout: 5))
+            shot(app, phase + " setup")
+            app.buttons["Cancel"].tap()
+            app.buttons["tab-Today"].tap()
+            XCTAssertTrue(app.buttons["openStepsSummary"].waitForExistence(timeout: 10))
+            shot(app, phase + " Today percentage")
+            app.terminate()
+        }
+    }
+
+    func testMaintenanceLargeText() {
+        let app = launch(large: true, state: "MAINTENANCE")
+        XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 20))
+        shot(app, "Maintenance large text")
+        tap(app, "editWeightGoal")
+        XCTAssertTrue(app.textFields["maintenanceReference"].waitForExistence(timeout: 5))
+        shot(app, "Maintenance setup large text")
+        app.buttons["Cancel"].tap()
+    }
 }

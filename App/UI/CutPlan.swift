@@ -18,7 +18,7 @@ enum CutPlan {
         return f.date(from: key)
     }
     static func target(starting: Double?, rate: Double, start: Date, finish: Date, calendar: Calendar) -> Double? {
-        guard let starting, rate.isFinite, rate > 0, let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: start), to: calendar.startOfDay(for: finish)).day, days > 0 else { return nil }
+        guard let starting, rate.isFinite, rate != 0, let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: start), to: calendar.startOfDay(for: finish)).day, days > 0 else { return nil }
         let result = starting - rate * Double(days) / 7
         return (20...400).contains(result) ? result : nil
     }

@@ -28,6 +28,15 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('EMPTY-'):return self.send(dict(goal=None,summary=None))
             if device.startswith('ERROR-'):return self.send(dict(error='Temporarily unavailable'),500)
             g=goals.setdefault(device,goal())
+            if device.startswith(('BULK-', 'MAINTENANCE-')):
+                import math
+                phase = 'bulk' if device.startswith('BULK-') else 'maintenance'
+                if 'phase' not in g: g.update(phase=phase, weekly_loss_kg=.2 if phase=='bulk' else 0, finish_date=g.get('finish_date') if phase=='bulk' else None, maintenance_reference_kg=64, maintenance_range_pct=1, daily_steps_goal=10000)
+                s=summary(g);s.update(algorithm_version=2,state='on_pace' if g['phase']=='bulk' else 'stable',trend_kg_per_week=.2 if g['phase']=='bulk' else 0,maintenance_lower_kg=63.36 if g['phase']=='maintenance' else None,maintenance_upper_kg=64.64 if g['phase']=='maintenance' else None)
+                for i,w in enumerate(s['weeks']): w['median_kg']=64+i*.2 if g['phase']=='bulk' else 64
+                for i,w in enumerate(s['progress']['weigh_ins']): w['kg']=64+i*.2/7 if g['phase']=='bulk' else 64+.08*math.sin(i)
+                s['progress'].update(starting_weight_kg=64,current_weight_kg=s['progress']['weigh_ins'][-1]['kg'],total_lost_kg=64-s['progress']['weigh_ins'][-1]['kg'],target_weight_kg=65.6 if g['phase']=='bulk' else None,finish_date=g.get('finish_date'))
+                return self.send(dict(goal=g,summary=s))
             if device.startswith('PAUSED-'):g['active']=False
             if device.startswith('OPEN-'):g['finish_date']=None
             if device.startswith('FIRST-'):
@@ -42,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
         if path.endswith('/health'):return self.send(dict(namespace='WEEKLY-UI',cursor=0,earliest=None,wake_at=None))
         if path.endswith('/weight-changes'):return self.send(dict(rows=[dict(id='health:weekly-test',measured_at=stamp(now),kg=62.4,source='health',source_name='Test scale',version=1,removed=False)],next_cursor=1,watermark=1,done=True))
         if path.endswith('/steps'):
-            hours=[0]*24;hours[9]=2200;hours[13]=5800 if device.startswith('COMPLETE-') else 3400
+            hours=[0]*24;hours[9]=2200;hours[13]=5800 if device.startswith(('COMPLETE-', 'BULK-', 'MAINTENANCE-')) else 3400
             total=sum(hours)
             return self.send(dict(day=path.split('/')[-2],hours=hours,walking_hours=hours,total=total,walking=total,bouts=[]))
         if path.endswith(('/days','/nights','/minutes','/sessions')):return self.send([])

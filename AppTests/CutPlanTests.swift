@@ -24,7 +24,7 @@ import UserNotifications
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(input)) as? [String: Any])
         XCTAssertTrue(json["finish_date"] is NSNull)
     }
-    func testDatedRemindersStopAtFinishWithoutRequiringAppToWake() async throws {
+    func testGenericWeeklyReminderContinuesAcrossScheduledMaintenance() async throws {
         let calendar = CutPlan.calendar(timezone: "UTC")
         var now = try XCTUnwrap(CutPlan.date("2026-11-16", calendar: calendar))
         var requests: [String: UNNotificationRequest] = [:]
@@ -33,12 +33,12 @@ import UserNotifications
         var goal = ZoopAPI.WeightGoal(revision: 1, active: true, startedAt: now, paceStartedAt: now, timezone: "UTC", weeklyLossKg: 0.3, reminderEnabled: true, reminderWeekday: 1, reminderMinute: 1200, updatedAt: now)
         goal.finishDate = "2026-11-29"
         reminder.update(goal: goal, scope: "test"); await reminder.settled()
-        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.count, 1)
         for request in requests.values {
             let trigger = try XCTUnwrap(request.trigger as? UNCalendarNotificationTrigger)
-            XCTAssertFalse(trigger.repeats); XCTAssertTrue([22, 29].contains(trigger.dateComponents.day!))
+            XCTAssertTrue(trigger.repeats); XCTAssertNil(trigger.dateComponents.day)
         }
         now = try XCTUnwrap(CutPlan.date("2026-11-30", calendar: calendar))
-        reminder.update(goal: goal, scope: "test"); await reminder.settled(); XCTAssertTrue(requests.isEmpty)
+        reminder.update(goal: goal, scope: "test"); await reminder.settled(); XCTAssertEqual(requests.count, 1)
     }
 }
