@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   ArrowRight,
   Clock,
+  Footprints,
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
@@ -89,6 +90,22 @@ export function goalOutcome(period: GoalPeriod) {
       ? "Ended"
       : "Finished";
 }
+function periodDates(period: GoalPeriod) {
+  const start = dayKey(new Date(period.goal.started_at), period.goal.timezone);
+  const end = dayKey(
+    new Date(new Date(period.ended_at).getTime() - 1),
+    period.goal.timezone,
+  );
+  const thisYear = dayKey(new Date(), period.goal.timezone).slice(0, 4);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+    ...(start.slice(0, 4) !== thisYear || end.slice(0, 4) !== thisYear
+      ? { year: "numeric" as const }
+      : {}),
+  }).formatRange(atDay(start), atDay(end));
+}
 const days = (from: string, to: string) =>
   Math.round((atDay(to).getTime() - atDay(from).getTime()) / 86400000);
 export function goalWeekNumber(goal: Settings, weekStart: string) {
@@ -121,18 +138,23 @@ export function goalProgress(g: Settings, summary: Goal["summary"], now: Date) {
 function Card({
   title,
   aside,
+  headline,
   children,
   className = "",
 }: {
   title: string;
   aside?: ReactNode;
+  headline?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <section className={"panel goals-card " + className}>
       <header>
-        <h2>{title}</h2>
+        <div>
+          <h2>{title}</h2>
+          {headline}
+        </div>
         {aside}
       </header>
       {children}
@@ -198,7 +220,7 @@ function Progress({
   const p = summary?.progress,
     t = goalProgress(goal, summary, now);
   return (
-    <Card title="Progress">
+    <Card title="Progress" className="goal-progress">
       {goal.phase === "maintenance" ? (
         <ProgressRow
           label="Maintaining"
@@ -229,17 +251,15 @@ function Progress({
         <ProgressRow
           label="Time"
           icon={<Clock size={18} />}
-          badge={t.elapsed + " days"}
           value={number(t.time * 100) + "%"}
           fraction={t.time}
         />
       )}
       {goal.active && goal.daily_steps_goal && steps != null && (
         <ProgressRow
-          label="Steps"
-          icon={<span aria-hidden="true">↗</span>}
-          badge={number(goal.daily_steps_goal)}
-          value={number(steps)}
+          label="Steps today"
+          icon={<Footprints size={18} className="goal-steps-icon" />}
+          value={number(steps) + " / " + number(goal.daily_steps_goal)}
           fraction={Math.min(1, steps / goal.daily_steps_goal)}
           color="var(--blue)"
         />
@@ -269,7 +289,7 @@ function Progress({
         </div>
         {goal.finish_date && (
           <div>
-            <span>Planned finish</span>
+            <span>Finish</span>
             <strong>{dateLabel(goal.finish_date)}</strong>
           </div>
         )}
@@ -291,8 +311,25 @@ function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const node = ref.current;
+    const opener =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const menuTrigger = opener?.closest("details")?.querySelector("summary");
     node?.showModal();
-    return () => node?.close();
+    return () => {
+      node?.close();
+      const visible = (el: HTMLElement | null | undefined) =>
+        el?.isConnected && el.getClientRects().length;
+      const target = visible(menuTrigger)
+        ? menuTrigger
+        : visible(opener)
+          ? opener
+          : document.querySelector<HTMLElement>(
+              ".goals-page .goal-options > summary, .goals-page .goal-section button",
+            );
+      target?.focus();
+    };
   }, []);
   return (
     <dialog
@@ -586,26 +623,37 @@ function Editor({
 function Weekly({
   goal,
   summary,
+  controls,
 }: {
   goal: Settings;
   summary: Goal["summary"];
+  controls?: ReactNode;
 }) {
   const available = (summary?.weeks ?? []).filter(
     (w) => w.end >= dayKey(new Date(goal.started_at), goal.timezone),
   );
-  const [index, setIndex] = useState(Math.max(0, available.length - 1));
-  const w = available[Math.min(index, available.length - 1)];
-  if (!w) return <p className="empty">No weekly readings</p>;
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const matched = available.findIndex((week) => week.start === selectedWeek);
+  const index = matched >= 0 ? matched : available.length - 1;
+  const w = available[index];
+  if (!w)
+    return controls ? (
+      <Card title="Weight" aside={controls} className="goal-weight">
+        <p className="empty">No weekly readings</p>
+      </Card>
+    ) : (
+      <p className="empty">No weekly readings</p>
+    );
   const points = (summary?.progress?.weigh_ins ?? []).filter(
     (p) => p.day >= w.start && p.day <= w.end,
   );
-  return (
+  const content = (
     <>
       <div className="goal-week-nav">
         <button
           aria-label="Previous goal week"
           disabled={index <= 0}
-          onClick={() => setIndex((x) => x - 1)}
+          onClick={() => setSelectedWeek(available[index - 1].start)}
         >
           <ChevronLeft size={18} />
         </button>
@@ -613,7 +661,13 @@ function Weekly({
         <button
           aria-label="Next goal week"
           disabled={index >= available.length - 1}
-          onClick={() => setIndex((x) => x + 1)}
+          onClick={() =>
+            setSelectedWeek(
+              index + 1 === available.length - 1
+                ? null
+                : available[index + 1].start,
+            )
+          }
         >
           <ChevronRight size={18} />
         </button>
@@ -638,21 +692,54 @@ function Weekly({
           {outlookTitle(summary.state)}
         </p>
       )}
-      {w.start === summary?.start && summary.trend_kg_per_week != null && (
-        <p className="small">
-          {summary.trend_kg_per_week > 0 ? "+" : ""}
-          {number(summary.trend_kg_per_week, 2)} kg / week
-        </p>
-      )}
-      <p className="muted small">Weekly median {number(w.median_kg, 1)} kg</p>
-      <p className="muted small">
-        {w.end < dayKey(new Date(goal.pace_started_at), goal.timezone)
-          ? "Previous pace"
-          : goal.phase === "maintenance"
-            ? "Maintain weight"
-            : `Target ${goal.phase === "bulk" ? "+" : "−"}${number(goal.weekly_loss_kg, 2)} kg / week`}
-      </p>
+      <div className="goal-week-stats">
+        {!controls && (
+          <div>
+            <span>Weekly median</span>
+            <strong>{number(w.median_kg, 1)} kg</strong>
+          </div>
+        )}
+        {w.start === summary?.start && summary.trend_kg_per_week != null && (
+          <div>
+            <span>Pace</span>
+            <strong>
+              {summary.trend_kg_per_week > 0 ? "+" : ""}
+              {number(summary.trend_kg_per_week, 2)} kg / week
+            </strong>
+          </div>
+        )}
+        <div>
+          <span>
+            {w.end < dayKey(new Date(goal.pace_started_at), goal.timezone)
+              ? "Pace"
+              : "Target pace"}
+          </span>
+          <strong>
+            {w.end < dayKey(new Date(goal.pace_started_at), goal.timezone)
+              ? "Previous pace"
+              : goal.phase === "maintenance"
+                ? "Maintain weight"
+                : `${goal.phase === "bulk" ? "+" : "−"}${number(goal.weekly_loss_kg, 2)} kg / week`}
+          </strong>
+        </div>
+      </div>
     </>
+  );
+  return controls ? (
+    <Card
+      title="Weekly median"
+      headline={
+        <div className="goal-current-weight">
+          {number(w.median_kg, 1)} <small>kg</small>
+        </div>
+      }
+      aside={controls}
+      className="goal-weight"
+    >
+      {content}
+    </Card>
+  ) : (
+    content
   );
 }
 export function GoalView({
@@ -665,7 +752,20 @@ export function GoalView({
   onSaved: () => void;
 }) {
   const [refresh, setRefresh] = useState(0),
-    [mode, setMode] = useState<"edit" | "end" | "weekly" | null>(null);
+    [mode, setMode] = useState<"edit" | "end" | null>(null);
+  const [chartMode, setChartMode] = useState<"phase" | "weekly">("phase");
+  const pageRef = useRef<HTMLDivElement>(null);
+  const previousMode = useRef(chartMode);
+  useEffect(() => {
+    if (previousMode.current !== chartMode) {
+      pageRef.current
+        ?.querySelector<HTMLButtonElement>(
+          '.goal-chart-mode button[aria-pressed="true"]',
+        )
+        ?.focus();
+      previousMode.current = chartMode;
+    }
+  }, [chartMode]);
   useEffect(() => {
     setCursor(null);
     setRefresh((x) => x + 1);
@@ -762,32 +862,79 @@ export function GoalView({
   const chartData = rows.length
     ? series(rows, rows[0].day, addDays(rows.at(-1)!.day, 1))
     : [];
+  const chartControls = (
+    <div
+      className="goal-chart-mode"
+      role="group"
+      aria-label="Weight chart period"
+    >
+      <button
+        aria-pressed={chartMode === "phase"}
+        onClick={() => setChartMode("phase")}
+      >
+        Phase
+      </button>
+      <button
+        aria-pressed={chartMode === "weekly"}
+        onClick={() => setChartMode("weekly")}
+      >
+        Weekly
+      </button>
+    </div>
+  );
   return (
-    <div className="goals-page">
+    <div className="goals-page" ref={pageRef}>
       <div className="goal-section">
-        <h2>{active ? phaseTitle(g) : "Maintenance"}</h2>
+        <div className="goal-phase-label">
+          <h2>{active ? phaseTitle(g) : "Maintenance"}</h2>
+          {s && chartMode === "phase" && (
+            <span
+              className={
+                "goal-status" +
+                (["stable", "on_pace"].includes(s.state) ? " goal-success" : "")
+              }
+            >
+              <span aria-hidden="true" />
+              {outlookTitle(s.state)}
+            </span>
+          )}
+        </div>
         <div className="goal-section-actions">
           {active ? (
             <>
               <span>
                 {t?.remaining != null ? t.remaining + " days left" : ""}
               </span>
-              <details className="goal-options">
+              <button className="goal-edit" onClick={() => setMode("edit")}>
+                Edit goal
+              </button>
+              <details
+                className={
+                  "goal-options" +
+                  (g?.phase === "maintenance"
+                    ? " goal-options-maintenance"
+                    : "")
+                }
+              >
                 <summary aria-label="Goal options">
                   <MoreHorizontal size={20} />
                 </summary>
                 <div
                   onClick={(event) => {
-                    event.currentTarget
-                      .closest("details")
-                      ?.removeAttribute("open");
+                    const menu = event.currentTarget.closest("details");
+                    menu?.querySelector("summary")?.focus();
+                    menu?.removeAttribute("open");
                   }}
                 >
-                  <button onClick={() => setMode("edit")}>Edit goal</button>
+                  <button
+                    className="goal-menu-edit"
+                    onClick={() => setMode("edit")}
+                  >
+                    Edit goal
+                  </button>
                   {g?.phase !== "maintenance" && (
                     <button onClick={() => setMode("end")}>End goal</button>
                   )}
-                  <button onClick={() => setMode("weekly")}>Weekly pace</button>
                 </div>
               </details>
             </>
@@ -809,42 +956,35 @@ export function GoalView({
           <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
         </p>
       )}
-      {s && (
-        <p
-          className="small"
-          style={{
-            color: ["stable", "on_pace"].includes(s.state)
-              ? "var(--green)"
-              : "var(--muted)",
-          }}
-        >
-          {outlookTitle(s.state)}
-        </p>
-      )}
-      <Card
-        title="Weight"
-        aside={
-          <span className="goal-current-weight">
-            {number(rows.at(-1)?.value, 1)} <small>kg</small>
-          </span>
-        }
-        className="goal-weight"
-      >
-        <Chart
-          data={chartData}
-          unit="kg"
-          height={220}
-          latestMarker
-          target={
-            active && g?.phase !== "maintenance"
-              ? s?.progress?.target_weight_kg
-              : null
-          }
-          targetLabel="Target"
-          band={rangeBand(s)}
-        />
-      </Card>
-      <div className={"goal-lower" + (!active ? " single" : "")}>
+      <div className={"goal-overview" + (!active ? " single" : "")}>
+        {chartMode === "weekly" && active && g ? (
+          <Weekly key={g.id} goal={g} summary={s} controls={chartControls} />
+        ) : (
+          <Card
+            title="Weight"
+            headline={
+              <div className="goal-current-weight">
+                {number(rows.at(-1)?.value, 1)} <small>kg</small>
+              </div>
+            }
+            aside={active && chartControls}
+            className="goal-weight"
+          >
+            <Chart
+              data={chartData}
+              unit="kg"
+              height={200}
+              latestMarker
+              target={
+                active && g?.phase !== "maintenance"
+                  ? s?.progress?.target_weight_kg
+                  : null
+              }
+              targetLabel="Target"
+              band={rangeBand(s)}
+            />
+          </Card>
+        )}
         {active && g && (
           <Progress
             goal={g}
@@ -853,81 +993,74 @@ export function GoalView({
             steps={data.days.find((d) => d.day === dayKey(now, tz))?.steps}
           />
         )}
-        {(items.length > 0 || historyLoading || historyError) && (
-          <Card title="Past goals">
-            <div className="goal-timeline">
-              {items.map((p) => (
-                <div key={p.id} className="goal-period">
-                  <div className="goal-period-date">
-                    {dateLabel(
-                      dayKey(new Date(p.goal.started_at), p.goal.timezone),
-                      { day: "numeric", month: "short", year: "numeric" },
-                    )}{" "}
-                    –{" "}
-                    {dateLabel(
-                      dayKey(
-                        new Date(new Date(p.ended_at).getTime() - 1),
-                        p.goal.timezone,
-                      ),
-                      { day: "numeric", month: "short", year: "numeric" },
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setSelected(p.id)}
-                    className="goal-period-row"
-                  >
-                    <span className="goal-period-icon">
-                      {p.goal.phase === "bulk" ? (
-                        <ArrowUpRight size={18} />
-                      ) : p.goal.phase === "maintenance" ? (
-                        <ArrowRight size={18} />
-                      ) : (
-                        <ArrowDownRight size={18} />
-                      )}
-                    </span>
-                    <span>
-                      {phaseTitle(p.goal)}
-                      <small
-                        className={
-                          goalOutcome(p) === "Target reached"
-                            ? "goal-success"
-                            : ""
-                        }
-                      >
-                        {goalOutcome(p)}
-                      </small>
-                    </span>
-                    <strong>
-                      {p.summary.progress?.total_lost_kg == null
-                        ? "—"
-                        : new Intl.NumberFormat(undefined, {
-                            maximumFractionDigits: 1,
-                            signDisplay: "exceptZero",
-                          }).format(-p.summary.progress.total_lost_kg) + " kg"}
-                    </strong>
-                  </button>
-                </div>
-              ))}
-            </div>
-            {historyLoading && <LoadingBar label="Loading past goals" />}
-            {historyError && (
-              <p className="error" role="alert">
-                {historyError}{" "}
-                <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
-              </p>
-            )}
-            {next != null && (
-              <button
-                className="goal-more"
-                disabled={historyLoading}
-                onClick={() => setCursor(next)}
-              >
-                More goals
-              </button>
-            )}
-          </Card>
-        )}
       </div>
+      {(items.length > 0 || historyLoading || historyError) && (
+        <Card title="Past goals" className="goal-history">
+          <div className="goal-timeline">
+            {items.map((p) => (
+              <div key={p.id} className="goal-period">
+                <button
+                  onClick={() => setSelected(p.id)}
+                  className="goal-period-row"
+                >
+                  <span className="goal-period-icon">
+                    {p.goal.phase === "bulk" ? (
+                      <ArrowUpRight size={18} />
+                    ) : p.goal.phase === "maintenance" ? (
+                      <ArrowRight size={18} />
+                    ) : (
+                      <ArrowDownRight size={18} />
+                    )}
+                  </span>
+                  <span>
+                    {phaseTitle(p.goal)}
+                    <small
+                      className={
+                        goalOutcome(p) === "Target reached"
+                          ? "goal-success"
+                          : ""
+                      }
+                    >
+                      <span className="goal-period-date">{periodDates(p)}</span>
+                      {" · "}
+                      <span className="goal-outcome">{goalOutcome(p)}</span>
+                    </small>
+                  </span>
+                  <strong>
+                    {p.summary.progress?.total_lost_kg == null
+                      ? "—"
+                      : new Intl.NumberFormat(undefined, {
+                          maximumFractionDigits: 1,
+                          signDisplay: "exceptZero",
+                        }).format(-p.summary.progress.total_lost_kg) + " kg"}
+                  </strong>
+                  <ChevronRight
+                    size={16}
+                    className="goal-history-chevron"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+          {historyLoading && <LoadingBar label="Loading past goals" />}
+          {historyError && (
+            <p className="error" role="alert">
+              {historyError}{" "}
+              <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
+            </p>
+          )}
+          {next != null && (
+            <button
+              className="goal-more"
+              disabled={historyLoading}
+              onClick={() => setCursor(next)}
+            >
+              More goals
+            </button>
+          )}
+        </Card>
+      )}
       {mode === "edit" && (
         <Editor
           goal={g}
@@ -955,11 +1088,6 @@ export function GoalView({
           >
             Keep going
           </button>
-        </Modal>
-      )}
-      {mode === "weekly" && g && (
-        <Modal title="Weekly pace" onClose={() => setMode(null)}>
-          <Weekly goal={g} summary={s} />
         </Modal>
       )}
       {selected != null && (

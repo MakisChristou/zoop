@@ -1119,7 +1119,6 @@ function DataView({
     );
   return (
     <>
-      {error("goal")}
       <GoalView
         key={device}
         device={device}

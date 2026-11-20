@@ -69,13 +69,11 @@ async function choose(page: Page) {
     ctx.fillRect(400, 0, 400, 400);
     return c.toDataURL("image/png").split(",")[1];
   });
-  await page
-    .getByLabel("Choose photo file")
-    .setInputFiles({
-      name: "example.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(data, "base64"),
-    });
+  await page.getByLabel("Choose photo file").setInputFiles({
+    name: "example.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(data, "base64"),
+  });
   await expect(page.getByLabel("Zoom")).toBeVisible();
 }
 test("crop, keyboard positioning, save and reload share a small JPEG", async ({
@@ -143,13 +141,11 @@ test("cancel does not upload and failed upload retains crop for retry", async ({
 test("invalid photo is rejected without upload", async ({ page }) => {
   const f = await fixture(page);
   await open(page);
-  await page
-    .getByLabel("Choose photo file")
-    .setInputFiles({
-      name: "invalid.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("not an image"),
-    });
+  await page.getByLabel("Choose photo file").setInputFiles({
+    name: "invalid.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not an image"),
+  });
   await expect(page.getByRole("alert")).toContainText("Could not open");
   expect(f.uploads).toHaveLength(0);
 });

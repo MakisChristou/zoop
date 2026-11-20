@@ -119,7 +119,7 @@ export function Chart({
         Use arrow keys to select a reading.
         {onOpen ? " Press Enter to open its day." : ""}
       </span>
-      <div className="chart">
+      <div className="chart" dir="ltr">
         <ResponsiveContainer width="100%" height={height}>
           <ChartType
             data={data}

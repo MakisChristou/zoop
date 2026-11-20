@@ -1153,7 +1153,6 @@ th:last-child {
 
 /* Goals follows the chart / progress rows / dated timeline hierarchy. */
 .goals-page {
-  max-width: 984px;
   margin-inline: auto;
 }
 .goal-section {
@@ -1184,6 +1183,8 @@ th:last-child {
   padding: 24px;
 }
 .goals-card > header {
+  padding: 0;
+  flex-wrap: nowrap;
   min-height: 0;
   border-bottom: 0;
   display: flex;
@@ -1198,23 +1199,118 @@ th:last-child {
   margin: 0;
 }
 .goal-current-weight {
-  font-size: 16px;
-  font-weight: 500;
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.5px;
 }
 .goal-current-weight small {
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 400;
+  font: inherit;
 }
-.goal-lower {
+.goal-overview {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
   gap: 16px;
-  margin-top: 16px;
   align-items: stretch;
 }
-.goal-lower.single {
+.goal-overview.single {
   grid-template-columns: 1fr;
+}
+.goal-overview > * {
+  min-width: 0;
+}
+.goal-phase-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+}
+.goal-phase-label h2 {
+  margin: 0;
+}
+.goal-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.goal-status > span {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.goal-success {
+  color: var(--green);
+}
+.goal-edit,
+.goal-chart-mode button,
+.goal-options button,
+.goal-week-nav button,
+.goal-dialog > header button {
+  border: 0;
+  background: none;
+}
+.goal-edit {
+  min-height: 44px;
+  padding-inline: 6px;
+}
+.goal-edit:hover,
+.goal-options button:hover,
+.goal-week-nav button:not(:disabled):hover {
+  color: var(--text);
+  background: var(--track);
+  border-radius: 8px;
+}
+.goal-menu-edit {
+  display: none !important;
+}
+.goal-options-maintenance {
+  display: none;
+}
+.goal-chart-mode {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 3px;
+  flex: none;
+}
+.goal-chart-mode button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.goal-chart-mode button[aria-pressed="true"] {
+  background: var(--track);
+  color: var(--text);
+}
+.goal-weight > header {
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.goal-progress {
+  display: flex;
+  flex-direction: column;
+}
+.goal-progress .goal-values {
+  margin-top: auto;
+}
+.goal-row-label .goal-steps-icon {
+  color: var(--blue);
+}
+.goal-history {
+  margin-top: 20px;
+}
+.goal-history > header {
+  margin-bottom: 8px;
+}
+@media (pointer: coarse) {
+  .goal-chart-mode button {
+    min-height: 44px;
+  }
 }
 .goal-progress-row {
   margin-bottom: 26px;
@@ -1265,36 +1361,11 @@ th:last-child {
   font-size: 16px;
   font-weight: 500;
 }
-.goal-timeline {
-  position: relative;
-}
-.goal-timeline:before {
-  content: "";
-  position: absolute;
-  inset-inline-start: 18px;
-  top: 9px;
-  bottom: 25px;
-  width: 1px;
-  background: var(--border);
-}
 .goal-period-date {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding-inline-start: 14px;
-  font-size: 12px;
   color: var(--muted);
-  margin-bottom: 10px;
-  position: relative;
 }
-.goal-period-date:before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.4;
-  flex-shrink: 0;
+.goal-period + .goal-period {
+  border-top: 1px solid var(--border);
 }
 .goal-period-row {
   display: flex;
@@ -1302,11 +1373,15 @@ th:last-child {
   text-align: start;
   align-items: center;
   gap: 12px;
-  padding: 0 0 20px;
-  min-height: 64px;
+  padding: 16px 0;
+  min-height: 76px;
   position: relative;
   background: none;
   border: 0;
+}
+.goal-history-chevron {
+  flex: none;
+  color: var(--muted);
 }
 .goal-period-icon {
   width: 37px;
@@ -1380,6 +1455,8 @@ th:last-child {
   background: #000a;
 }
 .goal-dialog > header {
+  padding: 0;
+  flex-wrap: nowrap;
   min-height: 0;
   border-bottom: 0;
   display: flex;
@@ -1444,6 +1521,21 @@ th:last-child {
   margin-top: 12px;
   color: var(--muted);
 }
+.goal-week-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.goal-week-stats span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.goal-week-stats strong {
+  font-weight: 500;
+}
 .goal-week-nav {
   display: flex;
   justify-content: space-between;
@@ -1460,14 +1552,44 @@ th:last-child {
   box-shadow: none;
 }
 @media (max-width: 760px) {
-  .goal-lower {
-    grid-template-columns: 1fr;
+  .goal-edit {
+    display: none;
+  }
+  .goal-menu-edit {
+    display: block !important;
+  }
+  .goal-options-maintenance {
+    display: block;
+  }
+  .goal-phase-label {
+    gap: 12px;
+  }
+  .goal-section-actions {
+    gap: 6px;
+  }
+  .goal-dialog input:not([type="checkbox"]),
+  .goal-dialog select {
+    font-size: 16px;
   }
   .goals-card {
     padding: 20px;
   }
 }
+@media (max-width: 900px) {
+  .goal-overview {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 360px) {
+  .goal-chart-mode button {
+    padding-inline: 9px;
+  }
+  .goals-card {
+    padding: 16px;
+  }
+  .goal-row-label {
+    gap: 6px;
+  }
   .goal-progress-row > div:first-child {
     align-items: flex-start;
   }
