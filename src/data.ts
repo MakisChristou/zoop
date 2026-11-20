@@ -54,6 +54,9 @@ export interface Weight {
 }
 export interface Goal {
   goal: null | {
+    phase?: "cut" | "bulk" | "maintenance";
+    maintenance_reference_kg?: number | null;
+    maintenance_range_pct?: number;
     id: number;
     revision: number;
     pace_started_at: string;
@@ -69,6 +72,9 @@ export interface Goal {
     daily_steps_goal: number | null;
   };
   summary: null | {
+    trend_kg_per_week?: number | null;
+    maintenance_lower_kg?: number | null;
+    maintenance_upper_kg?: number | null;
     start?: string;
     state: string;
     week_number: number;

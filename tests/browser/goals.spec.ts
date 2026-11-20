@@ -4,8 +4,14 @@ const day = (offset: number) => {
   d.setUTCDate(d.getUTCDate() + offset);
   return d.toISOString().slice(0, 10);
 };
-async function fixture(page: Page) {
+async function fixture(
+  page: Page,
+  phase: "cut" | "bulk" | "maintenance" = "cut",
+) {
   let goal = {
+    phase,
+    maintenance_reference_kg: phase === "maintenance" ? 64 : null,
+    maintenance_range_pct: 1,
     id: 1,
     revision: 1,
     active: true,
@@ -13,18 +19,20 @@ async function fixture(page: Page) {
     pace_started_at: day(-4) + "T08:00:00Z",
     updated_at: day(0) + "T08:00:00Z",
     timezone: "UTC",
-    finish_date: day(24),
+    finish_date: phase === "maintenance" ? null : day(24),
     weekly_loss_kg: 0.35,
     daily_steps_goal: null,
     reminder_enabled: false,
     reminder_weekday: 1,
     reminder_minute: 1200,
   };
-  const summary = {
-    algorithm_version: 1,
+  let summary = {
+    algorithm_version: 2,
+    maintenance_lower_kg: phase === "maintenance" ? 63.36 : null,
+    maintenance_upper_kg: phase === "maintenance" ? 64.64 : null,
     start: day(-4),
     end: day(2),
-    state: "starting",
+    state: phase === "maintenance" ? "stable" : "on_pace",
     week_number: 1,
     median_kg: 64.2,
     change_kg: null,
@@ -67,7 +75,8 @@ async function fixture(page: Page) {
           };
           fail = false;
         } else {
-          if (goal.active && !q.active)
+          const replacement = !q.active || (q.phase && q.phase !== goal.phase);
+          if (goal.active && replacement)
             history.unshift({
               id: goal.id,
               goal: { ...goal },
@@ -75,13 +84,39 @@ async function fixture(page: Page) {
               ended_at: new Date().toISOString(),
               end_reason: "manual",
             });
-          if (!goal.active && q.active)
+          const id = goal.id,
+            revision = goal.revision;
+          goal = { ...goal, ...q, revision: revision + 1 };
+          if (replacement) {
             goal = {
               ...goal,
-              id: goal.id + 1,
+              id: id + 1,
+              active: true,
               started_at: new Date().toISOString(),
+              pace_started_at: new Date().toISOString(),
             };
-          goal = { ...goal, ...q, revision: goal.revision + 1 };
+            if (!q.active)
+              goal = {
+                ...goal,
+                phase: "maintenance",
+                weekly_loss_kg: 0,
+                finish_date: null,
+                daily_steps_goal: null,
+                maintenance_reference_kg: null,
+              };
+            summary = {
+              ...summary,
+              state: "building_trend",
+              maintenance_lower_kg: null,
+              maintenance_upper_kg: null,
+              progress: {
+                ...summary.progress,
+                target_weight_kg:
+                  goal.phase === "maintenance" ? (null as any) : 63.2,
+                weigh_ins: [],
+              },
+            };
+          }
           body = goal;
         }
       } else body = { goal, summary: goal.active ? summary : null };
@@ -125,12 +160,16 @@ test("end, inspect history, and start a distinct cut on web", async ({
   await page.getByLabel("Goal options").click();
   await page.getByRole("button", { name: "End goal", exact: true }).click();
   await expect(
-    page.getByRole("dialog", { name: "End this cut?" }),
+    page.getByRole("dialog", { name: "End this goal?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Keep going" }).click();
   expect(f.writes).toHaveLength(0);
+  await page.getByLabel("Goal options").click();
   await page.getByRole("button", { name: "End goal", exact: true }).click();
-  await page.getByRole("button", { name: "End cut", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "End goal", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Maintenance", exact: true }),
   ).toBeVisible();
@@ -140,9 +179,11 @@ test("end, inspect history, and start a distinct cut on web", async ({
     page.getByRole("dialog", { name: "Cut", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByRole("button", { name: "Start a goal" }).click();
+  await page.getByLabel("Goal options").click();
+  await page.getByRole("button", { name: "Edit goal", exact: true }).click();
+  await page.getByLabel("Goal", { exact: true }).selectOption("cut");
   await page.getByLabel("Weekly loss · kg").fill("0.4");
-  await page.getByRole("button", { name: "Start cut", exact: true }).click();
+  await page.getByRole("button", { name: "Start goal", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Cut", exact: true }),
   ).toBeVisible();
@@ -208,3 +249,40 @@ test("refresh picks up an iPhone closure without leaving Goals", async ({
     page.getByRole("heading", { name: "Past goals", exact: true }),
   ).toBeVisible();
 });
+
+for (const phase of ["bulk", "maintenance"] as const) {
+  test(`${phase} has its own setup and responsive chart`, async ({ page }) => {
+    const f = await fixture(page, phase);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/#Goals");
+    await expect(
+      page.getByRole("heading", {
+        name: phase === "bulk" ? "Bulk" : "Maintenance",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: `test-results/phase-${phase}-mobile.png`,
+      fullPage: true,
+    });
+    await page.getByLabel("Goal options").click();
+    await page.getByRole("button", { name: "Edit goal", exact: true }).click();
+    await expect(page.getByLabel("Goal", { exact: true })).toHaveValue(phase);
+    if (phase === "maintenance") {
+      await expect(page.getByLabel("Weekly loss · kg")).toHaveCount(0);
+      await expect(page.getByLabel("Finish date")).toHaveCount(0);
+      await page.getByLabel("Range · ±%").fill("1.5");
+    } else await page.getByLabel("Weekly gain · kg").fill("0.2");
+    await page.screenshot({
+      path: `test-results/phase-${phase}-setup.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(f.writes[0].phase).toBe(phase);
+    if (phase === "maintenance") {
+      expect(f.writes[0].weekly_loss_kg).toBe(0);
+      expect(f.writes[0].finish_date).toBeNull();
+    }
+  });
+}

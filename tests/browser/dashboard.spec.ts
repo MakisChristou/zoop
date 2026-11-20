@@ -653,8 +653,8 @@ test("steps ring uses the current goal and outlook opens without another ring", 
     "Load",
   ]);
   const ring = page.locator(".ring-item").nth(1);
-  await expect(ring).toContainText("10,930");
-  await expect(ring).toContainText("of 10,000");
+  await expect(ring).toContainText("109%");
+  await expect(ring.locator("small")).toHaveCount(0);
   await expect(
     page.locator(".today-grid .panel-head").filter({ hasText: "10,930" }),
   ).toHaveCount(0);

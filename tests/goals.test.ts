@@ -91,3 +91,47 @@ describe("goal presentation", () => {
     );
   });
 });
+
+it("bulk progress and outcomes follow increasing weight", () => {
+  const g = { ...goal, phase: "bulk" as const };
+  const s = {
+    ...summary,
+    progress: {
+      ...summary.progress!,
+      starting_weight_kg: 64,
+      current_weight_kg: 64.4,
+      target_weight_kg: 64.8,
+      total_lost_kg: -0.4,
+    },
+  };
+  expect(goalProgress(g, s, new Date()).weight).toBeCloseTo(0.5);
+  expect(
+    goalOutcome({
+      id: 1,
+      goal: g,
+      summary: s,
+      ended_at: "2026-04-04",
+      end_reason: "scheduled",
+    }),
+  ).toBe("Finished");
+  expect(
+    goalOutcome({
+      id: 1,
+      goal: g,
+      summary: { ...s, progress: { ...s.progress, current_weight_kg: 64.9 } },
+      ended_at: "2026-04-04",
+      end_reason: "scheduled",
+    }),
+  ).toBe("Target reached");
+});
+it("indefinite maintenance never invents a countdown", () => {
+  const p = goalProgress(
+    { ...goal, phase: "maintenance", finish_date: null },
+    { ...summary, progress: { ...summary.progress!, target_weight_kg: null } },
+    new Date("2026-04-03T12:00:00Z"),
+  );
+  expect(p.time).toBeNull();
+  expect(p.remaining).toBeNull();
+  expect(p.weight).toBeNull();
+  expect(p.elapsed).toBe(7);
+});

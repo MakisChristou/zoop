@@ -10,6 +10,7 @@ import {
   YAxis,
   CartesianGrid,
   ReferenceLine,
+  ReferenceArea,
   ReferenceDot,
 } from "recharts";
 import { dateLabel, number } from "./calendar";
@@ -25,6 +26,7 @@ export function Chart({
   bar = false,
   target,
   targetLabel,
+  band,
   height = 168,
   latestMarker = false,
   hourly = false,
@@ -37,6 +39,7 @@ export function Chart({
   hourly?: boolean;
   target?: number | null;
   targetLabel?: string;
+  band?: [number, number] | null;
   height?: number;
   latestMarker?: boolean;
   onOpen?: (day: string) => void;
@@ -126,6 +129,16 @@ export function Chart({
             onMouseLeave={() => setHover(null)}
             onClick={(s) => setSelected(pick(s?.activeLabel))}
           >
+            {band && (
+              <ReferenceArea
+                y1={band[0]}
+                y2={band[1]}
+                fill="var(--text)"
+                fillOpacity={0.05}
+                strokeOpacity={0}
+                ifOverflow="extendDomain"
+              />
+            )}
             <CartesianGrid
               vertical={false}
               stroke="var(--grid)"

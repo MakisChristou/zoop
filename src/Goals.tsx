@@ -7,6 +7,8 @@ import {
 } from "react";
 import {
   ArrowDownRight,
+  ArrowUpRight,
+  ArrowRight,
   Clock,
   MoreHorizontal,
   ChevronLeft,
@@ -29,6 +31,35 @@ import { Chart } from "./Chart";
 import { LoadingBar } from "./Loading";
 
 type Settings = NonNullable<Goal["goal"]>;
+const phaseTitle = (g: Settings | null) =>
+  g?.phase === "bulk"
+    ? "Bulk"
+    : g?.phase === "maintenance"
+      ? "Maintenance"
+      : "Cut";
+const rangeBand = (s: Goal["summary"]): [number, number] | null =>
+  s?.maintenance_lower_kg != null && s?.maintenance_upper_kg != null
+    ? [s.maintenance_lower_kg, s.maintenance_upper_kg]
+    : null;
+export function outlookTitle(state?: string) {
+  return (
+    (
+      {
+        stable: "Stable",
+        building_trend: "Building trend",
+        watching: "Watching",
+        drifting_up: "Drifting up",
+        drifting_down: "Drifting down",
+        above_range: "Above range",
+        below_range: "Below range",
+        on_pace: "On pace",
+        below_pace: "Below pace",
+        above_pace: "Above pace",
+        possible_stall: "Possible stall",
+      } as Record<string, string>
+    )[state ?? ""] ?? "Building trend"
+  );
+}
 export interface GoalPeriod {
   id: number;
   goal: Settings;
@@ -43,7 +74,12 @@ interface History {
 export function goalOutcome(period: GoalPeriod) {
   const p = period.summary.progress;
   if (p?.current_weight_kg == null) return "No weigh-ins";
-  if (p.target_weight_kg != null && p.current_weight_kg <= p.target_weight_kg)
+  if (
+    p.target_weight_kg != null &&
+    (period.goal.phase === "bulk"
+      ? p.current_weight_kg >= p.target_weight_kg
+      : p.current_weight_kg <= p.target_weight_kg)
+  )
     return "Target reached";
   return period.end_reason === "manual"
     ? period.goal.finish_date
@@ -75,7 +111,9 @@ export function goalProgress(g: Settings, summary: Goal["summary"], now: Date) {
     elapsed,
     time: total != null && total > 0 ? elapsed / total : null,
     weight:
-      planned != null && planned > 0 && p?.total_lost_kg != null
+      planned != null &&
+      (g.phase === "bulk" ? planned < 0 : planned > 0) &&
+      p?.total_lost_kg != null
         ? Math.min(1, Math.max(0, p.total_lost_kg / planned))
         : null,
   };
@@ -161,17 +199,32 @@ function Progress({
     t = goalProgress(goal, summary, now);
   return (
     <Card title="Progress">
-      <ProgressRow
-        label={(p?.total_lost_kg ?? 0) < 0 ? "Weight gained" : "Weight lost"}
-        icon={<ArrowDownRight size={18} />}
-        badge={t.weight == null ? undefined : number(t.weight * 100) + "%"}
-        value={
-          p?.total_lost_kg == null
-            ? "—"
-            : number(Math.abs(p.total_lost_kg), 1) + " kg"
-        }
-        fraction={t.weight}
-      />
+      {goal.phase === "maintenance" ? (
+        <ProgressRow
+          label="Maintaining"
+          icon={<Clock size={18} />}
+          value={t.elapsed + " days"}
+          fraction={null}
+        />
+      ) : (
+        <ProgressRow
+          label={(p?.total_lost_kg ?? 0) < 0 ? "Weight gained" : "Weight lost"}
+          icon={
+            (p?.total_lost_kg ?? 0) < 0 ? (
+              <ArrowUpRight size={18} />
+            ) : (
+              <ArrowDownRight size={18} />
+            )
+          }
+          badge={t.weight == null ? undefined : number(t.weight * 100) + "%"}
+          value={
+            p?.total_lost_kg == null
+              ? "—"
+              : number(Math.abs(p.total_lost_kg), 1) + " kg"
+          }
+          fraction={t.weight}
+        />
+      )}
       {t.time != null && (
         <ProgressRow
           label="Time"
@@ -193,15 +246,25 @@ function Progress({
       )}
       <div className="goal-values">
         <div>
-          <span>Start</span>
-          <strong>{number(p?.starting_weight_kg, 1)} kg</strong>
+          <span>{goal.phase === "maintenance" ? "Lower range" : "Start"}</span>
+          <strong>
+            {number(
+              goal.phase === "maintenance"
+                ? summary?.maintenance_lower_kg
+                : p?.starting_weight_kg,
+              1,
+            )}{" "}
+            kg
+          </strong>
         </div>
         <div>
-          <span>Target</span>
+          <span>{goal.phase === "maintenance" ? "Upper range" : "Target"}</span>
           <strong>
-            {p?.target_weight_kg == null
-              ? "—"
-              : number(p.target_weight_kg, 1) + " kg"}
+            {goal.phase === "maintenance"
+              ? number(summary?.maintenance_upper_kg, 1) + " kg"
+              : p?.target_weight_kg == null
+                ? "—"
+                : number(p.target_weight_kg, 1) + " kg"}
           </strong>
         </div>
         {goal.finish_date && (
@@ -269,9 +332,18 @@ function Editor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [phase, setPhase] = useState<"cut" | "bulk" | "maintenance">(
+    goal?.phase ?? "cut",
+  );
+  const [reference, setReference] = useState(
+    String(goal?.maintenance_reference_kg ?? ""),
+  );
+  const [range, setRange] = useState(String(goal?.maintenance_range_pct ?? 1));
   const [rate, setRate] = useState(String(goal?.weekly_loss_kg ?? 0.3));
   const [finish, setFinish] = useState(
-    goal?.active ? (goal.finish_date ?? "") : "",
+    goal?.active
+      ? (goal.finish_date ?? "")
+      : addDays(dayKey(new Date(), tz), 56),
   );
   const [steps, setSteps] = useState(String(goal?.daily_steps_goal ?? ""));
   const [reminder, setReminder] = useState(goal?.reminder_enabled ?? true);
@@ -301,8 +373,19 @@ function Editor({
           revision: goal?.revision ?? 0,
           active: true,
           timezone: goal?.timezone ?? tz,
-          weekly_loss_kg: Number(rate),
-          finish_date: finish || null,
+          phase,
+          maintenance_reference_kg:
+            phase === "maintenance"
+              ? reference !== ""
+                ? Number(reference)
+                : goal?.maintenance_reference_kg != null
+                  ? null
+                  : undefined
+              : undefined,
+          maintenance_range_pct:
+            phase === "maintenance" ? Number(range) : undefined,
+          weekly_loss_kg: phase === "maintenance" ? 0 : Number(rate),
+          finish_date: phase === "maintenance" ? null : finish || null,
           daily_steps_goal: steps === "" ? null : Number(steps),
           reminder_enabled: reminder,
           reminder_weekday: weekday,
@@ -322,31 +405,99 @@ function Editor({
   }
   return (
     <Modal
-      title={goal?.active ? "Edit goal" : "Start a cut"}
+      title={goal?.active ? "Edit goal" : "Start a goal"}
       onClose={onClose}
       busy={busy}
     >
       <form onSubmit={save}>
-        <label htmlFor="goal-rate">Weekly loss · kg</label>
-        <input
-          id="goal-rate"
-          type="number"
-          required
-          min="0.1"
-          max="1"
-          step="any"
-          value={rate}
-          onChange={(e) => setRate(e.target.value)}
+        <label htmlFor="goal-phase">Goal</label>
+        <select
+          id="goal-phase"
+          value={phase}
           disabled={busy}
-        />
-        <label htmlFor="goal-finish">Finish date</label>
-        <input
-          id="goal-finish"
-          type="date"
-          value={finish}
-          onChange={(e) => setFinish(e.target.value)}
-          disabled={busy}
-        />
+          onChange={(e) => {
+            const next = e.target.value as typeof phase;
+            setPhase(next);
+            const same = next === (goal?.phase ?? "cut");
+            setRate(
+              String(
+                same
+                  ? (goal?.weekly_loss_kg ?? 0.3)
+                  : next === "bulk"
+                    ? 0.2
+                    : 0.3,
+              ),
+            );
+            setSteps(same ? String(goal?.daily_steps_goal ?? "") : "");
+            setFinish(
+              same
+                ? (goal?.finish_date ?? "")
+                : addDays(dayKey(new Date(), tz), 56),
+            );
+            setReference(
+              same ? String(goal?.maintenance_reference_kg ?? "") : "",
+            );
+            setRange(same ? String(goal?.maintenance_range_pct ?? 1) : "1");
+          }}
+        >
+          <option value="cut">Cut</option>
+          <option value="bulk">Bulk</option>
+          <option value="maintenance">Maintenance</option>
+        </select>
+        {phase === "maintenance" ? (
+          <>
+            <label htmlFor="goal-reference">Reference · kg</label>
+            <input
+              id="goal-reference"
+              type="number"
+              min="20"
+              max="400"
+              step="any"
+              placeholder="Learning"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              disabled={busy}
+            />
+            <label htmlFor="goal-range">Range · ±%</label>
+            <input
+              id="goal-range"
+              type="number"
+              min="0.5"
+              max="5"
+              step="any"
+              required
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              disabled={busy}
+            />
+          </>
+        ) : (
+          <>
+            <label htmlFor="goal-rate">
+              {phase === "bulk" ? "Weekly gain · kg" : "Weekly loss · kg"}
+            </label>
+            <input
+              id="goal-rate"
+              type="number"
+              required
+              min="0.05"
+              max="1"
+              step="any"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              disabled={busy}
+            />
+            <label htmlFor="goal-finish">Finish date</label>
+            <input
+              id="goal-finish"
+              type="date"
+              required={!goal?.active || phase !== (goal.phase ?? "cut")}
+              value={finish}
+              onChange={(e) => setFinish(e.target.value)}
+              disabled={busy}
+            />
+          </>
+        )}
         <label htmlFor="goal-steps">Daily steps</label>
         <input
           id="goal-steps"
@@ -424,7 +575,9 @@ function Editor({
         )}
         <button className="primary goal-save" disabled={busy || conflict}>
           {busy && <LoaderCircle size={16} className="spinner" />}
-          {goal?.active ? "Save" : "Start cut"}
+          {goal?.active && (goal.phase ?? "cut") === phase
+            ? "Save"
+            : "Start goal"}
         </button>
       </form>
     </Modal>
@@ -438,7 +591,7 @@ function Weekly({
   summary: Goal["summary"];
 }) {
   const available = (summary?.weeks ?? []).filter(
-    (w) => w.end >= dayKey(new Date(goal.pace_started_at), goal.timezone),
+    (w) => w.end >= dayKey(new Date(goal.started_at), goal.timezone),
   );
   const [index, setIndex] = useState(Math.max(0, available.length - 1));
   const w = available[Math.min(index, available.length - 1)];
@@ -472,6 +625,7 @@ function Weekly({
           addDays(w.end, 1),
         )}
         unit="kg"
+        band={rangeBand(summary)}
       />
       {w.start === summary?.start && summary.state !== "starting" && (
         <p
@@ -481,22 +635,22 @@ function Weekly({
               summary.state === "on_pace" ? "var(--green)" : "var(--muted)",
           }}
         >
-          {(
-            {
-              on_pace: "On pace",
-              slower_week: "Slower week",
-              faster_week: "Faster week",
-              below_pace: "Below target pace",
-              faster: "Faster than planned",
-              possible_stall: "Possible stall",
-              unclear: "Trend unclear",
-            } as Record<string, string>
-          )[summary.state] ?? "More weigh-ins needed"}
+          {outlookTitle(summary.state)}
+        </p>
+      )}
+      {w.start === summary?.start && summary.trend_kg_per_week != null && (
+        <p className="small">
+          {summary.trend_kg_per_week > 0 ? "+" : ""}
+          {number(summary.trend_kg_per_week, 2)} kg / week
         </p>
       )}
       <p className="muted small">Weekly median {number(w.median_kg, 1)} kg</p>
       <p className="muted small">
-        Target −{number(goal.weekly_loss_kg, 1)} kg / week
+        {w.end < dayKey(new Date(goal.pace_started_at), goal.timezone)
+          ? "Previous pace"
+          : goal.phase === "maintenance"
+            ? "Maintain weight"
+            : `Target ${goal.phase === "bulk" ? "+" : "−"}${number(goal.weekly_loss_kg, 2)} kg / week`}
       </p>
     </>
   );
@@ -611,7 +765,7 @@ export function GoalView({
   return (
     <div className="goals-page">
       <div className="goal-section">
-        <h2>{active ? "Cut" : "Maintenance"}</h2>
+        <h2>{active ? phaseTitle(g) : "Maintenance"}</h2>
         <div className="goal-section-actions">
           {active ? (
             <>
@@ -622,9 +776,17 @@ export function GoalView({
                 <summary aria-label="Goal options">
                   <MoreHorizontal size={20} />
                 </summary>
-                <div>
+                <div
+                  onClick={(event) => {
+                    event.currentTarget
+                      .closest("details")
+                      ?.removeAttribute("open");
+                  }}
+                >
                   <button onClick={() => setMode("edit")}>Edit goal</button>
-                  <button onClick={() => setMode("end")}>End goal</button>
+                  {g?.phase !== "maintenance" && (
+                    <button onClick={() => setMode("end")}>End goal</button>
+                  )}
                   <button onClick={() => setMode("weekly")}>Weekly pace</button>
                 </div>
               </details>
@@ -647,6 +809,18 @@ export function GoalView({
           <button onClick={() => setRefresh((x) => x + 1)}>Retry</button>
         </p>
       )}
+      {s && (
+        <p
+          className="small"
+          style={{
+            color: ["stable", "on_pace"].includes(s.state)
+              ? "var(--green)"
+              : "var(--muted)",
+          }}
+        >
+          {outlookTitle(s.state)}
+        </p>
+      )}
       <Card
         title="Weight"
         aside={
@@ -661,8 +835,13 @@ export function GoalView({
           unit="kg"
           height={220}
           latestMarker
-          target={active ? s?.progress?.target_weight_kg : null}
+          target={
+            active && g?.phase !== "maintenance"
+              ? s?.progress?.target_weight_kg
+              : null
+          }
           targetLabel="Target"
+          band={rangeBand(s)}
         />
       </Card>
       <div className={"goal-lower" + (!active ? " single" : "")}>
@@ -698,10 +877,16 @@ export function GoalView({
                     className="goal-period-row"
                   >
                     <span className="goal-period-icon">
-                      <ArrowDownRight size={18} />
+                      {p.goal.phase === "bulk" ? (
+                        <ArrowUpRight size={18} />
+                      ) : p.goal.phase === "maintenance" ? (
+                        <ArrowRight size={18} />
+                      ) : (
+                        <ArrowDownRight size={18} />
+                      )}
                     </span>
                     <span>
-                      Cut
+                      {phaseTitle(p.goal)}
                       <small
                         className={
                           goalOutcome(p) === "Target reached"
@@ -753,15 +938,15 @@ export function GoalView({
         />
       )}
       {mode === "end" && (
-        <Modal title="End this cut?" busy={busy} onClose={() => setMode(null)}>
-          <p className="muted">Cut reminders stop. Your history stays.</p>
+        <Modal title="End this goal?" busy={busy} onClose={() => setMode(null)}>
+          <p className="muted">Maintenance starts next. Your history stays.</p>
           {error && (
             <p className="error" role="alert">
               {error}
             </p>
           )}
           <button className="primary goal-save" disabled={busy} onClick={end}>
-            {busy && <LoaderCircle size={16} className="spinner" />}End cut
+            {busy && <LoaderCircle size={16} className="spinner" />}End goal
           </button>
           <button
             className="goal-more"
@@ -778,7 +963,10 @@ export function GoalView({
         </Modal>
       )}
       {selected != null && (
-        <Modal title="Cut" onClose={() => setSelected(null)}>
+        <Modal
+          title={historical.data ? phaseTitle(historical.data.goal) : "Goal"}
+          onClose={() => setSelected(null)}
+        >
           {historical.loading && <LoadingBar label="Loading past goal" />}
           {historical.error && (
             <p className="error" role="alert">
@@ -809,6 +997,7 @@ function Archived({ period: p }: { period: GoalPeriod }) {
             : []
         }
         target={p.summary.progress?.target_weight_kg}
+        band={rangeBand(p.summary)}
         targetLabel="Target"
         latestMarker
       />

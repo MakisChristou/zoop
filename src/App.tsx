@@ -931,9 +931,10 @@ function DataView({
           />
           <Ring
             label="Steps"
-            value={number(daily?.steps)}
-            subtitle={
-              stepTarget == null ? undefined : `of ${number(stepTarget)}`
+            value={
+              stepTarget != null && daily?.steps != null
+                ? number((daily.steps / stepTarget) * 100) + "%"
+                : number(daily?.steps)
             }
             color="var(--text)"
             fraction={
