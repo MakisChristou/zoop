@@ -11,8 +11,17 @@ fn fail(e: sqlx::Error) -> StorageError {
 /// Settings belong to the authenticated device dataset; edits preserve an audit revision.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct WeightGoal {
-    /// Stable identity of this cut, independent of its settings revisions.
+    /// Stable identity of this phase, independent of its settings revisions.
     pub id: i64,
+    /// Cut, bulk, or indefinite maintenance.
+    #[serde(default = "default_phase")]
+    pub phase: String,
+    /// Fixed maintenance reference, learned once or chosen explicitly.
+    #[serde(default)]
+    pub maintenance_reference_kg: Option<f64>,
+    /// Percentage on either side of the maintenance reference.
+    #[serde(default = "default_range")]
+    pub maintenance_range_pct: f64,
     pub revision: i64,
     pub active: bool,
     pub started_at: DateTime<Utc>,
@@ -30,6 +39,10 @@ pub struct WeightGoal {
 /// Optimistic update. Start dates are assigned by the server, never by the client.
 #[derive(Debug, Deserialize)]
 pub struct WeightGoalInput {
+    pub phase: Option<String>,
+    #[serde(default, deserialize_with = "optional_reference")]
+    pub maintenance_reference_kg: Option<Option<f64>>,
+    pub maintenance_range_pct: Option<f64>,
     /// Absent preserves the goal; null disables it.
     #[serde(default, deserialize_with = "optional_steps")]
     pub daily_steps_goal: Option<Option<i32>>,
@@ -43,6 +56,17 @@ pub struct WeightGoalInput {
     pub reminder_enabled: bool,
     pub reminder_weekday: i32,
     pub reminder_minute: i32,
+}
+fn default_phase() -> String {
+    "cut".into()
+}
+fn default_range() -> f64 {
+    1.0
+}
+fn optional_reference<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<Option<f64>>, D::Error> {
+    Option::<f64>::deserialize(d).map(Some)
 }
 fn optional_date<'de, D: serde::Deserializer<'de>>(
     d: D,
@@ -60,7 +84,7 @@ pub struct WeightDay {
 }
 
 impl PostgresStore {
-    /// Returns settings, including paused goals, without creating one.
+    /// Returns the active phase, creating default maintenance or closing an expired phase.
     /// # Errors
     /// Unknown device or database failure.
     pub async fn weight_goal(&self, device: &str) -> StorageResult<Option<WeightGoal>> {
@@ -72,8 +96,8 @@ impl PostgresStore {
         if !exists {
             return Err(StorageError::CorrectionNotFound);
         }
-        self.expire_weight_goal(device).await?;
-        sqlx::query_as("SELECT id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1").bind(device).fetch_optional(self.pool()).await.map_err(fail)
+        self.ensure_weight_phase(device).await?;
+        sqlx::query_as("SELECT phase,maintenance_reference_kg,maintenance_range_pct,id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1").bind(device).fetch_optional(self.pool()).await.map_err(fail)
     }
     /// Saves atomically with a revision receipt. An identical retry is idempotent.
     /// # Errors
@@ -85,12 +109,12 @@ impl PostgresStore {
     ) -> StorageResult<WeightGoal> {
         if q.revision < 0
             || !q.weekly_loss_kg.is_finite()
-            || !(0.1..=1.0).contains(&q.weekly_loss_kg)
+            || !(0.0..=1.0).contains(&q.weekly_loss_kg)
             || !(1..=7).contains(&q.reminder_weekday)
             || !(0..1440).contains(&q.reminder_minute)
         {
             return Err(StorageError::InvalidQuery(
-                "Choose a weekly loss between 0.1 and 1 kg and a valid reminder time.".into(),
+                "Choose a valid weekly rate and reminder time.".into(),
             ));
         }
         if q.daily_steps_goal
@@ -102,22 +126,102 @@ impl PostgresStore {
             ));
         }
         self.progress_today(&q.timezone).await?;
-        self.weight_goal(device).await?;
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM devices WHERE id=$1)")
+            .bind(device)
+            .fetch_one(self.pool())
+            .await
+            .map_err(fail)?;
+        if !exists {
+            return Err(StorageError::CorrectionNotFound);
+        }
+        let has_goal: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM weight_goals WHERE device_id=$1)")
+                .bind(device)
+                .fetch_one(self.pool())
+                .await
+                .map_err(fail)?;
+        if has_goal {
+            self.ensure_weight_phase(device).await?;
+        }
         let mut tx = self.pool().begin().await.map_err(fail)?;
         crate::session_store::lock_device(&mut tx, device).await?;
-        let old: Option<WeightGoal> = sqlx::query_as("SELECT id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1 FOR UPDATE").bind(device).fetch_optional(&mut *tx).await.map_err(fail)?;
-        let finish = q
-            .finish_date
-            .unwrap_or_else(|| old.as_ref().and_then(|g| g.finish_date));
-        let steps = q
-            .daily_steps_goal
-            .unwrap_or_else(|| old.as_ref().and_then(|g| g.daily_steps_goal));
+        let old: Option<WeightGoal> = sqlx::query_as("SELECT phase,maintenance_reference_kg,maintenance_range_pct,id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1 FOR UPDATE").bind(device).fetch_optional(&mut *tx).await.map_err(fail)?;
+        if q.phase.is_none() && q.active && old.as_ref().is_some_and(|g| g.phase != "cut") {
+            return Err(StorageError::CorrectionConflict(
+                "Update the app before editing this goal phase.".into(),
+            ));
+        }
+        let requested_phase = q.phase.as_deref().unwrap_or("cut");
+        if !["cut", "bulk", "maintenance"].contains(&requested_phase) {
+            return Err(StorageError::InvalidQuery(
+                "Choose cut, bulk or maintenance.".into(),
+            ));
+        }
+        let phase = if q.active {
+            requested_phase
+        } else {
+            "maintenance"
+        };
+        let switching = old.as_ref().is_some_and(|g| g.phase != phase || !g.active);
+        let reference = if phase == "maintenance" {
+            q.maintenance_reference_kg.unwrap_or_else(|| {
+                old.as_ref()
+                    .filter(|g| g.phase == phase)
+                    .and_then(|g| g.maintenance_reference_kg)
+            })
+        } else {
+            None
+        };
+        let range = q.maintenance_range_pct.unwrap_or_else(|| {
+            old.as_ref()
+                .filter(|g| g.phase == phase)
+                .map_or(1.0, |g| g.maintenance_range_pct)
+        });
+        if reference.is_some_and(|v| !v.is_finite() || !(20.0..=400.0).contains(&v))
+            || !range.is_finite()
+            || !(0.5..=5.0).contains(&range)
+        {
+            return Err(StorageError::InvalidQuery(
+                "Choose a valid reference and a range between 0.5% and 5%.".into(),
+            ));
+        }
+        let rate = if phase == "maintenance" {
+            0.0
+        } else {
+            q.weekly_loss_kg
+        };
+        if phase != "maintenance" && !(0.05..=1.0).contains(&rate) {
+            return Err(StorageError::InvalidQuery(
+                "Choose a weekly rate between 0.05 and 1 kg.".into(),
+            ));
+        }
+        let finish = if phase == "maintenance" {
+            None
+        } else {
+            q.finish_date.unwrap_or_else(|| {
+                old.as_ref()
+                    .filter(|g| g.phase == phase)
+                    .and_then(|g| g.finish_date)
+            })
+        };
+        let steps = if !q.active {
+            sqlx::query_scalar::<_, Option<i32>>("SELECT (settings->>'daily_steps_goal')::integer FROM weight_goal_history WHERE device_id=$1 AND settings->>'phase'='maintenance' ORDER BY ended_at DESC LIMIT 1").bind(device).fetch_optional(&mut *tx).await.map_err(fail)?.flatten()
+        } else {
+            q.daily_steps_goal.unwrap_or_else(|| {
+                old.as_ref()
+                    .filter(|g| g.phase == phase)
+                    .and_then(|g| g.daily_steps_goal)
+            })
+        };
         if let Some(ref old) = old
             && old.daily_steps_goal == steps
             && old.finish_date == finish
-            && old.active == q.active
+            && old.active
+            && old.phase == phase
+            && old.maintenance_reference_kg == reference
+            && old.maintenance_range_pct == range
             && old.timezone == q.timezone
-            && old.weekly_loss_kg == q.weekly_loss_kg
+            && old.weekly_loss_kg == rate
             && old.reminder_enabled == q.reminder_enabled
             && old.reminder_weekday == q.reminder_weekday
             && old.reminder_minute == q.reminder_minute
@@ -135,11 +239,19 @@ impl PostgresStore {
             ));
         }
         let now = Utc::now();
-        let restart = old.as_ref().is_none_or(|g| !g.active && q.active);
+        let restart = old.is_none() || switching;
+        if restart && q.phase.is_some() && phase != "maintenance" && finish.is_none() {
+            return Err(StorageError::InvalidQuery(
+                "Choose a finish date for this phase.".into(),
+            ));
+        }
         let new_pace = restart
-            || old
-                .as_ref()
-                .is_some_and(|g| g.weekly_loss_kg != q.weekly_loss_kg || g.timezone != q.timezone);
+            || old.as_ref().is_some_and(|g| {
+                g.weekly_loss_kg != rate
+                    || g.timezone != q.timezone
+                    || g.maintenance_reference_kg != reference
+                    || g.maintenance_range_pct != range
+            });
         let start = if restart {
             now
         } else {
@@ -161,8 +273,8 @@ impl PostgresStore {
                 ));
             }
         }
-        let saved: WeightGoal=sqlx::query_as("INSERT INTO weight_goals(device_id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(device_id) DO UPDATE SET revision=EXCLUDED.revision,active=EXCLUDED.active,started_at=EXCLUDED.started_at,pace_started_at=EXCLUDED.pace_started_at,timezone=EXCLUDED.timezone,weekly_loss_kg=EXCLUDED.weekly_loss_kg,reminder_enabled=EXCLUDED.reminder_enabled,reminder_weekday=EXCLUDED.reminder_weekday,reminder_minute=EXCLUDED.reminder_minute,updated_at=EXCLUDED.updated_at,finish_date=EXCLUDED.finish_date,daily_steps_goal=EXCLUDED.daily_steps_goal RETURNING id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal")
-            .bind(device).bind(q.revision+1).bind(q.active).bind(start).bind(pace).bind(&q.timezone).bind(q.weekly_loss_kg).bind(q.reminder_enabled).bind(q.reminder_weekday).bind(q.reminder_minute).bind(now).bind(finish).bind(steps).fetch_one(&mut *tx).await.map_err(fail)?;
+        let saved: WeightGoal=sqlx::query_as("INSERT INTO weight_goals(device_id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal,phase,maintenance_reference_kg,maintenance_range_pct) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT(device_id) DO UPDATE SET phase=EXCLUDED.phase,maintenance_reference_kg=EXCLUDED.maintenance_reference_kg,maintenance_range_pct=EXCLUDED.maintenance_range_pct,revision=EXCLUDED.revision,active=EXCLUDED.active,started_at=EXCLUDED.started_at,pace_started_at=EXCLUDED.pace_started_at,timezone=EXCLUDED.timezone,weekly_loss_kg=EXCLUDED.weekly_loss_kg,reminder_enabled=EXCLUDED.reminder_enabled,reminder_weekday=EXCLUDED.reminder_weekday,reminder_minute=EXCLUDED.reminder_minute,updated_at=EXCLUDED.updated_at,finish_date=EXCLUDED.finish_date,daily_steps_goal=EXCLUDED.daily_steps_goal RETURNING phase,maintenance_reference_kg,maintenance_range_pct,id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal")
+            .bind(device).bind(q.revision+1).bind(true).bind(start).bind(pace).bind(&q.timezone).bind(rate).bind(q.reminder_enabled).bind(q.reminder_weekday).bind(q.reminder_minute).bind(now).bind(finish).bind(steps).bind(phase).bind(reference).bind(range).fetch_one(&mut *tx).await.map_err(fail)?;
         sqlx::query("INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w WHERE device_id=$1").bind(device).execute(&mut *tx).await.map_err(fail)?;
         tx.commit().await.map_err(fail)?;
         Ok(saved)

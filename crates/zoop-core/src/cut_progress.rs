@@ -55,7 +55,7 @@ pub fn cut_progress(
     let target = finish.zip(initial).and_then(|(end, weight)| {
         let duration = (end - started).num_days();
         let target = weight - rate * duration as f64 / 7.0;
-        (duration > 0 && rate.is_finite() && rate > 0.0 && (20.0..=400.0).contains(&target))
+        (duration > 0 && rate.is_finite() && rate != 0.0 && (20.0..=400.0).contains(&target))
             .then_some(target)
     });
     CutProgress {

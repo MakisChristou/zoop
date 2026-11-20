@@ -104,3 +104,5 @@ pub use weight_goal_store::{WeightDay, WeightGoal, WeightGoalInput};
 
 mod goal_history;
 pub use goal_history::GoalPeriod;
+
+mod weight_phase_store;

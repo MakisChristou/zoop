@@ -26,21 +26,21 @@ async fn summary(
         .weight_local_day(g.pace_started_at, &g.timezone)
         .await?;
     let as_of = g.finish_date.map_or(today, |end| end.min(today));
-    let days = s
-        .store
-        .weight_days_between(d, &g.timezone, as_of - Duration::days(112), as_of, now)
-        .await?;
     let cut_days = s
         .store
         .cut_weight_days(d, &g.timezone, started, as_of, now)
         .await?;
-    let mut result = zoop_core::weight_outlook(&days, as_of, started, pace, g.weekly_loss_kg);
+    let mut result = zoop_core::phase_outlook(&cut_days, as_of, started, pace, g);
     result.progress = Some(zoop_core::cut_progress(
         &cut_days,
         today,
         started,
         g.finish_date,
-        g.weekly_loss_kg,
+        if g.phase == "bulk" {
+            -g.weekly_loss_kg
+        } else {
+            g.weekly_loss_kg
+        },
     ));
     Ok(result)
 }

@@ -169,7 +169,7 @@ fn leap_day_and_unreasonable_projection_stay_well_defined() {
         .target_weight_kg,
         None
     );
-    for rate in [f64::NAN, f64::INFINITY, 0.0, -0.3] {
+    for rate in [f64::NAN, f64::INFINITY, 0.0] {
         assert_eq!(
             cut_progress(
                 &data,
@@ -182,4 +182,16 @@ fn leap_day_and_unreasonable_projection_stay_well_defined() {
             None
         );
     }
+}
+
+#[test]
+fn signed_bulk_projection_increases_target() {
+    let p = cut_progress(
+        &rows(&[("2028-02-28", 70.0)]),
+        day("2028-02-28"),
+        day("2028-02-28"),
+        Some(day("2028-03-06")),
+        -0.3,
+    );
+    assert_eq!(p.target_weight_kg, Some(70.3));
 }
