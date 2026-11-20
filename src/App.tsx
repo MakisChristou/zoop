@@ -3,8 +3,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  LogOut,
-  Shield,
   LoaderCircle,
 } from "lucide-react";
 import {
@@ -29,6 +27,7 @@ import {
   series,
   type Period,
 } from "./calendar";
+import { AccountMenu } from "./AccountMenu";
 import { Chart } from "./Chart";
 import { GoalView } from "./Goals";
 import { stepsTarget } from "./summary";
@@ -46,7 +45,6 @@ export function App() {
     [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState<Page>(currentPage),
-    [menu, setMenu] = useState(false),
     [device, setDevice] = useState("");
   useEffect(() => {
     const c = new AbortController();
@@ -64,11 +62,9 @@ export function App() {
     const expired = () => {
       setIdentity(null);
       setDevice("");
-      setMenu(false);
     };
     const hash = () => {
       setPage(currentPage());
-      setMenu(false);
     };
     window.addEventListener("zoop:unauthorized", expired);
     window.addEventListener("hashchange", hash);
@@ -84,7 +80,6 @@ export function App() {
       await api("/v1/auth/logout", undefined, {});
       setIdentity(null);
       setDevice("");
-      setMenu(false);
       location.hash = "Today";
     } catch (e) {
       setError((e as Error).message);
@@ -136,34 +131,13 @@ export function App() {
             </a>
           ))}
         </nav>
-        <div className="account">
-          <button
-            aria-label="Account menu"
-            className="avatar"
-            aria-expanded={menu}
-            onClick={() => setMenu(!menu)}
-          >
-            {identity.account.email.slice(0, 2).toUpperCase()}
-          </button>
-          {menu && (
-            <div className="menu">
-              <span className="email">{identity.account.email}</span>
-              {identity.account.is_admin && (
-                <a href="#Admin" onClick={() => setMenu(false)}>
-                  <Shield size={16} /> Admin
-                </a>
-              )}
-              <button onClick={logout} disabled={signingOut}>
-                {signingOut ? (
-                  <LoaderCircle className="spinner" size={16} />
-                ) : (
-                  <LogOut size={16} />
-                )}{" "}
-                Sign out
-              </button>
-            </div>
-          )}
-        </div>
+        <AccountMenu
+          key={identity.account.id + ":" + selected}
+          account={identity.account}
+          device={selected}
+          signingOut={signingOut}
+          logout={logout}
+        />
       </header>
       {error && (
         <p role="alert" className="error">
