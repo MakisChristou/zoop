@@ -25,6 +25,19 @@ import XCTest
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name
         attachment.lifetime = .keepAlways; add(attachment)
     }
+    func testTimelineCardKeepsOptionsAndDetailNavigation() {
+        let app = launch()
+        let duration = app.staticTexts["sleepTimelineDuration"]
+        XCTAssertTrue(duration.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Time asleep"].exists)
+        shot(app, "Time asleep approved card")
+        app.buttons["Sleep options"].tap()
+        XCTAssertTrue(app.buttons["Edit sleep"].waitForExistence(timeout: 5))
+        app.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.12)).tap()
+        app.buttons["sleepTimelineDetails"].tap()
+        XCTAssertTrue(app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH %@", "Night of")).firstMatch.waitForExistence(timeout: 5))
+        shot(app, "Time asleep opens details")
+    }
     func testCardAlignsReadingsAndRetainsComparisons() {
         let app = launch()
         reveal(app.staticTexts["stageDuration-Light"], app: app, centered: true)
@@ -45,6 +58,7 @@ import XCTest
     }
     func testLargestTextKeepsStageReadingsAndTimesReachable() {
         let app = launch(large: true)
+        shot(app, "Time asleep largest text")
         for stage in ["Deep", "REM", "Light", "Awake"] {
             let duration = app.staticTexts["stageDuration-" + stage]
             reveal(duration, app: app)

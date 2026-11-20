@@ -88,55 +88,42 @@ struct SleepView: View {
         let p = night.metrics.physiology
         let deltas = SleepMetricDelta.all(record: record, history: model.sleep.items, calendar: calendar)
         return VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .top) {
-                        SleepDuration(seconds: w.asleepS, size: 20)
-                        Spacer()
-                        Menu {
-                            Button("Sleep goal", systemImage: "moon") { showGoal = true }
-                                .accessibilityIdentifier("editSleepGoal")
-                            Divider()
-                            Button("Edit sleep", systemImage: "pencil") { editor = .edit(record) }
-                            Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .merge(record) }
-                            if let id = record.lastEdit { Button("Undo last change", systemImage: "arrow.uturn.backward") { Task { do { try await model.sleep.undo(device: model.strap.serial, id: id) } catch { self.error = error.localizedDescription } } } }
-                            Button("Reset to automatic", systemImage: "arrow.counterclockwise") { resetTarget = record }
-                            NavigationLink("Sleep details") { SleepSessionDetailView(initial: record) }
-                        } label: { Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44) }
-                        .accessibilityLabel("Sleep options")
-                    }
-                    if record.metricsPending { Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
-                    else if record.edited { Text(record.autoDetected ? "Edited" : "Added").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text("Time asleep").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
-                        Spacer()
-                        if let delta = deltas[.asleep] { SleepDeltaLabel(delta: delta, id: "Time asleep") }
-                    }
-                    if night.stages.isEmpty {
-                        Text("\(w.onset.formatted(date: .omitted, time: .shortened)) – \(w.offset.formatted(date: .omitted, time: .shortened))")
-                            .font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
-                        NavigationLink { SleepSessionDetailView(initial: record) } label: {
-                            Label("Sleep details", systemImage: "chevron.right").font(ZoopType.footnote).frame(minHeight: 44)
+                NavigationLink {
+                    SleepSessionDetailView(initial: record)
+                } label: {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Time asleep").font(ZoopStyle.sectionTitle)
+                            Spacer(minLength: 8)
+                            Color.clear.frame(width: 44, height: 24)
+                            Image(systemName: "chevron.right").font(ZoopType.footnote)
+                                .foregroundStyle(ZoopStyle.secondary).frame(width: 24)
                         }
-                    } else {
-                        NavigationLink {
-                            SleepSessionDetailView(initial: record)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset)
-                                    .frame(height: 140).zoopCard(padding: 12)
-                                HStack {
-                                    Spacer()
-                                    Label("Sleep details", systemImage: "chevron.right")
-                                        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                }
-                            }
-                            .padding(.top, 8)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) { sleepHeadline(w.asleepS, delta: deltas[.asleep]) }
+                            VStack(alignment: .leading, spacing: 6) { sleepHeadline(w.asleepS, delta: deltas[.asleep]) }
                         }
-                        .buttonStyle(PressableCardStyle()).accessibilityIdentifier("sleepTimelineDetails")
+                        if record.metricsPending {
+                            Label("Updating sleep", systemImage: "arrow.triangle.2.circlepath")
+                                .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                        } else if record.edited {
+                            Text(record.autoDetected ? "Edited" : "Added").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                        }
+                        if night.stages.isEmpty {
+                            Text("Stages unavailable").font(ZoopType.footnote)
+                                .foregroundStyle(ZoopStyle.secondary).frame(maxWidth: .infinity, minHeight: 100)
+                        } else {
+                            Hypnogram(segments: night.stages, onset: w.onset, offset: w.offset, timezone: calendar.timeZone)
+                        }
                     }
+                    .foregroundStyle(ZoopStyle.text).frame(maxWidth: .infinity, alignment: .leading)
+                    .zoopCard()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
+                .buttonStyle(.plain).accessibilityIdentifier("sleepTimelineDetails")
+                .accessibilityHint("Opens sleep details")
+                .overlay(alignment: .topTrailing) {
+                    sleepOptions(record).padding(.top, 10).padding(.trailing, 44)
+                }
 
                 if let st = night.metrics.stages, !night.stages.isEmpty {
                     let scored = max(st.lightS + st.deepS + st.remS, 1)
@@ -219,14 +206,48 @@ struct SleepView: View {
         Array(repeating: GridItem(.flexible(), spacing: 24, alignment: .leading), count: typeSize.isAccessibilitySize ? 1 : 2)
     }
 
+    private func sleepTime(_ date: Date) -> String {
+        let formatter = DateFormatter(); formatter.timeZone = calendar.timeZone; formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     private func stageTime(_ title: String, symbol: String, date: Date, id: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(title, systemImage: symbol)
                 .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-            Text(date.formatted(date: .omitted, time: .shortened))
+            Text(sleepTime(date))
                 .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier(id)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func sleepHeadline(_ seconds: Int, delta: SleepMetricDelta?) -> some View {
+        Text(duration(seconds)).font(ZoopType.font(size: 24, weight: .medium, relativeTo: .title2))
+            .monospacedDigit().accessibilityIdentifier("sleepTimelineDuration")
+        if let delta { SleepDeltaLabel(delta: delta, id: "Time asleep") }
+    }
+
+    private func sleepOptions(_ record: ZoopAPI.SleepSession) -> some View {
+        Menu {
+            Button("Sleep goal", systemImage: "moon") { showGoal = true }
+                .accessibilityIdentifier("editSleepGoal")
+            Divider()
+            Button("Edit sleep", systemImage: "pencil") { editor = .edit(record) }
+            Button("Merge sleep", systemImage: "arrow.triangle.merge") { editor = .merge(record) }
+            if let id = record.lastEdit {
+                Button("Undo last change", systemImage: "arrow.uturn.backward") {
+                    Task {
+                        do { try await model.sleep.undo(device: model.strap.serial, id: id) }
+                        catch { self.error = error.localizedDescription }
+                    }
+                }
+            }
+            Button("Reset to automatic", systemImage: "arrow.counterclockwise") { resetTarget = record }
+            NavigationLink("Sleep details") { SleepSessionDetailView(initial: record) }
+        } label: {
+            Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44)
+        }
+        .accessibilityLabel("Sleep options")
     }
 
     private func duration(_ seconds: Int) -> String {
@@ -234,47 +255,6 @@ struct SleepView: View {
         return h > 0 ? "\(h)h \(String(format: "%02d", m))m" : "\(m)m"
     }
     private func pct(_ value: Double) -> String { "\(Int((value * 100).rounded())) %" }
-}
-
-struct Hypnogram: View {
-    let segments: [ZoopAPI.Night.Segment]
-    let onset: Date
-    let offset: Date
-
-    static func color(_ stage: ZoopAPI.Night.Stage) -> Color {
-        switch stage {
-        case .wake: ZoopStyle.secondary.opacity(0.25)
-        case .light: ZoopStyle.sleep.opacity(0.25)
-        case .deep: ZoopStyle.sleep
-        case .rem: ZoopStyle.sleep.opacity(0.6)
-        }
-    }
-
-    private static func level(_ stage: ZoopAPI.Night.Stage) -> CGFloat {
-        switch stage {
-        case .wake: 0
-        case .rem: 1
-        case .light: 2
-        case .deep: 3
-        }
-    }
-
-    var body: some View {
-        GeometryReader { geo in
-            let total = max(offset.timeIntervalSince(onset), 1)
-            let rowHeight = geo.size.height / 4
-            ZStack(alignment: .topLeading) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
-                    let x = CGFloat(seg.start.timeIntervalSince(onset) / total) * geo.size.width
-                    let w = max(CGFloat(seg.end.timeIntervalSince(seg.start) / total) * geo.size.width, 1)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Self.color(seg.stage))
-                        .frame(width: w, height: rowHeight - 3)
-                        .offset(x: x, y: Self.level(seg.stage) * rowHeight)
-                }
-            }
-        }
-    }
 }
 
 private struct StageRow: View {
