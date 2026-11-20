@@ -193,7 +193,7 @@ function PrivateApp() {
                 ? "Your band is linked. Open Zoop on your iPhone to upload its first recordings."
                 : "Link your band from the server, then sign in on your iPhone."}
             </p>
-            <button onClick={() => location.reload()}>
+            <button className="primary" onClick={() => location.reload()}>
               Check for recordings
             </button>
           </section>

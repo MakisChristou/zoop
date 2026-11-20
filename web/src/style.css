@@ -2458,4 +2458,5 @@ th:last-child {
 .onboarding .primary {
   justify-self: start;
   min-height: 44px;
+  margin-top: 0;
 }
