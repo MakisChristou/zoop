@@ -80,7 +80,11 @@ pub(crate) async fn require_bearer(
                 && path.strip_prefix("/v1/devices/").is_some_and(|tail| {
                     tail.split('/').count() == 2 && tail.ends_with("/weight-goal")
                 });
-            if !goal_update {
+            let photo_update = request.method() == Method::PUT
+                && path.strip_prefix("/v1/devices/").is_some_and(|tail| {
+                    tail.split('/').count() == 3 && tail.ends_with("/profile/photo")
+                });
+            if !goal_update && !photo_update {
                 return Err(ApiError::Forbidden);
             }
             crate::web::check_origin(&state, request.headers())?;

@@ -33,7 +33,7 @@ Nix exposes `services.zoop.web.enable` and `.origin`; both remain inactive until
 ## Access and recovery
 
 - Accounts own devices; admin status never bypasses health-data ownership.
-- Browser sessions are random, hashed at rest, HttpOnly, SameSite Strict and Secure over HTTPS. They expire after 12 hours. Browser health writes are denied.
+- Browser sessions are random, hashed at rest, HttpOnly, SameSite Strict and Secure over HTTPS. They expire after 12 hours. Browser measurement writes are denied; owner-scoped goal updates and profile-photo uploads are allowed with the configured Origin.
 - Passwords use Argon2id. Login is rate-limited in PostgreSQL; no browser token is stored in local storage.
 - `zoop account reset-password --email … --password-file …` revokes existing browser sessions, including concurrent login attempts. Phone tokens, including imported legacy tokens, are also revoked.
 - `zoop account disable --email …` disables access and revokes browser and phone credentials.
@@ -51,7 +51,7 @@ Before enabling multiple users, verify the owner's iPhone can still read and upl
 
 `POST /v1/auth/native/login` accepts email/password JSON and returns a private phone
 credential. Use HTTPS. The iPhone keeps it in Keychain; the server stores only its
-hash. Browser-origin native-token requests are rejected. Browser cookies permit only owner-scoped goal management; other health writes remain blocked.
+hash. Browser-origin native-token requests are rejected. Browser cookies permit owner-scoped goal management and profile-photo uploads; other health writes remain blocked.
 `GET /v1/auth/me` returns the current account and assigned devices for either client.
 `POST /v1/auth/native/logout` revokes the presented phone credential. Tokens remain
 valid until sign-out, password recovery or account disable; no expiry or refresh-token
@@ -63,3 +63,8 @@ There is no automatic device claiming. The operator assigns serials explicitly.
 ### Goal management
 
 Browser sessions may update only their own `PUT /v1/devices/{id}/weight-goal`, with the exact configured Origin and current revision. Other health writes remain blocked. Goal history reads use the same ownership checks as measurements.
+
+
+## Profile photos
+
+Browser sessions may upload `PUT /v1/devices/{id}/profile/photo` for their own device, with the exact configured Origin. The existing JPEG validation, 512-pixel dimension limit, 256 KB upload cap and metadata stripping apply. Photos remain private PostgreSQL `BYTEA` values; no object storage or migration is required. Browser photo deletion and other measurement writes remain blocked.

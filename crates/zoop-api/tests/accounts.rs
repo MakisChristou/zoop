@@ -104,7 +104,7 @@ async fn login(app: &Router, email: &str) -> String {
 }
 #[tokio::test]
 #[ignore = "requires development Postgres"]
-async fn every_device_route_enforces_ownership_and_browser_read_only() {
+async fn every_device_route_enforces_ownership_and_browser_write_policy() {
     let (_db, app, owner, member) = setup().await;
     // Derive the matrix from the actual router so future endpoints cannot silently escape this test.
     let source = include_str!("../src/lib.rs");
@@ -129,7 +129,10 @@ async fn every_device_route_enforces_ownership_and_browser_read_only() {
                 ),
                 "{method} {path}: {status}"
             );
-            if method != "GET" && !(method == "PUT" && route.ends_with("/weight-goal")) {
+            if method != "GET"
+                && !(method == "PUT"
+                    && (route.ends_with("/weight-goal") || route.ends_with("/profile/photo")))
+            {
                 let (status, _, _) = req(&app, method, &path, Some(&owner), None, json!({})).await;
                 assert!(
                     matches!(
@@ -718,4 +721,89 @@ async fn browser_goal_management_is_owner_scoped_and_requires_origin() {
             .0,
         StatusCode::OK
     );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn browser_photo_upload_is_owner_scoped_and_requires_origin() {
+    let (db, app, owner, member) = setup().await;
+    let path = format!("/v1/devices/{}/profile/photo", support::DEVICE);
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new(&mut jpeg)
+        .encode_image(&image::RgbImage::from_pixel(
+            32,
+            32,
+            image::Rgb([40, 80, 120]),
+        ))
+        .unwrap();
+    for (cookie, origin, status) in [
+        (None, Some(ORIGIN), StatusCode::UNAUTHORIZED),
+        (Some(owner.as_str()), None, StatusCode::FORBIDDEN),
+        (
+            Some(owner.as_str()),
+            Some("https://untrusted.example"),
+            StatusCode::FORBIDDEN,
+        ),
+        (Some(member.as_str()), Some(ORIGIN), StatusCode::NOT_FOUND),
+        (Some(owner.as_str()), Some(ORIGIN), StatusCode::OK),
+    ] {
+        let mut request = Request::builder()
+            .method("PUT")
+            .uri(&path)
+            .header("content-type", "image/jpeg");
+        if let Some(cookie) = cookie {
+            request = request.header("cookie", cookie);
+        }
+        if let Some(origin) = origin {
+            request = request.header("origin", origin);
+        }
+        let response = app
+            .clone()
+            .oneshot(request.body(Body::from(jpeg.clone())).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status);
+    }
+    assert_eq!(db.count("SELECT count(*) FROM profile_photos").await, 1);
+    assert_eq!(
+        req(&app, "GET", &path, Some(&member), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(&app, "GET", &path, Some(&owner), None, json!(null))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    // The photo exception must not open other browser health writes or deletion.
+    assert_eq!(
+        req(&app, "DELETE", &path, Some(&owner), None, json!(null))
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+    let profile = format!("/v1/devices/{}/profile", support::DEVICE);
+    assert_eq!(
+        req(&app, "PUT", &profile, Some(&owner), None, json!({}))
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+    // Browser uploads retain all existing validation and upload limits.
+    for (bytes, status) in [
+        (b"invalid".to_vec(), StatusCode::BAD_REQUEST),
+        (vec![0; 262145], StatusCode::PAYLOAD_TOO_LARGE),
+    ] {
+        let request = Request::builder()
+            .method("PUT")
+            .uri(&path)
+            .header("cookie", &owner)
+            .header("origin", ORIGIN)
+            .header("content-type", "image/jpeg")
+            .body(Body::from(bytes))
+            .unwrap();
+        assert_eq!(app.clone().oneshot(request).await.unwrap().status(), status);
+    }
 }
