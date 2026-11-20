@@ -18,3 +18,8 @@ production. Never activate a NixOS deployment without explicit approval.
 - Run `npm test`, `npm run build`, `npm run test:e2e` and `nix build` before shipping.
 - No personal data, credentials or generated test screenshots in source control.
 - Conventional commits, without AI attribution or session links.
+
+## Metric parity
+
+- **iPhone and web must display the same backend-owned metrics.** Use the same metric definition, source field, day/timezone and goal scope. Clients may format values, convert display units and render goal progress; they must not independently derive health metrics or substitute a different raw/filtered value. Missing data stays missing. Refresh timing may differ, but equal backend snapshots must produce equal readings.
+- Displayed steps use backend walking/running-filtered counts (`steps_walking` in daily summaries, `walking` in hourly steps), never the raw strap counter. Cover source selection with regression tests when changing metric presentation.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Goal } from "../src/data";
+import { displayDay, type Goal } from "../src/data";
 import { stepsTarget } from "../src/summary";
 const now = new Date("2026-11-20T22:30:00Z");
 const goal: NonNullable<Goal["goal"]> = {
@@ -37,5 +37,23 @@ describe("today steps target", () => {
       ).toBeNull();
     }
     expect(stepsTarget(null, "2026-11-21", "Asia/Nicosia", now)).toBeNull();
+  });
+});
+
+describe("daily displayed steps", () => {
+  const raw = {
+    day: "2026-11-20",
+    steps: 5879,
+    steps_walking: 4714,
+    load: null,
+    hr_avg: null,
+  };
+  it("matches iPhone's walking/running filtered count instead of raw arm motion", () => {
+    expect(displayDay(raw).steps).toBe(4714);
+    expect(displayDay({ ...raw, steps_walking: 0 }).steps).toBe(0);
+  });
+  it("does not substitute raw steps when filtered data is missing", () => {
+    expect(displayDay({ ...raw, steps_walking: null }).steps).toBeNull();
+    expect(displayDay({ ...raw, steps_walking: undefined }).steps).toBeNull();
   });
 });

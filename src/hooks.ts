@@ -4,6 +4,8 @@ import {
   endpoint,
   weights,
   type Day,
+  type DayResponse,
+  displayDay,
   type Session,
   type Weight,
   type Goal,
@@ -58,10 +60,10 @@ export function useDataset(device: string, refresh: number) {
           });
         const results = await Promise.allSettled([
           track(
-            api<Day[]>(
+            api<DayResponse[]>(
               endpoint(device, `days?limit=366&tz=${encodeURIComponent(tz)}`),
               ctrl.signal,
-            ),
+            ).then((rows) => rows.map(displayDay)),
           ),
           track(
             api<Session[]>(

@@ -40,7 +40,8 @@ async function fixture(
         ? []
         : Array.from({ length: 30 }, (_, i) => ({
             day: day(i - 29),
-            steps: 6000 + i * 170,
+            steps: 8000 + i * 170,
+            steps_walking: 6000 + i * 170,
             load: 8 + (i % 5),
             hr_avg: 62,
           }));
@@ -653,7 +654,7 @@ test("steps ring uses the current goal and outlook opens without another ring", 
     "Load",
   ]);
   const ring = page.locator(".ring-item").nth(1);
-  await expect(ring).toContainText("109%");
+  await expect(ring).toContainText("10,930");
   await expect(ring.locator("small")).toHaveCount(0);
   await expect(
     page.locator(".today-grid .panel-head").filter({ hasText: "10,930" }),
@@ -698,4 +699,43 @@ test("missing steps do not become zero or completed progress", async ({
     "stroke-dasharray",
     "0 383",
   );
+});
+
+test("steps ring counts filtered walking steps and encodes percentage only in the arc", async ({
+  page,
+}) => {
+  await fixture(page);
+  const today = new Date().toISOString().slice(0, 10);
+  await page.route("**/v1/devices/*/days?*", (route) =>
+    route.fulfill({
+      json: [
+        { day: today, steps: 5879, steps_walking: 4714, load: 0, hr_avg: 60 },
+      ],
+    }),
+  );
+  await page.route("**/v1/devices/*/weight-goal", (route) =>
+    route.fulfill({
+      json: {
+        goal: {
+          phase: "maintenance",
+          active: true,
+          started_at: today + "T00:00:00Z",
+          timezone: "UTC",
+          daily_steps_goal: 8000,
+          finish_date: null,
+        },
+        summary: null,
+      },
+    }),
+  );
+  await login(page);
+  const ring = page.locator(".ring-item").nth(1);
+  await expect(ring.locator("strong")).toHaveText("4,714");
+  await expect(ring).not.toContainText("%");
+  const arc = await ring
+    .locator("circle")
+    .nth(1)
+    .getAttribute("stroke-dasharray");
+  expect(parseFloat(arc!)).toBeCloseTo((4714 / 8000) * 383, 2);
+  await page.screenshot({ path: "test-results/steps-filtered-count.png" });
 });

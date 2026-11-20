@@ -931,11 +931,7 @@ function DataView({
           />
           <Ring
             label="Steps"
-            value={
-              stepTarget != null && daily?.steps != null
-                ? number((daily.steps / stepTarget) * 100) + "%"
-                : number(daily?.steps)
-            }
+            value={number(daily?.steps)}
             color="var(--text)"
             fraction={
               stepTarget != null && daily?.steps != null

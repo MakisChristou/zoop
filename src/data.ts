@@ -13,6 +13,14 @@ export interface Day {
   load: number | null;
   hr_avg: number | null;
 }
+// The API's raw counter includes non-walking arm movement. Match iOS everywhere
+// the dashboard shows steps; missing filtered data must never fall back to raw.
+export interface DayResponse extends Day {
+  steps_walking?: number | null;
+}
+export function displayDay(row: DayResponse): Day {
+  return { ...row, steps: row.steps_walking ?? null };
+}
 export interface SleepData {
   window: {
     asleep_s: number;
