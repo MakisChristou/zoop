@@ -1,3 +1,4 @@
+import { layoutFor, type Placement } from "./shareLayout";
 import { useEffect, useState, useRef } from "react";
 import {
   ArrowUp,
@@ -151,7 +152,8 @@ function ShareEditor({
     [preview, setPreview] = useState<PublicDashboard | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirmDelete, setConfirmDelete] = useState(false);
+    [confirmDelete, setConfirmDelete] = useState(false),
+    [arranging, setArranging] = useState(false);
   const request = useRef<AbortController | null>(null),
     generation = useRef(0);
   useEffect(
@@ -165,7 +167,13 @@ function ShareEditor({
     request.current?.abort();
     generation.current++;
     setBusy(false);
-    setConfig((c) => ({ ...c, ...update }));
+    setConfig((c) => ({
+      ...c,
+      ...update,
+      layout: update.widgets
+        ? layoutFor(update.widgets, update.layout ?? c.layout)
+        : (update.layout ?? c.layout),
+    }));
     setPreview(null);
     setError("");
   }
@@ -179,7 +187,11 @@ function ShareEditor({
   function move(index: number, offset: number) {
     const next = [...config.widgets];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
-    change({ widgets: next });
+    change({ widgets: next, layout: [] });
+  }
+  function arrange(layout: Placement[]) {
+    setConfig((c) => ({ ...c, layout }));
+    setPreview((p) => (p ? { ...p, layout } : p));
   }
   async function view(year?: number) {
     request.current?.abort();
@@ -333,6 +345,21 @@ function ShareEditor({
                 );
               })}
             </div>
+            {config.widgets.includes("activity_heatmap") && (
+              <label>
+                Heatmap history
+                <select
+                  aria-label="Heatmap history"
+                  value={config.heatmap_year ? "year" : "dashboard"}
+                  onChange={(e) =>
+                    change({ heatmap_year: e.target.value === "year" })
+                  }
+                >
+                  <option value="dashboard">Dashboard period</option>
+                  <option value="year">1 year</option>
+                </select>
+              </label>
+            )}
             <details>
               <summary>Identity & access</summary>
               <label>
@@ -457,7 +484,20 @@ function ShareEditor({
             </p>
           )}
           {preview ? (
-            <DashboardPreview data={preview} onYear={view} />
+            <>
+              <button
+                className="arrange-toggle"
+                aria-pressed={arranging}
+                onClick={() => setArranging(!arranging)}
+              >
+                {arranging ? "Done arranging" : "Arrange layout"}
+              </button>
+              <DashboardPreview
+                data={preview}
+                onYear={view}
+                onLayout={arranging && !busy ? arrange : undefined}
+              />
+            </>
           ) : (
             <div className="panel share-empty">
               Choose your metrics, then preview.

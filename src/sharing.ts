@@ -1,6 +1,14 @@
+import type { Placement } from "./shareLayout";
 import type { SportTotal } from "./Training";
 import { type Point } from "./Chart";
 export const widgets = {
+  daily_rings: {
+    label: "Daily rings",
+    detail: "Sleep, Recovery and Load",
+    unit: "",
+    color: "var(--sleep)",
+    bar: false,
+  },
   activity_heatmap: {
     label: "Every day",
     detail: "Daily Load and workouts",
@@ -43,6 +51,7 @@ export const widgets = {
 } as const;
 export type Widget = keyof typeof widgets;
 export interface ShareConfig {
+  heatmap_year?: boolean;
   title: string;
   display_name: string;
   show_photo: boolean;
@@ -50,6 +59,7 @@ export interface ShareConfig {
   from: string | null;
   to: string | null;
   widgets: Widget[];
+  layout?: Placement[];
 }
 export interface Share {
   id: number;
@@ -72,6 +82,7 @@ export interface PublicDashboard {
   first_year: number;
   last_year: number;
   widgets: SharedWidget[];
+  layout?: Placement[];
 }
 export interface SharedActivity {
   day: string;
@@ -81,6 +92,18 @@ export interface SharedActivity {
   count?: number;
 }
 export interface SharedWidget {
+  from?: string;
+  to?: string;
+  day?: string;
+  sleep_seconds?: number | null;
+  load?: number | null;
+  recovery?: {
+    version: number;
+    method: string;
+    score: number | null;
+    band: "low" | "moderate" | "high" | null;
+    state: string;
+  } | null;
   key: Widget;
   points?: { day: string; value: number | null }[];
   activities?: SharedActivity[];

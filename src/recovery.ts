@@ -14,8 +14,12 @@ const influences: Record<string, string> = {
 };
 
 // Presentation only: the API owns eligibility, score, band and contributors.
-export function recoveryReading(insight: Insights | null) {
-  const recovery = insight?.recovery;
+export function recoveryScoreReading(
+  recovery:
+    | Pick<Recovery, "version" | "method" | "state" | "score" | "band">
+    | null
+    | undefined,
+) {
   const supported =
     recovery?.version === 1 && recovery.method === "zoop-recovery-v1";
   const ready =
@@ -31,15 +35,25 @@ export function recoveryReading(insight: Insights | null) {
     score: ready ? recovery.score : null,
     fraction: ready ? recovery.score! / 100 : null,
     color: ready ? colors[recovery.band!] : "var(--muted)",
+  };
+}
+export function recoveryReading(insight: Insights | null) {
+  const recovery = insight?.recovery,
+    reading = recoveryScoreReading(recovery),
+    ready = reading.score !== null;
+  const supported =
+    recovery?.version === 1 && recovery.method === "zoop-recovery-v1";
+  return {
+    ...reading,
     status: ready
-      ? bands[recovery.band!]
+      ? bands[recovery!.band!]
       : recoveryStatus(supported ? recovery : null),
     influences: ready
-      ? [...new Set(recovery.limiting ?? [])].flatMap((key) =>
+      ? [...new Set(recovery?.limiting ?? [])].flatMap((key) =>
           Object.hasOwn(influences, key) ? [influences[key]] : [],
         )
       : [],
-    conflict: ready && recovery.conflict,
+    conflict: ready && recovery?.conflict,
   };
 }
 

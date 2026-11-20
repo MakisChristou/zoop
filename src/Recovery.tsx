@@ -23,53 +23,7 @@ export function RecoveryRing({
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        <div className="ring">
-          <svg viewBox="0 0 140 140" aria-hidden="true">
-            <circle
-              cx="70"
-              cy="70"
-              r="61"
-              fill="none"
-              stroke="var(--track)"
-              strokeWidth="7"
-            />
-            {reading.fraction != null && reading.fraction > 0 && (
-              <circle
-                cx="70"
-                cy="70"
-                r="61"
-                fill="none"
-                stroke={reading.color}
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeDasharray={`${383 * reading.fraction} 383`}
-              />
-            )}
-          </svg>
-          <div className="ring-reading">
-            <strong>
-              {loading && reading.score == null ? (
-                <LoaderCircle
-                  className="spinner"
-                  size={20}
-                  aria-label="Loading recovery"
-                />
-              ) : (
-                (reading.score ?? "—")
-              )}
-            </strong>
-          </div>
-        </div>
-        <span>
-          Recovery
-          {loading && reading.score != null && (
-            <LoaderCircle
-              className="spinner recovery-refresh"
-              size={12}
-              aria-label="Updating recovery"
-            />
-          )}
-        </span>
+        <RecoveryRingFace reading={reading} loading={loading} />
       </button>
       {open && (
         <RecoveryDetail
@@ -179,5 +133,65 @@ function RecoveryDetail({
         </p>
       </details>
     </dialog>
+  );
+}
+
+export function RecoveryRingFace({
+  reading,
+  loading = false,
+}: {
+  reading: { score: number | null; fraction: number | null; color: string };
+  loading?: boolean;
+}) {
+  return (
+    <>
+      <div className="ring">
+        <svg viewBox="0 0 140 140" aria-hidden="true">
+          <circle
+            cx="70"
+            cy="70"
+            r="61"
+            fill="none"
+            stroke="var(--track)"
+            strokeWidth="7"
+          />
+          {reading.fraction != null && reading.fraction > 0 && (
+            <circle
+              cx="70"
+              cy="70"
+              r="61"
+              fill="none"
+              stroke={reading.color}
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={`${383 * reading.fraction} 383`}
+            />
+          )}
+        </svg>
+        <div className="ring-reading">
+          <strong>
+            {loading && reading.score == null ? (
+              <LoaderCircle
+                className="spinner"
+                size={20}
+                aria-label="Loading recovery"
+              />
+            ) : (
+              (reading.score ?? "—")
+            )}
+          </strong>
+        </div>
+      </div>
+      <span>
+        Recovery
+        {loading && reading.score != null && (
+          <LoaderCircle
+            className="spinner recovery-refresh"
+            size={12}
+            aria-label="Updating recovery"
+          />
+        )}
+      </span>
+    </>
   );
 }

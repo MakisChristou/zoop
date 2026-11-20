@@ -20,7 +20,7 @@ and keep everything on your own server.
 
 </details>
 
-*Current UI, captured in the browser with sample data.*
+_Current UI, captured in the browser with sample data._
 
 ## What you can do
 
@@ -91,8 +91,10 @@ and [SECURITY.md](SECURITY.md).
 
 ## Share a dashboard
 
-Open **Account → Shared dashboards → New dashboard**. Choose charts, the **Every day** heatmap, **Recent activities** or **By sport**,
-arrange them, and preview before creating a link. Existing links keep their selections.
+Open **Account → Shared dashboards → New dashboard**. Choose **Daily rings** (Sleep, Recovery and Load), charts, the **Every day** heatmap,
+**Recent activities** or **By sport**,
+then preview. Use **Arrange layout** to move fixed-size widgets into place, then save.
+Existing links keep their selections.
 
 History defaults to the **last 30 days**. **All history** includes future readings
 and lets visitors browse by year; selected dates stay fixed. Links expire after
@@ -102,3 +104,5 @@ You can change the password, disable a link or delete it without changing any da
 Anyone with a working link and its password, if set, can view and copy the selected
 measurements. Revocation stops new requests; it cannot recall copies already made.
 Website embedding and developer API access are not part of this version.
+
+The heatmap can use its own **1 year** history; other widgets keep the dashboard period.

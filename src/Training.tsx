@@ -117,18 +117,21 @@ export function TrainingHeatmap({
   rows,
   end,
   from,
+  calendarFrom,
   onOpen,
 }: {
   days: Pick<Day, "day" | "load">[];
   rows: ActivityRow[];
   end: string;
   from?: string;
+  calendarFrom?: string;
   onOpen?: (day: string) => void;
 }) {
   const first = from ?? addDays(end, -364),
+    calendarStart = calendarFrom ?? first,
     start = addDays(
-      first,
-      -((new Date(first + "T12:00:00Z").getUTCDay() + 6) % 7),
+      calendarStart,
+      -((new Date(calendarStart + "T12:00:00Z").getUTCDay() + 6) % 7),
     );
   const count =
     Math.ceil(
@@ -181,7 +184,7 @@ export function TrainingHeatmap({
             {Array.from({ length: cells.length / 7 }, (_, week) => {
               const dates = cells
                 .slice(week * 7, week * 7 + 7)
-                .filter((day) => day >= first && day <= end);
+                .filter((day) => day >= calendarStart && day <= end);
               const label =
                 dates.find((day) => day.endsWith("-01")) ??
                 (week === 0 ? dates[0] : undefined);
@@ -210,7 +213,13 @@ export function TrainingHeatmap({
                   key={day}
                   tabIndex={focused === day ? 0 : -1}
                   data-level={level(d?.load)}
-                  className={future ? "future" : ""}
+                  className={
+                    day < first && calendarFrom
+                      ? "outside-period"
+                      : future
+                        ? "future"
+                        : ""
+                  }
                   aria-label={`${dateLabel(day, { day: "numeric", month: "long", year: "numeric" })}, ${d?.load == null ? "No load recorded" : `Load ${number(d.load, 1)}`}, ${sessions.get(day)?.reduce((sum, s) => sum + (s.count ?? 1), 0) ?? 0} workouts`}
                   aria-pressed={selected === day}
                   disabled={future}
@@ -333,7 +342,7 @@ export function RecentActivities({
   const first = currentPage * size;
   return rows.length ? (
     <>
-      <div className="timeline">
+      <div className="timeline" key={currentPage}>
         {rows.slice(first, first + size).map((session, index, visible) => {
           const day = session.day;
           const previous = index > 0 ? visible[index - 1].day : null;
