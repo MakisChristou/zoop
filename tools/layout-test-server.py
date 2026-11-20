@@ -208,6 +208,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(dict(day=parts[-2], hours=hours, walking_hours=hours, total=sum(hours), walking=sum(hours), bouts=[]))
         if route.startswith('days/'):
             day = datetime.fromisoformat(parts[4]).replace(tzinfo=timezone.utc)
+            if device.startswith('DESIGN-DAY-'):
+                if device == 'DESIGN-DAY-EMPTY': return self.send([])
+                return self.send([dict(ts=stamp(day+timedelta(minutes=m)),
+                    hr=round(52+3*math.sin(m/17)) if 120 <= m < 600 else round(74+7*math.sin(m/9)+45*math.exp(-((m-1080)/20)**2)),
+                    hr_min=45, hr_max=140, skin_temp_c=None if device == 'DESIGN-DAY-NOTEMP' else 33.4+0.4*math.sin(m/50),
+                    steps=999, band_state=2 if 120 <= m < 600 else 0,
+                    activity=1 if any(a <= m < a+30 for a in [660,780,960,1140]) else 0)
+                    for m in range(1440) if not 840 <= m < 855])
             return self.send([dict(ts=stamp(day+timedelta(minutes=m)), hr=65+int(10*math.sin(m/40)), hr_min=55,
                                    hr_max=85, skin_temp_c=33.4, steps=4, band_state=2 if m<480 else 0, activity=0)
                               for m in range(0, 1440, 5)])

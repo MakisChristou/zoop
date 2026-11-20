@@ -52,7 +52,7 @@ struct TodayView: View {
                     }
                     if !currentMinutes.isEmpty {
                         sectionHeading("Daily timeline").padding(.top, 14)
-                        DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? now : nil,
+                        DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? Date() : nil,
                                     sessions: selectedWorkouts, walkingHours: currentSteps?.walkingHours)
                             .id(viewedDay)
                     } else if isViewingToday {

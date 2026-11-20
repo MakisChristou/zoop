@@ -32,7 +32,7 @@ import XCTest
         shot(app, "Weight plot yields to vertical scrolling")
     }
     func testTimelineVerticalScrollDoesNotScrub() {
-        let app = launch(), chart = app.descendants(matching: .any)["todayHeartRateChart"].firstMatch
+        let app = launch(), chart = app.descendants(matching: .any)["todayTimelineChart"].firstMatch
         reveal(chart, in: app)
         let before = chart.frame.minY
         chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 0.05, thenDragTo: chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1.5)))
