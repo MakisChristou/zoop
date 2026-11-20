@@ -16,13 +16,6 @@ struct WeightCheckIn: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Text("Weight").font(ZoopStyle.sectionTitle).foregroundStyle(ZoopStyle.secondary)
-                Rectangle().fill(ZoopStyle.separator).frame(height: 0.5)
-                if summary.today != nil {
-                    Label("Logged", systemImage: "checkmark").font(ZoopType.caption).foregroundStyle(ZoopStyle.favourable)
-                }
-            }
             VStack(alignment: .leading, spacing: 16) {
                 let headerLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
                 headerLayout {

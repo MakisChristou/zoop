@@ -19,7 +19,11 @@ struct WeightWeekView: View {
                                     Text(day.date, format: .dateTime.day()).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                                 }
                             }.frame(width: 25, height: 25)
-                                .overlay { if day.isToday && !day.recorded { Circle().stroke(ZoopStyle.load, lineWidth: 1).padding(-3) } }
+                                .overlay {
+                                    if day.isToday {
+                                        Circle().stroke(day.recorded ? ZoopStyle.favourable : ZoopStyle.text, lineWidth: 1.5).padding(-3)
+                                    }
+                                }
                             Text(day.date, format: .dateTime.weekday(.narrow)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                         }.frame(maxWidth: .infinity)
                     }
@@ -30,7 +34,7 @@ struct WeightWeekView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("This week’s weigh-ins")
-        .accessibilityValue("\(summary.count) of 7 days completed")
+        .accessibilityValue("\(summary.count) of 7 days completed. Today: \(summary.today != nil ? "logged" : "not logged")")
         .accessibilityIdentifier("weightWeekCircles")
     }
 }
