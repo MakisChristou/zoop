@@ -22,6 +22,10 @@ export function SharedCell({
     } | null>(null);
   const [ghost, setGhost] = useState<Placement | null>(null);
   const size = footprint(placement.key);
+  function rowPitch() {
+    const grid = ref.current?.parentElement;
+    return grid ? parseFloat(getComputedStyle(grid).gridAutoRows) + 16 : 96;
+  }
   function position(e: PointerEvent<HTMLButtonElement>) {
     const origin = start.current,
       grid = ref.current?.parentElement;
@@ -46,7 +50,8 @@ export function SharedCell({
         0,
         Math.min(
           96,
-          origin.row + Math.round((e.clientY - origin.y) / (96 * scale)),
+          origin.row +
+            Math.round((e.clientY - origin.y) / (rowPitch() * scale)),
         ),
       ),
     };
@@ -63,7 +68,7 @@ export function SharedCell({
         gridRow: `${placement.y + 1} / span ${size.h}`,
         zIndex: ghost ? 10 : undefined,
         transform: ghost
-          ? `translate(${(((ghost.x - placement.x) * ((ref.current?.parentElement?.clientWidth ?? 0) + 16)) / 2) * (getComputedStyle(ref.current!).direction === "rtl" ? -1 : 1)}px, ${(ghost.y - placement.y) * 96}px)`
+          ? `translate(${(((ghost.x - placement.x) * ((ref.current?.parentElement?.clientWidth ?? 0) + 16)) / 2) * (getComputedStyle(ref.current!).direction === "rtl" ? -1 : 1)}px, ${(ghost.y - placement.y) * rowPitch()}px)`
           : undefined,
       }}
     >

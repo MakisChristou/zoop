@@ -248,3 +248,24 @@ test("independent heatmap year enables only its own calendar", async ({
     ),
   ).toBe(true);
 });
+
+test.describe("touch footprints", () => {
+  test.use({ hasTouch: true, isMobile: true });
+  for (const width of [390, 1024])
+    test(`heatmap stays inside its fixed card at ${width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.route("**/v1/**", (r) => r.fulfill({ json: dashboard() }));
+      await page.goto("/#share/" + token);
+      const card = (await page
+        .locator(".shared-activity_heatmap")
+        .boundingBox())!;
+      const legend = (await page.locator(".heatmap-legend").boundingBox())!;
+      expect(legend.y + legend.height).toBeLessThan(card.y + card.height - 8);
+      await page.screenshot({
+        path: `/tmp/zoop-shared-touch-${width}.png`,
+        fullPage: true,
+      });
+    });
+});
