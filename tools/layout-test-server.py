@@ -107,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
         device, route = parts[2], '/'.join(parts[3:])
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
-        if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days') or route.endswith('/insights')):
+        if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days') or route.endswith('/insights') or route.endswith('/steps')):
             started = slow_devices.setdefault(device, time.monotonic())
             time.sleep(max(0, 14 - (time.monotonic() - started)))
         if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
@@ -130,6 +130,14 @@ class Handler(BaseHTTPRequestHandler):
                                     weeks=[None]*7+[visible_current] if sparse else weeks))
             return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
                                   previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))
+        if route == 'weight-goal':
+            goal = None
+            if device == 'STEPS-GOAL' or device.startswith('STEPS-COMPLETE-'):
+                goal = dict(id=1, revision=1, active=True, started_at=stamp(today-timedelta(days=4)),
+                            pace_started_at=stamp(today-timedelta(days=4)), timezone='UTC', weekly_loss_kg=.5,
+                            reminder_enabled=False, reminder_weekday=1, reminder_minute=1200,
+                            daily_steps_goal=8000 if device.startswith('STEPS-COMPLETE-') else 12000, finish_date=(today+timedelta(days=20)).date().isoformat(), updated_at=stamp(today))
+            return self.send(dict(goal=goal, summary=None))
         if route == 'days': return self.send(days[:limit])
         if route == 'workouts' or route.startswith('workouts/'):
             if not device.startswith('DESIGN-'): return self.send([])
@@ -176,6 +184,7 @@ class Handler(BaseHTTPRequestHandler):
             mature = device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat()
             return self.send(insight(parts[-2], mature, 13 if device == 'INSIGHT-REVIEW' else 11))
         if route.endswith('/steps'):
+            if device == 'RINGS-EMPTY': return self.send(dict(day=parts[-2], hours=[0]*24, walking_hours=[0]*24, total=0, walking=0, bouts=[]))
             hours = [0]*7 + [400, 1600, 0, 200, 800, 0, 0, 2000, 1200, 0, 2000] + [0]*6
             return self.send(dict(day=parts[-2], hours=hours, walking_hours=hours, total=sum(hours), walking=sum(hours), bouts=[]))
         if route.startswith('days/'):

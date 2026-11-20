@@ -9,6 +9,8 @@ struct StepGoalProgress: View {
     @State private var celebration = 0
     let steps: Int?
     let target: Int
+    var ringPresentation = false
+    var isLoading = false
     private static let entranceDelay: Duration = .milliseconds(350)
     private var reached: Bool { steps.map { $0 >= target } ?? false }
     private var completion: StepGoalCompletion { model.stepsReminder.completion }
@@ -22,20 +24,28 @@ struct StepGoalProgress: View {
         return Double(max(0, min(steps ?? 0, target)))
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Goal \(target.formatted())").foregroundStyle(ZoopStyle.secondary)
-                Spacer()
-                // Keep the symbol mounted so its animation starts after layout.
-                Image(systemName: "checkmark.circle.fill")
-                    .font(ZoopType.font(size: 16, weight: .semibold, relativeTo: .body))
-                    .foregroundStyle(ZoopStyle.favourable)
-                    .opacity(reached && (pendingKey == nil || reduceMotion) ? 1 : 0)
-                    .symbolEffect(.bounce, value: reduceMotion ? 0 : celebration)
-            }.font(ZoopType.caption)
-            if steps != nil {
-                ProgressView(value: progress, total: Double(max(1, target)))
-                    .tint(reached ? ZoopStyle.favourable : ZoopStyle.steps)
+        Group {
+            if ringPresentation {
+                TodaySummaryRing(title: "Steps", value: steps?.formatted() ?? "—", color: ZoopStyle.text,
+                                 progress: steps == nil ? nil : progress / Double(max(1, target)),
+                                 isLoading: isLoading, subtitle: "of \(target.formatted())")
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Goal \(target.formatted())").foregroundStyle(ZoopStyle.secondary)
+                        Spacer()
+                        // Keep the symbol mounted so its animation starts after layout.
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(ZoopType.font(size: 16, weight: .semibold, relativeTo: .body))
+                            .foregroundStyle(ZoopStyle.favourable)
+                            .opacity(reached && (pendingKey == nil || reduceMotion) ? 1 : 0)
+                            .symbolEffect(.bounce, value: reduceMotion ? 0 : celebration)
+                    }.font(ZoopType.caption)
+                    if steps != nil {
+                        ProgressView(value: progress, total: Double(max(1, target)))
+                            .tint(reached ? ZoopStyle.favourable : ZoopStyle.steps)
+                    }
+                }
             }
         }
         .onGeometryChange(for: Bool.self) { proxy in
@@ -54,7 +64,7 @@ struct StepGoalProgress: View {
         }
         .sensoryFeedback(.success, trigger: celebration)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Daily steps goal")
+        .accessibilityLabel(ringPresentation ? "Steps" : "Daily steps goal")
         .accessibilityValue(steps.map { "\($0.formatted()) of \(target.formatted()) steps\(reached ? ", goal reached" : "")" } ?? "\(target.formatted()) steps. No step data yet.")
         .accessibilityIdentifier("cutStepsProgress")
         // A simulator-only observable marker lets UI tests verify the trigger,

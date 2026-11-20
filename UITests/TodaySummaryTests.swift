@@ -4,7 +4,7 @@ import XCTest
     private func launch(device: String = "MORNING-CARD-average", large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", device, "-serverURL", "http://127.0.0.1:28476",
-            "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "today",
+            "-ingestToken", "ui-test-token", "-sleepGoalMinutes", "480", "-reminders.stepsCompletionEnabled", "YES", "-onboarded", "YES", "-demoScreen", "today",
             "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 20))
@@ -12,7 +12,7 @@ import XCTest
     }
     private func expectValue(_ value: String, in element: XCUIElement) {
         let expected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: 15), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: 15), .completed, "Actual value: \(String(describing: element.value))")
     }
     private func shot(_ app: XCUIApplication, _ name: String) {
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = name
@@ -23,7 +23,11 @@ import XCTest
         expectValue("Average", in: app.buttons["openMorningInsights"])
         expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
         expectValue("8.4", in: app.buttons["openDayActivity"])
+        expectValue("8,200", in: app.buttons["openStepsSummary"])
         shot(app, "Today summary rings")
+        app.buttons["openStepsSummary"].tap()
+        XCTAssertTrue(app.navigationBars["Steps"].waitForExistence(timeout: 10))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["openMorningInsights"].tap()
         XCTAssertTrue(app.navigationBars["Morning insights"].waitForExistence(timeout: 10))
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -37,6 +41,22 @@ import XCTest
         for _ in 0..<5 where !steps.isHittable { app.swipeUp() }
         XCTAssertTrue(steps.isHittable); steps.tap()
         XCTAssertTrue(app.navigationBars["Steps"].waitForExistence(timeout: 10))
+    }
+    func testGoalCompletionCelebratesOnTheRing() {
+        let app = launch(device: "STEPS-COMPLETE-" + UUID().uuidString)
+        expectValue("8,200 of 8,000 steps, goal reached", in: app.buttons["openStepsSummary"])
+        XCTAssertTrue(app.descendants(matching: .any)["stepGoalCelebrationPlayed"].waitForExistence(timeout: 10))
+        shot(app, "Completed steps ring")
+    }
+    func testStepsUsesConfiguredGoalOnlyForToday() {
+        let app = launch(device: "STEPS-GOAL")
+        expectValue("8,200 of 12,000 steps", in: app.buttons["openStepsSummary"])
+        shot(app, "Steps target and compact outlook")
+        app.buttons["Previous day"].tap()
+        expectValue("8,200", in: app.buttons["openStepsSummary"])
+        shot(app, "Past steps without a retroactive target")
+        app.buttons["Back to today"].tap()
+        expectValue("8,200 of 12,000 steps", in: app.buttons["openStepsSummary"])
     }
     func testSelectedDayUpdatesAllReadings() {
         let app = launch(device: "INSIGHT-REVIEW")
@@ -55,6 +75,7 @@ import XCTest
         expectValue("Loading", in: app.buttons["openSleepSummary"])
         expectValue("Loading", in: app.buttons["openMorningInsights"])
         expectValue("Loading", in: app.buttons["openDayActivity"])
+        expectValue("Loading", in: app.buttons["openStepsSummary"])
         shot(app, "Today rings loading")
         expectValue("7h 25m, 93% of 8h goal", in: app.buttons["openSleepSummary"])
         expectValue("Learning", in: app.buttons["openMorningInsights"])
@@ -66,6 +87,7 @@ import XCTest
         expectValue("Retry", in: app.buttons["openMorningInsights"])
         expectValue("No reading", in: app.buttons["openSleepSummary"])
         expectValue("No reading", in: app.buttons["openDayActivity"])
+        expectValue("No reading", in: app.buttons["openStepsSummary"])
         XCTAssertFalse(app.buttons["openSleepSummary"].isEnabled)
         shot(app, "Today rings missing readings")
     }

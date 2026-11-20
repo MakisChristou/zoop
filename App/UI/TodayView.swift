@@ -35,7 +35,8 @@ struct TodayView: View {
                                    previousLabel: "Previous day", nextLabel: "Next day",
                                    previous: { stepDay(-1) }, next: { stepDay(1) },
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
-                    overview.padding(.vertical, 12)
+                    overview.padding(.top, 12)
+                    outlookStatus.padding(.bottom, 12)
                     if isViewingToday { WeightCheckIn().padding(.bottom, 12) }
                     sectionHeading("Activity")
                     stepsCard
@@ -103,7 +104,7 @@ struct TodayView: View {
             Button { openSleep(selectedNight) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
-                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading)
+                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading, subtitle: "of \(sleepGoal.title)")
             }
             .buttonStyle(.plain).disabled(selectedNight == nil)
             .accessibilityValue(selectedNight.map {
@@ -111,12 +112,16 @@ struct TodayView: View {
                 return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal" + (loading ? ", updating" : "")
             } ?? (loading ? "Loading" : "No reading"))
             .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
-            NavigationLink { MorningInsightsView(day: viewedDay) } label: {
-                TodaySummaryRing(title: "Outlook", value: insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—"),
-                                 color: outlookColor, isLoading: morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync", showsStatusDot: true)
+            NavigationLink(value: StepsView.Scope.day) {
+                if let target = stepTarget {
+                    StepGoalProgress(steps: stepCount, target: target, ringPresentation: true, isLoading: loading)
+                } else {
+                    TodaySummaryRing(title: "Steps", value: stepCount?.formatted() ?? "—",
+                                     color: ZoopStyle.text, isLoading: loading)
+                }
             }
-            .buttonStyle(.plain).accessibilityIdentifier("openMorningInsights")
-            .accessibilityHint("Opens your nightly comparisons")
+            .buttonStyle(.plain).accessibilityIdentifier("openStepsSummary")
+            .accessibilityHint("Opens steps by hour and by day")
             Button { openActivity(viewedDay) } label: {
                 TodaySummaryRing(title: "Load", value: selectedSummary?.load.map {
                     $0.formatted(.number.precision(.fractionLength(1)))
@@ -136,6 +141,37 @@ struct TodayView: View {
             }
     }
 
+    private var stepCount: Int? { currentSteps?.walking ?? selectedSummary?.stepsWalking }
+    private var stepTarget: Int? { CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) }
+
+    private var outlookStatus: some View {
+        let updating = morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync"
+        let title = insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—")
+        return NavigationLink { MorningInsightsView(day: viewedDay) } label: {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 8))
+            layout {
+                Text("Outlook").foregroundStyle(ZoopStyle.secondary).fixedSize()
+                HStack(spacing: 8) {
+                    if updating {
+                        ProgressView().controlSize(.mini).tint(ZoopStyle.secondary)
+                    } else if title != "—" && title != "Retry" {
+                        Circle().fill(outlookColor).frame(width: 6, height: 6)
+                    }
+                    Text(updating && title == "—" ? "Updating" : title).foregroundStyle(ZoopStyle.text)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.right").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                }
+            }
+            .font(ZoopType.subheadline).frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .ignore).accessibilityLabel("Outlook")
+            .accessibilityValue(updating && title == "—" ? "Loading" : title)
+        }
+        .buttonStyle(.plain).accessibilityIdentifier("openMorningInsights")
+        .accessibilityHint("Opens your nightly comparisons")
+    }
+
     private var outlookColor: Color {
         switch insights?.outlook?.state {
         case "good": ZoopStyle.favourable
@@ -149,17 +185,9 @@ struct TodayView: View {
         NavigationLink(value: StepsView.Scope.day) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    metricLabel("Steps", icon: "shoeprints.fill")
+                    metricLabel("Steps by hour", icon: "shoeprints.fill")
                     Spacer()
                     Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
-                }
-                Text((currentSteps?.walking ?? selectedSummary?.stepsWalking).map { $0.formatted() } ?? "—")
-                    .font(ZoopType.font(size: 28, weight: .medium, relativeTo: .title)).monospacedDigit()
-                if let target = CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) {
-                    StepGoalProgress(steps: currentSteps?.walking ?? selectedSummary?.stepsWalking, target: target)
-                } else {
-                    Text(selectedSummary?.walkingS.map { "\($0 / 60) min walking" } ?? (isViewingToday ? "Today" : "Walking"))
-                        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let steps = currentSteps {
                     HourlyStepsChart(hours: steps.walkingHours, day: viewedDay, compact: true)

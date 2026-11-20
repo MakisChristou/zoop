@@ -7,19 +7,14 @@ struct TodaySummaryRing: View {
     let color: Color
     var progress: Double? = nil
     var isLoading = false
-    var showsStatusDot = false
+    var subtitle: String? = nil
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
                 Circle().strokeBorder(ZoopStyle.track, lineWidth: 6)
-                    .overlay(alignment: .top) {
-                        if showsStatusDot && value != "—" {
-                            Circle().fill(color).frame(width: 9, height: 9).offset(y: -1.5)
-                        }
-                    }
-                if !showsStatusDot {
+                if progress != nil {
                     Circle().inset(by: 3)
                         .trim(from: 0, to: fraction)
                         .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
@@ -28,11 +23,16 @@ struct TodaySummaryRing: View {
                 if isLoading && value == "—" {
                     ProgressView().tint(ZoopStyle.text)
                 } else {
-                    Text(value)
-                        .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title3))
-                        .foregroundStyle(ZoopStyle.text).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.65)
-                        .padding(.horizontal, 12)
+                    VStack(spacing: 3) {
+                        Text(value)
+                            .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title3))
+                            .foregroundStyle(ZoopStyle.text).monospacedDigit()
+                            .lineLimit(1).minimumScaleFactor(0.65)
+                        if let subtitle {
+                            Text(subtitle).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.65)
+                        }
+                    }.padding(.horizontal, 10)
                     if isLoading {
                         ProgressView().controlSize(.mini).tint(ZoopStyle.text)
                             .offset(y: 26)
@@ -46,11 +46,11 @@ struct TodaySummaryRing: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue(isLoading ? (value == "—" ? "Loading" : "\(value), updating") : value == "—" ? "No reading" : value)
+        .accessibilityValue(isLoading ? (value == "—" ? "Loading" : "\(value), updating") : value == "—" ? "No reading" : [value, subtitle].compactMap { $0 }.joined(separator: ", "))
     }
 
     private var fraction: Double {
-        guard let progress else { return 1 }
+        guard let progress else { return 0 }
         return progress.isFinite ? min(max(progress, 0), 1) : 0
     }
 }
