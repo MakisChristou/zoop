@@ -345,7 +345,7 @@ nav a:hover {
   border: 0;
   text-align: left;
 }
-.workout:hover .workout-title {
+button.workout:hover .workout-title {
   text-decoration: underline;
 }
 .workout-icon {
@@ -2165,7 +2165,7 @@ th:last-child {
 .sharing {
   padding-top: 28px;
 }
-.sharing button,
+.sharing button:not(.share-preview button),
 .share-unlock button {
   border: 1px solid var(--border);
   background: #202020;
@@ -2174,11 +2174,11 @@ th:last-child {
   padding: 7px 12px;
   font-size: 12px;
 }
-.sharing button:not(:disabled):hover,
+.sharing button:not(.share-preview button):not(:disabled):hover,
 .share-unlock button:not(:disabled):hover {
   background: #292929;
 }
-.sharing button.primary,
+.sharing button:not(.share-preview button).primary,
 .share-unlock button.primary {
   background: var(--text);
   color: #111;
@@ -2186,7 +2186,7 @@ th:last-child {
   width: auto;
   margin: 0;
 }
-.sharing button.primary:not(:disabled):hover {
+.sharing button:not(.share-preview button).primary:not(:disabled):hover {
   background: #ddd;
 }
 .share-controls input:not([type="checkbox"]),
@@ -2244,7 +2244,41 @@ th:last-child {
   .share-unlock input {
     font-size: 16px;
   }
-  .sharing button {
+  .sharing button:not(.share-preview button) {
     min-height: 44px;
+  }
+}
+
+.shared-wide {
+  grid-column: 1/-1;
+}
+.heatmap-scoped .training-heatmap,
+.heatmap-scoped .heatmap-months {
+  min-width: calc(var(--heatmap-weeks) * 18px);
+  max-width: calc(var(--heatmap-weeks) * 26px);
+}
+.heatmap-scoped .heatmap-layout {
+  max-width: calc(32px + var(--heatmap-weeks) * 26px);
+  margin-inline: auto;
+}
+.shared-widget .workout:not(button) {
+  cursor: default;
+}
+.share-controls .share-metrics label small {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+.share-controls .share-metrics label:has(small) {
+  padding-block: 8px;
+}
+@media (pointer: coarse) {
+  .heatmap-scoped .training-heatmap,
+  .heatmap-scoped .heatmap-months {
+    min-width: calc(var(--heatmap-weeks) * 28px);
+    max-width: none;
+  }
+  .heatmap-scoped .heatmap-layout {
+    max-width: none;
   }
 }

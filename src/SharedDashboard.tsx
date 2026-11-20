@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { BySport, TrainingHeatmap, RecentActivities } from "./Training";
 import { Chart } from "./Chart";
 import { LoadingBar } from "./Loading";
-import { dateLabel, number, duration } from "./calendar";
+import { dateLabel, number, duration, dayKey } from "./calendar";
 import {
   chartPoints,
   sharingRequest,
   widgets,
   type PublicDashboard,
+  type SharedWidget,
 } from "./sharing";
 export function SharedDashboard({ token }: { token: string }) {
   const [data, setData] = useState<PublicDashboard | null>(null),
@@ -142,38 +144,86 @@ export function DashboardPreview({
         )}
       </div>
       <div className="grid">
-        {data.widgets.map(({ key, points }) => {
-          const meta = widgets[key],
-            chart = chartPoints(points, key, data.from, data.to),
-            latest = chart.filter((p) => p.value !== null).at(-1);
-          return (
-            <section className="panel shared-widget" key={key}>
-              <h2>{meta.label}</h2>
-              <div className="share-reading">
-                <strong>
-                  {latest
-                    ? key === "sleep"
-                      ? duration(latest.value! * 3600)
-                      : number(
-                          latest.value!,
-                          key === "weight" || key === "load" ? 1 : 0,
-                        )
-                    : "—"}
-                </strong>{" "}
-                <span>{key === "sleep" ? "" : meta.unit}</span>
-                {latest && <small>{dateLabel(latest.day)}</small>}
-              </div>
-              <Chart
-                data={chart}
-                color={meta.color}
-                unit={meta.unit}
-                bar={meta.bar}
-                latestMarker
-              />
-            </section>
-          );
-        })}
+        {data.widgets.map((widget) => (
+          <SharedCard
+            key={`${widget.key}:${data.from}:${data.to}`}
+            widget={widget}
+            data={data}
+          />
+        ))}
       </div>
+    </section>
+  );
+}
+
+function SharedCard({
+  widget,
+  data,
+}: {
+  widget: SharedWidget;
+  data: PublicDashboard;
+}) {
+  const { key, points = [] } = widget,
+    meta = widgets[key];
+  const rows = (widget.activities ?? []).map((row, i) => ({ ...row, key: i }));
+  if (key === "activity_heatmap") {
+    const wide = (Date.parse(data.to) - Date.parse(data.from)) / 86400000 > 90;
+    return (
+      <section className={`panel shared-widget${wide ? " shared-wide" : ""}`}>
+        <h2>{meta.label}</h2>
+        <TrainingHeatmap
+          days={points.map((p) => ({ day: p.day, load: p.value }))}
+          rows={rows}
+          from={data.from}
+          end={data.to}
+        />
+      </section>
+    );
+  }
+  if (key === "recent_workouts")
+    return (
+      <section className="panel shared-widget">
+        <h2>{meta.label}</h2>
+        <RecentActivities
+          rows={rows}
+          today={dayKey(new Date(), data.timezone)}
+          pageSize={8}
+        />
+      </section>
+    );
+  if (key === "by_sport")
+    return (
+      <section className="panel shared-widget">
+        <h2>{meta.label}</h2>
+        <BySport totals={widget.sports ?? []} />
+      </section>
+    );
+  const chart = chartPoints(points, key, data.from, data.to),
+    latest = chart.filter((p) => p.value !== null).at(-1);
+  return (
+    <section className="panel shared-widget">
+      <h2>{meta.label}</h2>
+      <div className="share-reading">
+        <strong>
+          {latest
+            ? key === "sleep"
+              ? duration(latest.value! * 3600)
+              : number(
+                  latest.value!,
+                  key === "weight" || key === "load" ? 1 : 0,
+                )
+            : "—"}
+        </strong>
+        <span>{key === "sleep" ? "" : meta.unit}</span>
+        {latest && <small>{dateLabel(latest.day)}</small>}
+      </div>
+      <Chart
+        data={chart}
+        color={meta.color}
+        unit={meta.unit}
+        bar={meta.bar}
+        latestMarker
+      />
     </section>
   );
 }

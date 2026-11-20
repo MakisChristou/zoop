@@ -91,8 +91,8 @@ and [SECURITY.md](SECURITY.md).
 
 ## Share a dashboard
 
-Open **Account → Shared dashboards → New dashboard**. Choose metrics and their
-order, then preview exactly what visitors will see before creating a link.
+Open **Account → Shared dashboards → New dashboard**. Choose charts, the **Every day** heatmap, **Recent activities** or **By sport**,
+arrange them, and preview before creating a link. Existing links keep their selections.
 
 History defaults to the **last 30 days**. **All history** includes future readings
 and lets visitors browse by year; selected dates stay fixed. Links expire after

@@ -1,11 +1,33 @@
+import type { SportTotal } from "./Training";
 import { type Point } from "./Chart";
 export const widgets = {
+  activity_heatmap: {
+    label: "Every day",
+    detail: "Daily Load and workouts",
+    unit: "",
+    color: "var(--blue)",
+    bar: false,
+  },
+  recent_workouts: {
+    label: "Recent activities",
+    detail: "Type, date, duration and Load",
+    unit: "",
+    color: "var(--blue)",
+    bar: false,
+  },
+  by_sport: {
+    label: "By sport",
+    detail: "Workout counts and durations",
+    unit: "",
+    color: "var(--blue)",
+    bar: false,
+  },
   sleep: { label: "Sleep", unit: "h", color: "var(--sleep)", bar: false },
   recovery: { label: "Recovery", unit: "%", color: "#45ca86", bar: false },
   load: { label: "Load", unit: "", color: "var(--blue)", bar: true },
   steps: { label: "Steps", unit: "steps", color: "var(--blue)", bar: true },
   workouts: {
-    label: "Workouts",
+    label: "Workout count",
     unit: "sessions",
     color: "var(--blue)",
     bar: true,
@@ -49,7 +71,20 @@ export interface PublicDashboard {
   paged: boolean;
   first_year: number;
   last_year: number;
-  widgets: { key: Widget; points: { day: string; value: number | null }[] }[];
+  widgets: SharedWidget[];
+}
+export interface SharedActivity {
+  day: string;
+  kind: string;
+  duration_s: number;
+  load?: number | null;
+  count?: number;
+}
+export interface SharedWidget {
+  key: Widget;
+  points?: { day: string; value: number | null }[];
+  activities?: SharedActivity[];
+  sports?: SportTotal[];
 }
 export const newConfig = (): ShareConfig => ({
   title: "My dashboard",

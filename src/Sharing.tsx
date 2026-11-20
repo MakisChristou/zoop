@@ -284,7 +284,7 @@ function ShareEditor({
                 </label>
               </div>
             )}
-            <h2>Metrics</h2>
+            <h2>Widgets</h2>
             <div className="share-metrics">
               {[
                 ...config.widgets,
@@ -298,10 +298,18 @@ function ShareEditor({
                     <label>
                       <input
                         type="checkbox"
+                        aria-label={widgets[key].label}
                         checked={i >= 0}
                         onChange={() => toggle(key)}
                       />
-                      {widgets[key].label}
+                      <span>
+                        {widgets[key].label}
+                        {"detail" in widgets[key] && (
+                          <small>
+                            {(widgets[key] as { detail: string }).detail}
+                          </small>
+                        )}
+                      </span>
                     </label>
                     {i >= 0 && (
                       <>

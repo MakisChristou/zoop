@@ -41,7 +41,12 @@ import { recoveryPending } from "./recovery";
 import { RecoveryRing } from "./Recovery";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
-import { BySport, TrainingHeatmap, SportIcon } from "./Training";
+import {
+  BySport,
+  TrainingHeatmap,
+  activityRows,
+  RecentActivities,
+} from "./Training";
 import { Sharing } from "./Sharing";
 import { SharedDashboard } from "./SharedDashboard";
 import { publicToken } from "./sharing";
@@ -753,91 +758,16 @@ function Workouts({
   pageSize?: number;
   onDetail: (s: Session) => void;
 }) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const size = pageSize ?? Math.max(1, rows.length);
-  const lastPage = Math.max(0, Math.ceil(rows.length / size) - 1);
-  const currentPage = Math.min(pageIndex, lastPage);
-  const first = currentPage * size;
-  return rows.length ? (
-    <>
-      <div className="timeline">
-        {rows.slice(first, first + size).map((session, index, visible) => {
-          const day = dayKey(new Date(session.start_ts), tz);
-          const previous =
-            index > 0
-              ? dayKey(new Date(visible[index - 1].start_ts), tz)
-              : null;
-          const today = dayKey(new Date(), tz);
-          return (
-            <div className="timeline-entry" key={session.id}>
-              {day !== previous && (
-                <div className="timeline-date">
-                  <span />
-                  {day === today
-                    ? "Today"
-                    : day === addDays(today, -1)
-                      ? "Yesterday"
-                      : dateLabel(day, {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
-                </div>
-              )}
-              <button className="workout" onClick={() => onDetail(session)}>
-                <span className="workout-icon">
-                  <SportIcon kind={session.kind} />
-                </span>
-                <span className="workout-title">
-                  {title(session.kind)}
-                  <small>
-                    {duration(session.duration_s)}
-                    {session.avg_hr != null
-                      ? ` · ${number(session.avg_hr)} bpm`
-                      : ""}
-                  </small>
-                </span>
-                <span className="load-track">
-                  <span
-                    style={{
-                      width: `${Math.min(100, Math.max(0, ((session.load ?? 0) / 21) * 100))}%`,
-                    }}
-                  />
-                </span>
-                <span className="workout-load">{number(session.load, 1)}</span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      {rows.length > size && (
-        <div className="workout-paging">
-          <span className="muted small" aria-live="polite">
-            {first + 1}–{Math.min(first + size, rows.length)} of {rows.length}
-          </span>
-          <div>
-            <button
-              className="icon-button"
-              aria-label="Previous workouts"
-              disabled={currentPage === 0}
-              onClick={() => setPageIndex(currentPage - 1)}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              className="icon-button"
-              aria-label="Next workouts"
-              disabled={currentPage === lastPage}
-              onClick={() => setPageIndex(currentPage + 1)}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  ) : (
-    <Empty>No workouts in this period</Empty>
+  return (
+    <RecentActivities
+      rows={activityRows(rows, tz).map((r) => ({ ...r, label: title(r.kind) }))}
+      today={dayKey(new Date(), tz)}
+      pageSize={pageSize}
+      onDetail={(row) => {
+        const session = rows.find((s) => s.id === row.key);
+        if (session) onDetail(session);
+      }}
+    />
   );
 }
 function SleepStages({
@@ -1131,8 +1061,7 @@ function DataView({
             {error("days")}
             <TrainingHeatmap
               days={days}
-              rows={workouts}
-              tz={tz}
+              rows={activityRows(workouts, tz)}
               end={dayKey(new Date(), tz)}
               onOpen={onDay}
             />
