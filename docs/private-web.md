@@ -51,7 +51,7 @@ Before enabling multiple users, verify the owner's iPhone can still read and upl
 
 `POST /v1/auth/native/login` accepts email/password JSON and returns a private phone
 credential. Use HTTPS. The iPhone keeps it in Keychain; the server stores only its
-hash. Browser-origin requests are rejected and browser cookies remain read-only.
+hash. Browser-origin native-token requests are rejected. Browser cookies permit only owner-scoped goal management; other health writes remain blocked.
 `GET /v1/auth/me` returns the current account and assigned devices for either client.
 `POST /v1/auth/native/logout` revokes the presented phone credential. Tokens remain
 valid until sign-out, password recovery or account disable; no expiry or refresh-token
@@ -59,3 +59,7 @@ flow is claimed. Password recovery now revokes **all** phone tokens, including
 imported legacy credentials, as well as browser sessions.
 
 There is no automatic device claiming. The operator assigns serials explicitly.
+
+### Goal management
+
+Browser sessions may update only their own `PUT /v1/devices/{id}/weight-goal`, with the exact configured Origin and current revision. Other health writes remain blocked. Goal history reads use the same ownership checks as measurements.

@@ -411,3 +411,32 @@ analysis version bump or history recomputation is required. The repositories are
 
 For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
 and [SECURITY.md](SECURITY.md).
+
+
+### Saved goal periods
+
+`GET /v1/devices/{id}/weight-goal` returns the current settings and active summary.
+`PUT` starts, edits or ends (`active: false`) a cut using the existing revision check.
+A restart gets a new stable ID; ending preserves the plan and measurements.
+
+`GET /v1/devices/{id}/weight-goals?limit=20&before=<id>` lists closed periods newest
+first, with `next_cursor`. Limit is 1–50. `GET .../weight-goals/{goalId}` returns the
+full chart and weekly summary. Both are owner-scoped, including cursor lookup.
+
+Migration 0018 preserves the current goal and reconstructs closed periods only
+from distinct audited start boundaries. Reconstructed closures are marked `legacy`.
+Scheduled cuts close once at midnight after their final day in the goal timezone,
+on the next current-goal/history access. The archive and revision are atomic.
+Targets are frozen at closure; corrections or late imports inside the closed period
+can update actual progress. Measurements after its end never extend that period.
+The start day's canonical weigh-in remains eligible, matching existing cut progress.
+
+Ending on iPhone cancels cut reminders immediately. Web changes reach local iPhone
+notifications when the app next refreshes from the server; there is no remote push
+cancellation while the phone is offline. Scheduled finish dates remain enforced
+locally. Other daily, ECG and battery reminders are independent.
+
+Deploy the API and migration before updating clients. Back up PostgreSQL first.
+For an application rollback, keep the additive schema; do not drop the archive or
+identity columns. Undoing an ended cut is not supported: the confirmation is the
+safeguard, and a subsequent start creates a new period.

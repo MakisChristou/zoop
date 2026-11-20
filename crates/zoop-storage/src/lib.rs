@@ -101,3 +101,6 @@ impl PostgresStore {
 
 mod weight_goal_store;
 pub use weight_goal_store::{WeightDay, WeightGoal, WeightGoalInput};
+
+mod goal_history;
+pub use goal_history::GoalPeriod;

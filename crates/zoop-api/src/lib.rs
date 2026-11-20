@@ -49,6 +49,14 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/devices/{deviceId}/weight-goal",
             get(weight_goal::get).put(weight_goal::put),
         )
+        .route(
+            "/v1/devices/{deviceId}/weight-goals",
+            get(weight_goal::history),
+        )
+        .route(
+            "/v1/devices/{deviceId}/weight-goals/{id}",
+            get(weight_goal::detail),
+        )
         .route("/v1/devices/{deviceId}/progress", get(progress::progress))
         .route("/v1/devices/{deviceId}/health", get(health::info))
         .route(

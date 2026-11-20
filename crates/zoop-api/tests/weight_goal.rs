@@ -168,6 +168,8 @@ async fn old_finished_cut_uses_original_health_baseline_and_excludes_later_weigh
         .await;
     let (status, r) = call(&db, DEVICE, None, true).await;
     assert_eq!(status, 200);
+    assert_eq!(r["goal"]["active"], false);
+    let (_, r) = history_call(&db, &format!("weight-goals/{}", r["goal"]["id"])).await;
     let p = &r["summary"]["progress"];
     assert_eq!(p["starting_weight_kg"], 63.0);
     assert_eq!(p["current_weight_kg"], 61.0);
@@ -235,6 +237,8 @@ async fn first_latest_progress_keeps_weekly_median_and_measurements_unchanged() 
         .await;
     let (status, r) = call(&db, DEVICE, None, true).await;
     assert_eq!(status, 200);
+    assert_eq!(r["goal"]["active"], false);
+    let (_, r) = history_call(&db, &format!("weight-goals/{}", r["goal"]["id"])).await;
     let p = &r["summary"]["progress"];
     assert_eq!(
         p["weigh_ins"],
@@ -253,7 +257,7 @@ async fn first_latest_progress_keeps_weekly_median_and_measurements_unchanged() 
     );
     assert_eq!(
         db.count("SELECT count(*) FROM weight_goal_revisions").await,
-        1
+        2
     );
 }
 
@@ -274,6 +278,8 @@ async fn sparse_long_cut_endpoints_outlive_weekly_history_window() {
     .await;
     let (status, r) = call(&db, DEVICE, None, true).await;
     assert_eq!(status, 200);
+    assert_eq!(r["goal"]["active"], false);
+    let (_, r) = history_call(&db, &format!("weight-goals/{}", r["goal"]["id"])).await;
     let p = &r["summary"]["progress"];
     assert_eq!(
         p["weigh_ins"],
@@ -341,5 +347,190 @@ async fn endpoints_preserve_local_day_health_priority_and_future_filter() {
             .await
             .unwrap()
             .is_empty()
+    );
+}
+
+async fn history_call(db: &Db, path: &str) -> (u16, Value) {
+    let r = build_router(AppState::new(db.store.clone(), "test-token".into()))
+        .oneshot(
+            Request::builder()
+                .uri(format!("/v1/devices/{DEVICE}/{path}"))
+                .header("authorization", "Bearer test-token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let status = r.status().as_u16();
+    (
+        status,
+        serde_json::from_slice(&to_bytes(r.into_body(), 1_000_000).await.unwrap())
+            .unwrap_or(Value::Null),
+    )
+}
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn end_restart_preserves_plan_and_bounds_history() {
+    let db = Db::new().await;
+    let mut q = input();
+    q["timezone"] = json!("UTC");
+    q["finish_date"] = json!(chrono::Utc::now().date_naive() + chrono::Duration::days(24));
+    call(&db, DEVICE, Some(q.clone()), true).await;
+    db.sql("UPDATE weight_goals SET started_at=now()-interval '4 days',pace_started_at=now()-interval '4 days';
+      INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES
+      ('TEST-RELIABILITY','snoop:start',now()-interval '3 days',64.6,'snoop','Test',false),
+      ('TEST-RELIABILITY','snoop:last',now()-interval '1 minute',63.9,'snoop','Test',false)").await;
+    let before = call(&db, DEVICE, None, true).await.1;
+    let id = before["goal"]["id"].as_i64().unwrap();
+    q["revision"] = before["goal"]["revision"].clone();
+    q["active"] = json!(false);
+    assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.0, 200);
+    assert_eq!(call(&db, DEVICE, Some(q.clone()), true).await.0, 200);
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_history").await,
+        1
+    );
+    let (_, closed) = history_call(&db, &format!("weight-goals/{id}")).await;
+    assert_eq!(
+        closed["summary"]["progress"]["target_weight_kg"],
+        before["summary"]["progress"]["target_weight_kg"]
+    );
+    assert!(
+        (closed["summary"]["progress"]["total_lost_kg"]
+            .as_f64()
+            .unwrap()
+            - 0.7)
+            .abs()
+            < 1e-8
+    );
+    let receipt = call(&db, DEVICE, None, true).await.1;
+    q["revision"] = receipt["goal"]["revision"].clone();
+    q["active"] = json!(true);
+    let new = call(&db, DEVICE, Some(q.clone()), true).await.1;
+    assert_ne!(new["id"], json!(id));
+    assert_eq!(call(&db, DEVICE, Some(q), true).await.1["id"], new["id"]);
+    db.sql("INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES ('TEST-RELIABILITY','snoop:later',now()+interval '1 second',60,'snoop','Test',false)").await;
+    let (_, after) = history_call(&db, &format!("weight-goals/{id}")).await;
+    assert_eq!(after["summary"]["progress"], closed["summary"]["progress"]);
+    let (_, list) = history_call(&db, "weight-goals?limit=1").await;
+    assert_eq!(list["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list["items"][0]["id"], id);
+    assert_eq!(db.count("SELECT count(*) FROM weight_readings").await, 3);
+    assert_eq!(history_call(&db, "weight-goals/999999").await.0, 404);
+    db.sql("INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name,removed) VALUES ('TEST-RELIABILITY','health:late',now()-interval '3 days',65.0,'health','Test',false)").await;
+    let (_, corrected) = history_call(&db, &format!("weight-goals/{id}")).await;
+    assert_eq!(corrected["summary"]["progress"]["starting_weight_kg"], 65.0);
+    assert_eq!(
+        corrected["summary"]["progress"]["target_weight_kg"],
+        closed["summary"]["progress"]["target_weight_kg"]
+    );
+    assert_eq!(
+        call(&db, DEVICE, None, true).await.1["goal"]["id"],
+        new["id"]
+    );
+}
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn scheduled_expiry_is_once_at_local_midnight_and_same_day_end_has_no_fake_loss() {
+    let db = Db::new().await;
+    let mut q = input();
+    q["timezone"] = json!("Europe/Berlin");
+    call(&db, DEVICE, Some(q.clone()), true).await;
+    db.sql("UPDATE weight_goals SET started_at=now()-interval '10 days',pace_started_at=now()-interval '10 days',finish_date=(now() AT TIME ZONE timezone)::date-1").await;
+    let response = call(&db, DEVICE, None, true).await.1;
+    assert_eq!(response["goal"]["active"], false);
+    let (_, list) = history_call(&db, "weight-goals").await;
+    assert_eq!(list["items"][0]["end_reason"], "scheduled");
+    assert!(list["items"][0]["summary"]["progress"]["total_lost_kg"].is_null());
+    call(&db, DEVICE, None, true).await;
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_history").await,
+        1
+    );
+    assert_eq!(db.count("SELECT count(*) FROM weight_goal_history WHERE (ended_at AT TIME ZONE (settings->>'timezone'))::time='00:00'").await,1);
+    q["revision"] = response["goal"]["revision"].clone();
+    q["finish_date"] = json!(null);
+    let restarted = call(&db, DEVICE, Some(q.clone()), true).await.1;
+    q["revision"] = restarted["revision"].clone();
+    q["active"] = json!(false);
+    let (a, b) = tokio::join!(
+        call(&db, DEVICE, Some(q.clone()), true),
+        call(&db, DEVICE, Some(q), true)
+    );
+    assert_eq!(a.0, 200);
+    assert_eq!(b.0, 200);
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_history").await,
+        2
+    );
+    let (_, first) = history_call(&db, "weight-goals?limit=1").await;
+    let cursor = first["next_cursor"].as_i64().unwrap();
+    let (_, second) = history_call(&db, &format!("weight-goals?before={cursor}&limit=1")).await;
+    assert_ne!(first["items"][0]["id"], second["items"][0]["id"]);
+    assert!(second["next_cursor"].is_null());
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn upgrade_recovers_periods_not_each_edit_and_preserves_current_goal() {
+    let db = Db::new().await;
+    // Recreate only the previous schema boundary inside this test's private schema.
+    db.sql("DROP TRIGGER weight_goal_period ON weight_goals;
+        DROP FUNCTION preserve_weight_goal_period();
+        DROP FUNCTION closed_goal_target(text,jsonb,timestamptz);
+        DROP TABLE weight_goal_history;
+        ALTER TABLE weight_goals DROP COLUMN id;
+        INSERT INTO weight_goals(device_id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date)
+        VALUES('TEST-RELIABILITY',1,true,'2025-01-01T00:00:00Z','2025-01-01T00:00:00Z','UTC',0.3,false,1,1200,'2025-01-01T00:00:00Z','2025-02-01');
+        INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w;
+        UPDATE weight_goals SET revision=2,weekly_loss_kg=0.4,updated_at='2025-01-03T00:00:00Z';
+        INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w;
+        UPDATE weight_goals SET revision=3,active=false,updated_at='2025-01-15T00:00:00Z';
+        INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w;
+        UPDATE weight_goals SET revision=4,active=true,started_at=now(),pace_started_at=now(),updated_at=now(),finish_date=(now() AT TIME ZONE 'UTC')::date+28;
+        INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w;").await;
+    db.sql(include_str!("../../../migrations/0018_goal_history.sql"))
+        .await;
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_history").await,
+        1
+    );
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_revisions").await,
+        4
+    );
+    let response = call(&db, DEVICE, None, true).await.1;
+    assert_eq!(response["goal"]["active"], true);
+    assert_eq!(response["goal"]["revision"], 4);
+    let (_, history) = history_call(&db, "weight-goals").await;
+    assert_ne!(history["items"][0]["id"], response["goal"]["id"]);
+    assert_eq!(history["items"][0]["goal"]["weekly_loss_kg"], 0.4);
+    assert_eq!(history["items"][0]["end_reason"], "legacy");
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn simultaneous_edit_and_end_never_overwrite_the_winner() {
+    let db = Db::new().await;
+    let current = call(&db, DEVICE, Some(input()), true).await.1;
+    let mut edit = input();
+    edit["revision"] = current["revision"].clone();
+    edit["weekly_loss_kg"] = json!(0.7);
+    let mut end = input();
+    end["revision"] = current["revision"].clone();
+    end["active"] = json!(false);
+    let (a, b) = tokio::join!(
+        call(&db, DEVICE, Some(edit), true),
+        call(&db, DEVICE, Some(end), true)
+    );
+    let mut statuses = [a.0, b.0];
+    statuses.sort();
+    assert_eq!(statuses, [200, 409]);
+    let winner = if a.0 == 200 { a.1 } else { b.1 };
+    let saved = call(&db, DEVICE, None, true).await.1;
+    assert_eq!(saved["goal"], winner);
+    assert_eq!(
+        db.count("SELECT count(*) FROM weight_goal_history").await,
+        if winner["active"] == false { 1 } else { 0 }
     );
 }

@@ -24,7 +24,7 @@ pub(crate) struct Login {
     email: String,
     password: String,
 }
-fn check_origin(s: &AppState, h: &HeaderMap) -> Result<(), ApiError> {
+pub(crate) fn check_origin(s: &AppState, h: &HeaderMap) -> Result<(), ApiError> {
     let config = s.web.as_ref().ok_or(ApiError::NotFound)?;
     if h.get(header::ORIGIN).and_then(|v| v.to_str().ok()) != Some(config.origin.as_str()) {
         return Err(ApiError::Forbidden);

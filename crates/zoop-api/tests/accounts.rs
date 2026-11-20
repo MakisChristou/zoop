@@ -129,7 +129,7 @@ async fn every_device_route_enforces_ownership_and_browser_read_only() {
                 ),
                 "{method} {path}: {status}"
             );
-            if method != "GET" {
+            if method != "GET" && !(method == "PUT" && route.ends_with("/weight-goal")) {
                 let (status, _, _) = req(&app, method, &path, Some(&owner), None, json!({})).await;
                 assert!(
                     matches!(
@@ -661,5 +661,61 @@ async fn native_credentials_are_private_revocable_and_reset_safe() {
             .create_native_token(old.id, &digest("stale-login"), &old.password_hash)
             .await
             .unwrap()
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn browser_goal_management_is_owner_scoped_and_requires_origin() {
+    let (_db, app, owner, member) = setup().await;
+    let path = format!("/v1/devices/{}/weight-goal", support::DEVICE);
+    let body = json!({"revision":0,"active":true,"timezone":"UTC","weekly_loss_kg":0.3,"reminder_enabled":false,"reminder_weekday":1,"reminder_minute":1200});
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&member), None, body.clone())
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    for origin in [None, Some("https://untrusted.example")] {
+        let mut request = Request::builder()
+            .method("PUT")
+            .uri(&path)
+            .header("cookie", &owner)
+            .header("content-type", "application/json");
+        if let Some(origin) = origin {
+            request = request.header("origin", origin);
+        }
+        let response = app
+            .clone()
+            .oneshot(request.body(Body::from(body.to_string())).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+    let (status, goal, _) = req(&app, "PUT", &path, Some(&owner), None, body.clone()).await;
+    assert_eq!(status, StatusCode::OK);
+    let mut end = body;
+    end["revision"] = goal["revision"].clone();
+    end["active"] = json!(false);
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&owner), None, end).await.0,
+        StatusCode::OK
+    );
+    let detail = format!(
+        "/v1/devices/{}/weight-goals/{}",
+        support::DEVICE,
+        goal["id"]
+    );
+    assert_eq!(
+        req(&app, "GET", &detail, Some(&member), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(&app, "GET", &detail, Some(&owner), None, json!(null))
+            .await
+            .0,
+        StatusCode::OK
     );
 }

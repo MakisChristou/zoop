@@ -11,6 +11,8 @@ fn fail(e: sqlx::Error) -> StorageError {
 /// Settings belong to the authenticated device dataset; edits preserve an audit revision.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct WeightGoal {
+    /// Stable identity of this cut, independent of its settings revisions.
+    pub id: i64,
     pub revision: i64,
     pub active: bool,
     pub started_at: DateTime<Utc>,
@@ -70,7 +72,8 @@ impl PostgresStore {
         if !exists {
             return Err(StorageError::CorrectionNotFound);
         }
-        sqlx::query_as("SELECT revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1").bind(device).fetch_optional(self.pool()).await.map_err(fail)
+        self.expire_weight_goal(device).await?;
+        sqlx::query_as("SELECT id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1").bind(device).fetch_optional(self.pool()).await.map_err(fail)
     }
     /// Saves atomically with a revision receipt. An identical retry is idempotent.
     /// # Errors
@@ -102,7 +105,7 @@ impl PostgresStore {
         self.weight_goal(device).await?;
         let mut tx = self.pool().begin().await.map_err(fail)?;
         crate::session_store::lock_device(&mut tx, device).await?;
-        let old: Option<WeightGoal> = sqlx::query_as("SELECT revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1 FOR UPDATE").bind(device).fetch_optional(&mut *tx).await.map_err(fail)?;
+        let old: Option<WeightGoal> = sqlx::query_as("SELECT id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal FROM weight_goals WHERE device_id=$1 FOR UPDATE").bind(device).fetch_optional(&mut *tx).await.map_err(fail)?;
         let finish = q
             .finish_date
             .unwrap_or_else(|| old.as_ref().and_then(|g| g.finish_date));
@@ -124,6 +127,11 @@ impl PostgresStore {
         if old.as_ref().map_or(0, |g| g.revision) != q.revision {
             return Err(StorageError::CorrectionConflict(
                 "Your goal changed. Refresh before saving.".into(),
+            ));
+        }
+        if old.is_none() && !q.active {
+            return Err(StorageError::InvalidQuery(
+                "Start a goal before ending it.".into(),
             ));
         }
         let now = Utc::now();
@@ -153,7 +161,7 @@ impl PostgresStore {
                 ));
             }
         }
-        let saved: WeightGoal=sqlx::query_as("INSERT INTO weight_goals(device_id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(device_id) DO UPDATE SET revision=EXCLUDED.revision,active=EXCLUDED.active,started_at=EXCLUDED.started_at,pace_started_at=EXCLUDED.pace_started_at,timezone=EXCLUDED.timezone,weekly_loss_kg=EXCLUDED.weekly_loss_kg,reminder_enabled=EXCLUDED.reminder_enabled,reminder_weekday=EXCLUDED.reminder_weekday,reminder_minute=EXCLUDED.reminder_minute,updated_at=EXCLUDED.updated_at,finish_date=EXCLUDED.finish_date,daily_steps_goal=EXCLUDED.daily_steps_goal RETURNING revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal")
+        let saved: WeightGoal=sqlx::query_as("INSERT INTO weight_goals(device_id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(device_id) DO UPDATE SET revision=EXCLUDED.revision,active=EXCLUDED.active,started_at=EXCLUDED.started_at,pace_started_at=EXCLUDED.pace_started_at,timezone=EXCLUDED.timezone,weekly_loss_kg=EXCLUDED.weekly_loss_kg,reminder_enabled=EXCLUDED.reminder_enabled,reminder_weekday=EXCLUDED.reminder_weekday,reminder_minute=EXCLUDED.reminder_minute,updated_at=EXCLUDED.updated_at,finish_date=EXCLUDED.finish_date,daily_steps_goal=EXCLUDED.daily_steps_goal RETURNING id,revision,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,updated_at,finish_date,daily_steps_goal")
             .bind(device).bind(q.revision+1).bind(q.active).bind(start).bind(pace).bind(&q.timezone).bind(q.weekly_loss_kg).bind(q.reminder_enabled).bind(q.reminder_weekday).bind(q.reminder_minute).bind(now).bind(finish).bind(steps).fetch_one(&mut *tx).await.map_err(fail)?;
         sqlx::query("INSERT INTO weight_goal_revisions SELECT device_id,revision,to_jsonb(w) FROM weight_goals w WHERE device_id=$1").bind(device).execute(&mut *tx).await.map_err(fail)?;
         tx.commit().await.map_err(fail)?;

@@ -75,7 +75,15 @@ pub(crate) async fn require_bearer(
             && request.method() != Method::GET
             && request.method() != Method::HEAD
         {
-            return Err(ApiError::Forbidden);
+            let path = request.uri().path();
+            let goal_update = request.method() == Method::PUT
+                && path.strip_prefix("/v1/devices/").is_some_and(|tail| {
+                    tail.split('/').count() == 2 && tail.ends_with("/weight-goal")
+                });
+            if !goal_update {
+                return Err(ApiError::Forbidden);
+            }
+            crate::web::check_origin(&state, request.headers())?;
         }
         // Older phones use this placeholder solely to test credentials. Return
         // no device data; all other routes still require explicit ownership.
