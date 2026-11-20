@@ -37,7 +37,6 @@ struct TodayView: View {
                                    reset: { selectedDay = nil }, canReset: !isViewingToday)
                     overview.padding(.top, 12)
                     outlookStatus.padding(.bottom, 12)
-                    if isViewingToday { WeightCheckIn().padding(.bottom, 12) }
                     sectionHeading("Activity")
                     stepsCard
                     if historyFailed {
@@ -47,6 +46,7 @@ struct TodayView: View {
                         }
                     }
                     if !selectedWorkouts.isEmpty { sessions.padding(.top, 8) }
+                    if isViewingToday { WeightCheckIn().padding(.bottom, 12) }
                     if !currentMinutes.isEmpty {
                         sectionHeading("Daily timeline").padding(.top, 14)
                         DayTimeline(minutes: currentMinutes, day: viewedDay, now: isViewingToday ? now : nil,
