@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { Camera, LogOut, Shield, LoaderCircle, X } from "lucide-react";
+import { Camera, LogOut, Shield, LoaderCircle, X, Share2 } from "lucide-react";
 import { endpoint, type Account } from "./data";
 import {
   clamp,
@@ -84,6 +84,9 @@ export function AccountMenu({
               <Camera size={16} /> Profile photo
             </button>
           )}
+          <a href="#Shares" onClick={() => setMenu(false)}>
+            <Share2 size={16} /> Shared dashboards
+          </a>
           {account.is_admin && (
             <a href="#Admin" onClick={() => setMenu(false)}>
               <Shield size={16} /> Admin

@@ -42,13 +42,29 @@ import { RecoveryRing } from "./Recovery";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
 import { BySport, TrainingHeatmap, SportIcon } from "./Training";
+import { Sharing } from "./Sharing";
+import { SharedDashboard } from "./SharedDashboard";
+import { publicToken } from "./sharing";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
-type Page = (typeof pages)[number] | "Admin";
+type Page = (typeof pages)[number] | "Admin" | "Shares";
 function currentPage(): Page {
   const p = decodeURIComponent(location.hash.slice(1));
-  return [...pages, "Admin"].includes(p) ? (p as Page) : "Today";
+  return [...pages, "Admin", "Shares"].includes(p) ? (p as Page) : "Today";
 }
 export function App() {
+  const [token, setToken] = useState(() => publicToken(location.hash));
+  useEffect(() => {
+    const changed = () => setToken(publicToken(location.hash));
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  return token !== null ? (
+    <SharedDashboard key={token} token={token} />
+  ) : (
+    <PrivateApp />
+  );
+}
+function PrivateApp() {
   const [identity, setIdentity] = useState<Identity | null>(null),
     [checking, setChecking] = useState(true),
     [error, setError] = useState("");
@@ -165,6 +181,11 @@ export function App() {
             No device linked yet. Ask your server administrator to link your
             strap.
           </Empty>
+        ) : page === "Shares" ? (
+          <Sharing
+            key={identity.account.id + ":" + selected}
+            device={selected}
+          />
         ) : (
           <Dashboard
             key={selected}

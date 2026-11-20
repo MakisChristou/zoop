@@ -8,7 +8,7 @@ production. Never activate a NixOS deployment without explicit approval.
 - Preserve the approved Marc Lou health-page direction: Geist, black/charcoal,
   compact regular headings, purple sleep, blue activity, neutral weight. No welcome
   essays, duplicate facts or invented scores. Use measurements and clear hierarchy.
-- Browser sessions may start, edit and end their own goals and update their own profile photo through the same APIs as iPhone. All other health writes remain iPhone-only. Enforce ownership and same-origin protection on the server.
+- Browser sessions may start, edit and end their own goals and update their own profile photo through the same APIs as iPhone. They may also manage their own shared dashboards. All other health writes remain iPhone-only. Enforce ownership and same-origin protection on the server.
 - The API owns authorization and metric calculations. Never ship bearer credentials,
   implement client-only security, or silently replace unavailable data with zeros.
 - Admin is operational visibility, not permission to inspect other users' records.
@@ -23,3 +23,12 @@ production. Never activate a NixOS deployment without explicit approval.
 
 - **iPhone and web must display the same backend-owned metrics.** Use the same metric definition, source field, day/timezone and goal scope. Clients may format values, convert display units and render goal progress; they must not independently derive health metrics or substitute a different raw/filtered value. Missing data stays missing. Refresh timing may differ, but equal backend snapshots must produce equal readings.
 - Displayed steps use backend walking/running-filtered counts (`steps_walking` in daily summaries, `walking` in hourly steps), never the raw strap counter. Cover source selection with regression tests when changing metric presentation.
+
+## Shared dashboards
+
+- Public links use a fragment capability and a dedicated POST projection. Never send
+  account cookies, raw sensor data, email, device IDs or unselected metrics to visitors.
+- Preview and visitor rendering share one component. Every range is bounded by the
+  server; All history is year-paged. Passwords remain in memory, never browser storage.
+- Keep sharing opt-in. Scope edits invalidate previews, and account/device changes
+  cancel requests. Test revocation, cross-account denial and projection parity.

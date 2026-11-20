@@ -1904,3 +1904,347 @@ th:last-child {
 .recovery-about p {
   margin: 0 0 8px;
 }
+
+/* Sharing uses the same bounded cards and chart language as the private dashboard. */
+.share-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 24px;
+  flex-wrap: wrap;
+}
+.sharing h1,
+.shared-content h1 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+.sharing h2,
+.shared-content h2 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+.share-heading p {
+  color: var(--muted);
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.share-heading > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.share-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.share-actions button,
+.share-actions a,
+.share-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.share-list {
+  display: grid;
+  gap: 16px;
+}
+.share-list .share-heading {
+  margin-bottom: 16px;
+}
+.share-empty {
+  color: var(--muted);
+  padding: 32px 20px;
+}
+.share-empty h2 {
+  color: var(--text);
+}
+.share-editor {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.share-controls fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.share-controls label,
+.share-unlock label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+.share-controls input:not([type="checkbox"]),
+.share-controls select,
+.share-unlock input {
+  width: 100%;
+  min-width: 0;
+}
+.share-controls h2 {
+  margin: 24px 0 14px;
+}
+.share-controls .share-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.share-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+}
+
+.share-controls details {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-bottom: 20px;
+}
+.share-controls summary {
+  cursor: pointer;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+.share-controls details .share-check {
+  margin: 16px 0;
+}
+.share-controls small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+.share-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.share-delete {
+  margin-top: 24px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.share-preview {
+  min-width: 0;
+}
+.share-preview > .shared-content > .share-heading {
+  margin-top: 24px;
+}
+.share-preview .grid {
+  grid-template-columns: 1fr;
+}
+.share-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 54px;
+  margin-bottom: 12px;
+}
+.share-reading strong {
+  font-size: 28px;
+  font-weight: 500;
+}
+.share-reading span,
+.share-reading small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.share-reading small {
+  margin-left: auto;
+}
+.shared-widget {
+  min-width: 0;
+}
+.share-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.share-identity img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.share-heading label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.share-unlock {
+  max-width: 360px;
+  margin: 48px auto;
+}
+.share-unlock h1 {
+  font-size: 20px;
+  margin-bottom: 24px;
+}
+.shared-shell > header {
+  justify-content: center;
+}
+.shared-shell main {
+  padding-top: 32px;
+}
+@media (max-width: 800px) {
+  .share-editor {
+    grid-template-columns: 1fr;
+  }
+  .share-preview .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .share-preview .grid {
+    grid-template-columns: 1fr;
+  }
+  .share-heading {
+    gap: 12px;
+  }
+  .sharing h1 {
+    font-size: 18px;
+  }
+}
+
+.share-metrics {
+  margin: 8px 0 24px;
+}
+.share-metrics > div {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 40px;
+}
+.share-controls .share-metrics label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+}
+.share-metrics input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+}
+.share-metrics button {
+  padding: 6px;
+  min-width: 32px;
+  min-height: 32px;
+}
+.share-heading select {
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+@media (max-width: 560px) {
+  .share-metrics button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .shared-shell > header {
+    display: flex;
+    justify-content: center;
+  }
+}
+.sharing {
+  padding-top: 28px;
+}
+.sharing button,
+.share-unlock button {
+  border: 1px solid var(--border);
+  background: #202020;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.sharing button:not(:disabled):hover,
+.share-unlock button:not(:disabled):hover {
+  background: #292929;
+}
+.sharing button.primary,
+.share-unlock button.primary {
+  background: var(--text);
+  color: #111;
+  border-color: var(--text);
+  width: auto;
+  margin: 0;
+}
+.sharing button.primary:not(:disabled):hover {
+  background: #ddd;
+}
+.share-controls input:not([type="checkbox"]),
+.share-controls select,
+.share-unlock input {
+  background: #101010;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  min-height: 40px;
+  font-size: 14px;
+}
+.share-controls label {
+  color: var(--muted);
+}
+.share-controls .share-metrics label {
+  color: var(--text);
+}
+.share-metrics > div {
+  min-height: 42px;
+}
+.sharing .share-metrics button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-color: transparent;
+  padding: 6px;
+  width: 32px;
+  min-height: 32px;
+  color: var(--muted);
+}
+.share-controls .share-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+}
+.share-controls .share-actions button {
+  justify-content: center;
+}
+.share-preview .grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+.shared-shell .brand {
+  flex: none;
+}
+@media (max-width: 560px) {
+  .sharing .share-metrics button {
+    width: 44px;
+    min-height: 44px;
+  }
+  .share-controls input:not([type="checkbox"]),
+  .share-controls select,
+  .share-unlock input {
+    font-size: 16px;
+  }
+  .sharing button {
+    min-height: 44px;
+  }
+}

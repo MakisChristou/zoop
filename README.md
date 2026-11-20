@@ -27,6 +27,7 @@ and keep everything on your own server.
 - Explore sleep, activity and weight with interactive charts and heatmaps.
 - Start, edit and end cut, bulk or maintenance goals, and revisit past phases.
 - Update and crop your profile photo; it follows you to the iPhone app.
+- Share selected metrics with a private link, optional password and expiry.
 - Check ingestion, processing queues and worker health with an admin account.
 
 Each person sees their own data. Admins see operational aggregates, not other
@@ -87,3 +88,17 @@ See [development and tests](docs/DEVELOPMENT.md), [CONTRIBUTING.md](CONTRIBUTING
 and [SECURITY.md](SECURITY.md).
 
 [MIT license](LICENSE). Bundled fonts retain their own licenses.
+
+## Share a dashboard
+
+Open **Account → Shared dashboards → New dashboard**. Choose metrics and their
+order, then preview exactly what visitors will see before creating a link.
+
+History defaults to the **last 30 days**. **All history** includes future readings
+and lets visitors browse by year; selected dates stay fixed. Links expire after
+seven days by default, with a **Never expires** option. Names and photos are opt-in.
+You can change the password, disable a link or delete it without changing any data.
+
+Anyone with a working link and its password, if set, can view and copy the selected
+measurements. Revocation stops new requests; it cannot recall copies already made.
+Website embedding and developer API access are not part of this version.
