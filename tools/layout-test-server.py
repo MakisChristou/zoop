@@ -126,6 +126,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == 'sleeps': return self.send(nights[:limit])
         if route == 'progress':
             sparse = device == 'PROGRESS-SPARSE'
+            recent = device == 'PROGRESS-RECENT'
             metrics = []
             for key, current, previous, weeks, required in [
                 ('sleep', 26640, 25560, [25020, 26100, 25200, 25920, 26280, 27000, 26400, 26880], 21),
@@ -133,12 +134,15 @@ class Handler(BaseHTTPRequestHandler):
                 ('steps', 7800, 6600, [6200, 6900, 6700, 6600, 7300, 8000, 7700, 8200], 21),
                 ('walking', 142, 114, [114]*4+[142]*4, 3),
                 ('strength', 2, 2, [2]*8, 3)]:
+                if recent:
+                    weeks = [None]*4 + (dict(sleep=[28200, 28260, 28380, 28440], steps=[11800, 7400, 9100, 10428]).get(key, weeks[4:]))
+                    current = dict(sleep=28320, steps=9682).get(key, current)
                 count = 28 if required == 21 else 4
                 sparse_count = 5 if required == 21 else 0
                 visible_current = None if sparse and sparse_count == 0 else current
-                metrics.append(dict(key=key, current=visible_current, previous=None if sparse else previous,
-                                    change=None if sparse else current-previous, current_count=sparse_count if sparse else count,
-                                    previous_count=0 if sparse else count, required_count=required,
+                metrics.append(dict(key=key, current=visible_current, previous=None if sparse or recent else previous,
+                                    change=None if sparse or recent else current-previous, current_count=sparse_count if sparse else count,
+                                    previous_count=0 if sparse or recent else count, required_count=required,
                                     weeks=[None]*7+[visible_current] if sparse else weeks))
             return self.send(dict(timezone='UTC', current=dict(start=(today-timedelta(days=28)).date().isoformat(), end=(today-timedelta(days=1)).date().isoformat()),
                                   previous=dict(start=(today-timedelta(days=56)).date().isoformat(), end=(today-timedelta(days=29)).date().isoformat()), metrics=metrics))

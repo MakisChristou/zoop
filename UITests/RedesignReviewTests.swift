@@ -101,7 +101,7 @@ import XCTest
         app.buttons["tab-Trends"].tap()
         let progress = app.buttons["openProgress"]
         reveal(progress, in: app); progress.tap()
-        XCTAssertTrue(app.navigationBars["Your progress"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 10))
         shot(app, "26 Progress charts")
     }
     func testWeightChartPagingAndInspection() {

@@ -6,7 +6,7 @@ extension ZoopAPI {
         struct Period: Decodable, Sendable {
             let start: String
             let end: String
-            func label(timeZone: TimeZone) -> String {
+            func label(timeZone: TimeZone, includeYear: Bool = true) -> String {
                 guard let first = DayKey.date(start, timeZone: timeZone), let last = DayKey.date(end, timeZone: timeZone) else { return "\(start) – \(end)" }
                 var format = Date.FormatStyle.dateTime.day().month(.abbreviated).year()
                 format.timeZone = timeZone
@@ -14,7 +14,9 @@ extension ZoopAPI {
                 var startFormat = Date.FormatStyle.dateTime.day().month(.abbreviated)
                 startFormat.timeZone = timeZone
                 let startLabel = calendar.component(.year, from: first) == calendar.component(.year, from: last) ? first.formatted(startFormat) : first.formatted(format)
-                return "\(startLabel) – \(last.formatted(format))"
+                let sameYear = calendar.component(.year, from: first) == calendar.component(.year, from: last)
+                let currentYear = calendar.component(.year, from: last) == calendar.component(.year, from: Date())
+                return "\(startLabel) – \(last.formatted(!includeYear && sameYear && currentYear ? startFormat : format))"
             }
         }
         struct Metric: Decodable, Sendable, Identifiable {

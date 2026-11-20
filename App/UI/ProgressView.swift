@@ -13,12 +13,13 @@ struct HealthProgressView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if let summary = store.summary {
-                    ProgressDates(summary: summary)
+                    ProgressDates(summary: summary, showComparison: false, compact: true)
+                        .frame(maxWidth: .infinity)
                     ForEach(ProgressKind.allCases) { kind in
                         NavigationLink {
                             ProgressDetailView(summary: summary, kind: kind)
                         } label: {
-                            ProgressCard(metric: summary.metric(kind.key), kind: kind)
+                            ProgressCard(metric: summary.metric(kind.key), kind: kind, summary: summary)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("progressCard-\(kind.key)")
@@ -33,14 +34,14 @@ struct HealthProgressView: View {
             }
             .padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 20)
         }
-        .navigationTitle("Your progress").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Progress").navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Button { showAbout = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About your progress")
         } }
         .zoopScreen()
         .zoopLoading(store.loading, label: "Loading progress")
-        .sheet(isPresented: $showAbout) { ProgressAboutView() }
+        .sheet(isPresented: $showAbout) { ProgressAboutView(summary: store.summary) }
         .refreshable { await ZoopAPI.invalidateReads(); await load() }
         .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
             if scenePhase == .active { await load() }
@@ -59,16 +60,18 @@ private enum ProgressKind: String, CaseIterable, Identifiable {
     var title: String { self == .sleep ? "Sleep" : "Activity" }
     var symbol: String { self == .sleep ? "moon.fill" : "figure.walk" }
     var color: Color { self == .sleep ? ZoopStyle.sleep : ZoopStyle.steps }
-    var caption: String { self == .sleep ? "Average per night" : "Steps per day" }
     var keys: [String] { self == .sleep ? ["sleep", "wake_variation"] : ["steps", "walking", "strength"] }
 }
 
 private struct ProgressDates: View {
     let summary: ZoopAPI.ProgressSummary
     var showComparison = true
+    var compact = false
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(summary.current.label(timeZone: summary.timeZone)).font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
+            Text(summary.current.label(timeZone: summary.timeZone, includeYear: !compact))
+                .font(ZoopType.font(size: 14, weight: compact ? .regular : .medium, relativeTo: .subheadline))
+                .foregroundStyle(compact ? ZoopStyle.secondary : ZoopStyle.text)
             if showComparison {
                 Text("Compared with \(summary.previous.label(timeZone: summary.timeZone))")
                     .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
@@ -78,92 +81,97 @@ private struct ProgressDates: View {
 }
 
 private struct ProgressCard: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let metric: ZoopAPI.ProgressSummary.Metric?
     let kind: ProgressKind
+    let summary: ZoopAPI.ProgressSummary
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Label(kind.title, systemImage: kind.symbol).font(ZoopType.headline)
-                Spacer()
-                Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .semibold, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 12) { headline; delta }
-                    VStack(alignment: .leading, spacing: 6) { headline; delta }
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 12) {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 12) { title; reading }
+                    Spacer(minLength: 0)
+                } else {
+                    title
+                    Spacer(minLength: 8)
+                    reading
                 }
-                Text(kind.caption).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+                Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption))
+                    .foregroundStyle(ZoopStyle.secondary).padding(.top, 3)
             }
-            if let metric {
-                ProgressBars(metric: metric, kind: kind)
-                if metric.change == nil {
-                    Text(metric.currentCount == 0 ? "Waiting for recorded \(kind == .sleep ? "nights" : "days")" : "\(metric.currentCount) recorded \(kind == .sleep ? "nights" : "days")")
-                        .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                }
+            if let metric, metric.weeks.contains(where: { $0?.isFinite == true }) {
+                ProgressBars(metric: metric, kind: kind, summary: summary)
+            } else {
+                Text("No readings").font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 100)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).zoopCard(padding: 20)
+        .frame(maxWidth: .infinity, alignment: .leading).zoopCard()
     }
-    private var headline: some View {
-        Text(ProgressFormat.value(metric?.current, key: kind.key))
-            .font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2)).monospacedDigit().foregroundStyle(ZoopStyle.text)
+    private var title: some View {
+        Label(kind.title, systemImage: kind.symbol).font(ZoopStyle.sectionTitle)
     }
-    @ViewBuilder private var delta: some View {
-        if let change = metric?.change {
-            Text(ProgressFormat.delta(change, key: kind.key)).font(ZoopType.font(size: 14, weight: .semibold, relativeTo: .subheadline))
-                .foregroundStyle(ProgressFormat.color(change, key: kind.key))
-                .accessibilityLabel("Change: \(ProgressFormat.delta(change, key: kind.key))")
-        }
+    private var reading: some View {
+        VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(ProgressFormat.value(metric?.current, key: kind.key))
+                    .font(ZoopType.font(size: 18, weight: .medium, relativeTo: .title3)).monospacedDigit()
+                if kind == .activity {
+                    Text("steps").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                }
+            }.foregroundStyle(ZoopStyle.text)
+            if let change = metric?.change {
+                Text(ProgressFormat.delta(change, key: kind.key)).font(ZoopType.caption)
+                    .foregroundStyle(ProgressFormat.color(change, key: kind.key))
+                    .accessibilityLabel("Change: \(ProgressFormat.delta(change, key: kind.key))")
+            }
+        }.fixedSize(horizontal: false, vertical: true)
     }
 }
 
 private struct ProgressBars: View {
-    @Environment(\.dynamicTypeSize) private var typeSize
     let metric: ZoopAPI.ProgressSummary.Metric
     let kind: ProgressKind
-    private var values: [Double?] { Array((metric.weeks + Array(repeating: nil, count: 8)).prefix(8)) }
+    let summary: ZoopAPI.ProgressSummary
+    private var data: ProgressChartData { ProgressChartData(metric: metric, summary: summary) }
     private var ceiling: Double {
-        let peak = values.compactMap { $0 }.max() ?? 0
+        let peak = data.weeks.compactMap(\.value).max() ?? 0
         let step = kind == .sleep ? 3600.0 : 2000.0
         return max(step, ceil(peak / step) * step)
     }
     var body: some View {
-        VStack(spacing: 8) {
-            Chart {
-                ForEach(0..<8, id: \.self) { index in
-                    if let value = values[index] {
-                        BarMark(x: .value("Week", String(index)), y: .value(kind.title, value), width: .ratio(0.68))
-                            .foregroundStyle(kind.color.opacity(index < 4 ? 0.38 : 1))
-                            .cornerRadius(4)
-                            .accessibilityLabel("\(index < 4 ? "Previous" : "Recent") week \(index % 4 + 1)")
-                            .accessibilityValue(ProgressFormat.value(value, key: kind.key))
+        let data = data
+        Chart {
+            ForEach(data.weeks) { week in
+                if let value = week.value {
+                    BarMark(x: .value("Week", String(week.id)), y: .value(kind.title, value), width: .ratio(0.68))
+                        .foregroundStyle(kind.color.opacity(week.id < 4 ? 0.38 : 1))
+                        .cornerRadius(4)
+                        .accessibilityLabel("Week of \(data.label(week))")
+                        .accessibilityValue(ProgressFormat.value(value, key: kind.key))
+                }
+            }
+        }
+        .chartXScale(domain: data.weeks.map { String($0.id) }).chartYScale(domain: 0...ceiling)
+        .chartXAxis {
+            AxisMarks(values: data.tickIDs.map(String.init)) { axis in
+                AxisValueLabel {
+                    if let id = axis.as(String.self), let week = data.weeks.first(where: { String($0.id) == id }) {
+                        Text(data.label(week)).font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
                     }
                 }
             }
-            .chartXScale(domain: (0..<8).map(String.init)).chartYScale(domain: 0...ceiling)
-            .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(position: .leading, values: [0, ceiling / 2, ceiling]) { axis in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(ZoopStyle.chartGrid)
-                AxisValueLabel { if let v = axis.as(Double.self) {
-                    Text(kind == .sleep ? "\(Int(v / 3600))h" : v.formatted(.number.notation(.compactName)))
-                        .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
-                } }
-            } }
-            .frame(height: 164)
-            Group {
-                if typeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: 8) { legend }
-                } else {
-                    HStack(alignment: .top) { legend }
-                }
-            }.font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
-                .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
         }
+        .chartYAxis { AxisMarks(position: .leading, values: [0, ceiling / 2, ceiling]) { axis in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(ZoopStyle.chartGrid)
+            AxisValueLabel { if let v = axis.as(Double.self) {
+                Text(kind == .sleep ? "\(Int(v / 3600))h" : v.formatted(.number.notation(.compactName)))
+                    .font(ZoopType.caption2).foregroundStyle(ZoopStyle.secondary)
+            } }
+        } }
+        .frame(height: 164)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .accessibilityIdentifier("progressBars-\(kind.key)")
-    }
-    @ViewBuilder private var legend: some View {
-        Text("Previous 4 weeks").frame(maxWidth: .infinity, alignment: .leading)
-        Text("Last 4 weeks").frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -251,15 +259,24 @@ private struct ProgressDetailInfo: View {
 }
 
 private struct ProgressAboutView: View {
+    let summary: ZoopAPI.ProgressSummary?
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("The last 28 complete days, compared with the 28 before them.")
-                    Text("Each bar is one week. Gaps mean there isn’t enough recording; they don’t mean zero. Today is left out.")
-                    Text("Comparisons need at least 21 recorded days or nights in each period. Activity days need at least 75% recording coverage. Weekly walking and strength totals use complete recorded weeks only.")
-                    Text("Your sleep and workout corrections are included. These are changes in your recorded habits, not a health score. More sleep or activity isn’t always better.")
+                    if let summary {
+                        LabeledContent("Period", value: summary.current.label(timeZone: summary.timeZone))
+                        LabeledContent("Comparison", value: summary.previous.label(timeZone: summary.timeZone))
+                    }
+                    Text("Weekly averages. Gaps mean missing recordings.")
+                    DisclosureGroup("How comparisons work") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("The last 28 complete days versus the 28 before them. Today is excluded.")
+                            Text("Comparisons need 21 recorded days or nights in each period. Activity days need 75% recording coverage. Walking and strength totals use complete weeks.")
+                            Text("Your corrections are included. These are recorded habits, not a health score.")
+                        }.font(ZoopType.footnote).foregroundStyle(ZoopStyle.secondary).padding(.top, 12)
+                    }
                 }.font(ZoopType.body).padding(ZoopStyle.gutter)
             }.navigationTitle("About your progress").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }.zoopScreen()

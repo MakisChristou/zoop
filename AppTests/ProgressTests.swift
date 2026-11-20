@@ -45,4 +45,26 @@ import XCTest
         XCTAssertEqual(metric.weeks.count, 8); XCTAssertNil(metric.weeks[0]); XCTAssertNil(metric.change)
         XCTAssertEqual(metric.currentCount, 5)
     }
+    func testChartOmitsOnlyAnEntirelyMissingPreviousPeriod() {
+        let summary = Self.summary()
+        let metric = ZoopAPI.ProgressSummary.Metric(key: "steps", current: 7000, previous: nil, change: nil, currentCount: 14, previousCount: 0, requiredCount: 21, weeks: [nil, nil, nil, nil, 6000, nil, 0, 8000])
+        let chart = ProgressChartData(metric: metric, summary: summary)
+        XCTAssertEqual(chart.weeks.map(\.id), [4, 5, 6, 7])
+        XCTAssertNil(chart.weeks[1].value)
+        XCTAssertEqual(chart.weeks[2].value, 0, "Recorded zero stays distinct from missing")
+        XCTAssertEqual(chart.tickIDs, [4, 5, 6, 7])
+        let full = ProgressChartData(metric: summary.metrics[0], summary: summary)
+        XCTAssertEqual(full.weeks.count, 8)
+        XCTAssertNil(full.weeks[0].value, "Keep gaps when the previous period has recordings")
+        XCTAssertEqual(full.tickIDs, [0, 2, 4, 7])
+    }
+    func testChartWeekDatesUseLocalCalendarAcrossDST() throws {
+        let summary = Self.summary("Europe/Berlin")
+        let chart = ProgressChartData(metric: summary.metrics[0], summary: summary)
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = summary.timeZone
+        for week in chart.weeks { XCTAssertEqual(calendar.component(.hour, from: try XCTUnwrap(week.start)), 0) }
+        let before = try XCTUnwrap(chart.weeks[6].start), after = try XCTUnwrap(chart.weeks[7].start)
+        XCTAssertEqual(after.timeIntervalSince(before), 7 * 86400 + 3600)
+    }
+
 }
