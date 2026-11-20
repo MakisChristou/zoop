@@ -7,13 +7,29 @@ import Observation
     private func scope(_ device: String = "TEST", day: Date? = nil, connection: String = "test") -> MorningInsightsStore.Scope {
         .init(device: device, day: day ?? today, connection: connection, timezone: "UTC")
     }
-    private func response(_ state: String, day: String = "2026-11-03") throws -> MorningInsights {
+    private func response(_ state: String, day: String = "2026-11-03", recoveryState: String? = nil) throws -> MorningInsights {
+        let recovery = recoveryState.map { """
+        ,"recovery":{"version":1,"method":"zoop-recovery-v1","state":"\($0)","score":null,"baselineCount":20,"recentCount":7,"referenceSeconds":28800,"components":null,"limiting":[],"conflict":false,"band":null}
+        """ } ?? ""
         let json = """
         {"version":2,"day":"\(day)","timezone":"UTC","state":"\(state)","sleepId":1,"sleepRevision":1,
          "metrics":[],"observations":[],"timing":{"count":0},
-         "outlook":{"state":"\(state == "ready" ? "learning" : state)","baselineCount":10,"baselineRequired":14}}
+         "outlook":{"state":"\(state == "ready" ? "learning" : state)","baselineCount":10,"baselineRequired":14}\(recovery)}
         """
         return try JSONDecoder().decode(MorningInsights.self, from: Data(json.utf8))
+    }
+
+    func testPendingRecoveryKeepsPollingEvenWhenOutlookIsReady() async throws {
+        for (state, cadence) in [("updating", Duration.seconds(5)), ("awaiting_sync", .seconds(30))] {
+            let pending = try response("ready", recoveryState: state), ready = try response("ready")
+            var calls = 0, delays: [Duration] = []
+            let store = MorningInsightsStore(fetch: { _, _ in calls += 1; return calls == 1 ? pending : ready }, sleep: {
+                delays.append($0)
+                if delays.count == 2 { throw CancellationError() }
+            })
+            await store.follow(scope())
+            XCTAssertEqual(delays, [cadence, .seconds(300)])
+        }
     }
 
     func testUpdatingAutomaticallyBecomesReadyWithoutReloadingToday() async throws {

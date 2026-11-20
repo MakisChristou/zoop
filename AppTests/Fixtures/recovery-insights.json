@@ -1,0 +1,475 @@
+{
+  "version": 2,
+  "day": "2026-11-20",
+  "timezone": "UTC",
+  "state": "ready",
+  "sleep_id": 0,
+  "sleep_revision": 1,
+  "metrics": [
+    {
+      "key": "sleep",
+      "value": 28800.0,
+      "quality": "good",
+      "baseline": {
+        "state": "established",
+        "count": 28,
+        "from": "2026-10-23",
+        "to": "2026-11-19",
+        "average": 28800.0,
+        "lower": 27900.0,
+        "upper": 29700.0
+      },
+      "relation": "similar",
+      "comparison": {
+        "delta": 0.0,
+        "unit": "seconds",
+        "signal": "usual"
+      },
+      "history": [
+        {
+          "day": "2026-10-23",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-24",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-25",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-26",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-27",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-28",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-29",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-30",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-10-31",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-01",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-02",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-03",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-04",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-05",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-06",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-07",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-08",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-09",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-10",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-11",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-12",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-13",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-14",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-15",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-16",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-17",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-18",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-19",
+          "value": 28800.0
+        },
+        {
+          "day": "2026-11-20",
+          "value": 28800.0
+        }
+      ],
+      "week": {
+        "count": 7,
+        "average": 28800.0,
+        "previous_average": 28800.0
+      }
+    },
+    {
+      "key": "hrv",
+      "value": 50.0,
+      "quality": "good",
+      "baseline": {
+        "state": "established",
+        "count": 28,
+        "from": "2026-10-23",
+        "to": "2026-11-19",
+        "average": 49.999999999999865,
+        "lower": 47.61904761904748,
+        "upper": 52.499999999999865
+      },
+      "relation": "similar",
+      "comparison": {
+        "delta": 2.6645352591003757e-13,
+        "unit": "percent",
+        "signal": "usual"
+      },
+      "history": [
+        {
+          "day": "2026-10-23",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-24",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-25",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-26",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-27",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-28",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-29",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-30",
+          "value": 50.0
+        },
+        {
+          "day": "2026-10-31",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-01",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-02",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-03",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-04",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-05",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-06",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-07",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-08",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-09",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-10",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-11",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-12",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-13",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-14",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-15",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-16",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-17",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-18",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-19",
+          "value": 50.0
+        },
+        {
+          "day": "2026-11-20",
+          "value": 50.0
+        }
+      ],
+      "week": {
+        "count": 7,
+        "average": 49.99999999999999,
+        "previous_average": 49.99999999999999
+      }
+    },
+    {
+      "key": "resting_hr",
+      "value": 55.0,
+      "quality": "good",
+      "baseline": {
+        "state": "established",
+        "count": 28,
+        "from": "2026-10-23",
+        "to": "2026-11-19",
+        "average": 55.0,
+        "lower": 54.0,
+        "upper": 56.0
+      },
+      "relation": "similar",
+      "comparison": {
+        "delta": 0.0,
+        "unit": "bpm",
+        "signal": "usual"
+      },
+      "history": [
+        {
+          "day": "2026-10-23",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-24",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-25",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-26",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-27",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-28",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-29",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-30",
+          "value": 55.0
+        },
+        {
+          "day": "2026-10-31",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-01",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-02",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-03",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-04",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-05",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-06",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-07",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-08",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-09",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-10",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-11",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-12",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-13",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-14",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-15",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-16",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-17",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-18",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-19",
+          "value": 55.0
+        },
+        {
+          "day": "2026-11-20",
+          "value": 55.0
+        }
+      ],
+      "week": {
+        "count": 7,
+        "average": 55.0,
+        "previous_average": 55.0
+      }
+    }
+  ],
+  "observations": [
+    "Your HRV was within your usual range.",
+    "Your resting heart rate was within your usual range."
+  ],
+  "timing": {
+    "count": 7,
+    "asleep_sd_min": 0.0,
+    "wake_sd_min": 0.0
+  },
+  "outlook": {
+    "state": "average",
+    "level": 3,
+    "baseline_count": 28,
+    "baseline_required": 14
+  },
+  "recovery": {
+    "version": 1,
+    "method": "zoop-recovery-v1",
+    "state": "ready",
+    "score": 75,
+    "baseline_count": 28,
+    "recent_count": 7,
+    "reference_seconds": 28800,
+    "components": {
+      "hrv": 75.00000000000082,
+      "resting_hr": 75.0,
+      "last_sleep": 100.0,
+      "recent_sleep": 100.0
+    },
+    "limiting": [
+      "hrv",
+      "resting_hr"
+    ],
+    "conflict": false,
+    "band": "high"
+  }
+}

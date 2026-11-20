@@ -106,6 +106,7 @@ struct MorningInsights: Decodable, Sendable {
         let wakeSdMin: Double?
     }
     let outlook: Outlook?
+    let recovery: RecoveryReading?
     let version: Int
     let day: String
     let timezone: String

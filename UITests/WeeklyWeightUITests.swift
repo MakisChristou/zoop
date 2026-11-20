@@ -239,7 +239,7 @@ import XCTest
     }
 
 
-    func testPhaseScreensAndPercentageRing() {
+    func testPhaseScreensAndTodaySummary() {
         for phase in ["BULK", "MAINTENANCE"] {
             let app = launch(screen: "weekly-weight", state: phase)
             XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 20))
@@ -254,8 +254,8 @@ import XCTest
             shot(app, phase + " setup")
             app.buttons["Cancel"].tap()
             app.buttons["tab-Today"].tap()
-            XCTAssertTrue(app.buttons["openStepsSummary"].waitForExistence(timeout: 10))
-            shot(app, phase + " Today percentage")
+            XCTAssertTrue(app.buttons["openRecoverySummary"].waitForExistence(timeout: 10))
+            shot(app, phase + " Today summary")
             app.terminate()
         }
     }

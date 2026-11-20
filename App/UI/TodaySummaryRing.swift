@@ -8,6 +8,7 @@ struct TodaySummaryRing: View {
     var progress: Double? = nil
     var isLoading = false
     var subtitle: String? = nil
+    var showsTitle = true
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -40,7 +41,9 @@ struct TodaySummaryRing: View {
                 }
             }
             .aspectRatio(1, contentMode: .fit)
-            Text(title).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+            if showsTitle {
+                Text(title).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+            }
         }
         .frame(maxWidth: typeSize.isAccessibilitySize ? 220 : .infinity)
         .contentShape(Rectangle())

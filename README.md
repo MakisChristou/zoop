@@ -14,7 +14,7 @@ keeps your history and runs the analysis.
 [Web dashboard](https://github.com/MakisChristou/zoop-web)
 
 <p align="center">
-  <img src="docs/screenshots/today.png" width="195" alt="Today: sleep, steps and load rings with daily activity" />
+  <img src="docs/screenshots/today.png" width="195" alt="Today: sleep, recovery and load rings with daily activity" />
   <img src="docs/screenshots/sleep.png" width="195" alt="Sleep: nightly timeline, stages and comparisons" />
   <img src="docs/screenshots/activity.png" width="195" alt="Activity: recent workouts arranged on a timeline" />
   <img src="docs/screenshots/trends.png" width="195" alt="Trends: historical measurements and calendar navigation" />
@@ -24,6 +24,7 @@ keeps your history and runs the analysis.
 ## What you can do
 
 - Explore sleep stages, nightly measurements and comparisons with your usual nights.
+- Follow your daily Recovery index, calculated by the server from sleep, HRV and resting heart rate.
 - Review detected walks and strength sessions, daily steps and training load.
 - Log weight and follow cut, bulk or maintenance goals with a weekly outlook.
 - Correct sleep and workouts without losing the original recordings.

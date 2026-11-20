@@ -114,16 +114,14 @@ struct TodayView: View {
                 return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal" + (loading ? ", updating" : "")
             } ?? (loading ? "Loading" : "No reading"))
             .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
-            NavigationLink(value: StepsView.Scope.day) {
-                if let target = stepTarget {
-                    StepGoalProgress(steps: stepCount, target: target, ringPresentation: true, isLoading: loading)
-                } else {
-                    TodaySummaryRing(title: "Steps", value: stepCount?.formatted() ?? "—",
-                                     color: ZoopStyle.text, isLoading: loading)
-                }
+            NavigationLink { RecoveryDetailView(day: viewedDay) } label: {
+                TodaySummaryRing(title: "Recovery", value: insights?.recovery?.value ?? "—",
+                                 color: RecoveryTone.color(insights?.recovery),
+                                 progress: insights?.recovery?.progress,
+                                 isLoading: morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync" || insights?.recovery?.isPending == true)
             }
-            .buttonStyle(.plain).accessibilityIdentifier("openStepsSummary")
-            .accessibilityHint("Opens steps by hour and by day")
+            .buttonStyle(.plain).accessibilityIdentifier("openRecoverySummary")
+            .accessibilityHint("Opens recovery and its readings")
             Button { openActivity(viewedDay) } label: {
                 TodaySummaryRing(title: "Load", value: selectedSummary?.load.map {
                     $0.formatted(.number.precision(.fractionLength(1)))
@@ -187,8 +185,9 @@ struct TodayView: View {
         NavigationLink(value: StepsView.Scope.day) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    metricLabel("Steps by hour", icon: "shoeprints.fill")
+                    metricLabel("Steps", icon: "shoeprints.fill")
                     Spacer()
+                    Text(stepCount?.formatted() ?? "—").font(ZoopType.title2).monospacedDigit()
                     Image(systemName: "chevron.right").font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).foregroundStyle(ZoopStyle.secondary)
                 }
                 if let steps = currentSteps {
@@ -198,6 +197,10 @@ struct TodayView: View {
                     Color.clear.frame(height: 164).padding(.top, 8)
                         .overlay { if loading { ProgressView().controlSize(.small) } }
                         .accessibilityHidden(true)
+                }
+                if let target = stepTarget {
+                    StepGoalProgress(steps: stepCount, target: target, isLoading: loading)
+                        .padding(.top, 8)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

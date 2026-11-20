@@ -4,6 +4,7 @@ Run alongside ZoopUITests on a simulator. The default test URL is port 28476.
 All mutations are in memory and disappear when the process exits.
 """
 import json
+import os
 import copy
 import math
 import time
@@ -83,6 +84,15 @@ def weight_rows(device):
     return weight_devices[device]
 
 
+def recovery(state='ready', count=20, score=75):
+    return dict(version=1, method='zoop-recovery-v1', state=state,
+                score=score if state == 'ready' else None, baseline_count=count,
+                recent_count=7, reference_seconds=28800,
+                components=dict(hrv=75, resting_hr=82, last_sleep=100, recent_sleep=96) if state == 'ready' else None,
+                limiting=['hrv'] if state == 'ready' else [], conflict=False,
+                band=('low' if score < 34 else 'moderate' if score < 67 else 'high') if state == 'ready' else None)
+
+
 def insight(day, mature=False, early_count=11):
     count = 14 if mature else early_count
     metrics = []
@@ -94,7 +104,7 @@ def insight(day, mature=False, early_count=11):
                             comparison=dict(delta=delta, unit=unit, signal='favourable' if mature else None),
                             history=[dict(day=(today-timedelta(days=i)).date().isoformat(), value=value*(1+.03*math.sin(i))) for i in reversed(range(14))],
                             week=dict(count=7, average=value, previous_average=value*.95)))
-    return dict(outlook=dict(state='good' if mature else 'learning', level=5 if mature else None,
+    return dict(recovery=recovery('ready' if mature else 'learning', count), outlook=dict(state='good' if mature else 'learning', level=5 if mature else None,
                              baseline_count=count, baseline_required=14), version=1, day=day, timezone='UTC',
                 state='ready', sleep_id=1, sleep_revision=1, metrics=metrics, observations=[],
                 timing=dict(count=7, asleep_sd_min=25, wake_sd_min=20))
@@ -190,12 +200,18 @@ class Handler(BaseHTTPRequestHandler):
         if route.endswith('/insights'):
             if device == 'RINGS-EMPTY': return self.send(dict(error='Synthetic unavailable'), 503)
             if device == 'SLEEP-COMPARISON': return self.send(dict(error='Synthetic insights unavailable'), 503)
+            if device.startswith('RECOVERY-'):
+                state = device.removeprefix('RECOVERY-')
+                body = insight(parts[-2], True)
+                if state == 'old-server': body.pop('recovery', None)
+                else: body['recovery'] = recovery(state if state not in ('zero', 'full') else 'ready', count=11 if state == 'learning' else 20, score=0 if state == 'zero' else 100 if state == 'full' else 75)
+                return self.send(body)
             if device.startswith('MORNING-CARD-'):
                 state = device.removeprefix('MORNING-CARD-')
                 body = insight(parts[-2], state != 'learning')
                 body['outlook'].update(state=state, level={'good':5,'average':3,'low':1}.get(state))
                 if state in ('updating', 'awaiting_sync', 'no_sleep'):
-                    body['state']=state; body['metrics']=[]
+                    body['state']=state; body['metrics']=[]; body['recovery']=recovery(state)
                 if state in ('average', 'low'):
                     for metric in body['metrics']:
                         metric['comparison']['signal']='usual' if state == 'average' else 'unfavourable'
@@ -249,4 +265,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    ThreadingHTTPServer(('127.0.0.1', 28476), Handler).serve_forever()
+    ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('ZOOP_TEST_PORT', '28476'))), Handler).serve_forever()

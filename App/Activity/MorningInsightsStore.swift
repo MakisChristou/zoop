@@ -97,11 +97,10 @@ import Observation
         // A superseding request can be cancelled before either response publishes.
         // An empty brief is not a settled result; retry it promptly while visible.
         if failed || value == nil { return Cadence.retry }
-        switch value?.state {
-        case "updating": return Cadence.updating
-        case "awaiting_sync": return Cadence.awaitingSync
-        default: return Cadence.settled
-        }
+        let states = [value?.state, value?.recovery?.state]
+        if states.contains("updating") { return Cadence.updating }
+        if states.contains("awaiting_sync") { return Cadence.awaitingSync }
+        return Cadence.settled
     }
 
     private func shortenWait(after previousDelay: Duration) {
