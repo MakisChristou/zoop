@@ -1,7 +1,14 @@
+---
+id: iphone
+slug: /iphone
+title: Connect your iPhone
+description: Build the iPhone app, connect your WHOOP and sign in to your server.
+---
+
 # Connect your iPhone
 
 You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and your own
-[Zoop API server](../server/README.md). Build with Xcode and
+[Zoop server](SELF_HOSTING.md). Build with Xcode and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen); the verified toolchain is
 Xcode 27.2 / XcodeGen 2.46.0. Device builds need an Apple development team with
 HealthKit signing support.

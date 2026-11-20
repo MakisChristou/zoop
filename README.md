@@ -56,6 +56,7 @@ An App Store release is planned; [pre-launch checks](docs/APP_STORE.md) remain.
 | iPhone | SwiftUI, CoreBluetooth, SQLite | `App/`, `Packages/` |
 | Server | Rust, PostgreSQL | `server/` |
 | Web | React, TypeScript, Recharts | `web/` |
+| Website and docs | Docusaurus, Markdown | [`site/`](site/README.md) |
 
 The phone collects recordings. The server stores them and computes the metrics
 shown by both clients. Accounts keep each person's data private; administrators

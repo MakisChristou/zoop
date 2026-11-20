@@ -6,8 +6,8 @@ anything.
 ## Repository scope
 
 This repository contains the iPhone app at the root, the Rust API in `server/`,
-and the React dashboard in `web/`. Read `server/AGENTS.md` or `web/AGENTS.md` for
-those workspaces. The Swift, Bluetooth, Xcode and iPhone UI instructions below
+the React dashboard in `web/`, and the public website in `site/`. Read each
+workspace's `AGENTS.md` for its rules. The Swift, Bluetooth, Xcode and iPhone UI instructions below
 apply only to the iPhone app. Ownership, privacy and metric-parity rules apply to all.
 
 - Run component checks from their workspace; workflows live in root `.github/`.

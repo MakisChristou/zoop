@@ -1,3 +1,10 @@
+---
+id: self-hosting
+slug: /self-hosting
+title: Run your own Zoop
+description: Install, back up and update your Zoop server with Docker Compose.
+---
+
 # Run your own Zoop
 
 Docker Compose runs the dashboard, API and PostgreSQL. The iPhone app collects

@@ -11,6 +11,7 @@ regression coverage for data or security changes.
 | iPhone | Repository root | [iPhone setup](docs/IPHONE_SETUP.md), [development](docs/DEVELOPMENT.md) |
 | API | `server/` | [Server README](server/README.md), [architecture](server/docs/ARCHITECTURE.md) |
 | Web | `web/` | [Web README](web/README.md), [development](web/docs/DEVELOPMENT.md) |
+| Website and docs | `site/` | [Website preview and checks](site/README.md) |
 
 GitHub runs component checks and a fresh Compose install/restore check from `.github/workflows/`. Run the relevant checks
 locally and include their results with your change. API changes must preserve
