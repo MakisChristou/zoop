@@ -1,67 +1,45 @@
 # Zoop
 
-<img src="Brand/zoop-icon.svg" width="96" height="96" alt="Zoop logo" />
+<img src="Brand/zoop-icon.svg" width="80" height="80" alt="Zoop logo" />
 
-**Your strap. Your data. Your server.**
+**Your wearable data, on your own server.**
 
-Zoop is an independent iPhone app for WHOOP 5.0 and WHOOP MG. It connects directly
-over Bluetooth and turns your strap’s data into sleep, activity and health trends.
-It exists so you can use your hardware with software you control, backed by a
-self-hosted [Zoop API](https://github.com/MakisChristou/zoop-api).
+Zoop is an independent iPhone app for WHOOP 5.0 and WHOOP MG. Track sleep,
+activity, weight and long-term trends with software you can inspect and host yourself.
+The phone collects your recordings; [Zoop API](https://github.com/MakisChristou/zoop-api)
+keeps your history and runs the analysis.
+
+[iPhone](https://github.com/MakisChristou/zoop) ·
+[API](https://github.com/MakisChristou/zoop-api) ·
+[Web dashboard](https://github.com/MakisChristou/zoop-web)
 
 <p align="center">
-  <img src="docs/screenshots/today.png" width="195" alt="Daily overview with sleep, outlook, load and steps" />
-  <img src="docs/screenshots/activity.png" width="195" alt="Activity history with daily load and recent workouts" />
-  <img src="docs/screenshots/sleep.png" width="195" alt="Sleep timeline and stage breakdown" />
-  <img src="docs/screenshots/trends.png" width="195" alt="Sleep trends and nightly heatmap" />
+  <img src="docs/screenshots/today.png" width="195" alt="Today: sleep, steps and load rings with daily activity" />
+  <img src="docs/screenshots/sleep.png" width="195" alt="Sleep: nightly timeline, stages and comparisons" />
+  <img src="docs/screenshots/activity.png" width="195" alt="Activity: recent workouts arranged on a timeline" />
+  <img src="docs/screenshots/trends.png" width="195" alt="Trends: historical measurements and calendar navigation" />
 </p>
+<p align="center"><sub>Current app UI, captured in the simulator with sample data.</sub></p>
 
-<p align="center"><sub>Captured on iPhone with real data, shared with permission.</sub></p>
+## What you can do
 
-## What it does
+- Explore sleep stages, nightly measurements and comparisons with your usual nights.
+- Review detected walks and strength sessions, daily steps and training load.
+- Log weight and follow cut, bulk or maintenance goals with a weekly outlook.
+- Correct sleep and workouts without losing the original recordings.
+- Sync with Apple Health, export weight as CSV and record ECG on WHOOP MG.
 
-- Sleep timelines, stages and nightly measurements.
-- Detected workouts, steps and activity history.
-- Weight tracking, goals and weekly progress.
-- Optional Apple Health sync and battery reminders.
-- Experimental manual ECG recording on WHOOP MG.
-
-Zoop is actively developed. Its estimates and experimental features are not
-intended for medical diagnosis. It is not affiliated with or endorsed by WHOOP.
-
-## How it works
-
-The app is built with **SwiftUI, CoreBluetooth and SQLite**, with an independently
-implemented Swift strap protocol. It saves sensor frames locally and retries uploads
-until your server confirms receipt. Zoop API handles analysis; the app displays the
-results alongside live readings.
-
-Zoop uses the Bluetooth bond created by the official WHOOP app. Pair your strap
-there first, then quit that app before connecting with Zoop. Day-to-day syncing uses
-your own server, not the WHOOP cloud.
-
-## Why a backend?
-
-Zoop requires a self-hosted backend. It keeps one history for the iPhone and
-[web app](https://github.com/MakisChristou/zoop-web), and can rerun improved analysis
-on stored recordings while preserving your corrections.
-
-| Approach | Trade-off |
-| --- | --- |
-| **Zoop** | Shared history and server-side analysis; you run the server. |
-| [NOOP](https://github.com/ryanbr/noop) | Local storage and analysis; no server required. |
-| [Goose variants](https://github.com/tigercraft4/goose) | Local-first, with an optional self-hosted backend. |
-| [Official WHOOP](https://www.whoop.com/) | Managed service with proprietary analysis. |
-
-A backend makes history easier to share and reprocess—not inherently more accurate.
-The phone still handles Bluetooth collection; uploads queue during outages.
+**Developer preview.** Build from source; there is no App Store release yet.
+Health estimates and ECG recording are experimental, not medical diagnoses.
+Zoop is not affiliated with WHOOP.
 
 ## Run it
 
-Builds are verified with Xcode 27.2 and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-2.46.0. You need an iPhone
-running iOS 17+, and a running [Zoop API](https://github.com/MakisChristou/zoop-api).
-Use an Apple development team with HealthKit signing support.
+You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and your own
+[Zoop API server](https://github.com/MakisChristou/zoop-api). Build with Xcode and
+[XcodeGen](https://github.com/yonaskolb/XcodeGen); the verified toolchain is
+Xcode 27.2 / XcodeGen 2.46.0. Device builds need an Apple development team with
+HealthKit signing support.
 
 ```sh
 git clone https://github.com/MakisChristou/zoop.git
@@ -69,28 +47,42 @@ cd zoop
 cp Config/Local.xcconfig.example Config/Local.xcconfig
 ```
 
-Set your team ID and unique bundle ID in `Config/Local.xcconfig` (gitignored), then:
+1. Set your development team and a unique bundle ID in `Config/Local.xcconfig`.
+   This file is ignored by Git.
+2. Generate and open the project:
 
-```sh
-xcodegen generate
-open Zoop.xcodeproj
-```
+   ```sh
+   xcodegen generate
+   open Zoop.xcodeproj
+   ```
 
-Choose the **Zoop** scheme and your iPhone, then Run. Enter your HTTPS server URL and sign in with an account provisioned by your
-server administrator. A backend is required. Existing token installations migrate
-to Keychain automatically. The simulator can preview the UI but cannot connect to a strap.
+3. Select the **Zoop** scheme and your iPhone, then Run.
+4. Enter your server's HTTPS URL and sign in with an account created by its administrator.
 
-## Development
+Pair the strap in the official WHOOP app first, then quit that app before connecting
+with Zoop. Keep the existing Bluetooth bond. A simulator can preview the interface,
+but cannot collect strap data.
 
-See the [developer guide](docs/DEVELOPMENT.md) for the code layout and test commands,
-and [contributing conventions](AGENTS.md) before making changes.
+## How it works
 
-## Credits and license
+**SwiftUI · CoreBluetooth · SQLite · Swift Charts**
 
-The protocol implementation draws on public interoperability research from NOOP,
-wearable5.0, Goose and whoop-rs. Their code is not included in Zoop.
+The app saves sensor frames locally before uploading them and retries until the
+server confirms receipt. Analysis runs in Rust on your server, with PostgreSQL
+holding the original recordings and derived history. The iPhone and web dashboard
+use the same backend metrics; live Bluetooth readings stay on the phone.
 
-MIT.
+A backend is required. The local queue protects collection during connection
+outages; it is not a standalone offline analytics mode. Keeping the original data
+lets you back it up and rerun improved analysis later, while preserving corrections.
 
-For contributions and vulnerability reporting, see [CONTRIBUTING.md](CONTRIBUTING.md)
-and [SECURITY.md](SECURITY.md).
+## Contribute
+
+Start with [development and tests](docs/DEVELOPMENT.md),
+[contributing](CONTRIBUTING.md) and the [visual style guide](docs/VISUAL_STYLE.md).
+Report vulnerabilities through [SECURITY.md](SECURITY.md).
+
+The strap protocol is independently implemented, informed by public interoperability
+research from NOOP, wearable5.0, Goose and whoop-rs. Their code is not bundled.
+
+[MIT license](LICENSE).
