@@ -17,7 +17,7 @@ import Observation
     private(set) var value: MorningInsights?
     private(set) var failed = false
     private(set) var loading = false
-    @ObservationIgnored private let fetch: (String, Date) async throws -> MorningInsights
+    @ObservationIgnored private let fetch: (Scope) async throws -> MorningInsights
     @ObservationIgnored private let sleep: (Duration) async throws -> Void
     // Scoped reads must observe the first scope assignment, even before value exists.
     private var scope: Scope?
@@ -33,9 +33,13 @@ import Observation
         static let settled: Duration = .seconds(300)
     }
 
-    init(fetch: @escaping (String, Date) async throws -> MorningInsights = { try await ZoopAPI.morningInsights(deviceId: $0, day: $1) },
+    init(fetch: ((String, Date) async throws -> MorningInsights)? = nil,
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
-        self.fetch = fetch; self.sleep = sleep
+        self.fetch = { scope in
+            if let fetch { return try await fetch(scope.device, scope.day) }
+            return try await ZoopAPI.morningInsights(deviceId: scope.device, day: scope.day, timezone: scope.timezone)
+        }
+        self.sleep = sleep
     }
 
     /// Called from a visibility/scene-scoped SwiftUI task. No whole-day refetch is
@@ -73,7 +77,7 @@ import Observation
         let request = UUID(); requestID = request; loading = true
         defer { if requestID == request { loading = false } }
         do {
-            let response = try await fetch(next.device, next.day)
+            let response = try await fetch(next)
             guard !Task.isCancelled, requestID == request, scope == next, isCurrent() else { return }
             let previousDelay = refreshDelay
             value = response; failed = false

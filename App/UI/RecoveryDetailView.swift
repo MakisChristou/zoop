@@ -4,56 +4,23 @@ struct RecoveryDetailView: View {
     let day: Date
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var visible = false
     @State private var morning = MorningInsightsStore()
     @State private var showMethod = false
+    @State private var selectedDay: Date?
+    @State private var timezone = TimeZone.current.identifier
+    @State private var refreshID = 0
     private var insights: MorningInsights? { morning.value(for: scope) }
-    private var recovery: RecoveryReading? { insights?.recovery }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
-                if morning.failed(for: scope) {
-                    Button("Couldn’t update recovery. Retry") { Task { await load() } }
-                        .frame(minHeight: 44).accessibilityIdentifier("retryRecovery")
+                RecoveryHistoryView(initialDay: day, refreshID: refreshID, detail: true, insights: insights) { date, zone in
+                    selectedDay = date; timezone = zone
                 }
-                VStack(spacing: 16) {
-                    TodaySummaryRing(title: "Recovery", value: recovery?.value ?? "—",
-                                     color: RecoveryTone.color(recovery), progress: recovery?.progress,
-                                     isLoading: morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync" || recovery?.isPending == true, showsTitle: false)
-                        .frame(maxWidth: 160)
-                    Text(recovery?.status ?? (morning.loading ? "Loading" : "No reading"))
-                        .font(ZoopType.headline).foregroundStyle(RecoveryTone.color(recovery))
-                        .accessibilityIdentifier("recoveryStatus")
-                }.frame(maxWidth: .infinity).padding(.vertical, 8)
-                if recovery?.displayedScore != nil, let insights {
-                    VStack(alignment: .leading, spacing: 20) {
-                        ForEach(insights.metrics) { metric in
-                            let layout = typeSize.isAccessibilitySize
-                                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-                                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
-                            layout {
-                                Text(metric.title).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
-                                if !typeSize.isAccessibilitySize { Spacer(minLength: 16) }
-                                Text([metric.formatted(metric.value), metric.unit].filter { !$0.isEmpty }.joined(separator: " "))
-                                    .font(ZoopType.title3).monospacedDigit()
-                            }
-                            .accessibilityElement(children: .combine)
-                        }
-                        if let limiting = recovery?.limitingText {
-                            Divider().overlay(ZoopStyle.separator)
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Main influence").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                Text(limiting).font(ZoopType.subheadline)
-                            }
-                        }
-                        if recovery?.conflict == true {
-                            Text("Heart readings differ").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading).zoopCard()
+                if morning.failed(for: scope) {
+                    Button("Couldn’t update details. Retry") { Task { await load() } }
+                        .frame(minHeight: 44).accessibilityIdentifier("retryRecovery")
                 }
             }.padding(ZoopStyle.gutter)
         }
@@ -73,15 +40,16 @@ struct RecoveryDetailView: View {
                 morning.stop(clear: !Settings.isConfigured); return
             }
             let request = scope
+            do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
             await morning.follow(request) { visible && scenePhase == .active && scope == request }
         }
-        .refreshable { await load() }
+        .refreshable { refreshID += 1; await load() }
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
     }
 
     private var scope: MorningInsightsStore.Scope {
-        .init(device: model.strap.serial, day: day, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
+        .init(device: model.strap.serial, day: selectedDay ?? day, connection: Settings.connectionID, timezone: timezone)
     }
     private func load() async {
         guard Settings.isConfigured else { morning.stop(clear: true); return }

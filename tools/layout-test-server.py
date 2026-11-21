@@ -133,6 +133,21 @@ class Handler(BaseHTTPRequestHandler):
             started = slow_devices.setdefault(device, time.monotonic())
             time.sleep(max(0, 14 - (time.monotonic() - started)))
         if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
+        if route == 'recovery':
+            if device == 'RECOVERY-HISTORY-FAIL': return self.send(dict(error='Synthetic unavailable'), 503)
+            if device == 'RECOVERY-HISTORY-EMPTY': return self.send([])
+            rows = []
+            for i in reversed(range(120)):
+                date = (today-timedelta(days=i)).date().isoformat()
+                if date < query.get('from', [''])[0] or date > query.get('to', ['9999'])[0]: continue
+                if device == 'RECOVERY-HISTORY' and i == 3: continue
+                score = [75, 61, 28, 82, 48, 94, 0][i % 7] if device == 'RECOVERY-HISTORY' else 75
+                state = device.removeprefix('RECOVERY-') if device.startswith('RECOVERY-') and not device.startswith('RECOVERY-HISTORY') else 'ready'
+                if state == 'zero': state, score = 'ready', 0
+                if state == 'full': state, score = 'ready', 100
+                reading = recovery(state, count=11 if state == 'learning' else 20, score=score)
+                rows.append(dict(day=date, recovery=reading, hrv_ms=72, resting_hr=54))
+            return self.send(rows)
         if route == 'sleeps': return self.send(nights[:limit])
         if route == 'progress':
             sparse = device == 'PROGRESS-SPARSE'
@@ -203,7 +218,8 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('RECOVERY-'):
                 state = device.removeprefix('RECOVERY-')
                 body = insight(parts[-2], True)
-                if state == 'old-server': body.pop('recovery', None)
+                if state.startswith('HISTORY'): body['recovery'] = recovery(score=[75, 61, 28, 82, 48, 94, 0][(today.date()-datetime.fromisoformat(parts[-2]).date()).days % 7])
+                elif state == 'old-server': body.pop('recovery', None)
                 else: body['recovery'] = recovery(state if state not in ('zero', 'full') else 'ready', count=11 if state == 'learning' else 20, score=0 if state == 'zero' else 100 if state == 'full' else 75)
                 return self.send(body)
             if device.startswith('MORNING-CARD-'):

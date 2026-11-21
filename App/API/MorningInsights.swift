@@ -182,8 +182,8 @@ struct MorningInsights: Decodable, Sendable {
 }
 
 extension ZoopAPI {
-    static func morningInsights(deviceId: String, day: Date) async throws -> MorningInsights {
-        let date = SleepSession.day(day, timezone: TimeZone.current.identifier)
-        return try await get("v1/devices/\(deviceId)/days/\(date)/insights", query: ["tz": TimeZone.current.identifier])
+    static func morningInsights(deviceId: String, day: Date, timezone: String = TimeZone.current.identifier) async throws -> MorningInsights {
+        let date = SleepSession.day(day, timezone: timezone)
+        return try await get("v1/devices/\(deviceId)/days/\(date)/insights", query: ["tz": timezone])
     }
 }

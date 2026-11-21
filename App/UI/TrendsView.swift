@@ -10,7 +10,8 @@ struct TrendsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var history = TrendStore()
-    @State private var metric: TrendMetric = .sleep
+    @State private var recoveryRefresh = 0
+    @State private var metric: TrendMetric? = .sleep
     @State private var heatmapNight: ZoopAPI.Night?
     @State private var detailDay: Date?
     @State private var detailNight: ZoopAPI.Night?
@@ -21,10 +22,13 @@ struct TrendsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     chips
+                    if metric == nil {
+                        RecoveryHistoryView(refreshID: recoveryRefresh)
+                    }
                     if history.loading && nights.isEmpty && days.isEmpty {
                         Color.clear.frame(height: 300).accessibilityHidden(true)
                     } else {
-                        TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading)
+                        if let metric { TrendHistoryView(snapshot: history.snapshot, metric: metric, open: openReading) }
                         TrendSleepHeatStrip(byDay: sleepByDay, today: Calendar.current.startOfDay(for: Date()), calendar: .current, selected: heatmapNight?.endTs) { date in
                             heatmapNight = nights.first { Calendar.current.isDate($0.endTs, inSameDayAs: date) }
                         }
@@ -57,7 +61,7 @@ struct TrendsView: View {
                     heatmapNight = nil; detailNight = night; showNight = true
                 }
             }
-            .refreshable { await ZoopAPI.invalidateReads(); await load() }
+            .refreshable { await ZoopAPI.invalidateReads(); recoveryRefresh += 1; await load() }
             .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
                 if scenePhase == .active { await load() }
             }
@@ -75,6 +79,15 @@ struct TrendsView: View {
         VStack(alignment: .leading, spacing: 10) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
+                    Button { metric = nil } label: {
+                        Text("Recovery")
+                            .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline))
+                            .padding(.horizontal, 8).frame(minHeight: 44)
+                            .foregroundStyle(metric == nil ? ZoopStyle.text : ZoopStyle.secondary)
+                            .overlay(alignment: .bottom) {
+                                if metric == nil { Rectangle().fill(ZoopStyle.text).frame(height: 2) }
+                            }
+                    }.buttonStyle(.plain).accessibilityAddTraits(metric == nil ? .isSelected : [])
                     ForEach(TrendMetric.allCases) { m in
                         Button { metric = m } label: {
                             Text(m.rawValue)
