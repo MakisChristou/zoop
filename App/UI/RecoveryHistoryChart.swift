@@ -24,14 +24,20 @@ struct RecoveryHistoryChart: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            if detail { selectionSummary.padding(.vertical, 8) }
             Picker("Period", selection: $range) {
                 ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented).accessibilityIdentifier("recoveryRange")
             VStack(alignment: .leading, spacing: 16) {
-                ViewThatFits(in: .horizontal) {
-                    HStack { title; Spacer(); counts }
-                    VStack(alignment: .leading, spacing: 8) { title; counts }
+                if detail {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                        : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 16))
+                    layout { selectionSummary; counts }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack { title; Spacer(); counts }
+                        VStack(alignment: .leading, spacing: 8) { title; counts }
+                    }
                 }
                 paging
                 if !detail { selectionSummary }
@@ -83,27 +89,27 @@ struct RecoveryHistoryChart: View {
         }.accessibilityElement(children: .ignore).accessibilityLabel("\(label): \(number) days")
     }
     private var selectionSummary: some View {
-        VStack(alignment: detail ? .center : .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(focus.formatted(dateStyle.weekday(.abbreviated).day().month(.abbreviated)))
                 .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 .accessibilityIdentifier("recoverySelectedDate")
             if reading?.recovery.isPending == true {
                 ProgressView().tint(ZoopStyle.text)
-                    .frame(height: detail ? 44 : 28)
+                    .frame(height: 28)
                     .accessibilityLabel(reading?.recovery.state == "awaiting_sync" ? "Syncing recovery" : "Updating recovery")
                     .accessibilityIdentifier("recoveryScoreLoading")
             } else {
-                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: detail ? .center : .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
                 layout {
                     Text(reading?.recovery.displayedScore.map { "\($0)%" } ?? "—")
-                        .font(ZoopType.font(size: detail ? 36 : 22, weight: .medium, relativeTo: .title)).monospacedDigit()
+                        .font(ZoopType.font(size: detail ? 24 : 22, weight: .medium, relativeTo: .title)).monospacedDigit()
                         .accessibilityIdentifier("recoveryHistoryScore")
                     Text(reading?.recovery.status ?? "No reading")
                         .font(ZoopType.subheadline).foregroundStyle(RecoveryTone.color(reading?.recovery))
                         .accessibilityIdentifier("recoveryStatus")
                 }
             }
-        }.frame(maxWidth: .infinity, alignment: detail ? .center : .leading)
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var measurements: some View {
         VStack(spacing: 12) {
