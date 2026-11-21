@@ -107,6 +107,17 @@ final class StrapManager: NSObject {
         ])
     }
 
+    /// Disconnect this app without removing the system bond.
+    func stop() {
+        started = false; connectionEpoch = UUID()
+        offloadTimer?.invalidate(); central?.stopScan()
+        if let peripheral { central?.cancelPeripheralConnection(peripheral) }
+        peripheral?.delegate = nil; central?.delegate = nil
+        central = nil; peripheral = nil; commandCharacteristic = nil
+        realtimeStreaming = false; state = .failed("Disconnected")
+        ecgDisconnected(); onBatteryDisconnect?()
+    }
+
     /// Turns the beat-by-beat stream on or off. On while the Today screen is visible.
     func setRealtimeHeartRate(_ on: Bool) {
         guard state == .ready, (!storagePaused || !on), realtimeStreaming != on else { return }
@@ -126,7 +137,7 @@ final class StrapManager: NSObject {
     // MARK: - Connection
 
     func connect() {
-        guard let central, central.state == .poweredOn else { return }
+        guard started, let central, central.state == .poweredOn else { return }
         // Prefer a strap the system already has connected (the official app's bond).
         if let known = central.retrieveConnectedPeripherals(withServices: [serviceUUID]).first {
             log.info("found system-connected strap \(known.identifier)")
@@ -380,7 +391,7 @@ extension StrapManager: @preconcurrency CBCentralManagerDelegate {
         onECGAvailability?()
         realtimeStreaming = false
         offloadTimer?.invalidate()
-        central.connect(peripheral, options: nil) // iOS retries this until the strap is in range again
+        if started { central.connect(peripheral, options: nil) } // iOS retries this until the strap is in range again
     }
 
     private func scheduleReconnect() {

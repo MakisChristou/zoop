@@ -2,11 +2,15 @@ import Foundation
 
 /// Local session files are independent of the raw upload queue. Writes are atomic.
 public actor ECGJournal {
+    private var erased = Set<String>()
     private let directory: URL
     public init(directory: URL) { self.directory = directory }
 
     private func write<T: Encodable>(_ value: T, to name: String) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var excluded = directory
+        var resources = URLResourceValues(); resources.isExcludedFromBackup = true
+        try excluded.setResourceValues(resources)
         let url = directory.appendingPathComponent(name)
         let data = try JSONEncoder().encode(value)
         #if os(iOS)
@@ -26,10 +30,19 @@ public actor ECGJournal {
         try write(values, to: "cleanup.json")
     }
     public func save(_ recording: ECGRecording) throws {
+        guard !erased.contains(recording.device) else { return }
         try write(recording, to: "\(recording.id.uuidString).ecg.json")
     }
     public func writeAttemptStatus(_ status: ECGAttemptStatus) throws {
         try write(status, to: "latest-attempt.json")
+    }
+    public func erase(devices: [String]) throws {
+        erased.formUnion(devices)
+        guard FileManager.default.fileExists(atPath: directory.path) else { return }
+        for file in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) where file.lastPathComponent.hasSuffix(".ecg.json") {
+            let record = try JSONDecoder().decode(ECGRecording.self, from: Data(contentsOf: file))
+            if erased.contains(record.device) { try FileManager.default.removeItem(at: file) }
+        }
     }
     public func recording(id: UUID) throws -> ECGRecording {
         try JSONDecoder().decode(ECGRecording.self, from: Data(contentsOf: directory.appendingPathComponent("\(id.uuidString).ecg.json")))

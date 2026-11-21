@@ -2,6 +2,20 @@ import XCTest
 @testable import ZoopHealth
 
 final class JournalDiskTests: XCTestCase {
+    func testErasureRejectsDelayedSaveAndPreservesOtherAccount() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let disk = HealthJournalDisk()
+        let (one, journal) = try await disk.open(folder: folder, name: "one")
+        let (two, _) = try await disk.open(folder: folder, name: "two")
+        try await disk.save(journal, to: one, revision: 1)
+        try await disk.save(journal, to: two, revision: 1)
+        try await disk.erase(folder: folder, names: ["one"])
+        try await disk.save(journal, to: one, revision: 100)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: one.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: two.path))
+    }
+
     func testOlderSettingsCannotOverwriteNewerReceipt() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }

@@ -21,12 +21,14 @@ import UserNotifications
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: () -> Calendar
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let ecgAvailable: Bool
     @ObservationIgnored private var receipts: [String: Date]
     @ObservationIgnored private var input: Input?
     @ObservationIgnored private var revision = 0
     @ObservationIgnored private var worker: Task<Void, Never>?
 
-    init(center: ReminderNotificationClient = .live, defaults: UserDefaults = .standard, clock: @escaping () -> Date = Date.init, calendar: @escaping () -> Calendar = { .current }) {
+    init(center: ReminderNotificationClient = .live, defaults: UserDefaults = .standard, clock: @escaping () -> Date = Date.init, calendar: @escaping () -> Calendar = { .current }, ecgAvailable: Bool = BuildFeatures.manualECG) {
+        self.ecgAvailable = ecgAvailable
         self.center = center; self.defaults = defaults; self.clock = clock; self.calendar = calendar
         weightMinute = defaults.object(forKey: "reminders.weightMinute") as? Int ?? 9 * 60
         ecgMinute = defaults.object(forKey: "reminders.ecgMinute") as? Int ?? 20 * 60
@@ -57,7 +59,7 @@ import UserNotifications
             if input.weightEnabled {
                 desired += DailyReminderPlan.entries(scope: input.scope, kind: "weight", minute: weightMinute, completedDays: input.weightDays, attempted: receipts, now: now, calendar: calendar)
             }
-            if ecgEnabled {
+            if ecgAvailable && ecgEnabled {
                 desired += DailyReminderPlan.entries(scope: input.scope, kind: "ecg", minute: ecgMinute, completedDays: input.ecgDays, attempted: receipts, now: now, calendar: calendar)
             }
         }
@@ -66,8 +68,11 @@ import UserNotifications
         // Migrate the old wake-based weight requests without touching battery/workout alerts.
         let obsolete = pending.filter { ($0.identifier.hasPrefix("snoop.daily.") && !ids.contains($0.identifier)) || $0.identifier.hasPrefix("snoop.weight.") }.map(\.identifier)
         center.removePending(obsolete)
+        let delivered = await center.delivered()
+        if !ecgAvailable {
+            center.removeDelivered(delivered.filter { $0.request.content.userInfo["destination"] as? String == "ecg" }.map { $0.request.identifier })
+        }
         if let input {
-            let delivered = await center.delivered()
             let completed = delivered.filter { note in
                 let info = note.request.content.userInfo
                 guard info["scope"] as? String == input.scope, let day = info["day"] as? String else { return false }

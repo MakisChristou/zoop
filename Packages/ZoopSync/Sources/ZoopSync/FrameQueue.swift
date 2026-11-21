@@ -31,7 +31,7 @@ public final class FrameQueue: @unchecked Sendable {
         db = handle
         do {
             sqlite3_busy_timeout(db, 5_000)
-            try exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")
+            try exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON;")
             try exec("""
             CREATE TABLE IF NOT EXISTS frames (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, client_seq INTEGER NOT NULL UNIQUE,
@@ -59,8 +59,10 @@ public final class FrameQueue: @unchecked Sendable {
     deinit { if !closed { sqlite3_close(db) } }
 
     public static func defaultPath() throws -> URL {
-        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                    appropriateFor: nil, create: true).appendingPathComponent("frames.sqlite")
+        var folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        var resources = URLResourceValues(); resources.isExcludedFromBackup = true
+        try folder.setResourceValues(resources)
+        return folder.appendingPathComponent("frames.sqlite")
     }
 
     @discardableResult
@@ -80,6 +82,21 @@ public final class FrameQueue: @unchecked Sendable {
             try done(stmt)
             return seq
         }
+    }
+
+    /// Explicit account deletion is the only exception to receipt-based retention.
+    /// Unidentified legacy frames and other devices are preserved.
+    public func eraseDevices(_ devices: [String]) throws {
+        lock.lock(); defer { lock.unlock() }
+        try transaction {
+            for device in devices {
+                let statement = try prepare("DELETE FROM frames WHERE source_id IN (SELECT source_id FROM device_bindings WHERE device_id=?)")
+                sqlite3_bind_text(statement, 1, device, -1, transient)
+                defer { sqlite3_finalize(statement) }
+                try done(statement)
+            }
+        }
+        try exec("PRAGMA wal_checkpoint(TRUNCATE)")
     }
 
     public func peek(limit: Int, deviceID: String? = nil) throws -> [Row] {

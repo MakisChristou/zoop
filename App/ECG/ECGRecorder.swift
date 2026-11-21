@@ -41,7 +41,7 @@ import ZoopProtocol
     @ObservationIgnored private var historyDevice = ""
     @ObservationIgnored private let log = Logger(subsystem: "snoop", category: "ecg")
 
-    var canStart: Bool { device?.isMG == true && !isBusy && !cleanupNeeded }
+    var canStart: Bool { BuildFeatures.manualECG && device?.isMG == true && !isBusy && !cleanupNeeded }
     var isRecording: Bool { [.starting, .waiting, .recording, .finishing].contains(phase) }
 
     init(transport: ECGTransport, journal: ECGJournal? = nil, defaults: UserDefaults = .standard,
@@ -74,7 +74,7 @@ import ZoopProtocol
     }
 
     func begin() {
-        guard !isBusy else { return }
+        guard BuildFeatures.manualECG, !isBusy else { return }
         device = transport.ecgDevice
         guard let current = device, current.isMG else {
             error = "Connect a WHOOP MG with an ECG-compatible clasp to record."; phase = .failed; return
@@ -197,6 +197,10 @@ import ZoopProtocol
         let record = try await journal.recording(id: id)
         guard Settings.permitsDevice(record.device) else { throw CancellationError() }
         return record
+    }
+    func eraseLocal(devices: [String]) async throws {
+        accountChanged()
+        try await journal.erase(devices: devices)
     }
     func accountChanged() {
         cancel(); refreshTask?.cancel(); recordings = []; savedRecording = nil; samples = []

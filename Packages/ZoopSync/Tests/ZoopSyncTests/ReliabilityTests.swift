@@ -122,6 +122,21 @@ final class ReliabilityTests: XCTestCase {
         let stats = await flush(Uploader(queue: queue, session: session()))
         XCTAssertEqual(stats.lastError, "HTTP 404"); XCTAssertEqual(try queue.count(), 1)
     }
+    @MainActor func testDeletionStopRefusesFailedWritesAndRetryPreservesTheFrame() async throws {
+        let state = WriterState()
+        let saved = expectation(description: "pending recording saved after retry")
+        let writer = FrameWriter(save: { bytes, _, _, _ in try state.save(bytes[0]) },
+            onFailure: { _ in }, onRecovery: {})
+        writer.enqueue([42], channel: 5) { saved.fulfill() }
+        do { try await writer.stop(); XCTFail("Deletion must stop if a recording cannot be saved") }
+        catch { XCTAssertTrue(state.saved.isEmpty) }
+        state.allowWrites()
+        writer.retry()
+        await fulfillment(of: [saved], timeout: 3)
+        try await writer.stop()
+        XCTAssertEqual(state.saved, [42])
+    }
+
     @MainActor func testDiskFailureWithholdsHistoryEndUntilAllEarlierFramesAreSaved() async throws {
         let failed = expectation(description: "disk failure")
         let recovered = expectation(description: "recovered")

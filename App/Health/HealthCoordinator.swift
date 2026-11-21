@@ -89,6 +89,10 @@ final class HealthCoordinator {
             catch { if generation == self.epoch { self.error = "Couldn’t open saved Health sync progress. Restart Zoop to try again." } }
         }
     }
+    func eraseLocal(scopes: [String]) async throws {
+        deactivate()
+        try await disk.erase(folder: URL.applicationSupportDirectory.appendingPathComponent("HealthSync", isDirectory: true), names: scopes)
+    }
     private func deactivate() {
         epoch += 1; activation?.cancel(); scheduledSync?.cancel(); followUp?.cancel()
         activation = nil; scheduledSync = nil; followUp = nil; syncRequested = false

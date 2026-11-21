@@ -33,6 +33,20 @@ public final class FrameWriter: @unchecked Sendable {
             if !self.paused { DispatchQueue.main.async(execute: self.onRecovery) }
         }
     }
+    /// Stop this writer after all preceding writes. Used only for explicit erasure.
+    public func stop() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            worker.async {
+                self.paused = false; self.drain()
+                if self.paused {
+                    continuation.resume(throwing: QueueError.sql("Save pending recordings before deleting your account."))
+                } else {
+                    self.paused = true
+                    continuation.resume()
+                }
+            }
+        }
+    }
     private func drain() {
         while head < pending.count {
             let frame = pending[head]

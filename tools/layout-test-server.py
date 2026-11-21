@@ -265,6 +265,12 @@ class Handler(BaseHTTPRequestHandler):
         if route == 'processing': return self.send(dict(pending_decode=0, decode_failures=0, pending_analysis=0, failed_analysis=0, workers_healthy=True, paused=False))
         return self.send({'error': {'message': 'Unused synthetic endpoint'}}, 404)
 
+    def do_DELETE(self):
+        if self.path == '/v1/account':
+            row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
+            return self.send({}, 204 if row.get('password') == 'synthetic-password' else 401)
+        return self.send({}, 404)
+
     def do_POST(self):
         if self.path == '/v1/auth/native/login':
             row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))

@@ -2,11 +2,15 @@ import Observation
 import Foundation
 import ZoopSync
 import ZoopData
+import UserNotifications
 
 /// Wires the strap manager to the local queue and the uploader.
 @MainActor
 @Observable
 final class AppModel {
+    private(set) var accountErasureInProgress = AccountErasure.pending != nil
+    private var erasingAccount = false
+    private(set) var accountErasureError: String?
     private(set) var queued = 0
     private(set) var heldFrames = 0
     private(set) var processing: ZoopAPI.Processing?
@@ -81,7 +85,7 @@ final class AppModel {
         ecg.connectionChanged()
         Task { await openStorage() }
         strap.onFrame = { [weak self] bytes, channel, saved in
-            guard let self, let writer = self.writer else {
+            guard let self, !self.erasingAccount, !self.accountErasureInProgress, let writer = self.writer else {
                 self?.strap.pauseHistoryForStorage()
                 return
             }
@@ -149,15 +153,16 @@ final class AppModel {
                 self?.strap.resumeHistoryAfterStorage()
             })
             storageReady = true
+            if AccountErasure.pending != nil { await resumeAccountErasure(); return }
             await updateQueueCounts()
             await bindCurrentDevice()
-            if isOnboarded || startRequested { strap.start() }
+            if Settings.isConfigured && (isOnboarded || startRequested) { strap.start() }
         } catch { queueError = "queue unavailable: \(error)" }
     }
 
     func startStrap() {
         startRequested = true
-        if storageReady { strap.start() }
+        if storageReady && !accountErasureInProgress && Settings.isConfigured { strap.start() }
     }
 
     private func bindCurrentDevice() async {
@@ -216,6 +221,7 @@ final class AppModel {
     }
 
     func flush() async {
+        guard !accountErasureInProgress && !erasingAccount else { return }
         writer?.retry()
         guard let uploader, let baseURL = Settings.serverURL, Settings.isConfigured, !strap.serial.isEmpty, !isUploading else { return }
         let device = strap.serial, connection = Settings.connectionID
@@ -241,6 +247,53 @@ final class AppModel {
         } catch { if strap.serial == device, Settings.connectionID == connection { processingError = error.localizedDescription } }
         health.activate(strap.serial)
         health.checkSoon()
+    }
+
+    func deleteAccount(password: String) async throws {
+        guard let credential = Settings.credential, !accountErasureInProgress && !erasingAccount else { throw ServerSignIn.Failure.changed }
+        let identity = try await ServerSignIn.identity(credential)
+        guard Settings.credential == credential else { throw ServerSignIn.Failure.changed }
+        erasingAccount = true; strap.stop()
+        do {
+            try await writer?.stop()
+            let receipt = AccountErasure(account: identity.account.id, devices: identity.devices,
+                scopes: identity.devices.map { Settings.healthScope(device: $0, credential: credential) },
+                photoKeys: identity.devices.map { ProfilePhotoStore.Scope(device: $0, connection: Settings.connectionID).diskKey })
+            try await ServerSignIn.deleteAccount(credential, password: password)
+            try receipt.persist()
+        } catch {
+            erasingAccount = false; writer?.retry(); startStrap()
+            throw error
+        }
+        await resumeAccountErasure()
+    }
+
+    func resumeAccountErasure() async {
+        guard let receipt = AccountErasure.pending else { return }
+        accountErasureInProgress = true; accountErasureError = nil
+        strap.stop(); analysisRefresh?.cancel()
+        do {
+            try await writer?.stop()
+            try Settings.clear()
+            reminders.update(nil); weeklyWeight.activate(device: "", scope: nil)
+            stepsReminder.activate(goal: nil, device: "", scope: nil)
+            workouts.activate(device: "")
+            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+            try await health.eraseLocal(scopes: receipt.scopes)
+            try await ecg.eraseLocal(devices: receipt.devices)
+            try await photo.eraseLocal(keys: receipt.photoKeys)
+            try await storage.eraseDevices(receipt.devices)
+            for scope in receipt.scopes {
+                UserDefaults.standard.removeObject(forKey: "weeklyWeight." + scope)
+                UserDefaults.standard.removeObject(forKey: "stepsReminder." + scope)
+            }
+            UserDefaults.standard.removeObject(forKey: "health.lastDevice")
+            await updateQueueCounts()
+            AccountErasure.finish(); accountErasureInProgress = false; erasingAccount = false
+            // The stopped writer is replaced before the next connection starts.
+            await openStorage()
+        } catch { accountErasureError = "Your server account is deleted. Unlock this iPhone and retry to finish removing its local data." }
     }
 
     func retryHeldFrames() async {

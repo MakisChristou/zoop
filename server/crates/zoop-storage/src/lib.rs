@@ -4,7 +4,9 @@
 mod share_store;
 mod share_widgets;
 pub use share_store::SharedDashboard;
+mod account_deletion;
 mod accounts;
+pub use account_deletion::{AccountDeletion, AccountWriteLease};
 mod setup;
 pub use accounts::{Account, AdminSnapshot, LoginAccount};
 mod analysis_store;

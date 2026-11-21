@@ -35,6 +35,28 @@ pub enum IngestOutcome {
 }
 
 impl PostgresStore {
+    /// Create/update a reserved device without racing account deletion.
+    /// # Errors
+    /// Missing ownership or database failure.
+    pub async fn upsert_owned_device(
+        &self,
+        account: i64,
+        id: &str,
+        model: &str,
+        firmware: Option<&str>,
+    ) -> StorageResult<()> {
+        let mut tx = self
+            .pool()
+            .begin()
+            .await
+            .map_err(|e| StorageError::unavailable(StoreOperation::Accounts, e))?;
+        require_owner(&mut tx, account, id).await?;
+        sqlx::query("INSERT INTO devices(id,model,firmware) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET model=EXCLUDED.model,firmware=coalesce(EXCLUDED.firmware,devices.firmware)")
+            .bind(id).bind(model).bind(firmware).execute(&mut *tx).await.map_err(|e| StorageError::unavailable(StoreOperation::UpsertDevice,e))?;
+        tx.commit()
+            .await
+            .map_err(|e| StorageError::unavailable(StoreOperation::UpsertDevice, e))
+    }
     pub async fn upsert_device(
         &self,
         id: &str,
@@ -60,8 +82,30 @@ impl PostgresStore {
     /// # Errors
     /// The database is unavailable.
     pub async fn insert_raw_frame(&self, frame: &NewRawFrame<'_>) -> StorageResult<IngestOutcome> {
+        self.insert_frame(frame, None).await
+    }
+
+    /// Store a frame only while its authenticated account still owns this serial.
+    /// # Errors
+    /// Revoked ownership or database failure.
+    pub async fn insert_owned_raw_frame(
+        &self,
+        frame: &NewRawFrame<'_>,
+        account: i64,
+    ) -> StorageResult<IngestOutcome> {
+        self.insert_frame(frame, Some(account)).await
+    }
+
+    async fn insert_frame(
+        &self,
+        frame: &NewRawFrame<'_>,
+        account: Option<i64>,
+    ) -> StorageResult<IngestOutcome> {
         let fail = |e| StorageError::unavailable(StoreOperation::InsertRawFrame, e);
         let mut tx = self.pool().begin().await.map_err(fail)?;
+        if let Some(account) = account {
+            require_owner(&mut tx, account, frame.device_id).await?;
+        }
         let inserted: Option<i64> = sqlx::query_scalar(
             "INSERT INTO raw_frames(device_id,client_seq,upload_id,channel,received_at,bytes)
              VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING id",
@@ -129,4 +173,19 @@ impl PostgresStore {
             })?;
         Ok(())
     }
+}
+
+async fn require_owner(
+    tx: &mut sqlx::PgConnection,
+    account: i64,
+    device: &str,
+) -> StorageResult<()> {
+    let found: Option<i64> = sqlx::query_scalar("SELECT a.id FROM accounts a JOIN device_owners o ON o.account_id=a.id WHERE a.id=$1 AND a.enabled AND o.device_id=$2 FOR SHARE OF a,o")
+        .bind(account).bind(device).fetch_optional(tx).await.map_err(|e| StorageError::unavailable(StoreOperation::Accounts,e))?;
+    if found.is_none() {
+        return Err(StorageError::InvalidQuery(
+            "account no longer owns this device".into(),
+        ));
+    }
+    Ok(())
 }

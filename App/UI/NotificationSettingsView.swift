@@ -12,11 +12,13 @@ struct NotificationSettingsView: View {
                     DatePicker("Time", selection: time(get: { model.reminders.weightMinute }, set: { model.reminders.weightMinute = $0 }), displayedComponents: .hourAndMinute)
                         .accessibilityLabel("Weigh-in time").accessibilityIdentifier("weightReminderTime")
                 }
-                Toggle("ECG", isOn: Binding(get: { model.reminders.ecgEnabled }, set: { model.reminders.ecgEnabled = $0; requestPermission() }))
-                    .accessibilityIdentifier("ecgReminderEnabled")
-                if model.reminders.ecgEnabled {
-                    DatePicker("Time", selection: time(get: { model.reminders.ecgMinute }, set: { model.reminders.ecgMinute = $0 }), displayedComponents: .hourAndMinute)
-                        .accessibilityLabel("ECG time").accessibilityIdentifier("ecgReminderTime")
+                if BuildFeatures.manualECG {
+                    Toggle("ECG", isOn: Binding(get: { model.reminders.ecgEnabled }, set: { model.reminders.ecgEnabled = $0; requestPermission() }))
+                        .accessibilityIdentifier("ecgReminderEnabled")
+                    if model.reminders.ecgEnabled {
+                        DatePicker("Time", selection: time(get: { model.reminders.ecgMinute }, set: { model.reminders.ecgMinute = $0 }), displayedComponents: .hourAndMinute)
+                            .accessibilityLabel("ECG time").accessibilityIdentifier("ecgReminderTime")
+                    }
                 }
             } header: { Text("Daily check-ins") } footer: { Text("Skipped once you’ve checked in.") }
             .listRowBackground(ZoopStyle.surface)
@@ -58,7 +60,7 @@ struct NotificationSettingsView: View {
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.battery.refreshAuthorization(); model.refreshReminders() } } }
     }
     private func requestPermission() {
-        guard ((model.stepsReminder.enabled || model.stepsReminder.completion.enabled) && model.weeklyWeight.goal?.dailyStepsGoal != nil) || model.health.canRemind || model.reminders.ecgEnabled || model.battery.alertsEnabled || (OffBodyMonitor.available && model.offBody.enabled) else { return }
+        guard ((model.stepsReminder.enabled || model.stepsReminder.completion.enabled) && model.weeklyWeight.goal?.dailyStepsGoal != nil) || model.health.canRemind || (BuildFeatures.manualECG && model.reminders.ecgEnabled) || model.battery.alertsEnabled || (OffBodyMonitor.available && model.offBody.enabled) else { return }
         Task { await model.battery.requestNotificationsIfNeeded(); model.refreshReminders() }
     }
     private func time(get: @escaping () -> Int, set: @escaping (Int) -> Void) -> Binding<Date> {

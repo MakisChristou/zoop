@@ -66,29 +66,42 @@ async fn process(
     request: IngestRequest,
     v2: bool,
 ) -> Result<IngestResponse, ApiError> {
-    match principal {
+    let owner = match principal {
         Principal::Browser(_) => return Err(ApiError::Forbidden),
         Principal::Device(a) => {
             if !state.store.owns_device(a.id, &request.device_id).await? {
                 return Err(ApiError::NotFound);
             }
+            Some(a.id)
         }
-        Principal::Legacy => {}
-    }
+        Principal::Legacy => None,
+    };
     if request.device_id.is_empty() || request.frames.is_empty() || request.frames.len() > MAX_BATCH
     {
         return Err(ApiError::BadRequest(
             "device and 1..500 frames required".into(),
         ));
     }
-    state
-        .store
-        .upsert_device(
-            &request.device_id,
-            &request.model,
-            request.firmware.as_deref(),
-        )
-        .await?;
+    if let Some(owner) = owner {
+        state
+            .store
+            .upsert_owned_device(
+                owner,
+                &request.device_id,
+                &request.model,
+                request.firmware.as_deref(),
+            )
+            .await?;
+    } else {
+        state
+            .store
+            .upsert_device(
+                &request.device_id,
+                &request.model,
+                request.firmware.as_deref(),
+            )
+            .await?;
+    }
     let mut response = IngestResponse::default();
     for f in request.frames {
         let id = f.upload_id.as_ref().map(|s| s.to_ascii_lowercase());
@@ -116,17 +129,19 @@ async fn process(
             None
         };
         if let (None, Some(bytes)) = (reason, bytes.as_ref()) {
-            let outcome = state
-                .store
-                .insert_raw_frame(&NewRawFrame {
-                    device_id: &request.device_id,
-                    client_seq: f.client_seq,
-                    upload_id: id.as_deref(),
-                    channel: f.channel,
-                    received_at: f.received_at,
-                    bytes,
-                })
-                .await?;
+            let frame = NewRawFrame {
+                device_id: &request.device_id,
+                client_seq: f.client_seq,
+                upload_id: id.as_deref(),
+                channel: f.channel,
+                received_at: f.received_at,
+                bytes,
+            };
+            let outcome = if let Some(owner) = owner {
+                state.store.insert_owned_raw_frame(&frame, owner).await?
+            } else {
+                state.store.insert_raw_frame(&frame).await?
+            };
             match outcome {
                 IngestOutcome::Stored => {
                     receipt.status = "stored";

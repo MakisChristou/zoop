@@ -181,6 +181,11 @@ pub fn build_router(state: AppState) -> Router {
                 .route("/v1/setup", get(setup::status).post(setup::complete))
                 .layer(axum::extract::DefaultBodyLimit::max(4096)),
         )
+        .merge(
+            Router::new()
+                .route("/v1/account", axum::routing::delete(web::delete_account))
+                .layer(axum::extract::DefaultBodyLimit::max(4096)),
+        )
         .route("/v1/auth/login", post(web::login))
         .route("/v1/auth/native/login", post(web::native_login))
         .route("/v1/auth/native/logout", post(web::native_logout))

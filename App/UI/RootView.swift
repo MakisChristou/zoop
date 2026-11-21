@@ -125,7 +125,7 @@ struct RootView: View {
     private func openCheckInNotification() {
         guard let current = model.health.reminderScope else { return }
         if let scope = model.battery.openECGScope {
-            if scope == current { showECG = true }
+            if BuildFeatures.manualECG, scope == current { showECG = true }
             model.battery.openECGScope = nil
         }
         if let scope = model.battery.openStepsScope {

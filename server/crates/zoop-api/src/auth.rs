@@ -97,6 +97,8 @@ pub(crate) async fn require_bearer(
         {
             return Ok(axum::Json(serde_json::Value::Null).into_response());
         }
+        let mut write_slot = None;
+        let mut write_lease = None;
         if request.uri().path() != "/v1/ingest" && request.uri().path() != "/v2/ingest" {
             let params = request
                 .extract_parts::<RawPathParams>()
@@ -114,10 +116,25 @@ pub(crate) async fn require_bearer(
                 if !state.store.owns_device(id, device).await? {
                     return Err(ApiError::NotFound);
                 }
+                if request.method() != Method::GET && request.method() != Method::HEAD {
+                    // At most two leased connections in the eight-connection pool.
+                    // Handlers retain capacity to run their own transactions.
+                    write_slot = Some(
+                        state
+                            .account_write_slots
+                            .acquire()
+                            .await
+                            .map_err(|_| ApiError::AuthUnavailable)?,
+                    );
+                    write_lease = Some(state.store.account_write_lease(id, device).await?);
+                }
             }
         }
         request.extensions_mut().insert(principal);
-        return Ok(next.run(request).await);
+        let response = next.run(request).await;
+        drop(write_lease);
+        drop(write_slot);
+        return Ok(response);
     }
     let presented = request
         .headers()

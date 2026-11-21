@@ -37,6 +37,22 @@ import ZoopProtocol
         body[26] = index; body[28] = 255; body[29] = 255
         return Data(Frame.encode(inner: body, destination: 1, source: 0))
     }
+    func testReleaseBuildCannotStartRecording() async throws {
+        #if DEBUG
+        throw XCTSkip("Run with the Release configuration to verify the shipping gate.")
+        #else
+        let transport = ECGTestTransport()
+        let recorder = ECGRecorder(transport: transport, journal: ECGJournal(directory: directory), defaults: defaults)
+        recorder.connectionChanged()
+        XCTAssertFalse(recorder.canStart)
+        recorder.begin()
+        await Task.yield()
+        XCTAssertFalse(recorder.isRecording)
+        XCTAssertTrue(transport.operations.isEmpty)
+        #endif
+    }
+    #if DEBUG
+    // Recording is deliberately unavailable in the shipping configuration.
     func testCompleteCaptureIsSavedOnlyAfterSamplesAndStopsExactlyOnce() async throws {
         let transport = ECGTestTransport(), journal = ECGJournal(directory: directory!)
         var now = 100.0
@@ -145,4 +161,5 @@ import ZoopProtocol
         XCTAssertFalse(transport.operations.contains(.generation(true)))
         XCTAssertEqual(recorder.phase, .failed)
     }
+    #endif
 }

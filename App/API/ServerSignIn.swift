@@ -5,12 +5,14 @@ enum ServerSignIn {
     struct Identity: Decodable { let account: Account; let devices: [String] }
     struct Login: Decodable { let token: String; let account: Account; let devices: [String] }
     enum Failure: LocalizedError {
-        case address, rejected, unavailable, changed
+        case address, rejected, unavailable, changed, lastAdministrator, deletionUnavailable
         var errorDescription: String? {
             switch self {
             case .address: "Use an HTTP or HTTPS server address."
             case .rejected: "Email or password wasn’t accepted."
             case .unavailable: "Couldn’t sign in. Check your server and try again."
+            case .lastAdministrator: "Assign another enabled administrator before deleting this account."
+            case .deletionUnavailable: "Couldn’t delete the account. Check your connection and that your server supports account deletion."
             case .changed: "Server connection changed. Try again."
             }
         }
@@ -37,6 +39,11 @@ enum ServerSignIn {
         defer { session.finishTasksAndInvalidate() }
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Failure.unavailable }
+        if path == "v1/account" {
+            if response.statusCode == 409 { throw Failure.lastAdministrator }
+            if response.statusCode == 401 { throw Failure.rejected }
+            guard response.statusCode == 204 else { throw Failure.deletionUnavailable }
+        }
         if response.statusCode == 401 { throw Failure.rejected }
         guard (200..<300).contains(response.statusCode) else { throw Failure.unavailable }
         return data
@@ -65,6 +72,17 @@ enum ServerSignIn {
         if let old, old.server.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalized {
             _ = try? await send(base, path: "v1/auth/native/logout", method: "POST", token: old.token)
         }
+    }
+    @MainActor static func identity(_ credential: ServerCredential) async throws -> Identity {
+        let data = try await send(try address(credential.server), path: "v1/auth/me", method: "GET", token: credential.token)
+        let result = try JSONDecoder().decode(Identity.self, from: data)
+        guard result.account.id == credential.accountID else { throw Failure.changed }
+        return result
+    }
+    @MainActor static func deleteAccount(_ credential: ServerCredential, password: String) async throws {
+        guard Settings.credential == credential else { throw Failure.changed }
+        let body = try JSONEncoder().encode(["password": password])
+        _ = try await send(try address(credential.server), path: "v1/account", method: "DELETE", token: credential.token, body: body)
     }
     @MainActor static func signOut() async throws {
         guard let old = Settings.credential, let base = URL(string: old.server) else { return }

@@ -2,14 +2,21 @@ import SwiftUI
 
 struct ServerSettingsView: View {
     @Environment(AppModel.self) private var model
+    @State private var deleting = false
     var body: some View {
         Form {
             ServerSignInSection()
+            if Settings.credential?.accountID != nil {
+                Section {
+                    Button("Delete account", role: .destructive) { deleting = true }
+                }
+            }
             Section("Setup") {
                 Button("Show the welcome guide again") { model.isOnboarded = false }
             }
         }
         .scrollContentBackground(.hidden).zoopScreen()
+        .sheet(isPresented: $deleting) { DeleteAccountView() }
         .navigationTitle("Server connection").navigationBarTitleDisplayMode(.inline)
     }
 }

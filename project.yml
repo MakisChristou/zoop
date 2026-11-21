@@ -33,6 +33,9 @@ targets:
   Zoop:
     type: application
     platform: iOS
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"
     sources:
       - App
     entitlements:
@@ -51,6 +54,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]
         UILaunchScreen: {}
         NSHealthShareUsageDescription: "Imports weight measurements into Zoop and your Zoop server, and checks for existing weigh-ins."

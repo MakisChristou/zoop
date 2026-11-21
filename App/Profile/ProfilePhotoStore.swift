@@ -61,6 +61,10 @@ import UIKit
             throw error
         }
     }
+    func eraseLocal(keys: [String]) async throws {
+        reset(Scope(device: "", connection: ""))
+        for key in keys { try await disk.save(nil, key: key) }
+    }
     private func reset(_ next: Scope) {
         scope = next; requestID = UUID(); image = nil; loadedAt = nil
         error = nil; loading = false; saving = false

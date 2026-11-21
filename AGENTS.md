@@ -39,7 +39,7 @@ Analysis happens on the server; the app shows live values and sync status.
   (`Packages/ZoopProtocol`) mirrors the byte layouts documented in Zoop API's
   `server/docs/PROTOCOL.md`; when the two disagree, fix the document first.
 - **Never drop frames.** Every complete frame goes to the local queue before anything
-  else. Uploads are batched, retried, and removed only after a matching per-frame stored or duplicate receipt. A 2xx alone is insufficient.
+  else. Uploads are batched, retried, and removed only after a matching per-frame stored or duplicate receipt. A 2xx alone is insufficient. Explicit password-confirmed account deletion is the sole exception: erase only the deleted account’s identified device queues after the server confirms deletion.
 - **Respect the single bond.** The app uses the OS bond the official WHOOP app created.
   Never unpair, never attempt pairing.
 - **Public project.** No personal names, team IDs, bundle-id prefixes, hosts or tokens in

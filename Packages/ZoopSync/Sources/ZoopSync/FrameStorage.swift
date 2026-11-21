@@ -17,5 +17,6 @@ public actor FrameStorage {
     public func bind(sourceID: String, deviceID: String, adoptLegacy: Bool = false) throws {
         try open().bind(sourceID: sourceID, deviceID: deviceID, adoptLegacy: adoptLegacy)
     }
+    public func eraseDevices(_ devices: [String]) throws { try open().eraseDevices(devices) }
     public func retryHeld() throws { try open().retryHeld() }
 }

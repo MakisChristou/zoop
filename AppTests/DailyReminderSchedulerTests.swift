@@ -18,9 +18,23 @@ import UserNotifications
             if self.fail { throw URLError(.cannotCreateFile) }; self.requests[request.identifier] = request
         }, removePending: { ids in for id in ids { self.requests.removeValue(forKey: id) } }, removeDelivered: { _ in })
     }
-    private func make() -> DailyReminderScheduler {
+    private func make(ecgAvailable: Bool = true) -> DailyReminderScheduler {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(secondsFromGMT: 0)!
-        return DailyReminderScheduler(center: client, defaults: defaults, clock: { self.now }, calendar: { c })
+        return DailyReminderScheduler(center: client, defaults: defaults, clock: { self.now }, calendar: { c }, ecgAvailable: ecgAvailable)
+    }
+    func testReleaseUpgradeCancelsECGButPreservesOtherRemindersAndPreference() async {
+        let development = make(); development.ecgEnabled = true
+        let input = DailyReminderScheduler.Input(scope: "test", weightEnabled: true, weightDays: [], ecgDays: [])
+        development.update(input); await development.settled()
+        XCTAssertEqual(requests.count, 56)
+        let battery = UNNotificationRequest(identifier: "snoop.battery.test.low", content: UNMutableNotificationContent(), trigger: nil)
+        requests[battery.identifier] = battery
+        let release = make(ecgAvailable: false)
+        release.update(input); await release.settled()
+        XCTAssertEqual(requests.count, 29)
+        XCTAssertFalse(requests.values.contains { $0.content.userInfo["destination"] as? String == "ecg" })
+        XCTAssertNotNil(requests[battery.identifier])
+        XCTAssertTrue(defaults.bool(forKey: "reminders.ecgEnabled"))
     }
     func testCompletionCancelsOnlyTodayAndTimeChangeReplacesFutureRequests() async {
         let scheduler = make(); scheduler.ecgEnabled = true

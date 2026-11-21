@@ -5,6 +5,7 @@ import os
 /// off the UI executor. Revisions prevent delayed settings tasks overwriting newer receipts.
 public actor HealthJournalDisk {
     private let signposter = OSSignposter(subsystem: "snoop", category: "performance")
+    private var erased = Set<URL>()
     private var revisions: [URL: UInt64] = [:]
     public init() {}
     public func open(folder: URL, name: String) throws -> (URL, HealthJournal) {
@@ -17,8 +18,15 @@ public actor HealthJournalDisk {
             ? try JSONDecoder().decode(HealthJournal.self, from: Data(contentsOf: file)) : HealthJournal()
         return (file, journal)
     }
+    public func erase(folder: URL, names: [String]) throws {
+        for name in names {
+            let file = folder.appendingPathComponent(name + ".json")
+            erased.insert(file)
+            if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+        }
+    }
     public func save(_ journal: HealthJournal, to file: URL, revision: UInt64) throws {
-        guard revision > (revisions[file] ?? 0) else { return }
+        guard !erased.contains(file), revision > (revisions[file] ?? 0) else { return }
         let interval = signposter.beginInterval("Health journal save")
         defer { signposter.endInterval("Health journal save", interval) }
         try JSONEncoder().encode(journal).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])

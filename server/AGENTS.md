@@ -19,7 +19,7 @@ recovery and the rest follow.
   A local `refs/` directory for reading them is gitignored.
 - **Pure Rust + Postgres.** No other languages or datastores. Postgres through `sqlx`
   runtime queries and embedded `migrate!`. No ORM, no Redis, no extensions.
-- **Raw frames are the source of truth.** Never delete or rewrite `raw_frames`. Derived
+- **Raw frames are the source of truth.** Never delete or rewrite `raw_frames` during normal operation. Explicit password-confirmed account deletion is the sole exception; erase only owned devices transactionally, fence concurrent writes and preserve other accounts. Derived
   tables are rebuilt from them: bump `zoop_proto::PROTO_VERSION` or
   `zoop_analytics::ALGO_VERSION` instead of editing rows in place.
 - **Published methods only.** Analytics implement cited, peer-reviewed methods. Each

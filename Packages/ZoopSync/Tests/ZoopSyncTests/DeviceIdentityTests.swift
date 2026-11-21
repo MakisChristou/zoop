@@ -2,6 +2,22 @@ import XCTest
 @testable import ZoopSync
 
 final class DeviceIdentityTests: XCTestCase {
+    func testExplicitErasureKeepsOtherDevicesAndUnknownLegacyFrames() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        let queue = try FrameQueue(path: path)
+        try queue.enqueue([1], channel: 5, sourceID: "a")
+        try queue.enqueue([2], channel: 5, sourceID: "b")
+        try queue.enqueue([3], channel: 5)
+        try queue.bind(sourceID: "a", deviceID: "one")
+        try queue.bind(sourceID: "b", deviceID: "two")
+        try queue.eraseDevices(["one"])
+        try queue.eraseDevices(["one"])
+        XCTAssertEqual(try queue.peek(limit: 10).map(\.bytes), [[2],[3]])
+        XCTAssertEqual(try queue.peek(limit: 10, deviceID: "two").map(\.bytes), [[2]])
+        XCTAssertEqual(try queue.unassignedCount(), 1)
+    }
+
     func testBacklogStaysWithOriginalDeviceAcrossReopen() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

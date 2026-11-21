@@ -37,8 +37,10 @@ struct ProfileSheet: View {
                 Section {
                     NavigationLink(value: Page.body) { Label("Edit profile", systemImage: "person") }
                     NavigationLink(value: Page.health) { Label("Apple Health", systemImage: "heart") }
-                    NavigationLink(value: Page.ecg) { Label("ECG", systemImage: "waveform.path.ecg") }
-                        .accessibilityIdentifier("openECG")
+                    if BuildFeatures.manualECG {
+                        NavigationLink(value: Page.ecg) { Label("ECG", systemImage: "waveform.path.ecg") }
+                            .accessibilityIdentifier("openECG")
+                    }
                     NavigationLink(value: Page.device) {
                         HStack {
                             Label("My WHOOP", systemImage: "sensor.tag.radiowaves.forward")
@@ -51,6 +53,9 @@ struct ProfileSheet: View {
                 }
                 .listRowBackground(ZoopStyle.surface)
                 Section {
+                    NavigationLink(value: Page.server) { Label("Account", systemImage: "person.crop.circle") }
+                    Link("Privacy policy", destination: URL(string: "https://zoop.health/docs/data-privacy/")!)
+                    Link("Help & support", destination: URL(string: "https://zoop.health/docs/help/")!)
                     NavigationLink(value: Page.advanced) { Label("Advanced", systemImage: "slider.horizontal.3") }
                 }
                 .listRowBackground(ZoopStyle.surface)
@@ -66,7 +71,7 @@ struct ProfileSheet: View {
                 Group { switch page {
                 case .body: BodyProfileView()
                 case .health: AppleHealthView()
-                case .ecg: ECGView()
+                case .ecg: if BuildFeatures.manualECG { ECGView() }
                 case .notifications: NotificationSettingsView()
                 case .device: DeviceView()
                 case .advanced: AdvancedSettingsView()
@@ -77,7 +82,7 @@ struct ProfileSheet: View {
             .task { await model.battery.refreshAuthorization() }
             .task(id: photoScope) { await model.photo.load(photoScope, force: true) }
             .sheet(isPresented: $editingPhoto) { ProfilePhotoView(scope: photoScope) }
-            .onAppear { if let open, path.isEmpty { path = [open] } }
+            .onAppear { if let open, path.isEmpty, open != .ecg || BuildFeatures.manualECG { path = [open] } }
         }
         .tint(ZoopStyle.text)
         .presentationDragIndicator(.visible)

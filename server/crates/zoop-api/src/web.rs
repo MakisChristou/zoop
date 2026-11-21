@@ -179,3 +179,51 @@ pub(crate) async fn native_logout(
     s.store.revoke_account_token(&digest(token)).await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[derive(Deserialize)]
+pub(crate) struct DeleteAccount {
+    password: String,
+}
+
+pub(crate) async fn delete_account(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Json(input): Json<DeleteAccount>,
+) -> Result<StatusCode, ApiError> {
+    let principal = crate::auth::authenticate(&s, &headers).await?;
+    let account = match principal {
+        Principal::Browser(account) => {
+            check_origin(&s, &headers)?;
+            account
+        }
+        Principal::Device(account) => {
+            if headers.contains_key(header::ORIGIN) || headers.contains_key(header::COOKIE) {
+                return Err(ApiError::Forbidden);
+            }
+            account
+        }
+        Principal::Legacy => return Err(ApiError::Forbidden),
+    };
+    let verified = verify_login(
+        &s,
+        Login {
+            email: account.email,
+            password: input.password,
+        },
+    )
+    .await?;
+    if verified.id != account.id {
+        return Err(ApiError::Unauthorized);
+    }
+    match s
+        .store
+        .delete_account(account.id, &verified.password_hash)
+        .await?
+    {
+        zoop_storage::AccountDeletion::Deleted => Ok(StatusCode::NO_CONTENT),
+        zoop_storage::AccountDeletion::CredentialsChanged => Err(ApiError::Unauthorized),
+        zoop_storage::AccountDeletion::LastAdministrator => Err(ApiError::Conflict(
+            "Assign another enabled administrator before deleting this account.".into(),
+        )),
+    }
+}
