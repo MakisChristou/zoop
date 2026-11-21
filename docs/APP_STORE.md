@@ -59,8 +59,8 @@ Preparation status, not evidence of App Review approval:
   Five current screenshots are uploaded. Age rating, export compliance, privacy,
   wellness-device status and regional availability are saved in the store draft.
 - The distribution build has been uploaded, processed and installed through
-  TestFlight. The final hardware check and an actual-device demonstration video
-  remain outstanding, along with the content-rights declaration.
+  TestFlight. The owner confirmed live heart rate or sync works with their band;
+  content rights are saved. An actual-device demonstration video remains to attach.
 - Keep submission and publication separately approved. TestFlight availability
   does not mean App Review approval or public availability.
 
