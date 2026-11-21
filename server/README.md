@@ -24,11 +24,25 @@ Both clients read the same results.
 connection; the server handles storage and analysis. Profile photos are small,
 private JPEGs stored in PostgreSQL too.
 
-**Developer preview.** Zoop is actively developed and has not had an independent
-security audit. Its health estimates are not clinically validated. It is not
-affiliated with WHOOP and does not reproduce WHOOP's proprietary scores.
+Zoop has not had an independent security audit. Its health estimates are not
+clinically validated. It is not affiliated with WHOOP and does not reproduce
+WHOOP's proprietary scores.
 
-## Run locally
+## Get started
+
+Use the [Docker Compose setup](../docs/GET_STARTED.md) to run the API, dashboard
+and PostgreSQL together. Create the first admin account in your browser, then
+connect the [iPhone app](../docs/IPHONE_SETUP.md). Docker handles the build;
+you do not need Rust or Node installed.
+
+See [self-hosting](../docs/SELF_HOSTING.md) for accounts, network access, backups
+and updates. You choose your own proxy or VPN. Keep PostgreSQL private. Back up
+the database and test a restore: reprocessing cannot recover lost recordings.
+
+For a custom deployment, see the [operations reference](docs/OPERATIONS.md) and
+[account guide](docs/private-web.md).
+
+## Develop locally
 
 Install the Rust version pinned in `rust-toolchain.toml`, Docker and `just`.
 From the repository root:
@@ -43,26 +57,9 @@ just run
 The database uses port **5433** and the API uses **8471**. Check it with
 `curl http://127.0.0.1:8471/health`. `just down` stops the database without deleting
 its volume. The example credentials are for development only.
+This directory's `docker-compose.yml` starts only a development database.
 
-## Self-hosting
-
-Use the root [Docker Compose installation](../docs/SELF_HOSTING.md) for the full
-stack. This directory's `docker-compose.yml` starts only a development database.
-
-For the current manual setup, build the Rust binary, provide PostgreSQL and a TOML
-configuration, then follow the [operations reference](docs/OPERATIONS.md) and
-[account guide](docs/private-web.md). Account creation and password recovery
-currently use the operator CLI.
-
-Network access is the operator's choice. Zoop does not provision a public hostname,
-reverse proxy, certificates or a VPN. Serve the web app and `/v1/` on the same
-origin, keep PostgreSQL private, and configure the exact browser origin.
-The current iPhone app requires HTTPS except for loopback development URLs.
-
-Back up PostgreSQL and test a restore. Original recordings cannot be recovered
-by rerunning analysis if the database's only copy is lost.
-
-## Develop
+## Checks
 
 ```sh
 just ci

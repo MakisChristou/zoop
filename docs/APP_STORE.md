@@ -58,9 +58,10 @@ Preparation status, not evidence of App Review approval:
 - The isolated synthetic review server and private reviewer access are prepared.
   Five current screenshots are uploaded. Age rating, export compliance, privacy,
   wellness-device status and regional availability are saved in the store draft.
-- The distribution build has been uploaded, processed and installed through
-  TestFlight. The owner confirmed live heart rate or sync works with their band;
-  content rights are saved. An actual-device demonstration video remains to attach.
+- Version 1.0 (build 3) was submitted on 21 November 2026 and is **Waiting for Review**.
+  The owner confirmed TestFlight live heart rate or sync with their band. The
+  hardware demonstration video is attached privately with explicit permission.
+  Manual release remains enabled; the app is not publicly available yet.
 - Keep submission and publication separately approved. TestFlight availability
   does not mean App Review approval or public availability.
 
@@ -97,8 +98,9 @@ Once the public listing is live and its download link works:
 
 - Add the verified App Store link to the root README, website and iPhone guide.
 - Make the default setup: WHOOP 5.0/MG → Zoop on iPhone → Docker Compose server.
-- Remove the temporary “not on the App Store yet” notices from those pages and
-  `docs/GET_STARTED.md`. Keep Xcode, signing and XcodeGen under **Build from source**.
+- Replace the temporary “awaiting App Store approval” notices on those pages and
+  `docs/GET_STARTED.md` with the download link. Keep Xcode, signing and XcodeGen in
+  [Development](DEVELOPMENT.md#build-the-iphone-app-from-source).
 - Retain the real server prerequisites. Docker currently builds from source;
   do not claim published images or a download-only Compose setup until validated
   release images exist. Git is optional when downloading the source ZIP.

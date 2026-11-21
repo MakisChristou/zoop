@@ -163,8 +163,8 @@ export default function Home(): ReactNode {
               </div>
             </dl>
             <p>
-              No App Store download yet. Building the app needs a Mac and Xcode.{" "}
-              <Link to="/docs/iphone">Build the iPhone app.</Link>
+              The iPhone app is awaiting App Store approval.{" "}
+              <Link to="/docs/iphone">iPhone setup.</Link>
             </p>
           </div>
         </section>

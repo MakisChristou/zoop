@@ -18,8 +18,8 @@ You’ll need three things:
 - **Phone:** an iPhone running iOS 17 or later, with Zoop installed.
 - **Server:** a machine running Docker with Compose v2.
 
-Zoop is not on the App Store yet. For now, [build the iPhone app](IPHONE_SETUP.md#build-from-source)
-using a Mac, Xcode and an Apple development team with HealthKit support.
+The iPhone app is awaiting App Store approval. The download link will appear in
+the [iPhone guide](IPHONE_SETUP.md#install-zoop) when it is available.
 
 ## 1. Start your server
 
@@ -63,7 +63,7 @@ own HTTPS proxy. See [network options](SELF_HOSTING.md#access-and-http).
 
 ## 3. Connect your band
 
-[Build and install the iPhone app](IPHONE_SETUP.md), then sign in with your server
+[Open Zoop on your iPhone](IPHONE_SETUP.md), then sign in with your server
 address and account. Assign your band’s serial to the account during server setup
 or with the [device ownership command](SELF_HOSTING.md#connect-your-iphone).
 

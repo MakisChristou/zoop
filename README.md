@@ -38,6 +38,8 @@ You need three things:
 - **Server:** a machine running Docker with Compose v2.
 
 The server is required; the phone keeps an upload queue during connection outages.
+The iPhone app is awaiting App Store approval. The download link will appear here
+when it is available.
 
 ```sh
 git clone https://github.com/MakisChristou/zoop.git
@@ -51,8 +53,6 @@ Open **http://localhost:8080** and create your admin account using the setup cod
 Then connect the [iPhone app](docs/IPHONE_SETUP.md). See [self-hosting](docs/SELF_HOSTING.md)
 for LAN access, accounts, backups and updates. Choose your own proxy or VPN.
 
-Zoop is not on the App Store yet. For now, [build the iPhone app](docs/IPHONE_SETUP.md#build-from-source)
-with a Mac, Xcode and an Apple development team with HealthKit support.
 Docker builds the server; you do not need Rust or Node installed.
 
 ## How it works

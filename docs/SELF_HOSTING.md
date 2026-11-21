@@ -58,9 +58,10 @@ require HTTPS for clipboard access; on HTTP, open a shared link and copy its add
 
 ## Connect your iPhone
 
-Build the [iPhone app](IPHONE_SETUP.md), then enter the same server address and
-account credentials. Allow local-network access if iOS asks. The app supports
-HTTP and HTTPS self-hosted addresses. An App Store release is planned, not available.
+Open Zoop on your iPhone and enter the same server address and account credentials.
+See the [iPhone guide](IPHONE_SETUP.md) for app availability and connection steps.
+Allow local-network access if iOS asks. The app supports HTTP and HTTPS self-hosted
+addresses.
 
 Each band must belong to an account before uploads are accepted. You can enter its
 serial during setup or assign it later from the server:

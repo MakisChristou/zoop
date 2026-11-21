@@ -8,7 +8,7 @@ regression coverage for data or security changes.
 
 | Component | Working directory | Setup and checks |
 | --- | --- | --- |
-| iPhone | Repository root | [iPhone setup](docs/IPHONE_SETUP.md), [development](docs/DEVELOPMENT.md) |
+| iPhone | Repository root | [Build and test the app](docs/DEVELOPMENT.md) |
 | API | `server/` | [Server README](server/README.md), [architecture](server/docs/ARCHITECTURE.md) |
 | Web | `web/` | [Web README](web/README.md), [development](web/docs/DEVELOPMENT.md) |
 | Website and docs | `site/` | [Website preview and checks](site/README.md) |
