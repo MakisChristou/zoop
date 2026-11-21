@@ -87,3 +87,15 @@ states, append-only revisions, retries and bounded bootstrap.
 This is implementation validation, not clinical validation or evidence of
 population accuracy. A larger longitudinal validation remains useful before
 making stronger health or performance claims.
+
+## Daily chart
+
+`GET /v1/devices/{device}/recovery?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=Area/City`
+returns an inclusive, ownership-checked history window (at most 366 days). Each
+row contains `day`, the same `recovery` object as daily insights, `hrv_ms`, and
+`resting_hr` from that night's insights. One read-only snapshot supplies the
+window and its preceding 28-day baselines. Dates without main sleep are omitted;
+clients render gaps, not zeros. Pending or ineligible nights retain their state
+and null score. This does not change the formula or persist new observations.
+Public sharing continues to expose only its selected score projection, never the
+additional private tooltip measurements.

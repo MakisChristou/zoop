@@ -25,7 +25,7 @@ describe("server-owned recovery presentation", () => {
     const value = recoveryReading(insight({ score: 41, band: "high" }));
     expect(value.score).toBe(41);
     expect(value.fraction).toBe(0.41);
-    expect(value.color).toBe("var(--green)");
+    expect(value.color).toBe("var(--recovery-high)");
     expect(value.status).toBe("High");
   });
   it("renders both endpoints without treating zero as unavailable", () => {
@@ -35,7 +35,7 @@ describe("server-owned recovery presentation", () => {
     ).toBe(1);
     expect(
       recoveryReading(insight({ score: 50, band: "moderate" })).color,
-    ).toBe("var(--yellow)");
+    ).toBe("var(--recovery-moderate)");
   });
   it("keeps old APIs, future versions and malformed values neutral", () => {
     const old: Insights = {
@@ -83,4 +83,34 @@ describe("server-owned recovery presentation", () => {
       ),
     ).toMatchObject({ influences: ["Recent sleep"], conflict: true });
   });
+});
+
+// The history uses the server's band, including boundary values and missing days.
+import { recoveryPoints } from "../src/RecoveryHistory";
+it("keeps history boundaries, missing dates and zero scores distinct", () => {
+  const scores = [0, 33, 34, 66, 67, 100];
+  const points = recoveryPoints(
+    scores.map((score, i) => ({
+      day: `2026-11-0${i + 1}`,
+      recovery: {
+        ...recovery,
+        score,
+        band: score < 34 ? "low" : score < 67 ? "moderate" : "high",
+      },
+      hrv_ms: 77,
+      resting_hr: 47,
+    })),
+    "2026-11-01",
+    7,
+  );
+  expect(points.map((p) => p.score)).toEqual([...scores, null]);
+  expect(points.map((p) => p.color)).toEqual([
+    "var(--recovery-low)",
+    "var(--recovery-low)",
+    "var(--recovery-moderate)",
+    "var(--recovery-moderate)",
+    "var(--recovery-high)",
+    "var(--recovery-high)",
+    "var(--muted)",
+  ]);
 });

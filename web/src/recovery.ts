@@ -2,9 +2,9 @@ import type { Insights, Recovery } from "./data";
 
 const bands = { low: "Low", moderate: "Moderate", high: "High" } as const;
 const colors = {
-  low: "var(--red)",
-  moderate: "var(--yellow)",
-  high: "var(--green)",
+  low: "var(--recovery-low)",
+  moderate: "var(--recovery-moderate)",
+  high: "var(--recovery-high)",
 } as const;
 const influences: Record<string, string> = {
   hrv: "HRV",

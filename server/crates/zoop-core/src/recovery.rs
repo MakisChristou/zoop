@@ -9,6 +9,15 @@ use sha2::{Digest, Sha256};
 use zoop_analytics::{ALGO_VERSION, recovery::RECOVERY_VERSION};
 use zoop_storage::PostgresStore;
 
+/// A private daily chart reading from the same snapshot as its supporting metrics.
+#[derive(Debug, serde::Serialize)]
+pub struct RecoveryDay {
+    pub day: chrono::NaiveDate,
+    pub recovery: zoop_analytics::recovery::Recovery,
+    pub hrv_ms: Option<f64>,
+    pub resting_hr: Option<f64>,
+}
+
 /// Processes one durable observation without changing measured or sleep data.
 /// # Errors
 /// Storage or serialization failure; its claim remains retryable.
@@ -60,6 +69,26 @@ pub async fn recovery_history(
     to: chrono::NaiveDate,
     tz: &str,
 ) -> CoreResult<Vec<serde_json::Value>> {
+    // Public sharing deliberately projects only the selected Recovery metric.
+    Ok(daily_recovery_history(store, device, from, to, tz)
+        .await?
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| json!({"day": row.day, "value": row.recovery.score}))
+        .collect())
+}
+
+/// Private bounded history, including the nightly measurements shown by insights.
+/// Returns `None` for an unknown device. Dates with no main sleep are omitted.
+/// # Errors
+/// Invalid range or database failure.
+pub async fn daily_recovery_history(
+    store: &PostgresStore,
+    device: &str,
+    from: chrono::NaiveDate,
+    to: chrono::NaiveDate,
+    tz: &str,
+) -> CoreResult<Option<Vec<RecoveryDay>>> {
     if to < from || (to - from).num_days() > 365 {
         return Err(
             zoop_storage::StorageError::InvalidQuery("Invalid history window.".into()).into(),
@@ -69,7 +98,7 @@ pub async fn recovery_history(
         .insight_snapshot(device, from - Duration::days(28), to, tz, ALGO_VERSION)
         .await?
     else {
-        return Ok(Vec::new());
+        return Ok(None);
     };
     let mut result = Vec::new();
     for row in snapshot.nights.iter().filter(|n| n.day >= from) {
@@ -79,17 +108,27 @@ pub async fn recovery_history(
             .filter(|n| n.day >= row.day - Duration::days(28) && n.day <= row.day)
             .cloned()
             .collect();
-        let value = from_snapshot(
+        let brief = from_snapshot(
             row.day,
             tz,
             zoop_storage::InsightSnapshot {
                 nights,
                 pending: row.pending || row.day_pending,
             },
-        )
-        .recovery
-        .score;
-        result.push(json!({"day":row.day,"value":value}));
+        );
+        let metric = |key| {
+            brief
+                .metrics
+                .iter()
+                .find(|m| m.key == key)
+                .and_then(|m| m.value)
+        };
+        result.push(RecoveryDay {
+            day: row.day,
+            hrv_ms: metric("hrv"),
+            resting_hr: metric("resting_hr"),
+            recovery: brief.recovery,
+        });
     }
-    Ok(result)
+    Ok(Some(result))
 }

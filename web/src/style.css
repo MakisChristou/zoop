@@ -16,6 +16,10 @@
   --green: #49cf88;
   --yellow: #f0c55b;
   --red: #f16c79;
+  /* Recovery uses the same dark palette as iOS RecoveryTone / ZoopStyle. */
+  --recovery-high: #47cf79;
+  --recovery-moderate: #fcc447;
+  --recovery-low: #f75c61;
 }
 * {
   box-sizing: border-box;
@@ -2459,4 +2463,75 @@ th:last-child {
   justify-self: start;
   min-height: 44px;
   margin-top: 0;
+}
+
+.recovery-history {
+  grid-column: 1 / -1;
+}
+.recovery-history .panel-head {
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.recovery-history-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+.recovery-period {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--track);
+  border-radius: 8px;
+}
+.recovery-period button {
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 32px;
+}
+.recovery-period button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--panel);
+}
+.recovery-counts {
+  display: flex;
+  gap: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.recovery-counts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.recovery-counts i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.recovery-chart-placeholder {
+  min-height: 244px;
+}
+.recovery-tooltip {
+  width: 200px;
+  pointer-events: none;
+}
+@media (max-width: 560px) {
+  .recovery-history-controls {
+    gap: 12px;
+  }
+  .recovery-period button {
+    min-height: 44px;
+  }
+  .recovery-counts {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }

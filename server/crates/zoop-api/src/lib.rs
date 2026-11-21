@@ -60,6 +60,10 @@ pub fn build_router(state: AppState) -> Router {
             get(weight_goal::detail),
         )
         .route("/v1/devices/{deviceId}/progress", get(progress::progress))
+        .route(
+            "/v1/devices/{deviceId}/recovery",
+            get(insights::recovery_history),
+        )
         .route("/v1/devices/{deviceId}/health", get(health::info))
         .route(
             "/v1/devices/{deviceId}/health/exports",

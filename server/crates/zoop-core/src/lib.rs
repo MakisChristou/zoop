@@ -7,7 +7,7 @@ mod history;
 mod insights;
 pub use insights::morning_insights;
 mod recovery;
-pub use recovery::{observe_recovery, recovery_history};
+pub use recovery::{RecoveryDay, daily_recovery_history, observe_recovery, recovery_history};
 mod night;
 mod sleep_sessions;
 mod workouts;

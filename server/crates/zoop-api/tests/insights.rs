@@ -414,3 +414,74 @@ async fn shared_recovery_history_matches_private_insights_after_corrections() {
         0
     );
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn daily_recovery_chart_matches_insights_and_keeps_missing_days_missing() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    let path = format!("/v1/devices/{DEVICE}/recovery?from=2025-01-14&to=2025-01-22&tz=UTC");
+    assert_eq!(get(&db, &path, false).await.0, 401);
+    assert_eq!(
+        get(&db, &path.replace(DEVICE, "UNKNOWN"), true).await.0,
+        404
+    );
+    for suffix in [
+        "from=2025-01-22&to=2025-01-14&tz=UTC",
+        "from=2023-01-01&to=2025-01-14&tz=UTC",
+        "from=bad&to=2025-01-14&tz=UTC",
+        "from=1800-01-01&to=1800-01-02&tz=UTC",
+        "from=2025-01-14&to=2025-01-22&tz=Invalid/Zone",
+    ] {
+        assert_eq!(
+            get(
+                &db,
+                &format!("/v1/devices/{DEVICE}/recovery?{suffix}"),
+                true
+            )
+            .await
+            .0,
+            400
+        );
+    }
+    db.store
+        .upsert_device("OTHER-CHART", "TEST", None)
+        .await
+        .unwrap();
+    db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,metrics,fixed,metrics_pending) SELECT 'OTHER-CHART',start_ts,end_ts,kind,detected_kind,timezone,metrics,true,true FROM sleep_sessions").await;
+    for tz in ["UTC", "America/Los_Angeles", "Asia/Nicosia"] {
+        for pending in [false, true] {
+            if pending {
+                db.sql("UPDATE sleep_sessions SET metrics_pending=true WHERE device_id='TEST-RELIABILITY' AND end_ts='2025-01-15T07:00:00Z'").await;
+            }
+            let (status, rows) = get(&db, &path.replace("tz=UTC", &format!("tz={tz}")), true).await;
+            assert_eq!(status, 200);
+            assert!(!rows.as_array().unwrap().is_empty());
+            for row in rows.as_array().unwrap() {
+                let d = row["day"].as_str().unwrap();
+                let private = morning_insights(&db.store, DEVICE, day(d), tz)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let private = serde_json::to_value(private).unwrap();
+                assert_eq!(row["recovery"], private["recovery"], "{d}, {tz}");
+                for (field, key) in [("hrv_ms", "hrv"), ("resting_hr", "resting_hr")] {
+                    let metric = private["metrics"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|m| m["key"] == key)
+                        .unwrap();
+                    assert_eq!(row[field], metric["value"]);
+                }
+                assert!(d < "2025-01-21", "no fabricated nights");
+            }
+        }
+    }
+    assert_eq!(
+        db.count("SELECT count(*) FROM recovery_observations").await,
+        0,
+        "GET never writes"
+    );
+}

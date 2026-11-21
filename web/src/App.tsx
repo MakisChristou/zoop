@@ -40,6 +40,7 @@ import { SleepTimeline } from "./SleepTimeline";
 import { GoalView } from "./Goals";
 import { recoveryPending } from "./recovery";
 import { RecoveryRing } from "./RecoveryRing";
+import { RecoveryHistory } from "./RecoveryHistory";
 import { stepsTarget } from "./summary";
 import { LoadingBar, LoadingCards } from "./Loading";
 import {
@@ -1145,6 +1146,13 @@ function DataView({
           {error("weights")}
           {weightChart}
         </Panel>
+        <RecoveryHistory
+          key={device}
+          device={device}
+          date={date}
+          tz={tz}
+          refresh={data.loadedAt.getTime()}
+        />
         {(["resting_hr", "hrv_rmssd_ms"] as const).map((key, i) => (
           <Panel key={key} title={i ? "HRV" : "Resting heart rate"}>
             <Chart
