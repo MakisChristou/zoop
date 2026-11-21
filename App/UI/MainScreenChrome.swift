@@ -26,7 +26,7 @@ struct MainScreenChrome: ViewModifier {
                 .sheet(item: $request) { ProfileSheet(open: $0.page) }
                 .onAppear(perform: applyDemoRoute)
                 .task(id: PhotoRefresh(scope: photoScope, active: scenePhase == .active)) {
-                    if scenePhase == .active { await model.photo.load(photoScope) }
+                    if scenePhase == .active { await model.photo.load(photoScope, force: true) }
                 }
         }
     }

@@ -2,6 +2,7 @@ import XCTest
 import UIKit
 import ImageIO
 import UniformTypeIdentifiers
+import Observation
 @testable import Zoop
 
 @MainActor final class ProfilePhotoTests: XCTestCase {
@@ -15,6 +16,64 @@ import UniformTypeIdentifiers
         ProfilePhotoDisk(folder: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     }
     private func scope(_ device: String = "TEST", connection: String = "test") -> ProfilePhotoStore.Scope { .init(device: device, connection: connection) }
+
+    func testAvatarObservesFirstRemotePhotoAfterShowingPlaceholder() async {
+        let data = image()
+        let store = ProfilePhotoStore(disk: disk(), remote: { _, _, _ in data })
+        let changed = expectation(description: "Avatar redraws when its scope becomes available")
+        withObservationTracking {
+            XCTAssertNil(store.image(for: scope()))
+        } onChange: {
+            changed.fulfill()
+        }
+        await store.load(scope())
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertNotNil(store.image(for: scope()))
+    }
+
+    func testForcedRefreshFindsWebChangeWithinCacheInterval() async {
+        let data = image(.red)
+        var server: Data?
+        var reads = 0
+        let store = ProfilePhotoStore(disk: disk(), remote: { _, _, _ in reads += 1; return server })
+        await store.load(scope())
+        server = data
+        await store.load(scope(), force: true)
+        XCTAssertNotNil(store.image(for: scope()))
+        XCTAssertEqual(reads, 2)
+        let changed = expectation(description: "Remote removal redraws the avatar")
+        withObservationTracking {
+            _ = store.image(for: scope())
+        } onChange: { changed.fulfill() }
+        server = nil
+        await store.load(scope(), force: true)
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertNil(store.image(for: scope()))
+    }
+
+    func testForegroundRefreshSupersedesAnOlderPhotoRequest() async {
+        let blue = image(), red = image(.red)
+        var reads = 0
+        var pending: CheckedContinuation<Data?, Never>?
+        let started = expectation(description: "First request started")
+        let store = ProfilePhotoStore(disk: disk(), remote: { _, _, _ in
+            reads += 1
+            if reads == 1 {
+                return await withCheckedContinuation { pending = $0; started.fulfill() }
+            }
+            return red
+        })
+        let first = Task { await store.load(self.scope()) }
+        await fulfillment(of: [started], timeout: 1)
+        await store.load(scope(), force: true)
+        let refreshed = store.image(for: scope())
+        XCTAssertNotNil(refreshed)
+        pending?.resume(returning: blue)
+        await first.value
+        XCTAssertTrue(store.image(for: scope()) === refreshed)
+        XCTAssertEqual(reads, 2)
+        XCTAssertFalse(store.loading)
+    }
 
     func testPreparedPhotoIsSmallOrientedAndHasNoGPS() throws {
         let original = image(size: .init(width: 2048, height: 1024))

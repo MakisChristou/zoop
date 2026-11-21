@@ -14,7 +14,8 @@ import UIKit
     private(set) var loading = false
     private(set) var saving = false
     private(set) var error: String?
-    @ObservationIgnored private var scope: Scope?
+    // The avatar reads this before an image exists; scope changes must redraw it.
+    private var scope: Scope?
     @ObservationIgnored private var requestID = UUID()
     @ObservationIgnored private var loadedAt: Date?
     @ObservationIgnored private let disk: ProfilePhotoDisk
@@ -28,7 +29,8 @@ import UIKit
     func load(_ next: Scope, force: Bool = false) async {
         guard next.valid else { reset(next); return }
         if scope != next { reset(next) }
-        guard !saving, !loading, force || loadedAt.map({ Date().timeIntervalSince($0) >= Self.refreshInterval }) != false else { return }
+        guard !saving, force || !loading,
+              force || loadedAt.map({ Date().timeIntervalSince($0) >= Self.refreshInterval }) != false else { return }
         let id = UUID(); requestID = id; loading = true
         defer { if requestID == id { loading = false } }
         let cached = await disk.read(next.diskKey)

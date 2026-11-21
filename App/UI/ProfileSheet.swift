@@ -75,7 +75,7 @@ struct ProfileSheet: View {
                 } }.toolbar { closeControl }
             }
             .task { await model.battery.refreshAuthorization() }
-            .task(id: photoScope) { await model.photo.load(photoScope) }
+            .task(id: photoScope) { await model.photo.load(photoScope, force: true) }
             .sheet(isPresented: $editingPhoto) { ProfilePhotoView(scope: photoScope) }
             .onAppear { if let open, path.isEmpty { path = [open] } }
         }
