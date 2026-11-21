@@ -4,21 +4,25 @@ import SwiftUI
 struct ZoopLoadingBar: View {
     let label: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var travelling = false
-
     var body: some View {
-        GeometryReader { geometry in
-            Capsule().fill(ZoopStyle.secondary.opacity(0.15))
-                .overlay(alignment: .leading) {
-                    Capsule().fill(ZoopStyle.secondary)
-                        .frame(width: geometry.size.width * 0.3)
-                        .offset(x: travelling && !reduceMotion ? geometry.size.width * 0.7 : 0)
-                }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: travelling)
+        // Draw motion inside a fixed canvas. A repeating view animation can also
+        // interpolate layout changes when navigation or safe-area geometry changes.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
+            Canvas { context, size in
+                let track = CGRect(origin: .zero, size: size)
+                context.fill(Path(roundedRect: track, cornerRadius: size.height / 2),
+                             with: .color(ZoopStyle.secondary.opacity(0.15)))
+                let phase = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.4) / 2.4
+                let progress = reduceMotion ? 0.5 : (1 - cos(phase * 2 * .pi)) / 2
+                let segment = CGRect(x: size.width * 0.7 * progress, y: 0,
+                                     width: size.width * 0.3, height: size.height)
+                context.fill(Path(roundedRect: segment, cornerRadius: size.height / 2),
+                             with: .color(ZoopStyle.secondary))
+            }
         }
         .frame(height: 3)
-        .onAppear { travelling = true }
-        .onDisappear { travelling = false }
+        .clipped()
+        .transaction { $0.animation = nil }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityIdentifier("loadingIndicator")
@@ -28,11 +32,15 @@ struct ZoopLoadingBar: View {
 extension View {
     func zoopLoading(_ active: Bool, label: String) -> some View {
         overlay(alignment: .top) {
-            if active {
-                ZoopLoadingBar(label: label)
-                    .padding(.horizontal, ZoopStyle.gutter)
-                    .allowsHitTesting(false)
+            Group {
+                if active {
+                    ZoopLoadingBar(label: label)
+                        .padding(.horizontal, ZoopStyle.gutter)
+                        .allowsHitTesting(false)
+                        .transition(.identity)
+                }
             }
+            .transaction { $0.animation = nil }
         }
     }
 }

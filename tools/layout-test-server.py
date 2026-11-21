@@ -146,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
         device, route = parts[2], '/'.join(parts[3:])
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
-        if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days') or route.endswith('/insights') or route.endswith('/steps')):
+        if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days', 'weight-goal') or route.endswith('/insights') or route.endswith('/steps')):
             started = slow_devices.setdefault(device, time.monotonic())
             time.sleep(max(0, 14 - (time.monotonic() - started)))
         if device == 'RINGS-EMPTY' and route in ('sleeps', 'sleep-sessions', 'days'): return self.send([])
