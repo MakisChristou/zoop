@@ -4,7 +4,7 @@ import { themes } from "prism-react-renderer";
 
 const config: Config = {
   title: "Zoop",
-  tagline: "Your wearable data. Your server.",
+  tagline: "Your WHOOP. Your data.",
   url: "https://zoop.health",
   baseUrl: "/",
   favicon: "img/zoop.svg",

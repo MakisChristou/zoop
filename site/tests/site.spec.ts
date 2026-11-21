@@ -8,7 +8,7 @@ test("responsive homepage and product previews", async ({ page }) => {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Your wearable data.",
+      "Your WHOOP.",
     );
     await page.evaluate(() => document.fonts.ready);
     expect(

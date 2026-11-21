@@ -69,16 +69,15 @@ function ProductPreview() {
 export default function Home(): ReactNode {
   return (
     <Layout
-      title="Your wearable data. Your server."
+      title="Your WHOOP. Your data."
       description="Collect recordings from your WHOOP, explore sleep, recovery, activity and weight, and keep your history on your own server."
     >
       <main className="home" id="main-content">
         <section className="home-hero">
-          <p className="eyebrow">Open source. Self-hosted.</p>
           <h1>
-            Your wearable data.
+            Your WHOOP.
             <br />
-            <span>Your server.</span>
+            <span>Your data.</span>
           </h1>
           <p className="hero-description">
             Understand your sleep, activity and progress.
