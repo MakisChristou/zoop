@@ -18,8 +18,25 @@ struct SleepHeatmapDetail: View {
                         metric("HRV", night.metrics.physiology.hrvRmssdMs.map { "\(Int($0.rounded())) ms" } ?? "—")
                         metric("Resting HR", night.metrics.physiology.restingHr.map { "\(Int($0.rounded())) bpm" } ?? "—")
                     }
-                    Button(action: open) { Text("View sleep").font(ZoopType.headline).frame(maxWidth: .infinity, minHeight: 48) }
-                        .buttonStyle(.borderedProminent).tint(ZoopStyle.text).accessibilityIdentifier("heatmapOpenSleep")
+                    VStack(spacing: 0) {
+                        Divider().overlay(ZoopStyle.separator)
+                        Button(action: open) {
+                            HStack {
+                                Text("Sleep details")
+                                    .font(ZoopStyle.sectionTitle)
+                                    .foregroundStyle(ZoopStyle.text)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(ZoopStyle.secondary)
+                                    .accessibilityHidden(true)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("heatmapOpenSleep")
+                    }
                 }.padding(ZoopStyle.gutter)
             }.zoopScreen()
                 .navigationTitle(night.endTs.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
