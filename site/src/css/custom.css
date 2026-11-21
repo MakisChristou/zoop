@@ -116,6 +116,8 @@ a {
 .navbar__toggle {
   min-width: 44px;
   min-height: 44px;
+  align-items: center;
+  justify-content: center;
 }
 .navbar {
   --ifm-navbar-search-input-placeholder-color: var(--site-muted);
