@@ -133,7 +133,7 @@ class Handler(BaseHTTPRequestHandler):
         if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days') or route.endswith('/insights') or route.endswith('/steps')):
             started = slow_devices.setdefault(device, time.monotonic())
             time.sleep(max(0, 14 - (time.monotonic() - started)))
-        if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
+        if device == 'RINGS-EMPTY' and route in ('sleeps', 'sleep-sessions', 'days'): return self.send([])
         if route == 'recovery':
             recovery_history_reads[device] = recovery_history_reads.get(device, 0) + 1
             if device == 'RECOVERY-HISTORY-FAIL': return self.send(dict(error='Synthetic unavailable'), 503)

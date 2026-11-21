@@ -3,7 +3,8 @@ import SwiftUI
 struct SleepView: View {
     @Environment(AppModel.self) private var model
     @Binding var selected: ZoopAPI.Night?
-    @State private var selectedDay = Date()
+    var detail = false
+    @State private var selectedDay: Date
     @State private var showGoal = false
     @State private var editor: SleepEditorMode?
     @State private var resetTarget: ZoopAPI.SleepSession?
@@ -17,56 +18,67 @@ struct SleepView: View {
     private var rows: [ZoopAPI.SleepSession] { model.sleep.items.filter { $0.day == key }.sorted { $0.startTs < $1.startTs } }
     private var main: ZoopAPI.SleepSession? { rows.first { $0.kind == "main" } }
     private var dayTitle: String { let f = DateFormatter(); f.timeZone = calendar.timeZone; f.dateFormat = "EEE d MMM"; return f.string(from: selectedDay) }
+    init(selected: Binding<ZoopAPI.Night?>, day: Date = Date(), detail: Bool = false) {
+        _selected = selected
+        _selectedDay = State(initialValue: day)
+        self.detail = detail
+    }
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < ZoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) })
-                    if let main, let night = main.night { content(night, record: main) }
-                    else if loading { ProgressView().frame(maxWidth: .infinity).padding(40) }
-                    else {
-                        ContentUnavailableView {
-                            Label(main != nil ? "Updating sleep" : "No main sleep", systemImage: "moon.zzz")
-                        } description: {
-                            Text(error ?? (main != nil ? "Your sleep is being updated." : "Detected sleep appears here after syncing."))
-                        }
-                    }
-                    if !rows.filter({ $0.kind == "nap" }).isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Naps").font(ZoopType.headline)
-                            ForEach(rows.filter { $0.kind == "nap" }) { row in
-                                NavigationLink { SleepSessionDetailView(initial: row) } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(row.startTs.formatted(date: .omitted, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
-                                            if let data = row.sleep { Text(duration(data.window.asleepS)).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary) }
-                                            if row.metricsPending { Text("Updating sleep").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
-                                        }
-                                        Spacer(); Image(systemName: "chevron.right").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
-                                    }.frame(minHeight: 44).padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
-                                }.buttonStyle(PressableCardStyle()).accessibilityIdentifier("napSession-\(row.id)")
-                            }
-                        }
-                    }
-                    if main != nil, let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
-                    if main == nil {
-                        Button("Sleep goal", systemImage: "moon") { showGoal = true }
-                            .font(ZoopType.footnote).frame(minHeight: 44).accessibilityIdentifier("editSleepGoal")
-                    }
-                    NavigationLink("Removed sleep") { RemovedSleepView() }.font(ZoopType.footnote).frame(minHeight: 44)
-                }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 24)
-            }
-            .navigationTitle("Sleep").mainScreenChrome("Sleep")
-            .zoopLoading(loading, label: "Loading sleep")
-            .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
-            .refreshable { await load() }
-            .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
-            .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
-            .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
+        Group {
+            if detail { screen }
+            else { NavigationStack { screen } }
         }
         .sheet(isPresented: $showGoal) { SleepGoalView() }
         .sheet(item: $editor) { SleepEditorView(mode: $0) }
         .sheet(item: $resetTarget) { row in NavigationStack { AnalysisResetView(domain: "sleep", targetId: row.id, isSheet: true) }.presentationBackground(ZoopStyle.background) }
+    }
+
+    private var screen: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                DateNavigation(title: dayTitle, canGoBack: true, canGoForward: key < ZoopAPI.SleepSession.day(Date(), timezone: timezone), previousLabel: "Previous day", nextLabel: "Next day", previous: { step(-1) }, next: { step(1) })
+                if let main, let night = main.night { content(night, record: main) }
+                else if loading { ProgressView().frame(maxWidth: .infinity).padding(40) }
+                else {
+                    ContentUnavailableView {
+                        Label(main != nil ? "Updating sleep" : "No main sleep", systemImage: "moon.zzz")
+                    } description: {
+                        Text(error ?? (main != nil ? "Your sleep is being updated." : "Detected sleep appears here after syncing."))
+                    }
+                }
+                if !rows.filter({ $0.kind == "nap" }).isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Naps").font(ZoopType.headline)
+                        ForEach(rows.filter { $0.kind == "nap" }) { row in
+                            NavigationLink { SleepSessionDetailView(initial: row) } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(row.startTs.formatted(date: .omitted, time: .shortened) + " – " + row.endTs.formatted(date: .omitted, time: .shortened))
+                                        if let data = row.sleep { Text(duration(data.window.asleepS)).font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary) }
+                                        if row.metricsPending { Text("Updating sleep").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary) }
+                                    }
+                                    Spacer(); Image(systemName: "chevron.right").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                                }.frame(minHeight: 44).padding().background(ZoopStyle.surface, in: RoundedRectangle(cornerRadius: ZoopStyle.radius))
+                            }.buttonStyle(PressableCardStyle()).accessibilityIdentifier("napSession-\(row.id)")
+                        }
+                    }
+                }
+                if main != nil, let error { Text(error).font(ZoopType.footnote).foregroundStyle(.red) }
+                if main == nil {
+                    Button("Sleep goal", systemImage: "moon") { showGoal = true }
+                        .font(ZoopType.footnote).frame(minHeight: 44).accessibilityIdentifier("editSleepGoal")
+                }
+                NavigationLink("Removed sleep") { RemovedSleepView() }.font(ZoopType.footnote).frame(minHeight: 44)
+            }.padding(.horizontal, ZoopStyle.gutter).padding(.bottom, 24)
+        }
+        .mainScreenChrome("Sleep", detail: detail)
+        .zoopLoading(loading, label: "Loading sleep")
+        .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
+        .refreshable { await load() }
+        .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
+        .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
+        .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
     }
     private func step(_ delta: Int) { selected = nil; selectedDay = calendar.date(byAdding: .day, value: delta, to: selectedDay) ?? selectedDay }
     private func load() async {

@@ -103,12 +103,12 @@ struct TodayView: View {
             ? AnyLayout(VStackLayout(spacing: 24))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return layout {
-            Button { openSleep(selectedNight) } label: {
+            NavigationLink { SleepView(selected: .constant(nil), day: selectedNight?.endTs ?? viewedDay, detail: true) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
                 } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading)
             }
-            .buttonStyle(.plain).disabled(selectedNight == nil)
+            .buttonStyle(.plain)
             .accessibilityValue(selectedNight.map {
                 let seconds = $0.metrics.window.asleepS
                 return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal" + (loading ? ", updating" : "")
@@ -122,12 +122,12 @@ struct TodayView: View {
             }
             .buttonStyle(.plain).accessibilityIdentifier("openRecoverySummary")
             .accessibilityHint("Opens recovery and its readings")
-            Button { openActivity(viewedDay) } label: {
+            NavigationLink { ActivityView(selectedDay: .constant(viewedDay), requestID: loadID, detail: true, initialSummary: selectedSummary) } label: {
                 TodaySummaryRing(title: "Load", value: selectedSummary?.load.map {
                     $0.formatted(.number.precision(.fractionLength(1)))
                 } ?? "—", color: ZoopStyle.load, progress: selectedSummary?.load.map { $0 / LoadRing.maximum } ?? 0, isLoading: loading)
             }
-            .buttonStyle(.plain).accessibilityHint("Opens Activity").accessibilityIdentifier("openDayActivity")
+            .buttonStyle(.plain).accessibilityHint("Opens this day’s load and activity").accessibilityIdentifier("openDayActivity")
         }.frame(maxWidth: .infinity)
             .background {
                 Canvas { context, size in
@@ -149,21 +149,25 @@ struct TodayView: View {
         let title = insights?.outlookTitle ?? (morning.failed(for: insightScope) ? "Retry" : "—")
         return NavigationLink { MorningInsightsView(day: viewedDay) } label: {
             let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 8))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 12))
             layout {
-                Text("Outlook").foregroundStyle(ZoopStyle.secondary).fixedSize()
+                Text("Outlook").foregroundStyle(ZoopStyle.secondary)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 12) }
                 HStack(spacing: 8) {
                     if updating {
                         ProgressView().controlSize(.mini).tint(ZoopStyle.secondary)
-                    } else if title != "—" && title != "Retry" {
-                        Circle().fill(outlookColor).frame(width: 6, height: 6)
                     }
-                    Text(updating && title == "—" ? "Updating" : title).foregroundStyle(ZoopStyle.text)
-                        .lineLimit(1).minimumScaleFactor(0.8)
+                    Text(updating && title == "—" ? "Updating" : title)
+                        .foregroundStyle(title == "—" || title == "Retry" || updating ? ZoopStyle.secondary : outlookColor)
+                        .fixedSize(horizontal: false, vertical: true)
                     Image(systemName: "chevron.right").font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 }
             }
-            .font(ZoopType.subheadline).frame(maxWidth: .infinity, minHeight: 44)
+            .font(ZoopType.subheadline).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.vertical, 2)
+            .overlay(alignment: .top) { Rectangle().fill(ZoopStyle.separator.opacity(0.7)).frame(height: 0.5) }
+            .overlay(alignment: .bottom) { Rectangle().fill(ZoopStyle.separator.opacity(0.7)).frame(height: 0.5) }
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore).accessibilityLabel("Outlook")
             .accessibilityValue(updating && title == "—" ? "Loading" : title)

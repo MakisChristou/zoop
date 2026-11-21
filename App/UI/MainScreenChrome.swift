@@ -4,6 +4,7 @@ import SwiftUI
 struct MainScreenChrome: ViewModifier {
     let title: String
     var subtitle: String?
+    var detail = false
     private struct Request: Identifiable {
         let id = UUID()
         let page: ProfileSheet.Page?
@@ -14,13 +15,20 @@ struct MainScreenChrome: ViewModifier {
     @Environment(AppModel.self) private var model
     @State private var request: Request?
 
-    func body(content: Content) -> some View {
-        chrome(content)
-            .sheet(item: $request) { ProfileSheet(open: $0.page) }
-            .onAppear(perform: applyDemoRoute)
-            .task(id: PhotoRefresh(scope: photoScope, active: scenePhase == .active)) {
-                if scenePhase == .active { await model.photo.load(photoScope) }
-            }
+    @ViewBuilder func body(content: Content) -> some View {
+        if detail {
+            content.zoopScreen()
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
+        } else {
+            chrome(content)
+                .sheet(item: $request) { ProfileSheet(open: $0.page) }
+                .onAppear(perform: applyDemoRoute)
+                .task(id: PhotoRefresh(scope: photoScope, active: scenePhase == .active)) {
+                    if scenePhase == .active { await model.photo.load(photoScope) }
+                }
+        }
     }
 
     @ViewBuilder private func chrome(_ content: Content) -> some View {
@@ -85,7 +93,7 @@ struct MainScreenChrome: ViewModifier {
 }
 
 extension View {
-    func mainScreenChrome(_ title: String, subtitle: String? = nil) -> some View {
-        modifier(MainScreenChrome(title: title, subtitle: subtitle))
+    func mainScreenChrome(_ title: String, subtitle: String? = nil, detail: Bool = false) -> some View {
+        modifier(MainScreenChrome(title: title, subtitle: subtitle, detail: detail))
     }
 }

@@ -25,6 +25,7 @@ struct RecoveryDetailView: View {
             }.padding(ZoopStyle.gutter)
         }
         .navigationTitle("Recovery").navigationBarTitleDisplayMode(.inline).zoopScreen()
+        .toolbar(.visible, for: .navigationBar)
         .zoopLoading(morning.loading, label: "Loading recovery")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
