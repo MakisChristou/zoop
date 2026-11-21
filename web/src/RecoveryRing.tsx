@@ -20,6 +20,7 @@ export function RecoveryRing({
         type="button"
         className="ring-item recovery-ring"
         aria-label={`Recovery: ${reading.score ?? (loading ? "loading" : reading.status)}`}
+        aria-busy={loading}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
@@ -89,6 +90,7 @@ function RecoveryDetail({
           <LoaderCircle
             className="spinner"
             size={16}
+            role="status"
             aria-label="Updating recovery"
           />
         )}
@@ -174,6 +176,7 @@ export function RecoveryRingFace({
               <LoaderCircle
                 className="spinner"
                 size={20}
+                role="status"
                 aria-label="Loading recovery"
               />
             ) : (
@@ -188,6 +191,7 @@ export function RecoveryRingFace({
           <LoaderCircle
             className="spinner recovery-refresh"
             size={12}
+            role="status"
             aria-label="Updating recovery"
           />
         )}

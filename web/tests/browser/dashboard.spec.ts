@@ -452,6 +452,15 @@ test("slow refresh retains charts, reports completed datasets, and ends on failu
   await expect(progress).toBeVisible();
   await expect(progress).toHaveAttribute("aria-valuenow", "5");
   await expect(progress).toHaveAttribute("aria-valuemax", "6");
+  await expect(
+    page.getByRole("status", { name: "Updating sleep", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Updating load", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".rings .ring-item[aria-busy=true]")).toHaveCount(
+    3,
+  );
   await expect(page.locator(".today-grid .panel-value").first()).toHaveText(
     weight,
   );
@@ -518,6 +527,10 @@ test("pointer chart selection and reduced-motion initial loading work", async ({
     page.getByRole("progressbar", { name: "Loading data" }),
   ).toBeVisible();
   await expect(page.locator(".skeleton-grid")).toBeVisible();
+  for (const name of ["sleep", "recovery", "load"])
+    await expect(
+      page.getByRole("status", { name: `Loading ${name}`, exact: true }),
+    ).toBeVisible();
   await expect(page.getByText("No readings for this period")).toHaveCount(0);
   await page.screenshot({ path: "test-results/loading.png" });
   release();

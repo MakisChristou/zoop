@@ -1,3 +1,5 @@
+import { Ring } from "./Ring";
+
 export function LoadingBar({
   value,
   total,
@@ -41,6 +43,23 @@ export function LoadingCards() {
           <span className="skeleton-title" />
           <div className="skeleton-plot" />
         </div>
+      ))}
+    </div>
+  );
+}
+
+export function LoadingRings() {
+  return (
+    <div className="rings" aria-label="Loading daily rings">
+      {["Sleep", "Recovery", "Load"].map((label) => (
+        <Ring
+          key={label}
+          label={label}
+          value="—"
+          color="var(--track)"
+          fraction={0}
+          loading
+        />
       ))}
     </div>
   );

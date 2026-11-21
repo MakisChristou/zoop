@@ -42,7 +42,7 @@ import { recoveryPending } from "./recovery";
 import { RecoveryRing } from "./RecoveryRing";
 import { RecoveryHistory } from "./RecoveryHistory";
 import { stepsTarget } from "./summary";
-import { LoadingBar, LoadingCards } from "./Loading";
+import { LoadingBar, LoadingCards, LoadingRings } from "./Loading";
 import {
   BySport,
   TrainingHeatmap,
@@ -723,7 +723,10 @@ function Dashboard({
         </p>
       )}
       {loading && !data ? (
-        <LoadingCards />
+        <>
+          {page === "Today" && <LoadingRings />}
+          <LoadingCards />
+        </>
       ) : error && !data ? (
         <div role="alert" className="error">
           {error}{" "}
@@ -747,6 +750,7 @@ function Dashboard({
               end={end}
               insight={insights.data}
               insightLoading={insights.loading}
+              dataLoading={loading}
               onDetail={setDetail}
               onDay={(day) => setSelected(day)}
             />
@@ -870,6 +874,7 @@ function DataView({
   end,
   insight,
   insightLoading,
+  dataLoading,
   onDetail,
   onDay,
 }: {
@@ -882,6 +887,7 @@ function DataView({
   end: string;
   insight: Insights | null;
   insightLoading: boolean;
+  dataLoading: boolean;
   onDetail: (s: Session) => void;
   onDay: (day: string) => void;
 }) {
@@ -944,6 +950,7 @@ function DataView({
       <>
         <div className="rings">
           <Ring
+            loading={dataLoading}
             label="Sleep"
             value={duration(night?.sleep?.window.asleep_s)}
             color="var(--sleep)"
@@ -951,9 +958,10 @@ function DataView({
           <RecoveryRing
             key={`${device}:${date}:${tz}`}
             insight={insight}
-            loading={insightLoading}
+            loading={insightLoading || dataLoading}
           />
           <Ring
+            loading={dataLoading}
             label="Load"
             value={number(daily?.load, 1)}
             color="var(--blue)"

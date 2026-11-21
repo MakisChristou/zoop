@@ -9,7 +9,7 @@ import {
   ArrowLeft,
   ExternalLink,
 } from "lucide-react";
-import { LoadingBar } from "./Loading";
+import { LoadingBar, LoadingCards } from "./Loading";
 import { DashboardPreview } from "./SharedDashboard";
 import {
   widgets,
@@ -495,9 +495,12 @@ function ShareEditor({
               <DashboardPreview
                 data={preview}
                 onYear={view}
+                loading={busy}
                 onLayout={arranging && !busy ? arrange : undefined}
               />
             </>
+          ) : busy ? (
+            <LoadingCards />
           ) : (
             <div className="panel share-empty">
               Choose your metrics, then preview.

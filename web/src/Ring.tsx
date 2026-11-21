@@ -14,8 +14,9 @@ export function Ring({
   subtitle?: string;
   loading?: boolean;
 }) {
+  const empty = value === "—";
   return (
-    <div className="ring-item">
+    <div className="ring-item" aria-busy={loading}>
       <div className="ring">
         <svg viewBox="0 0 140 140" aria-hidden="true">
           <circle
@@ -43,20 +44,31 @@ export function Ring({
         </svg>
         <div className="ring-reading">
           <strong>
-            {loading ? (
+            {loading && empty ? (
               <LoaderCircle
                 className="spinner"
                 size={20}
+                role="status"
                 aria-label={`Loading ${label.toLowerCase()}`}
               />
             ) : (
               value
             )}
           </strong>
-          {!loading && subtitle && <small>{subtitle}</small>}
+          {subtitle && <small>{subtitle}</small>}
         </div>
       </div>
-      <span>{label}</span>
+      <span>
+        {label}
+        {loading && !empty && (
+          <LoaderCircle
+            className="spinner recovery-refresh"
+            size={12}
+            role="status"
+            aria-label={`Updating ${label.toLowerCase()}`}
+          />
+        )}
+      </span>
     </div>
   );
 }
