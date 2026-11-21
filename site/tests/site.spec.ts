@@ -90,6 +90,11 @@ test("guides, anchors and responsive reading", async ({ page }) => {
 
 test("local search reaches the backup guide", async ({ page }) => {
   await page.goto("/docs/get-started/");
+  // The server-rendered input is visible before React installs search handlers.
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-has-hydrated",
+    "true",
+  );
   const search = page.getByLabel("Search", { exact: true });
   await search.fill("backup");
   await expect(page.getByRole("option").first()).toBeVisible();
@@ -128,6 +133,10 @@ test("mobile search, text enlargement and self-contained assets", async ({
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/docs/get-started/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-has-hydrated",
+    "true",
+  );
   const search = page.getByLabel("Search", { exact: true });
   await search.fill("backup");
   await expect(page.getByRole("option").first()).toBeVisible();
