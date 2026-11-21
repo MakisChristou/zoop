@@ -66,6 +66,9 @@ import XCTest
             shot(app, "Recovery " + state)
             app.buttons["openRecoverySummary"].tap()
             XCTAssertTrue(app.navigationBars["Recovery"].waitForExistence(timeout: 10))
+            let chart = app.otherElements["recoveryHistoryChart"]
+            XCTAssertTrue(chart.waitForExistence(timeout: 10))
+            chart.coordinate(withNormalizedOffset: .init(dx: 0.4, dy: 0.5)).tap()
             XCTAssertTrue(app.staticTexts["recoveryStatus"].waitForExistence(timeout: 10))
             shot(app, "Recovery detail " + state)
             app.terminate()
@@ -93,6 +96,9 @@ import XCTest
         for _ in 0..<6 where !recovery.isHittable { app.swipeUp() }
         recovery.tap()
         XCTAssertTrue(app.navigationBars["Recovery"].waitForExistence(timeout: 10))
+        let chart = app.otherElements["recoveryHistoryChart"]
+        XCTAssertTrue(chart.waitForExistence(timeout: 10))
+        chart.coordinate(withNormalizedOffset: .init(dx: 0.4, dy: 0.5)).tap()
         XCTAssertTrue(app.staticTexts["recoveryStatus"].waitForExistence(timeout: 10))
         shot(app, "Recovery largest text")
         app.swipeUp()

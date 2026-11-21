@@ -18,7 +18,7 @@ struct RecoveryDetailView: View {
                 RecoveryHistoryView(initialDay: day, refreshID: refreshID, detail: true, insights: insights) { date, zone in
                     selectedDay = date; timezone = zone
                 }
-                if morning.failed(for: scope) {
+                if selectedDay != nil, morning.failed(for: scope) {
                     Button("Couldn’t update details. Retry") { Task { await load() } }
                         .frame(minHeight: 44).accessibilityIdentifier("retryRecovery")
                 }
@@ -35,13 +35,13 @@ struct RecoveryDetailView: View {
         .sheet(isPresented: $showMethod) { RecoveryMethodView() }
         .onAppear { visible = true }
         .onDisappear { visible = false; morning.stop() }
-        .task(id: MorningInsightsStore.FollowKey(scope: scope, active: visible && scenePhase == .active)) {
-            guard visible, scenePhase == .active, Settings.isConfigured else {
+        .task(id: MorningInsightsStore.FollowKey(scope: scope, active: visible && scenePhase == .active && selectedDay != nil)) {
+            guard visible, scenePhase == .active, selectedDay != nil, Settings.isConfigured else {
                 morning.stop(clear: !Settings.isConfigured); return
             }
             let request = scope
             do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
-            await morning.follow(request) { visible && scenePhase == .active && scope == request }
+            await morning.follow(request) { visible && scenePhase == .active && selectedDay != nil && scope == request }
         }
         .refreshable { refreshID += 1; await load() }
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
@@ -52,8 +52,8 @@ struct RecoveryDetailView: View {
         .init(device: model.strap.serial, day: selectedDay ?? day, connection: Settings.connectionID, timezone: timezone)
     }
     private func load() async {
-        guard Settings.isConfigured else { morning.stop(clear: true); return }
+        guard Settings.isConfigured, selectedDay != nil else { morning.stop(clear: true); return }
         let request = scope
-        await morning.reload(request) { visible && scenePhase == .active && scope == request }
+        await morning.reload(request) { visible && scenePhase == .active && selectedDay != nil && scope == request }
     }
 }

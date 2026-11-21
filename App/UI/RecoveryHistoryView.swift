@@ -7,7 +7,7 @@ struct RecoveryHistoryView: View {
     var refreshID = 0
     var detail = false
     var insights: MorningInsights?
-    var onSelection: (Date, String) -> Void = { _, _ in }
+    var onSelection: (Date?, String) -> Void = { _, _ in }
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var history = RecoveryHistoryStore()
