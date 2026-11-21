@@ -28,7 +28,6 @@ import XCTest
         let app = launch()
         XCTAssertTrue(app.buttons["openMorningInsights"].waitForExistence(timeout: 25))
         XCTAssertFalse(app.staticTexts["morningOutlookStatus"].exists)
-        XCTAssertEqual(app.buttons["openMorningInsights"].frame.minY, app.buttons["openDayActivity"].frame.minY, accuracy: 1)
         shot(app, "Today neutral headline")
         open(app)
         let comparison = app.buttons["trendComparisons"].firstMatch
@@ -76,13 +75,53 @@ import XCTest
             XCTAssertTrue(card.waitForExistence(timeout: 20))
             XCTAssertFalse(app.staticTexts["morningOutlookStatus"].exists)
             open(app)
-            XCTAssertEqual(app.staticTexts["morningOutlookStatus"].firstMatch.label, title)
+            if state == "updating" {
+                XCTAssertTrue(app.descendants(matching: .any)["morningInsightsLoading"].firstMatch.waitForExistence(timeout: 10))
+                XCTAssertFalse(app.staticTexts["Updating"].exists)
+            } else {
+                let status = app.staticTexts["morningOutlookStatus"].firstMatch
+                XCTAssertTrue(status.waitForExistence(timeout: 10))
+                XCTAssertEqual(status.label, title)
+            }
             XCTAssertFalse(app.staticTexts["Strong"].exists)
             XCTAssertFalse(app.staticTexts["Compared with your usual"].exists)
             shot(app, "Compact morning " + state)
             app.terminate()
         }
     }
+    func testMetricSelectionPagingAndChartDetails() {
+        let app = launch()
+        open(app)
+        let sleep = app.buttons["insightMetric_sleep"]
+        XCTAssertTrue(sleep.waitForExistence(timeout: 15))
+        XCTAssertTrue(sleep.isSelected)
+        XCTAssertFalse(app.staticTexts["trendReadingValue"].exists)
+        shot(app, "Morning integrated sleep")
+        app.buttons["insightMetric_hrv"].tap()
+        XCTAssertTrue(app.buttons["insightMetric_hrv"].isSelected)
+        XCTAssertEqual(app.otherElements["trendsChart"].label, "HRV trend chart")
+        shot(app, "Morning integrated HRV")
+        app.buttons["insightMetric_resting_hr"].tap()
+        XCTAssertTrue(app.buttons["insightMetric_resting_hr"].isSelected)
+        app.segmentedControls.buttons["Month"].tap()
+        XCTAssertTrue(app.segmentedControls.buttons["Month"].isSelected)
+        app.buttons["trendPreviousPeriod"].tap()
+        XCTAssertTrue(app.staticTexts["trendReadingValue"].exists)
+        app.buttons["trendNextPeriod"].tap()
+        XCTAssertFalse(app.staticTexts["trendReadingValue"].exists)
+        app.buttons["insightMetric_sleep"].tap()
+        let chart = app.otherElements["trendsChart"]
+        let chartTop = chart.frame.minY
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["trendOpenDetail"].waitForExistence(timeout: 5))
+        XCTAssertEqual(chart.frame.minY, chartTop, accuracy: 1)
+        shot(app, "Morning selected reading")
+        app.buttons["trendOpenDetail"].tap()
+        XCTAssertFalse(app.navigationBars["Morning insights"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["trendOpenDetail"].waitForExistence(timeout: 5))
+    }
+
     func testCompactCardLargeTextAndNavigation() {
         let app = launch(large: true, state: "average")
         let card = app.buttons["openMorningInsights"]

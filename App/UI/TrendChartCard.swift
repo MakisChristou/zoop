@@ -12,6 +12,8 @@ struct TrendChartCard: View {
     let series: TrendSeries
     var pattern: TrendSeries?
     var insights: MorningInsights?
+    var integrated = false
+    var showsReadout = true
     let canGoBack: Bool
     let canGoForward: Bool
     let page: (Int) -> Void
@@ -28,11 +30,13 @@ struct TrendChartCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             periodNavigation
-            VStack(alignment: .leading, spacing: 20) {
-                readout
-                chart
-            }.padding(.bottom, 6).zoopCard()
+            if integrated {
+                plot.padding(.vertical, 12)
+            } else {
+                plot.padding(.bottom, 6).zoopCard()
+            }
             if !series.points.isEmpty {
+                if integrated { Divider().overlay(ZoopStyle.separator) }
                 let comparisonLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(alignment: .top))
                 comparisonLayout {
                     DisclosureGroup(isExpanded: $showComparisons) {
@@ -54,6 +58,15 @@ struct TrendChartCard: View {
             if let selectedDate, !points.contains(where: { $0.date == selectedDate }) { self.selectedDate = nil }
         }
     }
+    private var plot: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Reserve the readout row so scrubbing never moves the plot under the finger.
+            readout.opacity(showsReadout || selected != nil ? 1 : 0)
+                .accessibilityHidden(!showsReadout && selected == nil)
+                .allowsHitTesting(showsReadout || selected != nil)
+            chart
+        }
+    }
     private var periodNavigation: some View {
         VStack(spacing: 4) {
             if typeSize.isAccessibilitySize { periodTitle }
@@ -67,10 +80,24 @@ struct TrendChartCard: View {
         }
     }
     private var periodTitle: some View {
-        Text(range.title(interval, calendar: calendar))
+        Text(periodLabel)
             .font(ZoopType.font(size: 14, weight: .medium, relativeTo: .subheadline)).multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity).accessibilityIdentifier("trendPeriod")
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(range.title(interval, calendar: calendar))
+            .accessibilityIdentifier("trendPeriod")
+    }
+    private var periodLabel: String {
+        guard integrated, range == .week else { return range.title(interval, calendar: calendar) }
+        let last = interval.end.addingTimeInterval(-1)
+        let formatter = DateIntervalFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        let thisYear = calendar.component(.year, from: now)
+        let sameYear = calendar.component(.year, from: interval.start) == thisYear
+            && calendar.component(.year, from: last) == thisYear
+        formatter.dateTemplate = sameYear ? "dMMM" : "dMMMy"
+        return formatter.string(from: interval.start, to: last)
     }
     private var readout: some View {
         VStack(alignment: .leading, spacing: 6) {

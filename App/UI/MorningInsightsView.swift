@@ -17,41 +17,22 @@ struct MorningInsightsView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+            VStack(alignment: .leading, spacing: 20) {
+                summary
                 if error {
                     Button("Couldn’t update insights. Retry") { Task { await load() } }
                         .frame(minHeight: 44).accessibilityIdentifier("retryInsights")
                 }
-                if let insights {
-                    HStack {
-                        Text(insights.outlookTitle).font(ZoopType.headline).foregroundStyle(InsightTone.color(insights.outlook?.state))
-                            .accessibilityIdentifier("morningOutlookStatus")
-                        Spacer()
-                        if insights.isLearning, let outlook = insights.outlook {
-                            Text("\(outlook.baselineCount)/\(outlook.baselineRequired) nights").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
-                        }
-                    }
-                    let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
-                    layout {
-                        ForEach(insights.metrics) { reading in
-                            InsightMetricView(metric: reading, selected: metric == reading.trendMetric) { metric = reading.trendMetric }
-                        }
-                    }
-                    TrendHistoryView(snapshot: history.snapshot, metric: metric, initialDay: day, insights: insights, initialRange: .week) { point in
-                        detailNight = history.snapshot.nights.first { $0.endTs == point.date }; showNight = detailNight != nil
-                    }
-                    if history.error != nil {
-                        Button("Couldn’t update history. Retry") { Task { await loadHistory() } }.frame(minHeight: 44)
-                    }
-                } else if loading {
-                    ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Loading morning insights")
+                TrendHistoryView(snapshot: history.snapshot, metric: metric, initialDay: day,
+                                 insights: insights, initialRange: .week, integrated: true) { point in
+                    detailNight = history.snapshot.nights.first { $0.endTs == point.date }; showNight = detailNight != nil
+                }
+                if history.error != nil {
+                    Button("Couldn’t update history. Retry") { Task { await loadHistory() } }.frame(minHeight: 44)
                 }
             }.padding(.horizontal, ZoopStyle.gutter).padding(.vertical, 16)
         }
         .navigationTitle("Morning insights").navigationBarTitleDisplayMode(.inline).zoopScreen()
-        .zoopLoading(loading || history.loading, label: "Loading morning insights")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showMethod = true } label: { Image(systemName: "info.circle") }.accessibilityLabel("About morning insights")
@@ -74,6 +55,57 @@ struct MorningInsightsView: View {
         .refreshable { await load() }
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
+    }
+    private var pending: Bool {
+        loading || history.loading || insights?.state == "updating"
+    }
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center) { summaryDate; Spacer(minLength: 12); summaryStatus }
+                VStack(alignment: .leading, spacing: 8) { summaryDate; summaryStatus }
+            }
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            layout {
+                if let insights, !insights.metrics.isEmpty {
+                    ForEach(insights.metrics) { reading in
+                        InsightMetricView(metric: reading, selected: metric == reading.trendMetric,
+                                          reservesComparison: insights.metrics.contains { $0.visibleDelta != nil }) { metric = reading.trendMetric }
+                            .overlay(alignment: .trailing) {
+                                if !typeSize.isAccessibilitySize, reading.id != insights.metrics.last?.id {
+                                    Rectangle().fill(ZoopStyle.separator.opacity(0.6))
+                                        .frame(width: 0.5, height: 44).offset(x: 8)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                    }
+                } else {
+                    ForEach(["Sleep", "HRV", "Resting HR"], id: \.self) { title in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(title).font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
+                            Text("—").font(ZoopType.title3)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }.zoopCard()
+    }
+    private var summaryDate: some View {
+        Text(day.formatted(.dateTime.day().month(.abbreviated)))
+            .font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
+    }
+    @ViewBuilder private var summaryStatus: some View {
+        if pending {
+            ProgressView().tint(ZoopStyle.secondary)
+                .accessibilityLabel("Updating morning insights")
+                .accessibilityIdentifier("morningInsightsLoading")
+        } else if let insights {
+            Text(insights.outlookTitle).font(ZoopType.subheadline)
+                .foregroundStyle(InsightTone.color(insights.outlook?.state))
+                .accessibilityIdentifier("morningOutlookStatus")
+        }
     }
     private func loadHistory() async {
         let device = model.strap.serial, connection = Settings.connectionID

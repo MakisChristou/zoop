@@ -14,9 +14,9 @@ import XCTest
         for _ in 0..<12 where !link.isHittable { app.swipeUp() }
         link.tap()
         let status = app.staticTexts["morningOutlookStatus"].firstMatch
-        XCTAssertTrue(status.waitForExistence(timeout: 10))
-        XCTAssertEqual(status.label, "Updating")
-        let ready = NSPredicate(format: "label == %@", "Learning")
+        XCTAssertTrue(app.descendants(matching: .any)["morningInsightsLoading"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Updating"].exists)
+        let ready = NSPredicate(format: "exists == true AND label == %@", "Learning")
         expectation(for: ready, evaluatedWith: status)
         waitForExpectations(timeout: 25)
         let image = XCTAttachment(screenshot: app.screenshot())
