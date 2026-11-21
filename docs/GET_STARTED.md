@@ -18,7 +18,7 @@ You’ll need:
 - A server with Docker Engine, Compose v2 and Git.
 - A Mac with Xcode and an Apple development team that supports HealthKit signing.
 
-**This is a developer preview.** The iPhone app is not on the App Store yet.
+The iPhone app is not on the App Store yet.
 Server images build from source; Linux amd64 is tested, while arm64 validation is pending.
 
 ## 1. Start your server

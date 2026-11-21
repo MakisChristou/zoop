@@ -96,7 +96,6 @@ export default function Home(): ReactNode {
               Explore the app
             </a>
           </div>
-          <p className="preview-note">Developer preview</p>
         </section>
 
         <ProductPreview />
