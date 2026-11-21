@@ -117,6 +117,10 @@ a {
   min-width: 44px;
   min-height: 44px;
 }
+.navbar {
+  --ifm-navbar-search-input-placeholder-color: var(--site-muted);
+  --ifm-navbar-search-input-background-color: var(--site-panel);
+}
 .navbar__search-input {
   background-color: var(--site-panel);
   border: 1px solid var(--site-border);

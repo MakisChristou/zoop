@@ -153,6 +153,10 @@ test("mobile search, text enlargement and self-contained assets", async ({
 });
 
 test("accessible in dark and light themes", async ({ page }) => {
+  // Exercise the text shortcut hint even when these tests run on a Mac.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "platform", { get: () => "Linux x86_64" });
+  });
   for (const theme of ["dark", "light"]) {
     await page.addInitScript(
       (value) => localStorage.setItem("theme", value),
