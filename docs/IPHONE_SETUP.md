@@ -2,16 +2,36 @@
 id: iphone
 slug: /iphone
 title: Connect your iPhone
-description: Build the iPhone app, connect your WHOOP and sign in to your server.
+description: Install Zoop, connect your WHOOP and sign in to your server.
 ---
 
 # Connect your iPhone
 
-You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and your own
-[Zoop server](SELF_HOSTING.md). Build with Xcode and
-[XcodeGen](https://github.com/yonaskolb/XcodeGen); the verified toolchain is
-Xcode 27.2 / XcodeGen 2.46.0. Device builds need an Apple development team with
-HealthKit signing support.
+You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a running
+[Zoop server](SELF_HOSTING.md).
+
+## Install Zoop
+
+Zoop is not on the App Store yet. Until it is available, use the
+[build instructions below](#build-from-source).
+
+## Connect to your server
+
+1. Open Zoop and enter your server’s HTTP or HTTPS address.
+2. Sign in with the account created on that server.
+3. Pair your band in the official WHOOP app first, then quit that app and connect
+   with Zoop. Keep the existing Bluetooth bond.
+
+Your account must own the band’s serial number; see [server setup](SELF_HOSTING.md#connect-your-iphone).
+Saved history is available without a connected band. New recordings need the band.
+For HTTP, use a trusted LAN or VPN and allow local-network access when iOS asks.
+
+## Build from source
+
+This section is for installing before the App Store release or working on the app.
+You need a Mac, Xcode, [XcodeGen](https://github.com/yonaskolb/XcodeGen), and an Apple
+development team with HealthKit signing support. The verified toolchain is
+Xcode 27.2 / XcodeGen 2.46.0.
 
 ```sh
 git clone https://github.com/MakisChristou/zoop.git
@@ -29,11 +49,6 @@ cp Config/Local.xcconfig.example Config/Local.xcconfig
    ```
 
 3. Select the **Zoop** scheme and your iPhone, then Run.
-4. Enter your server's HTTP or HTTPS URL and sign in with an account created by its administrator.
+4. Follow [Connect to your server](#connect-to-your-server) above.
 
-Pair the strap in the official WHOOP app first, then quit that app before connecting
-with Zoop. Keep the existing Bluetooth bond. A simulator can preview the interface,
-but cannot collect strap data.
-
-For HTTP, use a trusted LAN or VPN and allow local-network access when iOS asks.
-See [server setup](SELF_HOSTING.md) for addresses and device ownership.
+A simulator can preview the interface, but cannot collect band data.

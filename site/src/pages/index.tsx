@@ -161,13 +161,9 @@ export default function Home(): ReactNode {
                 <dt>Server</dt>
                 <dd>Docker Compose</dd>
               </div>
-              <div>
-                <dt>App build</dt>
-                <dd>Mac, Xcode &amp; HealthKit signing</dd>
-              </div>
             </dl>
             <p>
-              No App Store download yet.{" "}
+              No App Store download yet. Building the app needs a Mac and Xcode.{" "}
               <Link to="/docs/iphone">Build the iPhone app.</Link>
             </p>
           </div>

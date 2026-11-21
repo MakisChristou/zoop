@@ -12,14 +12,14 @@ Your iPhone and web dashboard show the same sleep, recovery, activity and weight
 
 ## Before you start
 
-You’ll need:
+You’ll need three things:
 
-- A WHOOP 5.0 or MG and an iPhone running iOS 17 or later.
-- A server with Docker Engine, Compose v2 and Git.
-- A Mac with Xcode and an Apple development team that supports HealthKit signing.
+- **Band:** WHOOP 5.0 or MG.
+- **Phone:** an iPhone running iOS 17 or later, with Zoop installed.
+- **Server:** a machine running Docker with Compose v2.
 
-The iPhone app is not on the App Store yet.
-Server images build from source; Linux amd64 is tested, while arm64 validation is pending.
+Zoop is not on the App Store yet. For now, [build the iPhone app](IPHONE_SETUP.md#build-from-source)
+using a Mac, Xcode and an Apple development team with HealthKit support.
 
 ## 1. Start your server
 
@@ -31,7 +31,12 @@ docker compose up -d --build --wait
 ./tools/setup.sh --show-code
 ```
 
-The first build compiles the API and dashboard. Wait for Compose to report them healthy.
+The commands above use Git to download the project. You can also download and
+extract the [source ZIP](https://github.com/MakisChristou/zoop/archive/refs/heads/main.zip),
+open its folder in Terminal, and start with `./tools/setup.sh`.
+
+Docker builds the API and dashboard; you do not need Rust or Node installed.
+Wait for Compose to report them healthy. Linux amd64 is tested; arm64 validation is pending.
 
 Open **http://localhost:8080**, enter the setup code and create your admin account.
 Keep the generated `.env` file private. Once an account exists, setup closes.

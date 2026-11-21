@@ -25,12 +25,18 @@ Keep the original data, export it, and rerun analysis as the software improves.
 - Review detected workouts, daily steps and training load.
 - Track weight and cut, bulk or maintenance goals.
 - Correct sleep and workouts while keeping the original recordings.
-- Sync with Apple Health, export weight as CSV and record ECG on WHOOP MG.
+- Sync with Apple Health and export weight as CSV.
+- Try manual ECG on WHOOP MG in development builds.
 - Share selected charts through revocable links with optional passwords and expiry.
 
 ## Get started
 
-You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a server running Docker Compose.
+You need three things:
+
+- **Band:** WHOOP 5.0 or MG.
+- **Phone:** an iPhone on iOS 17+ with Zoop installed.
+- **Server:** a machine running Docker with Compose v2.
+
 The server is required; the phone keeps an upload queue during connection outages.
 
 ```sh
@@ -45,9 +51,9 @@ Open **http://localhost:8080** and create your admin account using the setup cod
 Then connect the [iPhone app](docs/IPHONE_SETUP.md). See [self-hosting](docs/SELF_HOSTING.md)
 for LAN access, accounts, backups and updates. Choose your own proxy or VPN.
 
-**Developer preview.** The server builds from source. The iPhone app currently
-requires Xcode and an Apple development team with HealthKit signing support.
-An App Store release is planned; [pre-launch checks](docs/APP_STORE.md) remain.
+Zoop is not on the App Store yet. For now, [build the iPhone app](docs/IPHONE_SETUP.md#build-from-source)
+with a Mac, Xcode and an Apple development team with HealthKit support.
+Docker builds the server; you do not need Rust or Node installed.
 
 ## How it works
 

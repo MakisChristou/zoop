@@ -66,3 +66,22 @@ These are remaining release tasks, not evidence of App Review approval:
 References: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/),
 [ATS exceptions](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowsarbitraryloads),
 [privacy manifests](https://developer.apple.com/documentation/bundleresources/privacy_manifest_files).
+
+## Publication handoff
+
+After Apple approves the app, keep manual release selected until the owner approves
+publication. Approval alone is not App Store availability.
+
+Once the public listing is live and its download link works:
+
+- Add the verified App Store link to the root README, website and iPhone guide.
+- Make the default setup: WHOOP 5.0/MG → Zoop on iPhone → Docker Compose server.
+- Remove the temporary “not on the App Store yet” notices from those pages and
+  `docs/GET_STARTED.md`. Keep Xcode, signing and XcodeGen under **Build from source**.
+- Retain the real server prerequisites. Docker currently builds from source;
+  do not claim published images or a download-only Compose setup until validated
+  release images exist. Git is optional when downloading the source ZIP.
+- Check `docs/SELF_HOSTING.md`, `server/README.md`, `web/README.md` and site search
+  for stale installation guidance. Preserve network, account and hardware requirements.
+- Build and check the docs, verify the store link on iPhone, then publish the approved
+  website update. Do not add App Store badges before the listing is available.
