@@ -13,8 +13,7 @@ const config: Config = {
   trailingSlash: true,
   onBrokenLinks: "throw",
   markdown: { hooks: { onBrokenMarkdownLinks: "throw" } },
-  // This is a review preview. Remove only as part of an approved public launch.
-  noIndex: true,
+  noIndex: false,
   i18n: { defaultLocale: "en", locales: ["en"] },
   presets: [
     [
@@ -43,8 +42,6 @@ const config: Config = {
       "@easyops-cn/docusaurus-search-local",
       {
         hashed: true,
-        // Build local search for this noindex review preview.
-        forceIgnoreNoIndex: true,
         language: "en",
         indexBlog: false,
         indexPages: false,

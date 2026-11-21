@@ -50,10 +50,20 @@ the production build and browser tests must pass before removing them.
 
 ## Publishing
 
-This is a review preview, with search-engine indexing disabled. CI builds and
-tests it but does not deploy. `build/` is a static artifact suitable for static
-hosting; it needs no API, database, account credentials or production access.
+The site is hosted at **https://zoop.health** through GitHub Pages. It is a static
+build with no API, database, account credentials or access to personal installations.
 
-Before launch, get approval for hosting and `zoop.health` DNS, finish the repository
-publication review, recheck installation instructions against the released version,
-and remove `noIndex`. A demo, if added, must use an isolated synthetic dataset.
+After approval to publish, open **Actions → Website checks → Run workflow** on
+`main`. Formatting, type checking, content checks and browser tests must pass before
+the same run uploads and deploys `site/build`. Ordinary pushes and pull requests
+only run checks; they cannot deploy. Deployment permissions belong to the separate
+`github-pages` job, never to pull-request builds.
+
+GitHub repository settings use **Pages → GitHub Actions**, with `zoop.health` as
+the custom domain. DNS points the apex to GitHub Pages and `www` to
+`makischristou.github.io`; GitHub redirects `www` to the canonical apex. GitHub
+manages the TLS certificate. Keep domain-verification TXT records in DNS.
+
+The public docs are explicitly allowlisted, search runs locally, and screenshots
+use synthetic data. Recheck installation instructions and the rendered pages before
+each publication. Any future interactive demo must use an isolated synthetic dataset.

@@ -15,8 +15,10 @@ It is independent of the signed-in dashboard in `web/` and every personal instal
   API, database, authenticated browser session or public share link.
 - Bundle fonts and use local search. Do not add analytics or external services
   without a product decision.
-- Keep `noIndex: true` until an approved launch. No deployment workflow, DNS change
-  or public hosting activation without separate explicit approval.
+- The approved public site is indexable at `zoop.health`. Publishing uses the manual
+  GitHub Pages workflow on `main`; normal pushes and pull requests only run checks.
+  Each production deployment or DNS change still needs explicit approval. Never
+  give pull-request builds deployment permissions.
 - Run formatting, type checking, content checks, the production build and browser
   tests. Inspect real desktop/mobile screenshots. Check keyboard navigation,
   contrast, reduced motion, narrow viewports and both themes.

@@ -37,7 +37,23 @@ assert.deepEqual(
 );
 for (const name of publicPages) {
   const html = await readFile(path.join(root, name), "utf8");
-  assert.match(html, /noindex/, `${name} must remain a review preview`);
+  if (name === "index.html" || name.startsWith("docs/")) {
+    assert.doesNotMatch(
+      html,
+      /<meta[^>]+name="robots"[^>]+content="[^"]*noindex/,
+      `${name} must be indexable`,
+    );
+    assert.match(
+      html,
+      /rel="canonical" href="https:\/\/zoop\.health\//,
+      `${name} must use the public domain`,
+    );
+  }
+  assert.doesNotMatch(
+    html,
+    /atlantikou|shallot|RELEASE_READINESS|APP_STORE\.md/i,
+    "Published pages must not contain personal deployment details or internal guides",
+  );
 }
 const indexes = built.filter((f) => /search-index.*\.json$/.test(f));
 assert.ok(indexes.length, "Local search must have a built index");
