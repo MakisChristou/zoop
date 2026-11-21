@@ -21,7 +21,7 @@ struct RemovedWorkoutsView: View {
                             Task {
                                 restoring = workout.id
                                 defer { restoring = nil }
-                                do { try await model.activity.undo(device: model.strap.serial, id: id); await load() }
+                                do { try await model.activity.undo(device: model.dataDevice, id: id); await load() }
                                 catch { self.error = error.localizedDescription }
                             }
                         }.disabled(restoring != nil).frame(minHeight: 44)
@@ -39,7 +39,7 @@ struct RemovedWorkoutsView: View {
 
     private func load() async {
         defer { loading = false }
-        do { rows = try await ZoopAPI.workouts(deviceId: model.strap.serial, limit: 500, status: "removed"); error = nil }
+        do { rows = try await ZoopAPI.workouts(deviceId: model.dataDevice, limit: 500, status: "removed"); error = nil }
         catch { self.error = error.localizedDescription }
     }
 }

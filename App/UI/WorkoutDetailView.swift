@@ -240,17 +240,17 @@ struct WorkoutDetailView: View {
     // MARK: - Data
 
     private func load() async {
-        guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
+        guard !model.dataDevice.isEmpty, Settings.isConfigured else { return }
         do {
-            var refreshed = try await ZoopAPI.workout(deviceId: model.strap.serial, id: snapshot.id)
+            var refreshed = try await ZoopAPI.workout(deviceId: model.dataDevice, id: snapshot.id)
             // Merged-away notification links lead to the surviving workout.
             for _ in 0..<10 {
                 guard refreshed.status == "superseded", let id = refreshed.replacements?.first, id != refreshed.id else { break }
-                refreshed = try await ZoopAPI.workout(deviceId: model.strap.serial, id: id)
+                refreshed = try await ZoopAPI.workout(deviceId: model.dataDevice, id: id)
             }
             snapshot = refreshed
             if refreshed.isActive {
-                minutes = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: window)
+                minutes = try await ZoopAPI.minutes(deviceId: model.dataDevice, window: window)
             }
             readingsLoaded = true
             error = nil
@@ -264,7 +264,7 @@ struct WorkoutDetailView: View {
         if removalRequest?.hasSameChange(as: next) != true { removalRequest = next }
         guard let request = removalRequest else { return }
         do {
-            try await model.activity.save(device: model.strap.serial, command: request)
+            try await model.activity.save(device: model.dataDevice, command: request)
             await load()
         } catch { self.error = error.localizedDescription }
     }
@@ -272,7 +272,7 @@ struct WorkoutDetailView: View {
     private func undo(_ id: String) async {
         saving = true
         defer { saving = false }
-        do { try await model.activity.undo(device: model.strap.serial, id: id); await load() }
+        do { try await model.activity.undo(device: model.dataDevice, id: id); await load() }
         catch { self.error = error.localizedDescription }
     }
 }

@@ -86,10 +86,10 @@ struct AnalysisResetView: View {
         .task { await loadHistory() }
     }
     private func review() async {
-        guard !model.strap.serial.isEmpty else { error = "Sync your WHOOP first."; return }
+        guard !model.dataDevice.isEmpty else { error = "Sync your WHOOP first."; return }
         guard allHistory || targetId != nil || lastDay >= firstDay else { error = "Choose an end date on or after the start."; return }
         saving = true; defer { saving = false }
-        do { preview = try await ZoopAPI.resetPreview(deviceId: model.strap.serial, scope: scope); error = nil }
+        do { preview = try await ZoopAPI.resetPreview(deviceId: model.dataDevice, scope: scope); error = nil }
         catch { self.error = error.localizedDescription }
     }
     private func reset() async {
@@ -98,7 +98,7 @@ struct AnalysisResetView: View {
         guard let command else { return }
         saving = true; defer { saving = false }
         do {
-            _ = try await ZoopAPI.resetAnalysis(deviceId: model.strap.serial, command: command)
+            _ = try await ZoopAPI.resetAnalysis(deviceId: model.dataDevice, command: command)
             self.preview = nil; self.command = nil; error = nil; message = "Updating history"
             model.refreshAnalysis(); await loadHistory()
         } catch {
@@ -111,14 +111,14 @@ struct AnalysisResetView: View {
         guard let undoCommand else { return }
         saving = true; defer { saving = false }
         do {
-            _ = try await ZoopAPI.undoReset(deviceId: model.strap.serial, command: undoCommand)
+            _ = try await ZoopAPI.undoReset(deviceId: model.dataDevice, command: undoCommand)
             self.undoCommand = nil; error = nil; message = "Reset undone · updating history"
             model.refreshAnalysis(); await loadHistory()
         } catch { self.error = error.localizedDescription }
     }
     private func loadHistory() async {
-        guard !model.strap.serial.isEmpty else { return }
-        do { history = try await ZoopAPI.resetHistory(deviceId: model.strap.serial) }
+        guard !model.dataDevice.isEmpty else { return }
+        do { history = try await ZoopAPI.resetHistory(deviceId: model.dataDevice) }
         catch { self.error = error.localizedDescription }
     }
 }

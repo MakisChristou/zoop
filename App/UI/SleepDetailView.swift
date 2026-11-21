@@ -206,8 +206,8 @@ struct SleepDetailView: View {
         loading = true; error = nil; scrub = nil
         do {
             let readings: [ZoopAPI.Epoch]
-            if let sessionID { readings = try await ZoopAPI.sleepEpochs(deviceId: model.strap.serial, id: sessionID) }
-            else { readings = try await ZoopAPI.epochs(deviceId: model.strap.serial, nightOf: night.nightOf) }
+            if let sessionID { readings = try await ZoopAPI.sleepEpochs(deviceId: model.dataDevice, id: sessionID) }
+            else { readings = try await ZoopAPI.epochs(deviceId: model.dataDevice, nightOf: night.nightOf) }
             guard !Task.isCancelled else { return }
             epochs = readings.filter { domain.contains($0.start) }.sorted { $0.start < $1.start }
             loading = false

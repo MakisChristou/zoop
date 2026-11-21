@@ -52,7 +52,7 @@ struct DaySteps: View {
             if let data = loaded, !data.bouts.isEmpty { walks(data) }
         }
         .zoopLoading(refreshing, label: "Loading hourly steps")
-        .task(id: "\(model.strap.serial)-\(day.timeIntervalSince1970)-\(refreshID)") { await load() }
+        .task(id: "\(model.dataDevice)-\(day.timeIntervalSince1970)-\(refreshID)") { await load() }
     }
 
     private var headlineValue: String {
@@ -117,19 +117,19 @@ struct DaySteps: View {
     }
 
     private func load() async {
-        guard !model.strap.serial.isEmpty, Settings.isConfigured else { state = .failed; return }
+        guard !model.dataDevice.isEmpty, Settings.isConfigured else { state = .failed; return }
         if case .failed = state { state = .loading }
         let request = UUID(); loadID = request
         refreshing = true
         defer { if loadID == request { refreshing = false } }
-        let serial = model.strap.serial, connection = Settings.connectionID, date = day
+        let serial = model.dataDevice, connection = Settings.connectionID, date = day
         do {
             let rows = try await ZoopAPI.steps(deviceId: serial, day: date)
-            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
+            guard !Task.isCancelled, loadID == request, model.dataDevice == serial, Settings.connectionID == connection, day == date else { return }
             state = .loaded(rows)
             model.stepsReminder.receive(rows, scope: model.health.reminderScope)
         } catch {
-            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == date else { return }
+            guard !Task.isCancelled, loadID == request, model.dataDevice == serial, Settings.connectionID == connection, day == date else { return }
             state = .failed
         }
     }

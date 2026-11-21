@@ -76,18 +76,18 @@ struct SleepView: View {
         .zoopLoading(loading, label: "Loading sleep")
         .safeAreaInset(edge: .bottom, spacing: 0) { SleepNotice() }
         .refreshable { await load() }
-        .task(id: model.strap.serial) { if let selected { selectedDay = selected.endTs }; await load() }
+        .task(id: model.dataDevice) { if let selected { selectedDay = selected.endTs }; await load() }
         .onChange(of: selected?.id) { _, _ in if let selected { selectedDay = selected.endTs } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
     }
     private func step(_ delta: Int) { selected = nil; selectedDay = calendar.date(byAdding: .day, value: delta, to: selectedDay) ?? selectedDay }
     private func load() async {
-        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to load sleep."; return }
+        guard !model.dataDevice.isEmpty else { error = "Connect your WHOOP to load sleep."; return }
         let request = UUID(); loadID = request
         loading = true; error = nil
         defer { if loadID == request { loading = false } }
         do {
-            try await model.sleep.reload(device: model.strap.serial)
+            try await model.sleep.reload(device: model.dataDevice)
         } catch {
             // Tab changes and superseded refreshes cancel reads intentionally.
             guard !Task.isCancelled, loadID == request, !(error is CancellationError),
@@ -249,7 +249,7 @@ struct SleepView: View {
             if let id = record.lastEdit {
                 Button("Undo last change", systemImage: "arrow.uturn.backward") {
                     Task {
-                        do { try await model.sleep.undo(device: model.strap.serial, id: id) }
+                        do { try await model.sleep.undo(device: model.dataDevice, id: id) }
                         catch { self.error = error.localizedDescription }
                     }
                 }

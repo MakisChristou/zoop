@@ -16,7 +16,7 @@ import XCTest
 
     func testAccountDeletionRequiresPasswordThenReturnsToSignIn() {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboarded", "YES", "-demoSerial", "UI-REVIEW", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
+        app.launchArguments = ["-onboarded", "YES", "-demoSerial", "", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
         app.launch()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
         app.textFields["Email"].tap(); app.textFields["Email"].typeText("owner@example.test")
@@ -40,13 +40,13 @@ import XCTest
         app.secureTextFields["Confirm your password"].typeText("synthetic-password")
         app.buttons["confirmDeleteAccount"].tap()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 12))
-        app.terminate(); app.launchArguments = ["-onboarded", "YES", "-demoSerial", "UI-REVIEW"]; app.launch()
+        app.terminate(); app.launchArguments = ["-onboarded", "YES", "-demoSerial", ""]; app.launch()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
     }
 
     func testRejectedLoginThenSuccessfulLoginPersistsAcrossRelaunch() {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboarded", "YES", "-demoSerial", "UI-REVIEW", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
+        app.launchArguments = ["-onboarded", "YES", "-demoSerial", "", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
         app.launch()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
         app.textFields["Email"].tap(); app.textFields["Email"].typeText("owner@example.test")
@@ -62,10 +62,18 @@ import XCTest
             let image = XCTAttachment(screenshot: app.screenshot()); image.lifetime = .keepAlways; add(image)
             XCTFail("Sign-in did not reach the dashboard"); return
         }
+        app.buttons["tab-Activity"].tap()
+        XCTAssertTrue(app.buttons["workout-900"].waitForExistence(timeout: 12))
+        let history = XCTAttachment(screenshot: app.screenshot())
+        history.name = "Account history without a connected band"; history.lifetime = .keepAlways; add(history)
+        app.buttons["tab-Sleep"].tap()
+        XCTAssertTrue(app.buttons["sleepTimelineDetails"].waitForExistence(timeout: 12))
         app.terminate()
-        app.launchArguments = ["-onboarded", "YES", "-demoSerial", "UI-REVIEW"]
+        app.launchArguments = ["-onboarded", "YES", "-demoSerial", ""]
         app.launch()
         XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.textFields["Email"].exists)
+        app.buttons["tab-Activity"].tap()
+        XCTAssertTrue(app.buttons["workout-900"].waitForExistence(timeout: 12))
     }
 }

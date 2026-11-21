@@ -21,6 +21,11 @@ final class AppModel {
     /// Frames accepted by the most recent successful upload, for the status line.
     private(set) var lastBatchAccepted = 0
 
+    private var accountCredential = Settings.credential
+    var dataDevice: String {
+        Settings.dataDevice(physicalSerial: strap.serial, credential: accountCredential)
+    }
+
     let strap: StrapManager
     let ecg: ECGRecorder
     let battery = BatteryMonitor()
@@ -69,12 +74,13 @@ final class AppModel {
         ecg.onHistoryChanged = { [weak self] in self?.refreshReminders() }
         reminderSettingsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, self.reminderConnection != Settings.connectionID else { return }
+                guard let self, self.reminderConnection != Settings.connectionID || self.accountCredential != Settings.credential else { return }
                 self.reminderConnection = Settings.connectionID
+                self.accountCredential = Settings.credential
                 self.ecg.accountChanged()
-                self.sleep.activate(self.strap.serial)
-                self.activity.activate(self.strap.serial)
-                self.health.activate(self.strap.serial)
+                self.sleep.activate(self.dataDevice)
+                self.activity.activate(self.dataDevice)
+                self.health.activate(self.dataDevice)
                 self.refreshReminders()
             }
         }
@@ -109,10 +115,8 @@ final class AppModel {
             self.ecg.connectionChanged()
             Task { await self.bindCurrentDevice() }
         }
-        if !strap.serial.isEmpty {
-            workouts.activate(device: strap.serial)
-            health.activate(strap.serial)
-        }
+        if !strap.serial.isEmpty { workouts.activate(device: strap.serial) }
+        health.activate(dataDevice)
         strap.onBatteryLevel = { [weak self] percent, at, live, source in self?.battery.receive(percent: percent, at: at, live: live, source: source) }
         strap.onCharging = { [weak self] charging, at, live in self?.battery.receive(charging: charging, at: at, live: live) }
         strap.onPackInfo = { [weak self] info, at, live, cached in
@@ -191,7 +195,7 @@ final class AppModel {
         sleep.dismissNotice(); activity.dismissNotice()
         analysisUpdating = true; analysisRevision += 1
         let request = UUID(); analysisRequest = request
-        let device = strap.serial, connection = Settings.connectionID
+        let device = dataDevice, connection = Settings.connectionID
         analysisRefresh = Task { [weak self] in
             defer {
                 if let self, self.analysisRequest == request { self.analysisUpdating = false }
@@ -199,12 +203,12 @@ final class AppModel {
             guard let self else { return }
             do {
                 let ready = try await RefreshPoller.wait(attempts: Self.analysisRefreshAttempts, delay: Self.analysisRefreshDelay) {
-                    guard self.strap.serial == device, Settings.connectionID == connection, self.analysisRequest == request else { throw CancellationError() }
+                    guard self.dataDevice == device, Settings.connectionID == connection, self.analysisRequest == request else { throw CancellationError() }
                     do { return try await ZoopAPI.processing(deviceId: device).pendingAnalysis == 0 }
                     catch is CancellationError { throw CancellationError() }
                     catch { self.processingError = error.localizedDescription; return false }
                 }
-                guard !Task.isCancelled, self.analysisRequest == request, self.strap.serial == device, Settings.connectionID == connection else { return }
+                guard !Task.isCancelled, self.analysisRequest == request, self.dataDevice == device, Settings.connectionID == connection else { return }
                 guard ready else { self.processingError = "Analysis is still refreshing. Try again shortly."; return }
                 await ZoopAPI.invalidateReads()
                 async let nights: () = self.sleep.reload(device: device)

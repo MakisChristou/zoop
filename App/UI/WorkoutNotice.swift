@@ -17,7 +17,7 @@ struct WorkoutNotice: View {
                             Task {
                                 saving = true
                                 defer { saving = false }
-                                do { try await model.activity.undo(device: model.strap.serial, id: id); error = nil }
+                                do { try await model.activity.undo(device: model.dataDevice, id: id); error = nil }
                                 catch { self.error = error.localizedDescription }
                             }
                         } label: {

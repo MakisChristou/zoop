@@ -62,7 +62,7 @@ struct TrendsView: View {
                 }
             }
             .refreshable { await ZoopAPI.invalidateReads(); recoveryRefresh += 1; await load() }
-            .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
+            .task(id: "\(model.dataDevice)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
                 if scenePhase == .active { await load() }
             }
         }
@@ -115,9 +115,9 @@ struct TrendsView: View {
     }
 
     private func load() async {
-        let device = model.strap.serial, connection = Settings.connectionID
+        let device = model.dataDevice, connection = Settings.connectionID
         await history.reload(device: device, connection: connection) {
-            model.strap.serial == device && Settings.connectionID == connection
+            model.dataDevice == device && Settings.connectionID == connection
         }
     }
 }

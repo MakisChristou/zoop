@@ -15,7 +15,7 @@ struct ProfilePhotoView: View {
     @State private var confirmRemoval = false
 
     private var current: UIImage? { model.photo.image(for: scope) }
-    private var valid: Bool { scope.device == model.strap.serial && scope.connection == Settings.connectionID }
+    private var valid: Bool { scope.device == model.dataDevice && scope.connection == Settings.connectionID }
     private var busy: Bool { preparing || working }
     private var compactHeight: CGFloat { draft != nil || current != nil ? 440 : 370 }
 

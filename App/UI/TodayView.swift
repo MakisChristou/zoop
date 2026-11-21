@@ -76,7 +76,7 @@ struct TodayView: View {
         .onChange(of: model.analysisRevision) { _, _ in Task { await loadHistory() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
         .onReceive(clock) { if !Calendar.current.isDate(now, inSameDayAs: $0) { now = $0 } }
-        .task(id: "\(model.strap.serial)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
+        .task(id: "\(model.dataDevice)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
         .task(id: MorningInsightsStore.FollowKey(scope: insightScope, active: visible && scenePhase == .active)) {
             guard visible, scenePhase == .active, Settings.isConfigured else {
                 morning.stop(clear: !Settings.isConfigured); return
@@ -275,9 +275,9 @@ struct TodayView: View {
     }
 
     private func loadHistory() async {
-        guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
+        guard !model.dataDevice.isEmpty, Settings.isConfigured else { return }
         let day = viewedDay
-        let serial = model.strap.serial
+        let serial = model.dataDevice
         let connection = Settings.connectionID
         let requestID = UUID()
         loadID = requestID
@@ -297,7 +297,7 @@ struct TodayView: View {
         let fetchedWorkouts: Void? = try? await w
         let fetchedSteps = try? await s
         // A slow response from a previous tap must never replace the chosen day.
-        guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.strap.serial == serial, Settings.connectionID == connection else { return }
+        guard !Task.isCancelled, loadID == requestID, viewedDay == day, model.dataDevice == serial, Settings.connectionID == connection else { return }
         if let fetchedDays { days = fetchedDays }
         if let fetchedNights { nights = fetchedNights }
 
@@ -311,7 +311,7 @@ struct TodayView: View {
 
     private var viewedDay: Date { selectedDay ?? Calendar.current.startOfDay(for: now) }
     private var insightScope: MorningInsightsStore.Scope {
-        .init(device: model.strap.serial, day: viewedDay, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
+        .init(device: model.dataDevice, day: viewedDay, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
     }
     private var isViewingToday: Bool { Calendar.current.isDate(viewedDay, inSameDayAs: now) }
     private var currentMinutes: [ZoopAPI.Minute] { loadedDay == viewedDay ? minutes : [] }

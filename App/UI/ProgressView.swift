@@ -43,13 +43,13 @@ struct HealthProgressView: View {
         .zoopLoading(store.loading, label: "Loading progress")
         .sheet(isPresented: $showAbout) { ProgressAboutView(summary: store.summary) }
         .refreshable { await ZoopAPI.invalidateReads(); await load() }
-        .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
+        .task(id: "\(model.dataDevice)-\(Settings.connectionID.hashValue)-\(model.sleep.changeToken)-\(model.analysisRevision)-\(scenePhase)") {
             if scenePhase == .active { await load() }
         }
     }
     private func load() async {
-        let device = model.strap.serial, connection = Settings.connectionID
-        await store.reload(device: device, connection: connection) { model.strap.serial == device && Settings.connectionID == connection }
+        let device = model.dataDevice, connection = Settings.connectionID
+        await store.reload(device: device, connection: connection) { model.dataDevice == device && Settings.connectionID == connection }
     }
 }
 

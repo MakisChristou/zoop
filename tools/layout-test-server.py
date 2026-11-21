@@ -185,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(dict(goal=goal, summary=None))
         if route == 'days': return self.send(days[:limit])
         if route == 'workouts' or route.startswith('workouts/'):
-            if not device.startswith('DESIGN-'): return self.send([])
+            if not device.startswith('DESIGN-') and device != 'UI-REVIEW': return self.send([])
             rows = [dict(id=900+i, start_ts=stamp(today-timedelta(days=i)+timedelta(hours=10)),
                                    end_ts=stamp(today-timedelta(days=i)+timedelta(hours=11)), duration_s=3600,
                                    kind=kind, detected_kind=kind, edited=False, auto_detected=True,
@@ -206,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('DESIGN-SLEEP-ERROR-') and device not in slow_devices:
                 slow_devices[device] = True
                 return self.send(dict(error='Synthetic signal failure'), 503)
-            if not device.startswith('DESIGN-'): return self.send([])
+            if not device.startswith('DESIGN-') and device != 'UI-REVIEW': return self.send([])
             session = next((s for s in sessions if str(s['id']) == parts[-2]), sessions[0])
             start = datetime.fromisoformat(session['start_ts'].replace('Z', '+00:00'))
             end = datetime.fromisoformat(session['end_ts'].replace('Z', '+00:00'))

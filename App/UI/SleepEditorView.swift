@@ -95,7 +95,7 @@ struct SleepEditorView: View {
         let row = mode.record
         loading = true; defer { loading = false }
         do {
-            let rows = try await ZoopAPI.sleepSessions(deviceId: model.strap.serial, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration)).filter { $0.id != row.id }
+            let rows = try await ZoopAPI.sleepSessions(deviceId: model.dataDevice, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration)).filter { $0.id != row.id }
             neighbours = [rows.filter { $0.endTs <= start }.max { $0.endTs < $1.endTs }, rows.filter { $0.startTs >= end }.min { $0.startTs < $1.startTs }].compactMap { $0 }.sorted { gap($0) < gap($1) }
         } catch { self.error = error.localizedDescription }
     }
@@ -105,12 +105,12 @@ struct SleepEditorView: View {
     private func loadReadings() async {
         guard to > from, to.timeIntervalSince(from) <= Self.maximumDuration else { minutes = []; return }
         do {
-            let rows = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: from...to)
+            let rows = try await ZoopAPI.minutes(deviceId: model.dataDevice, window: from...to)
             guard !Task.isCancelled else { return }; minutes = rows; chartError = nil
         } catch { if !Task.isCancelled { minutes = []; chartError = "Couldn’t load the chart. You can still save your times." } }
     }
     private func save() async {
-        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to save this change."; return }
+        guard !model.dataDevice.isEmpty else { error = "Connect your WHOOP to save this change."; return }
         guard to > from, to.timeIntervalSince(from) <= Self.maximumDuration else { error = "Choose a wake-up time after falling asleep, within 24 hours."; return }
         var targets = [WorkoutCorrection.Target(mode.record)]
         if mode.action == "merge" { guard let neighbour else { error = "Choose a sleep recording to merge."; return }; targets.append(.init(neighbour)) }
@@ -118,7 +118,7 @@ struct SleepEditorView: View {
         if request?.hasSameChange(as: draft) != true { request = draft }
         guard let request else { return }
         saving = true; defer { saving = false }
-        do { try await model.sleep.save(device: model.strap.serial, command: request); dismiss() }
+        do { try await model.sleep.save(device: model.dataDevice, command: request); dismiss() }
         catch { self.error = error.localizedDescription }
     }
 }

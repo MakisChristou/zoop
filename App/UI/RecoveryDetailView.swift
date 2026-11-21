@@ -50,7 +50,7 @@ struct RecoveryDetailView: View {
     }
 
     private var scope: MorningInsightsStore.Scope {
-        .init(device: model.strap.serial, day: selectedDay ?? day, connection: Settings.connectionID, timezone: timezone)
+        .init(device: model.dataDevice, day: selectedDay ?? day, connection: Settings.connectionID, timezone: timezone)
     }
     private func load() async {
         guard Settings.isConfigured, selectedDay != nil else { morning.stop(clear: true); return }

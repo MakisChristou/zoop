@@ -16,7 +16,7 @@ struct RemovedSleepView: View {
         .task(id: model.sleep.changeToken) { await load() }.refreshable { await load() }
     }
     private func load() async {
-        do { rows = try await ZoopAPI.sleepSessions(deviceId: model.strap.serial, status: "removed"); error = nil }
+        do { rows = try await ZoopAPI.sleepSessions(deviceId: model.dataDevice, status: "removed"); error = nil }
         catch { self.error = error.localizedDescription }
     }
 }

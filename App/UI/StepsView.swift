@@ -71,7 +71,7 @@ struct StepsView: View {
             DayStepsView(day: day, summary: summary(for: day), summariesLoaded: days.isLoaded)
         }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await load() } }
-        .task(id: model.strap.serial) { await load() }
+        .task(id: model.dataDevice) { await load() }
         .refreshable { await load(); refreshID += 1 }
         .onAppear {
             #if targetEnvironment(simulator)
@@ -234,23 +234,23 @@ struct StepsView: View {
     }
 
     private func load() async {
-        guard !model.strap.serial.isEmpty, Settings.isConfigured else {
+        guard !model.dataDevice.isEmpty, Settings.isConfigured else {
             days = .failed("Set up the server connection under Profile → Advanced.")
             return
         }
         if case .failed = days { days = .loading }
-        let serial = model.strap.serial, connection = Settings.connectionID
+        let serial = model.dataDevice, connection = Settings.connectionID
         let request = UUID(); loadID = request
         refreshing = true
         defer { if loadID == request { refreshing = false } }
         async let w: Void = model.activity.reload(device: serial)
         do {
             let rows = try await ZoopAPI.days(deviceId: serial, limit: 31)
-            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection else { return }
+            guard !Task.isCancelled, loadID == request, model.dataDevice == serial, Settings.connectionID == connection else { return }
             days = .loaded(rows)
         } catch is CancellationError { }
         catch {
-            guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection else { return }
+            guard !Task.isCancelled, loadID == request, model.dataDevice == serial, Settings.connectionID == connection else { return }
             days = .failed(error.localizedDescription)
         }
         _ = try? await w

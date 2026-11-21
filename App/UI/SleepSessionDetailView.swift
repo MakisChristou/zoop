@@ -54,12 +54,12 @@ struct SleepSessionDetailView: View {
         .onChange(of: model.analysisRevision) { _, _ in Task { await refresh() } }
     }
     private func refresh() async {
-        do { snapshot = try await ZoopAPI.sleepSession(deviceId: model.strap.serial, id: initial.id) }
+        do { snapshot = try await ZoopAPI.sleepSession(deviceId: model.dataDevice, id: initial.id) }
         catch { self.error = error.localizedDescription }
     }
     private func undo(_ edit: String) async {
         saving = true; defer { saving = false }
-        do { try await model.sleep.undo(device: model.strap.serial, id: edit); error = nil; await refresh() }
+        do { try await model.sleep.undo(device: model.dataDevice, id: edit); error = nil; await refresh() }
         catch { self.error = error.localizedDescription }
     }
     private func removeSleep() async {
@@ -67,7 +67,7 @@ struct SleepSessionDetailView: View {
         if removalRequest?.hasSameChange(as: draft) != true { removalRequest = draft }
         guard let removalRequest else { return }
         saving = true; defer { saving = false }
-        do { try await model.sleep.save(device: model.strap.serial, command: removalRequest); error = nil; await refresh() }
+        do { try await model.sleep.save(device: model.dataDevice, command: removalRequest); error = nil; await refresh() }
         catch { self.error = error.localizedDescription }
     }
 }

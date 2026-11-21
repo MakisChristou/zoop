@@ -11,7 +11,7 @@ struct ProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var path: [Page] = []
     @State private var editingPhoto = false
-    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.strap.serial, connection: Settings.connectionID) }
+    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.dataDevice, connection: Settings.connectionID) }
     private let open: Page?
 
     init(open: Page? = nil) {

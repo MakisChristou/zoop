@@ -74,7 +74,7 @@ struct BodyProfileSection: View {
                     if saving { ProgressView() } else if let status { Text(status).foregroundStyle(ZoopStyle.secondary) }
                 }
             }
-            .disabled(saving || loading || !loaded || !Settings.isConfigured || model.strap.serial.isEmpty)
+            .disabled(saving || loading || !loaded || !Settings.isConfigured || model.dataDevice.isEmpty)
             if loadFailed {
                 Button("Couldn’t load profile. Retry") { Task { await load() } }
             }
@@ -83,13 +83,13 @@ struct BodyProfileSection: View {
         } footer: {
             Text("Used to estimate calories and heart-rate zones. Time zone: \(TimeZone.current.identifier).")
         }
-        .task(id: "\(model.strap.serial)|\(Settings.connectionID)") { await load() }
+        .task(id: "\(model.dataDevice)|\(Settings.connectionID)") { await load() }
         .onChange(of: model.health.lastWeight) { _, _ in Task { await load(preserveEdits: true) } }
     }
 
     private func load(preserveEdits: Bool = false) async {
-        guard Settings.isConfigured, !model.strap.serial.isEmpty else { return }
-        let serial = model.strap.serial, connection = Settings.connectionID, request = UUID()
+        guard Settings.isConfigured, !model.dataDevice.isEmpty else { return }
+        let serial = model.dataDevice, connection = Settings.connectionID, request = UUID()
         loadID = request; loading = true
         defer { if loadID == request { loading = false } }
         let fetched: ZoopAPI.Profile
@@ -98,7 +98,7 @@ struct BodyProfileSection: View {
             if loadID == request, !Task.isCancelled { loadFailed = true }
             return
         }
-        guard !Task.isCancelled, loadID == request, serial == model.strap.serial, connection == Settings.connectionID else { return }
+        guard !Task.isCancelled, loadID == request, serial == model.dataDevice, connection == Settings.connectionID else { return }
         loadFailed = false
         if preserveEdits && loaded {
             profile.weightKg = fetched.weightKg; profile.weightMeasuredAt = fetched.weightMeasuredAt
@@ -122,9 +122,9 @@ struct BodyProfileSection: View {
         profile.heightCm = Double(heightText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
         profile.tz = TimeZone.current.identifier
         do {
-            let serial = model.strap.serial, connection = Settings.connectionID
+            let serial = model.dataDevice, connection = Settings.connectionID
             let saved = try await ZoopAPI.saveProfile(deviceId: serial, profile)
-            guard serial == model.strap.serial, connection == Settings.connectionID else { return }
+            guard serial == model.dataDevice, connection == Settings.connectionID else { return }
             profile = saved
             status = "Saved"
         } catch {

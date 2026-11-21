@@ -27,6 +27,15 @@ enum Settings {
         guard let credential else { return false }
         return credential.devices?.contains(serial) ?? true
     }
+    /// Browsing uses an explicitly owned device; recording always uses the physical strap.
+    static func dataDevice(physicalSerial: String, credential: ServerCredential?) -> String {
+        guard let credential else { return "" }
+        if !physicalSerial.isEmpty {
+            return credential.devices?.contains(physicalSerial) == false ? "" : physicalSerial
+        }
+        guard let devices = credential.devices, devices.count == 1 else { return "" }
+        return devices[0]
+    }
     static var isConfigured: Bool { credential != nil }
     static func save(_ credential: ServerCredential) throws {
         try credentials.save(credential)

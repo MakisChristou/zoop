@@ -89,7 +89,7 @@ struct MainScreenChrome: ViewModifier {
         #endif
     }
     private struct PhotoRefresh: Equatable { let scope: ProfilePhotoStore.Scope; let active: Bool }
-    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.strap.serial, connection: Settings.connectionID) }
+    private var photoScope: ProfilePhotoStore.Scope { .init(device: model.dataDevice, connection: Settings.connectionID) }
 }
 
 extension View {

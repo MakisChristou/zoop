@@ -29,7 +29,7 @@ struct ActivityView: View {
         .onChange(of: model.sleep.changeToken) { _, _ in Task { await load() } }
         .onChange(of: model.analysisRevision) { _, _ in Task { await load() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await load() } }
-        .task(id: model.strap.serial) { await load() }
+        .task(id: model.dataDevice) { await load() }
         .task {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
@@ -191,8 +191,8 @@ struct ActivityView: View {
     // MARK: - Data
 
     private func load() async {
-        guard !model.strap.serial.isEmpty, Settings.isConfigured else { return }
-        let serial = model.strap.serial, connection = Settings.connectionID, day = selectedDay
+        guard !model.dataDevice.isEmpty, Settings.isConfigured else { return }
+        let serial = model.dataDevice, connection = Settings.connectionID, day = selectedDay
         let request = UUID(); loadID = request
         loading = true
         defer { if loadID == request { loading = false } }
@@ -201,7 +201,7 @@ struct ActivityView: View {
         var failure: String?
         do { try await w } catch { failure = error.localizedDescription }
         let rows = try? await d
-        guard !Task.isCancelled, loadID == request, model.strap.serial == serial, Settings.connectionID == connection, day == selectedDay else { return }
+        guard !Task.isCancelled, loadID == request, model.dataDevice == serial, Settings.connectionID == connection, day == selectedDay else { return }
         error = failure
         if let rows { days = rows }
         loaded = true
@@ -209,7 +209,7 @@ struct ActivityView: View {
 
     private func open(_ id: Int64) async {
         do {
-            let workout = try await ZoopAPI.workout(deviceId: model.strap.serial, id: id)
+            let workout = try await ZoopAPI.workout(deviceId: model.dataDevice, id: id)
             path = [workout]
         } catch { self.error = "Couldn’t open this workout. Refresh and try again." }
         model.battery.openWorkout = nil

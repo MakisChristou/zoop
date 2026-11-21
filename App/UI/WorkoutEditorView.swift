@@ -132,7 +132,7 @@ struct WorkoutEditorView: View {
         loading = true
         defer { loading = false }
         do {
-            let rows = try await ZoopAPI.workouts(deviceId: model.strap.serial, limit: 500, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration))
+            let rows = try await ZoopAPI.workouts(deviceId: model.dataDevice, limit: 500, from: start.addingTimeInterval(-Self.maximumDuration), to: end.addingTimeInterval(Self.maximumDuration))
                 .filter { $0.id != workout.id }
             neighbours = [rows.filter { $0.endTs <= start }.max { $0.endTs < $1.endTs }, rows.filter { $0.startTs >= end }.min { $0.startTs < $1.startTs }].compactMap { $0 }
         } catch { self.error = "Couldn’t load nearby workouts. Check your connection and reopen the editor." }
@@ -141,7 +141,7 @@ struct WorkoutEditorView: View {
     private func loadMinutes() async {
         guard previewEnd > previewStart, previewEnd.timeIntervalSince(previewStart) <= Self.maximumDuration else { minutes = []; return }
         do {
-            let loaded = try await ZoopAPI.minutes(deviceId: model.strap.serial, window: previewStart...previewEnd)
+            let loaded = try await ZoopAPI.minutes(deviceId: model.dataDevice, window: previewStart...previewEnd)
             guard !Task.isCancelled else { return }
             minutes = loaded; chartError = nil
         } catch {
@@ -151,7 +151,7 @@ struct WorkoutEditorView: View {
     }
 
     private func save() async {
-        guard !model.strap.serial.isEmpty else { error = "Connect your WHOOP to save this change."; return }
+        guard !model.dataDevice.isEmpty else { error = "Connect your WHOOP to save this change."; return }
         guard previewEnd > previewStart, previewEnd.timeIntervalSince(previewStart) <= Self.maximumDuration else {
             error = "Choose an end after the start, within 24 hours."; return
         }
@@ -175,7 +175,7 @@ struct WorkoutEditorView: View {
         saving = true
         defer { saving = false }
         do {
-            try await model.activity.save(device: model.strap.serial, command: request)
+            try await model.activity.save(device: model.dataDevice, command: request)
             onSaved(); dismiss()
         } catch { self.error = error.localizedDescription }
     }

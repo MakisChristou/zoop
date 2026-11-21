@@ -8,7 +8,7 @@ struct TrendSleepDetailView: View {
     @State private var error: String?
     @State private var requestID = UUID()
     @State private var loadedScope: String?
-    private var scope: String { model.strap.serial + "|" + Settings.connectionID }
+    private var scope: String { model.dataDevice + "|" + Settings.connectionID }
 
     var body: some View {
         Group {
@@ -31,7 +31,7 @@ struct TrendSleepDetailView: View {
         .task(id: scope) { await load() }
     }
     private func load() async {
-        let source = scope, serial = model.strap.serial, request = UUID()
+        let source = scope, serial = model.dataDevice, request = UUID()
         requestID = request
         session = nil; error = nil; loadedScope = nil
         do {

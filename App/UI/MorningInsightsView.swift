@@ -108,8 +108,8 @@ struct MorningInsightsView: View {
         }
     }
     private func loadHistory() async {
-        let device = model.strap.serial, connection = Settings.connectionID
-        await history.reload(device: device, connection: connection) { model.strap.serial == device && Settings.connectionID == connection }
+        let device = model.dataDevice, connection = Settings.connectionID
+        await history.reload(device: device, connection: connection) { model.dataDevice == device && Settings.connectionID == connection }
     }
     private func load() async {
         guard Settings.isConfigured else { morning.stop(clear: true); return }
@@ -117,6 +117,6 @@ struct MorningInsightsView: View {
         await morning.reload(request) { visible && scenePhase == .active && scope == request }
     }
     private var scope: MorningInsightsStore.Scope {
-        .init(device: model.strap.serial, day: day, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
+        .init(device: model.dataDevice, day: day, connection: Settings.connectionID, timezone: TimeZone.current.identifier)
     }
 }

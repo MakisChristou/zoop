@@ -77,6 +77,24 @@ final class CredentialStoreTests: XCTestCase {
         XCTAssertEqual(Settings.healthScope(device: "A", credential: first), Settings.healthScope(device: "A", credential: legacy))
         XCTAssertEqual(Settings.healthScope(device: "A", credential: rotated), Settings.healthScope(device: "A", credential: legacy))
     }
+    func testBrowsingDisconnectedAccountDoesNotInventARecordingIdentity() {
+        let account = ServerCredential(server: "https://server.example", token: "test", accountID: 1, devices: ["A"])
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "", credential: account), "A")
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "A", credential: account), "A")
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "B", credential: account), "")
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "A", credential: nil), "")
+        var other = account
+        other.devices = ["B"]
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "", credential: other), "B")
+        other.devices = []
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "", credential: other), "")
+        other.devices = ["A", "B"]
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "", credential: other), "")
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "B", credential: other), "B")
+        other.devices = nil
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "", credential: other), "")
+        XCTAssertEqual(Settings.dataDevice(physicalSerial: "A", credential: other), "A")
+    }
     func testLoginRejectsUnsafeOrAmbiguousServerURLs() throws {
         for url in ["https://user:password@example.test", "https://example.test/path", "https://example.test?x=1", "file:///tmp/a", "https://example.test#fragment"] {
             XCTAssertThrowsError(try ServerSignIn.address(url), url)

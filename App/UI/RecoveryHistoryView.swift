@@ -12,14 +12,14 @@ struct RecoveryHistoryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var history = RecoveryHistoryStore()
     private var snapshot: RecoveryHistoryStore.Snapshot? {
-        history.value(device: model.strap.serial, connection: Settings.connectionID)
+        history.value(device: model.dataDevice, connection: Settings.connectionID)
     }
 
     var body: some View {
         VStack(spacing: 12) {
             if let snapshot {
                 RecoveryHistoryChart(snapshot: snapshot, initialDay: initialDay.map { DayKey.string($0) } ?? DayKey.string(snapshot.now, timeZone: snapshot.calendar.timeZone), detail: detail, insights: insights, onSelection: onSelection)
-            } else if model.strap.serial.isEmpty {
+            } else if model.dataDevice.isEmpty {
                 Text("No recovery history").font(ZoopType.subheadline).foregroundStyle(ZoopStyle.secondary)
             } else if !history.failed {
                 ProgressView().frame(maxWidth: .infinity).frame(height: 280)
@@ -32,7 +32,7 @@ struct RecoveryHistoryView: View {
             }
         }
         .zoopLoading(history.loading && snapshot != nil, label: "Updating recovery history")
-        .task(id: "\(model.strap.serial)-\(Settings.connectionID.hashValue)-\(model.analysisRevision)-\(model.sleep.changeToken)-\(refreshID)-\(scenePhase)") {
+        .task(id: "\(model.dataDevice)-\(Settings.connectionID.hashValue)-\(model.analysisRevision)-\(model.sleep.changeToken)-\(refreshID)-\(scenePhase)") {
             guard scenePhase == .active else { return }
             repeat {
                 await load()
@@ -43,9 +43,9 @@ struct RecoveryHistoryView: View {
     }
 
     private func load() async {
-        let device = model.strap.serial, connection = Settings.connectionID
+        let device = model.dataDevice, connection = Settings.connectionID
         await history.reload(device: device, connection: connection) {
-            model.strap.serial == device && Settings.connectionID == connection
+            model.dataDevice == device && Settings.connectionID == connection
         }
     }
 }
