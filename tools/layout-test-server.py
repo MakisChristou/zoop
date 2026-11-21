@@ -20,6 +20,7 @@ def stamp(value):
 
 
 nights, days, sessions, weights = [], [], [], []
+recovery_history_reads = {}
 for i in range(120):
     day = today - timedelta(days=i)
     end = day + timedelta(hours=8)
@@ -134,6 +135,7 @@ class Handler(BaseHTTPRequestHandler):
             time.sleep(max(0, 14 - (time.monotonic() - started)))
         if device == 'RINGS-EMPTY' and route in ('sleeps', 'days'): return self.send([])
         if route == 'recovery':
+            recovery_history_reads[device] = recovery_history_reads.get(device, 0) + 1
             if device == 'RECOVERY-HISTORY-FAIL': return self.send(dict(error='Synthetic unavailable'), 503)
             if device == 'RECOVERY-HISTORY-EMPTY': return self.send([])
             rows = []
@@ -143,6 +145,8 @@ class Handler(BaseHTTPRequestHandler):
                 if device == 'RECOVERY-HISTORY' and i == 3: continue
                 score = [75, 61, 28, 82, 48, 94, 0][i % 7] if device == 'RECOVERY-HISTORY' else 75
                 state = device.removeprefix('RECOVERY-') if device.startswith('RECOVERY-') and not device.startswith('RECOVERY-HISTORY') else 'ready'
+                if device.startswith('RECOVERY-LOADING-'):
+                    state = 'updating' if i == 0 and recovery_history_reads[device] == 1 else 'ready'
                 if state == 'zero': state, score = 'ready', 0
                 if state == 'full': state, score = 'ready', 100
                 reading = recovery(state, count=11 if state == 'learning' else 20, score=score)
@@ -218,7 +222,8 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('RECOVERY-'):
                 state = device.removeprefix('RECOVERY-')
                 body = insight(parts[-2], True)
-                if state.startswith('HISTORY'): body['recovery'] = recovery(score=[75, 61, 28, 82, 48, 94, 0][(today.date()-datetime.fromisoformat(parts[-2]).date()).days % 7])
+                if state.startswith('LOADING-'): body['recovery'] = recovery('updating' if recovery_history_reads.get(device, 0) < 2 else 'ready')
+                elif state.startswith('HISTORY'): body['recovery'] = recovery(score=[75, 61, 28, 82, 48, 94, 0][(today.date()-datetime.fromisoformat(parts[-2]).date()).days % 7])
                 elif state == 'old-server': body.pop('recovery', None)
                 else: body['recovery'] = recovery(state if state not in ('zero', 'full') else 'ready', count=11 if state == 'learning' else 20, score=0 if state == 'zero' else 100 if state == 'full' else 75)
                 return self.send(body)

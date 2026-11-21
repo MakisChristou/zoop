@@ -1,11 +1,11 @@
 import XCTest
 
 @MainActor final class RecoveryHistoryTests: XCTestCase {
-    private func launch(_ device: String = "RECOVERY-HISTORY", large: Bool = false) -> XCUIApplication {
+    private func launch(_ device: String = "RECOVERY-HISTORY", large: Bool = false, screen: String = "trends") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-demoSerial", device, "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "trends", "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
+        app.launchArguments = ["-demoSerial", device, "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", screen, "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
-        let recovery = app.buttons["Recovery"]
+        let recovery = app.buttons[screen == "trends" ? "Recovery" : "openRecoverySummary"]
         XCTAssertTrue(recovery.waitForExistence(timeout: 15)); recovery.tap()
         return app
     }
@@ -48,6 +48,22 @@ import XCTest
         app.buttons["retryRecoveryHistory"].tap()
         XCTAssertFalse(app.staticTexts["recoveryHistoryScore"].exists)
         shot(app, "Recovery retry")
+    }
+    func testPendingScoreUsesLoadingIndicatorUntilReady() {
+        for screen in ["trends", "today"] {
+            let app = launch("RECOVERY-LOADING-" + UUID().uuidString, screen: screen)
+            let loading = app.descendants(matching: .any)["recoveryScoreLoading"].firstMatch
+            XCTAssertTrue(loading.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["recoveryHistoryChart"].exists)
+            XCTAssertFalse(app.staticTexts["Updating"].exists)
+            shot(app, "Recovery loading " + screen)
+            let score = app.staticTexts["recoveryHistoryScore"]
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "75%"), object: score)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed)
+            XCTAssertFalse(loading.exists)
+            shot(app, "Recovery ready " + screen)
+            app.terminate()
+        }
     }
     func testLargeText() {
         let app = launch(large: true)

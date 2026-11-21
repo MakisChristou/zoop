@@ -87,14 +87,21 @@ struct RecoveryHistoryChart: View {
             Text(focus.formatted(dateStyle.weekday(.abbreviated).day().month(.abbreviated)))
                 .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 .accessibilityIdentifier("recoverySelectedDate")
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: detail ? .center : .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
-            layout {
-                Text(reading?.recovery.displayedScore.map { "\($0)%" } ?? "—")
-                    .font(ZoopType.font(size: detail ? 36 : 22, weight: .medium, relativeTo: .title)).monospacedDigit()
-                    .accessibilityIdentifier("recoveryHistoryScore")
-                Text(reading?.recovery.status ?? "No reading")
-                    .font(ZoopType.subheadline).foregroundStyle(RecoveryTone.color(reading?.recovery))
-                    .accessibilityIdentifier("recoveryStatus")
+            if reading?.recovery.isPending == true {
+                ProgressView().tint(ZoopStyle.text)
+                    .frame(height: detail ? 44 : 28)
+                    .accessibilityLabel(reading?.recovery.state == "awaiting_sync" ? "Syncing recovery" : "Updating recovery")
+                    .accessibilityIdentifier("recoveryScoreLoading")
+            } else {
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: detail ? .center : .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                layout {
+                    Text(reading?.recovery.displayedScore.map { "\($0)%" } ?? "—")
+                        .font(ZoopType.font(size: detail ? 36 : 22, weight: .medium, relativeTo: .title)).monospacedDigit()
+                        .accessibilityIdentifier("recoveryHistoryScore")
+                    Text(reading?.recovery.status ?? "No reading")
+                        .font(ZoopType.subheadline).foregroundStyle(RecoveryTone.color(reading?.recovery))
+                        .accessibilityIdentifier("recoveryStatus")
+                }
             }
         }.frame(maxWidth: .infinity, alignment: detail ? .center : .leading)
     }
