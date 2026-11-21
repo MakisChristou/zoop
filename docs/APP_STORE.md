@@ -42,10 +42,9 @@ change, and check that the manifest is present in the archived app.
 
 ## Release preparation (21 November 2026)
 
-These are remaining release tasks, not evidence of App Review approval:
+Preparation status, not evidence of App Review approval:
 
-- In-app privacy/support links and a full retention/deletion policy are prepared.
-  Publish the updated policy before submission; a local edit is not a live policy.
+- In-app privacy/support links and the retention/deletion policy are published.
 - Password-confirmed account deletion is implemented with owner isolation, last-admin
   protection and concurrency fences. Deploy the matching API before distributing the
   app. Other installations must upgrade to offer deletion.
@@ -56,12 +55,34 @@ These are remaining release tasks, not evidence of App Review approval:
 - Manual ECG states that waveform timing and amplitude are uncalibrated and is
   excluded from Release builds. Recovery and
   other estimates need evidence-backed methodology, not diagnostic claims.
-- The release needs a synthetic review account/backend, an actual-device video
-  demonstrating the band, current screenshots, age-rating answers, export
-  compliance answers and completed App Store privacy declarations.
-- A development-signed archive is not an App Store distribution build. Complete
-  distribution signing, Apple's upload validation and TestFlight checks before
-  declaring the binary ready. Keep submission and publication separately approved.
+- The isolated synthetic review server and private reviewer access are prepared.
+  Five current screenshots are uploaded. Age rating, export compliance, privacy,
+  wellness-device status and regional availability are saved in the store draft.
+- The distribution build has been uploaded, processed and installed through
+  TestFlight. The final hardware check and an actual-device demonstration video
+  remain outstanding, along with the content-rights declaration.
+- Keep submission and publication separately approved. TestFlight availability
+  does not mean App Review approval or public availability.
+
+## Screenshot capture
+
+`AppStoreScreenshotTests` captures the actual Release interface with synthetic
+data from `tools/layout-test-server.py`. Start that server locally, choose a
+supported iPhone simulator in dark appearance, then run:
+
+```sh
+xcodebuild -project Zoop.xcodeproj -scheme Zoop -configuration Release \
+  -destination 'platform=iOS Simulator,name=<installed iPhone simulator>' \
+  -resultBundlePath /tmp/zoop-store-screens.xcresult \
+  -only-testing:ZoopUITests/AppStoreScreenshotTests \
+  ENABLE_TESTABILITY=YES test
+```
+
+Export the five named attachments from the result bundle. Inspect each image and
+confirm its dimensions against App Store Connect's current required display size
+before uploading. Retain the original screenshots; do not retouch measurements or
+pretend the simulator demonstrates a connected band. The capture test checks
+navigation and loaded content, not Bluetooth behavior.
 
 References: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/),
 [ATS exceptions](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowsarbitraryloads),

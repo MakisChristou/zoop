@@ -53,6 +53,22 @@ for i in range(120):
 
 
 def sleep_rows(device):
+    if device == 'DESIGN-SLEEP-STORE':
+        rows = copy.deepcopy(sessions)
+        row = rows[0]
+        cursor = datetime.fromisoformat(row['start_ts'].replace('Z', '+00:00'))
+        segments = []
+        counts = dict(light=0, deep=0, rem=0, wake=0)
+        for stage, seconds in [('light', 3600), ('deep', 4200), ('light', 3600),
+                               ('rem', 2400), ('light', 3600), ('wake', 300),
+                               ('rem', 3000), ('light', 2700), ('rem', 2100), ('light', 1500)]:
+            end = cursor + timedelta(seconds=seconds)
+            segments.append(dict(stage=stage, start=stamp(cursor), end=stamp(end)))
+            counts[stage] += seconds
+            cursor = end
+        row['sleep']['segments'] = segments
+        row['sleep']['stages'].update({stage+'_s': count for stage, count in counts.items()})
+        return rows
     if device.startswith('DESIGN-SLEEP-'):
         rows = copy.deepcopy(sessions)
         row = rows[0]
@@ -143,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
                 date = (today-timedelta(days=i)).date().isoformat()
                 if date < query.get('from', [''])[0] or date > query.get('to', ['9999'])[0]: continue
                 if device == 'RECOVERY-HISTORY' and i == 3: continue
-                score = [75, 61, 28, 82, 48, 94, 0][i % 7] if device == 'RECOVERY-HISTORY' else 75
+                score = [75, 61, 28, 82, 48, 94, 0][i % 7] if device in ('RECOVERY-HISTORY', 'DESIGN-SLEEP-STORE') else 75
                 state = device.removeprefix('RECOVERY-') if device.startswith('RECOVERY-') and not device.startswith('RECOVERY-HISTORY') else 'ready'
                 if device.startswith('RECOVERY-LOADING-'):
                     state = 'updating' if i == 0 and recovery_history_reads[device] == 1 else 'ready'
@@ -237,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
                     for metric in body['metrics']:
                         metric['comparison']['signal']='usual' if state == 'average' else 'unfavourable'
                 return self.send(body)
-            mature = device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat()
+            mature = device == 'DESIGN-SLEEP-STORE' or (device == 'INSIGHT-REVIEW' and parts[-2] == today.date().isoformat())
             return self.send(insight(parts[-2], mature, 13 if device == 'INSIGHT-REVIEW' else 11))
         if route.endswith('/steps'):
             if device == 'RINGS-EMPTY': return self.send(dict(day=parts[-2], hours=[0]*24, walking_hours=[0]*24, total=0, walking=0, bouts=[]))
