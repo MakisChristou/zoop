@@ -154,7 +154,7 @@ export default function Home(): ReactNode {
               </div>
               <div>
                 <dt>Phone</dt>
-                <dd>iPhone · iOS 17 or later</dd>
+                <dd>iPhone · iOS 26 or later</dd>
               </div>
               <div>
                 <dt>Server</dt>

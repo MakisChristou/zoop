@@ -34,7 +34,7 @@ Keep the original data, export it, and rerun analysis as the software improves.
 You need three things:
 
 - **Band:** WHOOP 5.0 or MG.
-- **Phone:** an iPhone on iOS 17+ with Zoop installed.
+- **Phone:** an iPhone on iOS 26+ with Zoop installed.
 - **Server:** a machine running Docker with Compose v2.
 
 The server is required; the phone keeps an upload queue during connection outages.

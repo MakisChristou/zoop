@@ -15,7 +15,7 @@ Your iPhone and web dashboard show the same sleep, recovery, activity and weight
 You’ll need three things:
 
 - **Band:** WHOOP 5.0 or MG.
-- **Phone:** an iPhone running iOS 17 or later, with Zoop installed.
+- **Phone:** an iPhone running iOS 26 or later, with Zoop installed.
 - **Server:** a machine running Docker with Compose v2.
 
 The iPhone app is awaiting App Store approval. The download link will appear in

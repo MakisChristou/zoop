@@ -7,7 +7,7 @@ description: Install Zoop, connect your WHOOP and sign in to your server.
 
 # Connect your iPhone
 
-You need a WHOOP 5.0 or MG, an iPhone on iOS 17+, and a running
+You need a WHOOP 5.0 or MG, an iPhone on iOS 26+, and a running
 [Zoop server](SELF_HOSTING.md).
 
 ## Install Zoop

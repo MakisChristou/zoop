@@ -4,7 +4,7 @@ Zoop's intended distribution includes the App Store. This is a release gate, not
 an approval to submit a build. The server remains self-hosted; the listing and
 onboarding must make that requirement clear.
 
-The initial store release targets iPhone. Manual ECG is enabled only in Debug
+The release candidate targets iPhone on iOS 26 or later. Manual ECG is enabled only in Debug
 builds through `BuildFeatures.manualECG`. Release builds hide its entry points,
 block recording, and cancel ECG reminders, while preserving existing recordings
 and pending device-cleanup recovery. Do not enable it for distribution until its
@@ -64,6 +64,12 @@ Preparation status, not evidence of App Review approval:
   Manual release remains enabled; the app is not publicly available yet.
 - Keep submission and publication separately approved. TestFlight availability
   does not mean App Review approval or public availability.
+
+Build 4 was subsequently uploaded for private TestFlight testing. The owner
+confirmed live heart rate and sync on 22 November. Build 5 prepares the live-reading
+source fix and records the already-approved OS-only encryption classification in
+the app manifest. Neither changes the pending build 3 submission automatically.
+See [Release readiness](RELEASE_READINESS.md) for remaining qualification gates.
 
 ## Screenshot capture
 
