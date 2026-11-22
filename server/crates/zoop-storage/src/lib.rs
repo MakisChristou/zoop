@@ -30,6 +30,8 @@ pub use insight_store::{InsightNight, InsightSnapshot};
 mod operation;
 mod profile_photo_store;
 mod profile_store;
+mod sleep_goal;
+pub use sleep_goal::{DEFAULT_SLEEP_GOAL_MINUTES, SleepGoal};
 mod reset;
 mod sample_store;
 mod session;

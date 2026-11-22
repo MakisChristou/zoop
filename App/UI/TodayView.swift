@@ -10,7 +10,6 @@ struct TodayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var visible = false
     @State private var now = Date()
-    @AppStorage(SleepGoal.storageKey) private var sleepGoalMinutes = SleepGoal.defaultMinutes
     /// Nil follows today across midnight; a chosen past day stays fixed.
     @State private var selectedDay: Date?
     @State private var loadedDay: Date?
@@ -76,6 +75,11 @@ struct TodayView: View {
         .onChange(of: model.analysisRevision) { _, _ in Task { await loadHistory() } }
         .onChange(of: model.activity.changeToken) { _, _ in Task { await loadHistory() } }
         .onReceive(clock) { if !Calendar.current.isDate(now, inSameDayAs: $0) { now = $0 } }
+        .task(id: "\(sleepGoalScope)-\(scenePhase == .active)") {
+            guard scenePhase == .active else { return }
+            let expected = sleepGoalScope
+            await model.sleepGoal.load(expected) { sleepGoalScope == expected }
+        }
         .task(id: "\(model.dataDevice)-\(viewedDay.timeIntervalSince1970)") { await loadHistory() }
         .task(id: MorningInsightsStore.FollowKey(scope: insightScope, active: visible && scenePhase == .active)) {
             guard visible, scenePhase == .active, Settings.isConfigured else {
@@ -98,7 +102,7 @@ struct TodayView: View {
     }
 
     private var overview: some View {
-        let sleepGoal = SleepGoal(minutes: sleepGoalMinutes)
+        let sleepGoal = model.sleepGoal.value(for: sleepGoalScope)
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 24))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
@@ -106,12 +110,12 @@ struct TodayView: View {
             NavigationLink { SleepView(selected: .constant(nil), day: selectedNight?.endTs ?? viewedDay, detail: true) } label: {
                 TodaySummaryRing(title: "Sleep", value: selectedNight.map {
                     "\($0.metrics.window.asleepS / 3600)h \(($0.metrics.window.asleepS % 3600) / 60)m"
-                } ?? "—", color: ZoopStyle.sleep, progress: sleepGoal.progress(asleepSeconds: selectedNight?.metrics.window.asleepS), isLoading: loading)
+                } ?? "—", color: ZoopStyle.sleep, progress: selectedNight.flatMap { sleepGoal?.progress(asleepSeconds: $0.metrics.window.asleepS) }, isLoading: loading || model.sleepGoal.loading)
             }
             .buttonStyle(.plain)
             .accessibilityValue(selectedNight.map {
                 let seconds = $0.metrics.window.asleepS
-                return "\(seconds / 3600)h \((seconds % 3600) / 60)m, \(sleepGoal.percentage(asleepSeconds: seconds)) of \(sleepGoal.title) goal" + (loading ? ", updating" : "")
+                return "\(seconds / 3600)h \((seconds % 3600) / 60)m" + (sleepGoal.map { ", \($0.percentage(asleepSeconds: seconds)) of \($0.title) goal" } ?? "") + (loading ? ", updating" : "")
             } ?? (loading ? "Loading" : "No reading"))
             .accessibilityIdentifier("openSleepSummary").accessibilityHint("Opens this night in Sleep")
             NavigationLink { RecoveryDetailView(day: viewedDay) } label: {
@@ -309,6 +313,8 @@ struct TodayView: View {
         historyFailed = fetchedDays == nil || fetchedNights == nil || fetchedMinutes == nil
             || fetchedWorkouts == nil || fetchedSteps == nil
     }
+
+    private var sleepGoalScope: SleepGoalStore.Scope { .init(device: model.dataDevice, connection: Settings.connectionID) }
 
     private var viewedDay: Date { selectedDay ?? Calendar.current.startOfDay(for: now) }
     private var insightScope: MorningInsightsStore.Scope {

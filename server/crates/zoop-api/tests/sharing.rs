@@ -581,6 +581,10 @@ async fn rich_widgets_disclose_only_their_selected_fields_and_bounds() {
 #[ignore = "requires development Postgres"]
 async fn daily_rings_share_one_bounded_day_and_match_private_recovery() {
     let (db, app, owner, member) = setup().await;
+    db.store
+        .save_sleep_goal(support::DEVICE, 540, false, "UTC")
+        .await
+        .unwrap();
     let raw = db.raw(1).await;
     sqlx::query("INSERT INTO samples(device_id,ts,hr,rr_ms,steps,activity,band_state,raw_frame_id) SELECT $1,'2025-01-01T06:00:00Z'::timestamptz+make_interval(days=>d,secs=>n),55,ARRAY[1000,1020],0,0,2,$2 FROM generate_series(0,19)d CROSS JOIN generate_series(0,3599)n").bind(support::DEVICE).bind(raw).execute(&db.pool).await.unwrap();
     db.sql("INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,fixed,metrics) SELECT 'TEST-RELIABILITY','2025-01-01T06:00:00Z'::timestamptz+make_interval(days=>d),'2025-01-01T07:00:00Z'::timestamptz+make_interval(days=>d),'main','main','UTC',true,jsonb_build_object('sleep',jsonb_build_object('algo_version',5,'window',jsonb_build_object('asleep_s',3600,'coverage_s',3600),'physiology',jsonb_build_object('resting_hr',55,'hrv_rmssd_ms',50,'hrv_windows',12))) FROM generate_series(0,19)d; INSERT INTO strains(device_id,day,algo_version,load) VALUES('TEST-RELIABILITY','2025-01-15',1,12)").await;
@@ -602,6 +606,7 @@ async fn daily_rings_share_one_bounded_day_and_match_private_recovery() {
         assert_eq!(data["layout"], body["config"]["layout"]);
         let ring = &data["widgets"][0];
         assert_eq!(ring["day"], "2025-01-15");
+        assert_eq!(ring["sleep_goal_minutes"], 540);
         assert_eq!(ring["load"].as_f64(), Some(12.0));
         let private = zoop_core::morning_insights(
             &db.store,
@@ -719,4 +724,141 @@ async fn heatmap_year_expands_only_the_explicitly_selected_widget() {
         assert!(!data.to_string().contains("2023-12-01"));
         assert_eq!(data.to_string().contains("2024-12-01"), expanded);
     }
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn sleep_goal_is_owned_validated_and_preserved_by_legacy_profile_saves() {
+    let (db, app, owner, member) = setup().await;
+    let path = format!("/v1/devices/{}/sleep-goal", support::DEVICE);
+    let (status, goal, _) = req(&app, "GET", &path, Some(&owner), None, json!(null)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(goal, json!({"minutes":480,"configured":false}));
+    assert_eq!(
+        req(&app, "GET", &path, Some(&member), None, json!(null))
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        req(&app, "GET", &path, None, None, json!(null)).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        req(
+            &app,
+            "PUT",
+            "/v1/devices/OTHER/sleep-goal",
+            None,
+            Some("owner-phone-token"),
+            json!({"minutes":540})
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    for minutes in [0, 59, 61, 1441, 1500] {
+        assert_eq!(
+            req(
+                &app,
+                "PUT",
+                &path,
+                None,
+                Some("owner-phone-token"),
+                json!({"minutes":minutes})
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    let (status, goal, _) = req(
+        &app,
+        "PUT",
+        &path,
+        None,
+        Some("owner-phone-token"),
+        json!({"minutes":540,"initialize_only":true,"tz":"Pacific/Auckland"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(goal, json!({"minutes":540,"configured":true}));
+    assert_eq!(db.count("SELECT count(*) FROM analysis_jobs").await, 0);
+    assert_eq!(db.count("SELECT count(*) FROM profile_revisions").await, 0);
+    let (_, goal, _) = req(
+        &app,
+        "PUT",
+        &path,
+        None,
+        Some("owner-phone-token"),
+        json!({"minutes":420,"initialize_only":true,"tz":"UTC"}),
+    )
+    .await;
+    assert_eq!(goal["minutes"], 540);
+    assert_eq!(
+        db.store
+            .get_profile(support::DEVICE)
+            .await
+            .unwrap()
+            .unwrap()
+            .tz,
+        "Pacific/Auckland"
+    );
+    let (_, goal, _) = req(
+        &app,
+        "PUT",
+        &path,
+        None,
+        Some("owner-phone-token"),
+        json!({"minutes":600}),
+    )
+    .await;
+    assert_eq!(goal["minutes"], 600);
+    let profile_path = format!("/v1/devices/{}/profile", support::DEVICE);
+    assert_eq!(
+        req(
+            &app,
+            "PUT",
+            &profile_path,
+            None,
+            Some("owner-phone-token"),
+            json!({"height_cm":180,"tz":"UTC"})
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    let (_, goal, _) = req(&app, "GET", &path, Some(&owner), None, json!(null)).await;
+    assert_eq!(goal["minutes"], 600);
+    // Browser health writes remain disallowed; this slice only renders the goal there.
+    assert_eq!(
+        req(
+            &app,
+            "PUT",
+            &path,
+            Some(&owner),
+            None,
+            json!({"minutes":480})
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn concurrent_sleep_goal_migration_keeps_the_first_saved_target() {
+    let db = Db::new().await;
+    let (a, b) = tokio::join!(
+        db.store.save_sleep_goal(support::DEVICE, 540, true, "UTC"),
+        db.store.save_sleep_goal(support::DEVICE, 600, true, "UTC"),
+    );
+    let a = a.unwrap();
+    let b = b.unwrap();
+    assert_eq!(a.minutes, b.minutes);
+    assert_eq!(
+        db.store.sleep_goal(support::DEVICE).await.unwrap().minutes,
+        a.minutes
+    );
 }

@@ -18,6 +18,7 @@ export interface Dataset {
   workouts: Session[];
   weights: Weight[];
   goal: Goal | null;
+  sleepGoal: { minutes: number } | null;
   errors: Record<string, string>;
   loadedAt: Date;
 }
@@ -53,6 +54,7 @@ export function useDataset(device: string, refresh: number) {
           "workouts",
           "weights",
           "goal",
+          "sleepGoal",
         ] as const;
         const track = <T>(promise: Promise<T>) =>
           promise.finally(() => {
@@ -82,6 +84,12 @@ export function useDataset(device: string, refresh: number) {
           ),
           track(weights(device, from, to, ctrl.signal)),
           track(api<Goal>(endpoint(device, "weight-goal"), ctrl.signal)),
+          track(
+            api<{ minutes: number }>(
+              endpoint(device, "sleep-goal"),
+              ctrl.signal,
+            ),
+          ),
         ]);
         if (ctrl.signal.aborted) return;
         const errors: Record<string, string> = {};
@@ -108,6 +116,10 @@ export function useDataset(device: string, refresh: number) {
           workouts,
           weights: val<Weight[]>(3, cached?.weights ?? []),
           goal: val<Goal | null>(4, cached?.goal ?? null),
+          sleepGoal: val<{ minutes: number } | null>(
+            5,
+            cached?.sleepGoal ?? null,
+          ),
           errors,
           loadedAt: new Date(),
         });

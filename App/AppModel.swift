@@ -40,6 +40,7 @@ final class AppModel {
     let sleep = SleepStore()
     let health = HealthCoordinator()
     let photo = ProfilePhotoStore()
+    let sleepGoal: SleepGoalStore
     var analysisRevision = 0
     private(set) var analysisUpdating = false
     private static let analysisRefreshAttempts = 120
@@ -67,6 +68,7 @@ final class AppModel {
     init(servicesEnabled: Bool = true) {
         let strap = StrapManager()
         self.strap = strap
+        sleepGoal = SleepGoalStore(legacyScope: .init(device: Settings.dataDevice(physicalSerial: strap.serial, credential: Settings.credential), connection: Settings.connectionID))
         ecg = ECGRecorder(transport: strap)
         guard servicesEnabled else { return }
         weeklyWeight.onGoalChange = { [weak self] in self?.refreshStepsReminder() }

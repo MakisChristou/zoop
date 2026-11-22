@@ -1,3 +1,4 @@
+import { SleepRing } from "./SleepRing";
 import { recoveryScoreReading } from "./recovery";
 import { Ring } from "./Ring";
 import { RecoveryRingFace } from "./RecoveryRing";
@@ -248,11 +249,10 @@ function SharedCard({
           })}
         </div>
         <div className="rings">
-          <Ring
+          <SleepRing
             loading={loading}
-            label="Sleep"
-            value={duration(widget.sleep_seconds)}
-            color="var(--sleep)"
+            seconds={widget.sleep_seconds}
+            goalMinutes={widget.sleep_goal_minutes}
           />
           <div
             className="ring-item recovery-ring"

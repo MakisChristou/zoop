@@ -21,6 +21,7 @@ def stamp(value):
 
 nights, days, sessions, weights = [], [], [], []
 recovery_history_reads = {}
+sleep_goals = {}
 for i in range(120):
     day = today - timedelta(days=i)
     end = day + timedelta(hours=8)
@@ -272,6 +273,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send([dict(ts=stamp(day+timedelta(minutes=m)), hr=65+int(10*math.sin(m/40)), hr_min=55,
                                    hr_max=85, skin_temp_c=33.4, steps=4, band_state=2 if m<480 else 0, activity=0)
                               for m in range(0, 1440, 5)])
+        if route == 'sleep-goal': return self.send(dict(minutes=sleep_goals.get(device, 480), configured=device in sleep_goals))
         if route == 'profile': return self.send(dict(sex='male', birth_year=1985, height_cm=180, tz='UTC', weight_kg=75.2,
                                                      weight_measured_at=weights[0]['measured_at'], weight_source='health', weight_source_name='Test scale'))
         if route == 'health': return self.send(dict(namespace='LAYOUT-UI', cursor=0, earliest=stamp(today-timedelta(days=120)), wake_at=None))
@@ -297,6 +299,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
+        if self.path.endswith('/sleep-goal'):
+            device = self.path.strip('/').split('/')[2]
+            if not row.get('initialize_only') or device not in sleep_goals: sleep_goals[device] = row['minutes']
+            return self.send(dict(minutes=sleep_goals[device], configured=True))
         if self.path.endswith('/weights'):
             row['version'] = row.get('version', 0) + 1
             readings = weight_rows(self.path.strip('/').split('/')[2])

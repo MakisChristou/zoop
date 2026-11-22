@@ -96,6 +96,7 @@ export interface SharedWidget {
   to?: string;
   day?: string;
   sleep_seconds?: number | null;
+  sleep_goal_minutes?: number | null;
   load?: number | null;
   recovery?: {
     version: number;

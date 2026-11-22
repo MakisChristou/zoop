@@ -387,6 +387,7 @@ async fn project(
     for key in &config.widgets {
         match key.as_str() {
             "daily_rings" => {
+                let sleep_goal = s.store.sleep_goal(device).await?;
                 // One date for all three readings. Never substitute older non-null values.
                 let sleep = s
                     .store
@@ -405,7 +406,7 @@ async fn project(
                     .await?;
                 let brief = zoop_core::morning_insights(&s.store, device, to, &tz).await?;
                 let recovery = brief.map(|b| json!({"version":b.recovery.version,"method":b.recovery.method,"score":b.recovery.score,"band":b.recovery.band,"state":b.recovery.state}));
-                widgets.push(json!({"key":key,"day":to,"sleep_seconds":sleep.first().and_then(|p| p.get("value")),"load":load.first().and_then(|p|p.get("value")),"recovery":recovery}));
+                widgets.push(json!({"key":key,"day":to,"sleep_goal_minutes":sleep_goal.minutes,"sleep_seconds":sleep.first().and_then(|p| p.get("value")),"load":load.first().and_then(|p|p.get("value")),"recovery":recovery}));
                 continue;
             }
             "activity_heatmap" => {

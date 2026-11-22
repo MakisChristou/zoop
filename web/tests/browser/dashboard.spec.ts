@@ -450,8 +450,8 @@ test("slow refresh retains charts, reports completed datasets, and ends on failu
   await page.getByRole("button", { name: "Refresh data", exact: true }).click();
   const progress = page.getByRole("progressbar", { name: "Loading data" });
   await expect(progress).toBeVisible();
-  await expect(progress).toHaveAttribute("aria-valuenow", "5");
-  await expect(progress).toHaveAttribute("aria-valuemax", "6");
+  await expect(progress).toHaveAttribute("aria-valuenow", "6");
+  await expect(progress).toHaveAttribute("aria-valuemax", "7");
   await expect(
     page.getByRole("status", { name: "Updating sleep", exact: true }),
   ).toBeVisible();

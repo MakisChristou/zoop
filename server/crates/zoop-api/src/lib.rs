@@ -18,6 +18,7 @@ mod progress;
 mod query;
 mod setup;
 mod sharing;
+mod sleep_goal;
 mod sleep_sessions;
 mod sleeps;
 mod state;
@@ -130,6 +131,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/v1/devices/{deviceId}/analysis/resets",
             get(sleep_sessions::resets),
+        )
+        .route(
+            "/v1/devices/{deviceId}/sleep-goal",
+            get(sleep_goal::get).put(sleep_goal::put),
         )
         .route("/v1/devices/{deviceId}/days", get(days))
         .route(

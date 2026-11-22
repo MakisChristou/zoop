@@ -90,3 +90,8 @@ blank and disabled; its shape does not widen the authorized data range.
 The optional `heatmap_year` setting shares the 365 days ending on the displayed
 period’s last day for the activity heatmap only. It defaults to false, so existing
 links retain their selected scope. Other widgets still use the dashboard period.
+
+The `daily_rings` projection includes `sleep_goal_minutes`, the same server-owned
+sleep target used by the signed-in dashboard and iPhone. The Sleep arc fills at
+that target; the centre continues to show measured sleep duration. See
+[Sleep goal](SLEEP_GOAL.md).

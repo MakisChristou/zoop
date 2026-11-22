@@ -1,3 +1,4 @@
+import { SleepRing } from "./SleepRing";
 import { Ring } from "./Ring";
 import {
   useEffect,
@@ -714,7 +715,7 @@ function Dashboard({
         </div>
       )}
       <div className="refresh-slot">
-        {loading && <LoadingBar value={completed} total={6} />}
+        {loading && <LoadingBar value={completed} total={7} />}
       </div>
       {error && data && (
         <p className="error" role="alert">
@@ -949,11 +950,10 @@ function DataView({
     return (
       <>
         <div className="rings">
-          <Ring
+          <SleepRing
             loading={dataLoading}
-            label="Sleep"
-            value={duration(night?.sleep?.window.asleep_s)}
-            color="var(--sleep)"
+            seconds={night?.sleep?.window.asleep_s}
+            goalMinutes={data.sleepGoal?.minutes}
           />
           <RecoveryRing
             key={`${device}:${date}:${tz}`}
@@ -968,6 +968,7 @@ function DataView({
             fraction={daily?.load != null ? daily.load / 21 : undefined}
           />
         </div>
+        {error("sleepGoal")}
         <OutlookStatus key={date} insight={insight} loading={insightLoading} />
         <div className="grid today-grid">
           <Panel

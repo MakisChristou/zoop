@@ -276,6 +276,16 @@ enum ZoopAPI {
         try await get("v1/devices/\(deviceId)/profile")
     }
 
+    static func sleepGoal(deviceId: String) async throws -> SleepGoalStore.Response {
+        try await get("v1/devices/\(deviceId)/sleep-goal")
+    }
+
+    static func saveSleepGoal(deviceId: String, minutes: Int, initializeOnly: Bool) async throws -> SleepGoalStore.Response {
+        struct Body: Encodable { let minutes: Int; let initializeOnly: Bool; let tz: String }
+        return try await send("v1/devices/\(deviceId)/sleep-goal", method: "PUT",
+                              body: Body(minutes: minutes, initializeOnly: initializeOnly, tz: TimeZone.current.identifier))
+    }
+
     static func saveProfile(deviceId: String, _ profile: Profile) async throws -> Profile {
         try await send("v1/devices/\(deviceId)/profile", method: "PUT", body: profile)
     }
