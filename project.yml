@@ -1,7 +1,7 @@
 name: Zoop
 options:
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "26.0"
 # Signing is personal: copy Config/Local.xcconfig.example to Config/Local.xcconfig
 # (gitignored) and set ZOOP_TEAM_ID and ZOOP_BUNDLE_ID there.
 # Legacy SNOOP_* signing keys remain supported for existing installations.
@@ -57,7 +57,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
+        ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]
         UILaunchScreen: {}

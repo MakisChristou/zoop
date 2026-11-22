@@ -166,7 +166,8 @@ import XCTest
         shot(app, "Weight CSV share sheet")
     }
     func testSwipingHistoryAndReturningToLatest() {
-        let app = launch(); openWeight(app)
+        // Keep chart navigation independent of an older simulator's Health journal.
+        let app = launch(serial: "WEIGHT-CHART-" + UUID().uuidString); openWeight(app)
         XCTAssertTrue(app.segmentedControls.buttons["Month"].waitForExistence(timeout: 10))
         let dates = app.staticTexts["weightChartDates"]
         let latestDates = dates.label

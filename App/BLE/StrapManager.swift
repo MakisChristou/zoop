@@ -128,7 +128,9 @@ final class StrapManager: NSObject {
     /// Median of the live readings from the last ten seconds, so the hero number does
     /// not flicker with every beat.
     var smoothedHeartRate: UInt8? {
-        let cutoff = Date().addingTimeInterval(-10)
+        // Freeze the window between samples; a UI clock tick is not a new measurement.
+        guard let liveUpdatedAt else { return nil }
+        let cutoff = liveUpdatedAt.addingTimeInterval(-10)
         let recent = recentHeartRates.filter { $0.0 >= cutoff }.map(\.1).sorted()
         guard !recent.isEmpty else { return liveHeartRate }
         return recent[recent.count / 2]
@@ -223,7 +225,7 @@ final class StrapManager: NSObject {
 
     // MARK: - Frame handling
 
-    private func handle(frame: [UInt8], channel: Int) {
+    func handle(frame: [UInt8], channel: Int) {
         framesReceived += 1
         let epoch = connectionEpoch
         let receivedAt = Date(), uptime = ProcessInfo.processInfo.systemUptime
@@ -249,10 +251,13 @@ final class StrapManager: NSObject {
         case .ecg:
             if frame[8] == PacketType.realtimeRawDataByte { onECGFrame?(Data(frame), receivedAt, uptime) }
         case let .realtimeHeartRate(hr):
-            recordLive(hr.heartRate, rr: hr.rrMilliseconds)
+            recordLive(hr.heartRate, rr: hr.rrMilliseconds, at: receivedAt)
         case let .biometric(b):
-            lastBiometric = b
-            if !realtimeStreaming { recordLive(b.heartRate, rr: b.rrMilliseconds) }
+            // Stored history is uploaded, but must never masquerade as a live reading.
+            if frame[8] == PacketType.realtimeRawDataByte {
+                lastBiometric = b
+                if !realtimeStreaming { recordLive(b.heartRate, rr: b.rrMilliseconds, at: receivedAt) }
+            }
         case let .event(event):
             let at = Date(timeIntervalSince1970: event.timestamp)
             let live = channel == 4
@@ -371,12 +376,12 @@ extension StrapManager: @preconcurrency CBCentralManagerDelegate {
         scheduleReconnect()
     }
 
-    private func recordLive(_ bpm: UInt8, rr: [UInt16]) {
+    private func recordLive(_ bpm: UInt8, rr: [UInt16], at: Date) {
         guard bpm > 0 else { return }
         liveHeartRate = bpm
-        liveUpdatedAt = Date()
+        liveUpdatedAt = at
         if !rr.isEmpty { liveRR = rr }
-        recentHeartRates.append((Date(), bpm))
+        recentHeartRates.append((at, bpm))
         if recentHeartRates.count > 60 { recentHeartRates.removeFirst(recentHeartRates.count - 60) }
     }
 
