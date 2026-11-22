@@ -422,6 +422,67 @@ test.describe("touch editing", () => {
 
 test.describe("touch dragging", () => {
   test.use({ isMobile: true, hasTouch: true });
+  test("release uses the last position before a paint", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 1200 });
+    await fixture(page);
+    await open(page, true);
+    for (const name of ["Daily rings", "Recent activities", "Steps"])
+      await page
+        .getByRole("button", { name: `Remove ${name}`, exact: true })
+        .tap();
+    const handle = page.getByRole("button", {
+      name: "Move Weight",
+      exact: true,
+    });
+    await handle.scrollIntoViewIfNeeded();
+    const box = (await handle.boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    await handle.evaluate((element) => {
+      element.addEventListener(
+        "pointerdown",
+        (event) => {
+          element.setAttribute(
+            "data-test-pointer",
+            String((event as PointerEvent).pointerId),
+          );
+        },
+        { once: true },
+      );
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: box.x + 15, y: box.y + 15 }],
+    });
+    // Deliver a move and release in one task, before React can render the move.
+    await handle.evaluate((element) => {
+      const target = document
+        .querySelector(".shared-sleep")!
+        .getBoundingClientRect();
+      const init = {
+        bubbles: true,
+        pointerId: Number(element.getAttribute("data-test-pointer")),
+        pointerType: "touch",
+        isPrimary: true,
+        button: 0,
+        clientX: target.left + 30,
+        clientY: target.top + target.height / 2 + 25,
+      };
+      element.dispatchEvent(
+        new PointerEvent("pointermove", { ...init, buttons: 1 }),
+      );
+      element.dispatchEvent(
+        new PointerEvent("pointerup", { ...init, buttons: 0 }),
+      );
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(
+      page.locator(".dashboard-canvas > .shared-cell").first(),
+    ).toHaveAttribute("data-widget", "sleep");
+    await noOverlap(page);
+  });
   test("a real touch drag reorders cards", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 });
     await fixture(page);
@@ -430,12 +491,12 @@ test.describe("touch dragging", () => {
       await page
         .getByRole("button", { name: `Remove ${name}`, exact: true })
         .tap();
-    const weight = page.locator(".shared-weight");
-    await weight.scrollIntoViewIfNeeded();
+    await page.evaluate(() => document.fonts.ready);
     const handle = page.getByRole("button", {
       name: "Move Weight",
       exact: true,
     });
+    await handle.scrollIntoViewIfNeeded();
     const box = (await handle.boundingBox())!;
     const sleep = (await page.locator(".shared-sleep").boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
@@ -451,6 +512,15 @@ test.describe("touch dragging", () => {
           { x: box.x + 15, y: box.y + 15 + ((end - box.y - 15) * i) / 12 },
         ],
       });
+    await expect(page.locator(".drag-widget-preview")).toBeVisible();
+    // Near the viewport edge the canvas scrolls during the gesture. Wait until
+    // the finger really crosses Sleep's midpoint before releasing it.
+    await expect
+      .poll(async () => {
+        const target = (await page.locator(".shared-sleep").boundingBox())!;
+        return target.y + target.height / 2;
+      })
+      .toBeLessThan(end);
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchEnd",
       touchPoints: [],

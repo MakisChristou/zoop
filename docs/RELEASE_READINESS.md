@@ -22,6 +22,8 @@ available on the App Store.
   in [Dependency security](DEPENDENCY_SECURITY.md).
 - GitHub private vulnerability reporting, dependency alerts/security updates and
   secret scanning with push protection are enabled.
+- Main requires the nine release checks from GitHub Actions and blocks force pushes
+  and deletion. Tested candidate commits can advance main without a mandatory PR.
 - Security scanning is repeatable in CI. Changes to date/time dependencies need
   explicit timezone and historical-result regression coverage.
 - Licensing and history are unchanged. No release tag or container image has been

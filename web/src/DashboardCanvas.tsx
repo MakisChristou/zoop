@@ -96,6 +96,7 @@ export function DashboardCanvas({
   dragRef.current = drag;
   const cancel = () => {
     active.current = null;
+    dragRef.current = null;
     setDrag(null);
   };
   useEffect(() => {
@@ -187,7 +188,10 @@ export function DashboardCanvas({
                 n.getBoundingClientRect().height / 2,
           ).length
       : Math.min(96, Math.max(0, Math.floor((clientY - rect.top) / pitch)));
-    setDrag({ key: a.key, x, y, inside, clientX, clientY });
+    // Pointer release can arrive before React paints the last move.
+    const next = { key: a.key, x, y, inside, clientX, clientY };
+    dragRef.current = next;
+    setDrag(next);
   }
   const pointerLocationRef = useRef(pointerLocation);
   pointerLocationRef.current = pointerLocation;
@@ -212,7 +216,8 @@ export function DashboardCanvas({
   function pointer(e: ReactPointerEvent<HTMLButtonElement>) {
     pointerLocation(e.clientX, e.clientY);
   }
-  function finish() {
+  function finish(e: ReactPointerEvent<HTMLButtonElement>) {
+    pointerLocation(e.clientX, e.clientY);
     const a = active.current,
       d = dragRef.current;
     if (a?.moved && d?.inside && grid.current) {
