@@ -8,7 +8,7 @@ now = datetime.now(timezone.utc)
 stamp = lambda d: d.isoformat().replace('+00:00', 'Z')
 goals = {}
 def goal():
-    return dict(revision=1, active=True, started_at=stamp(now-timedelta(days=28)),
+    return dict(revision=1, active=True, phase='cut', started_at=stamp(now-timedelta(days=28)),
                 pace_started_at=stamp(now-timedelta(days=28)), timezone='UTC', weekly_loss_kg=.3,
                 daily_steps_goal=8000, finish_date=str((now+timedelta(days=28)).date()), reminder_enabled=False, reminder_weekday=1, reminder_minute=1200, updated_at=stamp(now))
 def summary(g):
@@ -28,10 +28,10 @@ class Handler(BaseHTTPRequestHandler):
             if device.startswith('EMPTY-'):return self.send(dict(goal=None,summary=None))
             if device.startswith('ERROR-'):return self.send(dict(error='Temporarily unavailable'),500)
             g=goals.setdefault(device,goal())
-            if device.startswith(('BULK-', 'MAINTENANCE-')):
+            if device.startswith(('BULK-', 'MAINTENANCE-')) or g.get('phase') in ('bulk','maintenance'):
                 import math
-                phase = 'bulk' if device.startswith('BULK-') else 'maintenance'
-                if 'phase' not in g: g.update(phase=phase, weekly_loss_kg=.2 if phase=='bulk' else 0, finish_date=g.get('finish_date') if phase=='bulk' else None, maintenance_reference_kg=64, maintenance_range_pct=1, daily_steps_goal=10000)
+                phase = g.get('phase') if g.get('phase') in ('bulk','maintenance') else 'bulk' if device.startswith('BULK-') else 'maintenance'
+                if g['phase']=='cut': g.update(phase=phase, weekly_loss_kg=.2 if phase=='bulk' else 0, finish_date=g.get('finish_date') if phase=='bulk' else None, maintenance_reference_kg=64, maintenance_range_pct=1, daily_steps_goal=10000)
                 s=summary(g);s.update(algorithm_version=2,state='on_pace' if g['phase']=='bulk' else 'stable',trend_kg_per_week=.2 if g['phase']=='bulk' else 0,maintenance_lower_kg=63.36 if g['phase']=='maintenance' else None,maintenance_upper_kg=64.64 if g['phase']=='maintenance' else None)
                 for i,w in enumerate(s['weeks']): w['median_kg']=64+i*.2 if g['phase']=='bulk' else 64
                 for i,w in enumerate(s['progress']['weigh_ins']): w['kg']=64+i*.2/7 if g['phase']=='bulk' else 64+.08*math.sin(i)

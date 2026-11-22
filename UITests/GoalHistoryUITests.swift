@@ -24,19 +24,22 @@ import XCTest
         shot(app, "Goals current")
         app.buttons["cutOptions"].tap()
         app.buttons["End goal"].tap()
-        XCTAssertTrue(app.buttons["End cut"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["End goal"].waitForExistence(timeout: 5))
         shot(app, "End cut confirmation")
-        app.buttons["End cut"].tap()
-        XCTAssertTrue(app.buttons["startWeightGoal"].waitForExistence(timeout: 10))
+        app.buttons["End goal"].tap()
+        XCTAssertTrue(app.staticTexts["Maintenance"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Maintenance"].exists)
         for _ in 0..<5 where !app.staticTexts["Ended early"].isHittable { app.swipeUp() }
         XCTAssertTrue(app.staticTexts["Ended early"].exists)
         shot(app, "Goals maintenance and history")
-        for _ in 0..<8 where !app.buttons["startWeightGoal"].isHittable { app.swipeDown() }
-        app.buttons["startWeightGoal"].tap()
+        for _ in 0..<8 where !app.buttons["cutOptions"].isHittable { app.swipeDown() }
+        app.buttons["cutOptions"].tap()
+        app.buttons["editWeightGoal"].tap()
+        app.buttons["Cut"].tap()
         XCTAssertTrue(app.buttons["saveWeightGoal"].waitForExistence(timeout: 5))
         app.buttons["saveWeightGoal"].tap()
         XCTAssertTrue(app.buttons["cutOptions"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Cut"].exists)
     }
     func testWeeklyPaceAndLargeTextRemainAccessible() {
         let app = launch(large: true)

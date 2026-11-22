@@ -34,10 +34,16 @@ class Handler(base.Handler):
         g=base.goals.setdefault(device,base.goal());g.setdefault("id",1)
         if q["revision"]!=g["revision"]:
             return self.send(dict(error=dict(message="Your goal changed. Refresh before saving.")),409)
-        if g["active"] and not q["active"]:
+        phase = q.get("phase", g.get("phase", "cut")) if q["active"] else "maintenance"
+        switching = phase != g.get("phase", "cut")
+        if switching:
             past(device).insert(0,dict(id=g["id"],goal=copy.deepcopy(g),summary=base.summary(g),ended_at=base.stamp(datetime.now(timezone.utc)),end_reason="manual"))
-        if not g["active"] and q["active"]:
+        g.update(q)
+        if switching:
             g["id"]+=1;g["started_at"]=base.stamp(datetime.now(timezone.utc));g["pace_started_at"]=g["started_at"]
-        g.update(q);g["revision"]+=1;g["updated_at"]=base.stamp(datetime.now(timezone.utc))
+        g.update(active=True,phase=phase)
+        if phase == "maintenance":
+            g.update(weekly_loss_kg=0, finish_date=None, maintenance_reference_kg=62.4, maintenance_range_pct=1)
+        g["revision"]+=1;g["updated_at"]=base.stamp(datetime.now(timezone.utc))
         self.send(g)
 if __name__=="__main__":ThreadingHTTPServer(("127.0.0.1",28483),Handler).serve_forever()

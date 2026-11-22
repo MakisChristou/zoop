@@ -236,7 +236,10 @@ import XCTest
     func testLargeTextWeightAndConnectionRemainAccessible() {
         let app = launch(large: true, serial: "WEIGHT-EMPTY-" + UUID().uuidString); openWeight(app)
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["logWeight"].isHittable)
+        let log = app.buttons["logWeight"]
+        // isHittable can be true while the button's centre is under the tab bar.
+        for _ in 0..<6 where log.frame.maxY >= app.buttons["tab-Today"].frame.minY - 20 { app.swipeUp() }
+        XCTAssertTrue(log.isHittable)
         shot(app, "Weight accessibility text")
         app.buttons["logWeight"].tap()
         XCTAssertTrue(app.textFields["weightInput"].waitForExistence(timeout: 5))
