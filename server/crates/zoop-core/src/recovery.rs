@@ -25,6 +25,15 @@ pub async fn observe_recovery(store: &PostgresStore) -> CoreResult<bool> {
     let Some(job) = store.claim_recovery(RECOVERY_VERSION).await? else {
         return Ok(false);
     };
+    store
+        .refresh_sleep_evidence(
+            &job.device_id,
+            job.day - Duration::days(28),
+            job.day,
+            &job.tz,
+            ALGO_VERSION,
+        )
+        .await?;
     let Some(snapshot) = store
         .insight_snapshot(
             &job.device_id,
@@ -37,20 +46,7 @@ pub async fn observe_recovery(store: &PostgresStore) -> CoreResult<bool> {
     else {
         return Ok(false);
     };
-    // Retain only the measurement inputs and gate provenance used by Recovery.
-    // Sleep stages, timing charts and unrelated physiological metrics are omitted.
-    let nights: Vec<_> = snapshot.nights.iter().map(|row| {
-        let n = input_ref(row);
-        let reading = |r: &zoop_analytics::insights::Reading| json!({"value":r.value,"quality":r.quality});
-        json!({"day":n.day,"sleep_id":n.id,"revision":n.revision,"timezone":n.timezone,
-            "measurement_version":row.metrics.pointer("/sleep/algo_version"),
-            "day_count":row.day_count,"state":n.state,
-            "sleep":reading(&n.sleep),"hrv":reading(&n.hrv),"resting_hr":reading(&n.resting_hr)})
-    }).collect();
-    let inputs = json!({"day":job.day,"timezone":job.tz,"sleep_version":ALGO_VERSION,
-        "formula_version":RECOVERY_VERSION,"method":"zoop-recovery-v1","reference_seconds":28800,
-        "pending":snapshot.pending,"nights":nights});
-    let fingerprint = format!("{:x}", Sha256::digest(serde_json::to_vec(&inputs)?));
+    let (fingerprint, inputs) = recovery_inputs(job.day, &job.tz, &snapshot)?;
     let result = serde_json::to_value(from_snapshot(job.day, &job.tz, snapshot).recovery)?;
     store
         .record_recovery(&job, &fingerprint, &inputs, &result)
@@ -100,7 +96,7 @@ pub async fn daily_recovery_history(
     else {
         return Ok(None);
     };
-    let mut result = Vec::new();
+    let mut days = Vec::new();
     for row in snapshot.nights.iter().filter(|n| n.day >= from) {
         let nights = snapshot
             .nights
@@ -108,14 +104,28 @@ pub async fn daily_recovery_history(
             .filter(|n| n.day >= row.day - Duration::days(28) && n.day <= row.day)
             .cloned()
             .collect();
-        let brief = from_snapshot(
-            row.day,
-            tz,
-            zoop_storage::InsightSnapshot {
-                nights,
-                pending: row.pending || row.day_pending,
-            },
-        );
+        let daily = zoop_storage::InsightSnapshot {
+            nights,
+            pending: row.pending || row.day_pending,
+        };
+        let (fingerprint, _) = recovery_inputs(row.day, tz, &daily)?;
+        days.push((row.day, daily, fingerprint));
+    }
+    let fingerprints = days
+        .iter()
+        .map(|(_, _, fingerprint)| fingerprint.clone())
+        .collect::<Vec<_>>();
+    let stored = store
+        .recovery_results(device, tz, RECOVERY_VERSION, &fingerprints)
+        .await?;
+    let mut result = Vec::new();
+    for (day, daily, fingerprint) in days {
+        let cached = stored
+            .get(&fingerprint)
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?;
+        let brief = crate::insights::from_snapshot_with_recovery(day, tz, daily, cached);
         let metric = |key| {
             brief
                 .metrics
@@ -124,11 +134,36 @@ pub async fn daily_recovery_history(
                 .and_then(|m| m.value)
         };
         result.push(RecoveryDay {
-            day: row.day,
+            day,
             hrv_ms: metric("hrv"),
             resting_hr: metric("resting_hr"),
             recovery: brief.recovery,
         });
     }
     Ok(Some(result))
+}
+
+/// Exact scoring inputs identify reusable observations, including transient gates.
+pub(crate) fn recovery_inputs(
+    day: chrono::NaiveDate,
+    tz: &str,
+    snapshot: &zoop_storage::InsightSnapshot,
+) -> CoreResult<(String, serde_json::Value)> {
+    // Retain only the measurement inputs and gate provenance used by Recovery.
+    // Sleep stages, timing charts and unrelated physiological metrics are omitted.
+    let nights: Vec<_> = snapshot.nights.iter().map(|row| {
+        let n = input_ref(row);
+        let reading = |r: &zoop_analytics::insights::Reading| json!({"value":r.value,"quality":r.quality});
+        json!({"day":n.day,"sleep_id":n.id,"revision":n.revision,"timezone":n.timezone,
+            "measurement_version":row.metrics.pointer("/sleep/algo_version"),
+            "day_count":row.day_count,"day_pending":row.day_pending,"state":n.state,
+            "sleep":reading(&n.sleep),"hrv":reading(&n.hrv),"resting_hr":reading(&n.resting_hr)})
+    }).collect();
+    let inputs = json!({"day":day,"timezone":tz,"sleep_version":ALGO_VERSION,
+        "formula_version":RECOVERY_VERSION,"method":"zoop-recovery-v1","reference_seconds":28800,
+        "evidence_version":1,"pending":snapshot.pending,"nights":nights});
+    Ok((
+        format!("{:x}", Sha256::digest(serde_json::to_vec(&inputs)?)),
+        inputs,
+    ))
 }

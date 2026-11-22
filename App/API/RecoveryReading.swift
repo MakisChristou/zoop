@@ -28,6 +28,8 @@ struct RecoveryReading: Decodable, Sendable {
     }
     var value: String { displayedScore.map(String.init) ?? "—" }
     var progress: Double? { displayedScore.map { Double($0) / 100 } }
+    var isWaitingForSync: Bool { state == "awaiting_sync" }
+    var isCalculating: Bool { state == "updating" }
     var isPending: Bool { state == "updating" || state == "awaiting_sync" }
     var status: String {
         if displayedScore != nil {
@@ -36,7 +38,7 @@ struct RecoveryReading: Decodable, Sendable {
         switch state {
         case "learning": return "Learning · \(baselineCount)/14 nights"
         case "updating": return "Updating"
-        case "awaiting_sync": return "Syncing"
+        case "awaiting_sync": return "Waiting for sync"
         case "no_sleep": return "No sleep recorded"
         case "unusual_signals": return "Unusual readings"
         case "insufficient_recent_data": return "More recent nights needed"

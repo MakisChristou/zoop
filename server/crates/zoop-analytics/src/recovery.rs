@@ -7,7 +7,7 @@
 //! explicit Zoop conventions, not WHOOP parity or a physiological percentage.
 use crate::insights::{Night, Reading};
 use chrono::NaiveDate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 /// Independently versioned; changing this never re-derives sleep or workouts.
@@ -16,7 +16,7 @@ pub const RECOVERY_VERSION: i32 = 1;
 pub const REFERENCE_SECONDS: u32 = 28_800;
 
 /// Supporting components on the same conventional 0–100 scale.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Components {
     pub hrv: f64,
     pub resting_hr: f64,
@@ -24,26 +24,26 @@ pub struct Components {
     pub recent_sleep: f64,
 }
 /// Server-owned score. Missing data is never represented by zero.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recovery {
     pub version: i32,
-    pub method: &'static str,
-    pub state: &'static str,
+    pub method: String,
+    pub state: String,
     pub score: Option<u8>,
     pub baseline_count: usize,
     pub recent_count: usize,
     pub reference_seconds: u32,
     pub components: Option<Components>,
-    pub limiting: Vec<&'static str>,
+    pub limiting: Vec<String>,
     pub conflict: bool,
-    pub band: Option<&'static str>,
+    pub band: Option<String>,
 }
 impl Recovery {
     fn unavailable(state: &'static str, baseline_count: usize, recent_count: usize) -> Self {
         Self {
             version: RECOVERY_VERSION,
-            method: "zoop-recovery-v1",
-            state,
+            method: "zoop-recovery-v1".into(),
+            state: state.into(),
             score: None,
             baseline_count,
             recent_count,
@@ -158,8 +158,8 @@ pub fn calculate(day: NaiveDate, timezone: &str, nights: &[Night], pending: bool
     let score = rounded_score(least);
     Recovery {
         version: RECOVERY_VERSION,
-        method: "zoop-recovery-v1",
-        state: "ready",
+        method: "zoop-recovery-v1".into(),
+        state: "ready".into(),
         score: Some(score),
         baseline_count: count,
         recent_count: recent.len(),
@@ -168,16 +168,19 @@ pub fn calculate(day: NaiveDate, timezone: &str, nights: &[Night], pending: bool
         limiting: parts
             .into_iter()
             .filter(|(_, v)| (v - least).abs() <= 1e-9)
-            .map(|(key, _)| key)
+            .map(|(key, _)| key.to_owned())
             .collect(),
         conflict: (h > 1.0 && r > 1.0) || (h < -1.0 && r < -1.0),
-        band: Some(if score < 34 {
-            "low"
-        } else if score < 67 {
-            "moderate"
-        } else {
-            "high"
-        }),
+        band: Some(
+            (if score < 34 {
+                "low"
+            } else if score < 67 {
+                "moderate"
+            } else {
+                "high"
+            })
+            .to_owned(),
+        ),
     }
 }
 #[cfg(test)]

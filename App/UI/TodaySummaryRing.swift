@@ -8,6 +8,7 @@ struct TodaySummaryRing: View {
     var progress: Double? = nil
     var isLoading = false
     var subtitle: String? = nil
+    var waitingLabel: String? = nil
     var showsTitle = true
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -23,6 +24,11 @@ struct TodaySummaryRing: View {
                 }
                 if isLoading && value == "—" {
                     ProgressView().tint(ZoopStyle.text)
+                } else if let waitingLabel, value == "—" {
+                    VStack(spacing: 4) {
+                        Image(systemName: "clock").font(.system(size: 20))
+                        Text("Waiting").font(ZoopType.caption)
+                    }.foregroundStyle(ZoopStyle.secondary).accessibilityLabel(waitingLabel)
                 } else {
                     VStack(spacing: 3) {
                         Text(value)
@@ -49,7 +55,7 @@ struct TodaySummaryRing: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue(isLoading ? (value == "—" ? "Loading" : "\(value), updating") : value == "—" ? "No reading" : [value, subtitle].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityValue(isLoading ? (value == "—" ? "Loading" : "\(value), updating") : value == "—" ? (waitingLabel ?? "No reading") : [value, subtitle].compactMap { $0 }.joined(separator: ", "))
     }
 
     private var fraction: Double {

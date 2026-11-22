@@ -320,3 +320,37 @@ test("pending polling backs off and pauses in a hidden tab", async ({
   await page.clock.fastForward(30001);
   await expect.poll(() => calls).toBe(9);
 });
+
+test("waiting for sleep data is static and still polls for readiness", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await fixture(page);
+  let calls = 0;
+  await page.route("**/insights?*", (route) =>
+    route.fulfill({
+      json:
+        ++calls === 1
+          ? {
+              ...ready,
+              recovery: {
+                ...ready.recovery,
+                state: "awaiting_sync",
+                score: null,
+                band: null,
+              },
+            }
+          : ready,
+    }),
+  );
+  await login(page);
+  await expect(
+    page.locator(".recovery-ring").getByLabel("Waiting for sync"),
+  ).toBeVisible();
+  await expect(page.locator(".recovery-ring .spinner")).toHaveCount(0);
+  await page
+    .locator(".recovery-ring")
+    .screenshot({ path: "test-results/recovery-waiting.png" });
+  await page.clock.fastForward(30001);
+  await expect(page.locator(".recovery-ring strong")).toHaveText("72");
+});

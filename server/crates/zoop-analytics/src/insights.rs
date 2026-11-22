@@ -104,6 +104,24 @@ pub fn calculate(
     nights: &[Night],
     pending: bool,
 ) -> MorningInsights {
+    calculate_with_recovery(
+        day,
+        timezone,
+        nights,
+        pending,
+        crate::recovery::calculate(day, timezone, nights, pending),
+    )
+}
+
+/// Builds a brief using an already resolved Recovery result from the same inputs.
+/// Storage adapters can reuse versioned observations without calculating twice.
+pub fn calculate_with_recovery(
+    day: NaiveDate,
+    timezone: &str,
+    nights: &[Night],
+    pending: bool,
+    recovery: crate::recovery::Recovery,
+) -> MorningInsights {
     let current = nights.iter().find(|n| n.day == day);
     let state = if pending {
         "updating"
@@ -125,7 +143,7 @@ pub fn calculate(
         sleep_revision: current.map(|n| n.revision),
         timing: timing(day, nights),
         outlook: outlook::summarize(&metrics, state),
-        recovery: crate::recovery::calculate(day, timezone, nights, pending),
+        recovery,
         metrics,
         observations,
     }

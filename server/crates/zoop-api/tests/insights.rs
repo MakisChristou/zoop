@@ -132,6 +132,7 @@ async fn partial_sleep_bad_hrv_and_interrupted_wake_are_separate() {
 #[ignore = "requires development Postgres"]
 async fn edits_reset_and_undo_refresh_brief_without_mutating_raw_data() {
     let db = fixture().await;
+    warm_recovery(&db).await;
     let access = db.store.sessions(SessionDomain::Sleep);
     let rows = access
         .list_sessions(
@@ -484,4 +485,232 @@ async fn daily_recovery_chart_matches_insights_and_keeps_missing_days_missing() 
         0,
         "GET never writes"
     );
+}
+
+async fn warm_recovery(db: &Db) {
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    db.store.seed_recovery(1).await.unwrap();
+    while zoop_core::observe_recovery(&db.store).await.unwrap() {}
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn recovery_evidence_cache_preserves_results_and_gets_remain_read_only() {
+    let db = fixture().await;
+    db.sql("UPDATE sleep_sessions SET metrics=jsonb_set(metrics,'{sleep,algo_version}','5')")
+        .await;
+    let before = brief(&db).await;
+    warm_recovery(&db).await;
+    assert_eq!(before, brief(&db).await);
+    assert_eq!(db.count("SELECT count(*) FROM sleep_evidence").await, 20);
+    let observations = db.count("SELECT count(*) FROM recovery_observations").await;
+    let (fingerprint, result): (String, Value) = sqlx::query_as(
+        "SELECT input_fingerprint,result FROM recovery_observations WHERE day='2025-01-15'",
+    )
+    .fetch_one(&db.pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        db.store
+            .recovery_results(DEVICE, "UTC", 1, std::slice::from_ref(&fingerprint))
+            .await
+            .unwrap()[&fingerprint],
+        result
+    );
+    assert!(
+        db.store
+            .recovery_results("OTHER", "UTC", 1, std::slice::from_ref(&fingerprint))
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        db.store
+            .recovery_results(DEVICE, "UTC", 2, std::slice::from_ref(&fingerprint))
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(brief(&db).await["recovery"], result);
+    assert_eq!(
+        observations,
+        db.count("SELECT count(*) FROM recovery_observations").await
+    );
+}
+
+async fn decode_reading(db: &Db, seq: i64, at: &str, state: i16) {
+    let raw = db.raw(seq).await;
+    let mut sample = support::sample(raw, support::at(at));
+    sample.band_state = state;
+    db.store
+        .save_decoded(
+            &[zoop_storage::DecodedFrame {
+                frame_id: raw,
+                device_id: DEVICE,
+                output: zoop_storage::DecodeOutput::Sample(sample),
+            }],
+            1,
+            HistoryWorker::versions(),
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn daytime_sync_keeps_ready_recovery_but_overnight_and_baseline_changes_do_not() {
+    let db = fixture().await;
+    warm_recovery(&db).await;
+    let before = brief(&db).await;
+    decode_reading(&db, 2, "2025-01-15T12:00:00Z", 0).await;
+    assert!(db.count("SELECT count(*) FROM analysis_jobs WHERE day='2025-01-15' AND kind='sleep' AND generation>completed_generation").await>0);
+    assert_eq!(
+        before["recovery"],
+        brief(&db).await["recovery"],
+        "unrelated awake samples must not blank a morning score"
+    );
+    decode_reading(&db, 3, "2025-01-10T06:30:00Z", 2).await;
+    assert_eq!(
+        brief(&db).await["recovery"]["state"],
+        "updating",
+        "late baseline samples cannot reuse a stale ready score"
+    );
+    db.sql("UPDATE analysis_jobs SET available_at=now()").await;
+    drain(&db).await;
+    decode_reading(&db, 4, "2025-01-15T06:30:00Z", 2).await;
+    assert_eq!(
+        brief(&db).await["recovery"]["state"],
+        "updating",
+        "late assessed-night samples invalidate evidence"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn new_daytime_sleep_and_explicit_reanalysis_invalidate_saved_evidence() {
+    let db = fixture().await;
+    warm_recovery(&db).await;
+    decode_reading(&db, 2, "2025-01-15T12:00:00Z", 2).await;
+    assert_eq!(
+        brief(&db).await["recovery"]["state"],
+        "updating",
+        "new sleep can change the selected main sleep"
+    );
+    let db = fixture().await;
+    warm_recovery(&db).await;
+    db.store
+        .request_analysis(DEVICE, "sleep", day("2025-01-15"), "UTC", 5, false)
+        .await
+        .unwrap();
+    assert_eq!(brief(&db).await["recovery"]["state"], "updating");
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn cached_wake_evidence_keeps_threshold_and_late_samples_refresh_it() {
+    let db = fixture().await;
+    db.sql("DELETE FROM samples WHERE ts>='2025-01-15T07:24:59Z' AND ts<'2025-01-15T07:30:00Z'")
+        .await;
+    warm_recovery(&db).await;
+    assert_eq!(brief(&db).await["recovery"]["state"], "awaiting_sync");
+    let raw = db.raw(2).await;
+    let mut sample = support::sample(raw, support::at("2025-01-15T07:24:59Z"));
+    sample.band_state = 0;
+    db.store.upsert_sample(&sample).await.unwrap();
+    assert_eq!(
+        brief(&db).await["recovery"]["state"],
+        "ready",
+        "1500 qualifying readings is the unchanged threshold"
+    );
+    db.store
+        .refresh_sleep_evidence(DEVICE, day("2025-01-15"), day("2025-01-15"), "UTC", 5)
+        .await
+        .unwrap();
+    sample.band_state = 2;
+    db.store.upsert_sample(&sample).await.unwrap();
+    assert_eq!(
+        brief(&db).await["recovery"]["state"],
+        "awaiting_sync",
+        "a corrected wake sample invalidates a cached true boundary"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn warmed_snapshot_never_scans_samples() {
+    let db = fixture().await;
+    let started = std::time::Instant::now();
+    for _ in 0..5 {
+        brief(&db).await;
+    }
+    let uncached = started.elapsed();
+    warm_recovery(&db).await;
+    let started = std::time::Instant::now();
+    for _ in 0..5 {
+        brief(&db).await;
+    }
+    let cached = started.elapsed();
+    let query = format!(
+        "EXPLAIN (ANALYZE,FORMAT JSON) {}",
+        include_str!("../../zoop-storage/src/insight_snapshot.sql")
+    );
+    let plan: Value = sqlx::query_scalar(&query)
+        .bind(DEVICE)
+        .bind(day("2025-01-01"))
+        .bind(day("2025-01-20"))
+        .bind("UTC")
+        .bind(5i32)
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
+    fn check(node: &Value) {
+        if node["Relation Name"] == "samples" {
+            assert_eq!(node["Actual Loops"], 0, "{node}");
+        }
+        if let Some(children) = node["Plans"].as_array() {
+            for child in children {
+                check(child);
+            }
+        }
+    }
+    check(&plan[0]["Plan"]);
+    eprintln!("Five complete insight reads: uncached={uncached:?}, cached={cached:?}");
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn replacing_or_removing_old_sleep_labels_invalidates_evidence() {
+    for remove in [false, true] {
+        let db = fixture().await;
+        warm_recovery(&db).await;
+        let raw = db.raw(2).await;
+        let mut sample = support::sample(raw, support::at("2025-01-15T12:00:00Z"));
+        sample.band_state = 2;
+        db.store.upsert_sample(&sample).await.unwrap();
+        db.store
+            .refresh_sleep_evidence(DEVICE, day("2025-01-15"), day("2025-01-15"), "UTC", 5)
+            .await
+            .unwrap();
+        assert_eq!(brief(&db).await["recovery"]["state"], "ready");
+        sample.band_state = 0;
+        let output = if remove {
+            zoop_storage::DecodeOutput::Unsupported
+        } else {
+            zoop_storage::DecodeOutput::Sample(sample)
+        };
+        db.store
+            .save_decoded(
+                &[zoop_storage::DecodedFrame {
+                    frame_id: raw,
+                    device_id: DEVICE,
+                    output,
+                }],
+                1,
+                HistoryWorker::versions(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(brief(&db).await["recovery"]["state"], "updating");
+    }
 }

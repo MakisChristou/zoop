@@ -21,6 +21,16 @@ const insight = (changes: Partial<Recovery> = {}): Insights => ({
   recovery: { ...recovery, ...changes },
 });
 describe("server-owned recovery presentation", () => {
+  it("distinguishes waiting for samples from active calculation", () => {
+    const waiting = recoveryReading(
+      insight({ state: "awaiting_sync", score: null }),
+    );
+    expect(waiting.waiting).toBe(true);
+    expect(waiting.status).toBe("Waiting for sync");
+    expect(
+      recoveryReading(insight({ state: "updating", score: null })).waiting,
+    ).toBe(false);
+  });
   it("renders the API score and band even when components disagree", () => {
     const value = recoveryReading(insight({ score: 41, band: "high" }));
     expect(value.score).toBe(41);

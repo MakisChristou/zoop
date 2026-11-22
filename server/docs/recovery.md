@@ -59,8 +59,10 @@ check. The object includes `version`, `method`, `state`, nullable `score`,
 `limiting`, `conflict`, and nullable `band`. Only `ready` has a numeric score.
 A missing or unsupported measurement is not zero Recovery.
 
-GET calculates from a single repeatable-read snapshot and never writes. The
-existing analysis worker records the same calculation in append-only
+GET reads a single repeatable-read snapshot and never writes. It reuses a stored
+result only when the device, timezone, formula version and exact input fingerprint
+match; otherwise it calculates from that snapshot. The existing analysis worker
+records the same calculation in append-only
 `recovery_observations`, with only scoring values, eligibility states, source IDs/revisions, measurement
 version, saved timezone and duplicate counts (not stage arrays), a SHA-256 input fingerprint,
 formula version, and observation time. Observation time is calculation time,
@@ -74,6 +76,26 @@ dates once per device, timezone, and formula version; it does not redetect sleep
 Each worker loop handles at most one observation. Failed claims retry after
 30 seconds; generation fencing retains new work if inputs change concurrently.
 
+## Loading and cached evidence
+
+Migration 0022 adds per-session recording evidence: cardiac coverage and the
+existing pre-sleep/wake boundary checks. The observation worker fills missing
+entries for settled nights. Warm reads use these summaries instead of scanning
+raw samples across the baseline on every request. Cold reads retain the original
+checks; migration does not redetect sleep or change the Recovery formula.
+
+Evidence is tied to the sleep revision. Decoding invalidates it transactionally
+for overnight context, wake confirmation, and changes to same-day sleep labels.
+Explicit reanalysis invalidates the affected day. Publication and invalidation
+share a device lock; pending corrections and relevant late baseline data cannot
+reuse a ready score. Ordinary daytime awake uploads may queue analysis, but do
+not hide an already settled morning score.
+
+`awaiting_sync` means recording evidence is still incomplete, not that an HTTP
+request is running. Clients show a quiet waiting state and continue polling.
+`updating` retains active loading feedback. The wake threshold is unchanged:
+1,500 qualifying awake readings in the first 30 minutes after sleep ends.
+
 ## Validation
 
 Pure tests cover all component anchors, short and repeated restricted sleep,
@@ -82,7 +104,10 @@ paired-history requirements, rounding and output bounds. Forty deterministic
 vectors compare Rust scores and every component with frozen Python v0.3 results.
 Database tests use isolated development schemas to exercise the wire contract,
 measurement-version gates, read-only GETs, device isolation, correction pending
-states, append-only revisions, retries and bounded bootstrap.
+states, append-only revisions, retries and bounded bootstrap. Cache regressions
+cover late baseline/overnight data, replaced sleep labels, corrections/reset,
+concurrent ingest and chart reads, and unchanged wake thresholds. Query-plan
+checks verify that warm snapshots do not scan raw samples.
 
 This is implementation validation, not clinical validation or evidence of
 population accuracy. A larger longitudinal validation remains useful before

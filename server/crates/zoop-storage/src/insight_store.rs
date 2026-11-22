@@ -1,4 +1,4 @@
-//! Bounded, read-only snapshots for morning comparisons. No derived values are persisted.
+//! Bounded read-only snapshots reuse worker-published recording evidence.
 use crate::{PostgresStore, StorageError, StorageResult, StoreOperation};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::Value;
@@ -70,28 +70,20 @@ impl PostgresStore {
         }
         let pending:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM analysis_jobs WHERE device_id=$1 AND kind='sleep' AND day=$2 AND algo_version=$3 AND generation>completed_generation)")
             .bind(device).bind(day).bind(sleep_version).fetch_one(&mut *tx).await.map_err(fail)?;
-        let nights=sqlx::query_as::<_,InsightNight>(r#"
-WITH ranked AS (
- SELECT s.*, (end_ts AT TIME ZONE $4)::date AS day,
- count(*) OVER (PARTITION BY (end_ts AT TIME ZONE $4)::date,timezone,metrics #>> '{sleep,algo_version}') AS day_count,
- row_number() OVER (PARTITION BY (end_ts AT TIME ZONE $4)::date ORDER BY fixed DESC,duration_s DESC,id) AS rank
- FROM sleep_sessions s WHERE device_id=$1 AND status='active' AND kind='main'
- AND end_ts >= $2::date::timestamp AT TIME ZONE $4
- AND end_ts < ($3::date+1)::timestamp AT TIME ZONE $4
-)
-SELECT s.id,s.revision,s.day_count,s.day,s.timezone,s.start_ts,s.end_ts,s.duration_s,s.metrics,
- EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=$1 AND j.kind='sleep' AND j.day=s.day AND j.algo_version=$5 AND j.generation>j.completed_generation) AS day_pending,
- (s.metrics_pending OR EXISTS(SELECT 1 FROM analysis_jobs j WHERE j.device_id=s.device_id AND j.kind='sleep' AND j.algo_version=$5 AND j.day=(s.end_ts AT TIME ZONE s.timezone)::date AND j.tz=s.timezone AND j.generation>j.completed_generation)) AS pending,
- (s.fixed OR ((SELECT count(*)>=270 AND count(*) FILTER(WHERE band_state<>2)>=150
- FROM samples WHERE device_id=$1 AND ts>=s.start_ts-interval '5 minutes' AND ts<s.start_ts)
- AND (SELECT count(*)>=1500 AND count(*) FILTER(WHERE band_state IN (0,3))>=1500
- FROM samples WHERE device_id=$1 AND ts>=s.end_ts AND ts<s.end_ts+interval '30 minutes'))) AND s.end_ts<=now() AS complete,
- (SELECT count(*) FROM samples WHERE device_id=$1 AND ts>=s.start_ts AND ts<s.end_ts AND hr IS NOT NULL) AS hr_samples,
- (extract(epoch FROM (s.start_ts AT TIME ZONE s.timezone)::time)/60)::float8 AS onset_minute,
- (extract(epoch FROM (s.end_ts AT TIME ZONE s.timezone)::time)/60)::float8 AS wake_minute
-FROM ranked s WHERE rank=1 ORDER BY day
-"#).bind(device).bind(from).bind(day).bind(tz).bind(sleep_version).fetch_all(&mut *tx).await.map_err(fail)?;
+        let nights = sqlx::query_as::<_, InsightNight>(include_str!("insight_snapshot.sql"))
+            .bind(device)
+            .bind(from)
+            .bind(day)
+            .bind(tz)
+            .bind(sleep_version)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(fail)?;
         tx.commit().await.map_err(fail)?;
+        let pending = nights
+            .iter()
+            .find(|n| n.day == day)
+            .map_or(pending, |n| n.pending || n.day_pending);
         Ok(Some(InsightSnapshot { nights, pending }))
     }
 }

@@ -19,6 +19,7 @@ mod frame_store;
 mod health_store;
 mod insight_store;
 mod recovery_store;
+mod sleep_evidence;
 pub use health_store::{
     HealthExport, HealthInfo, HealthPage, HealthPreparation, WeightChanges, WeightInput,
     WeightReading,

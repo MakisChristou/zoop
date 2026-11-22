@@ -34,6 +34,40 @@ impl PostgresStore {
     ) -> StorageResult<()> {
         let fail = |e| StorageError::unavailable(StoreOperation::UpsertSample, e);
         let mut tx = self.pool().begin().await.map_err(fail)?;
+        for device in frames
+            .iter()
+            .map(|f| f.device_id)
+            .collect::<std::collections::BTreeSet<_>>()
+        {
+            crate::session_store::lock_device(&mut tx, device).await?;
+        }
+        // Invalidate against old sleep labels before replacement/removal as well
+        // as against new labels in queue_samples. Batch this once per device.
+        let ids = frames.iter().map(|f| f.frame_id).collect::<Vec<_>>();
+        let eligible: Vec<i64> = sqlx::query_scalar(
+            "SELECT id FROM raw_frames WHERE id=ANY($1) AND (decoded_proto IS NULL OR decoded_proto<$2)")
+            .bind(ids).bind(proto).fetch_all(&mut *tx).await.map_err(fail)?;
+        let old: Vec<(String, chrono::DateTime<chrono::Utc>)> =
+            sqlx::query_as("SELECT device_id,ts FROM samples WHERE raw_frame_id=ANY($1)")
+                .bind(&eligible)
+                .fetch_all(&mut *tx)
+                .await
+                .map_err(fail)?;
+        let mut before =
+            std::collections::BTreeMap::<&str, Vec<chrono::DateTime<chrono::Utc>>>::new();
+        for (device, ts) in &old {
+            before.entry(device).or_default().push(*ts);
+        }
+        for frame in frames {
+            if let DecodeOutput::Sample(s) = &frame.output
+                && eligible.contains(&frame.frame_id)
+            {
+                before.entry(s.device_id).or_default().push(s.ts);
+            }
+        }
+        for (device, times) in before {
+            crate::sleep_evidence::invalidate(&mut tx, device, &times).await?;
+        }
         let mut affected = std::collections::BTreeSet::new();
         for frame in frames {
             let current: Option<i32> =

@@ -236,7 +236,7 @@ function SharedCard({
   const rows = (widget.activities ?? []).map((row, i) => ({ ...row, key: i }));
   if (key === "daily_rings") {
     const reading = recoveryScoreReading(widget.recovery);
-    const recoveryLoading = loading || pendingRecovery(widget.recovery?.state);
+    const recoveryLoading = loading || widget.recovery?.state === "updating";
     return (
       <section className="shared-rings" aria-label="Daily rings">
         <div className="shared-ring-date">
@@ -257,7 +257,7 @@ function SharedCard({
           <div
             className="ring-item recovery-ring"
             aria-busy={recoveryLoading}
-            aria-label={`Recovery: ${reading.score ?? (recoveryLoading ? "loading" : "No reading")}`}
+            aria-label={`Recovery: ${reading.score ?? (recoveryLoading ? "loading" : reading.waiting ? "Waiting for sync" : "No reading")}`}
           >
             <RecoveryRingFace reading={reading} loading={recoveryLoading} />
           </div>

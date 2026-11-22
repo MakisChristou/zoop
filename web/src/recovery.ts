@@ -32,6 +32,7 @@ export function recoveryScoreReading(
     recovery.band != null &&
     Object.hasOwn(bands, recovery.band);
   return {
+    waiting: supported && recovery?.state === "awaiting_sync",
     score: ready ? recovery.score : null,
     fraction: ready ? recovery.score! / 100 : null,
     color: ready ? colors[recovery.band!] : "var(--muted)",
@@ -64,7 +65,7 @@ function recoveryStatus(recovery: Recovery | null | undefined): string {
     case "updating":
       return "Updating";
     case "awaiting_sync":
-      return "Syncing";
+      return "Waiting for sync";
     case "no_sleep":
       return "No reading";
     case "insufficient_data":

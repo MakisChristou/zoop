@@ -118,7 +118,8 @@ struct TodayView: View {
                 TodaySummaryRing(title: "Recovery", value: insights?.recovery?.value ?? "—",
                                  color: RecoveryTone.color(insights?.recovery),
                                  progress: insights?.recovery?.progress,
-                                 isLoading: morning.loading || insights?.state == "updating" || insights?.state == "awaiting_sync" || insights?.recovery?.isPending == true)
+                                 isLoading: morning.loading || insights?.recovery?.isCalculating == true,
+                                 waitingLabel: insights?.recovery?.isWaitingForSync == true ? "Waiting for sync" : nil)
             }
             .buttonStyle(.plain).accessibilityIdentifier("openRecoverySummary")
             .accessibilityHint("Opens recovery and its readings")

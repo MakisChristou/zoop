@@ -26,13 +26,16 @@ pub(crate) fn conflict(message: &str) -> StorageError {
     StorageError::CorrectionConflict(message.to_owned())
 }
 
-/// Serialises writers for a strap without locking raw ingestion or sensor samples.
+/// Serialises device mutations while allowing foreign-key checks by cache readers.
+/// No caller changes the device key. FOR UPDATE would deadlock with a day-summary
+/// reader holding its advisory lock and inserting a row referencing this device.
 pub(crate) async fn lock_device(tx: &mut PgConnection, device: &str) -> StorageResult<()> {
-    let found: Option<String> = sqlx::query_scalar("SELECT id FROM devices WHERE id=$1 FOR UPDATE")
-        .bind(device)
-        .fetch_optional(tx)
-        .await
-        .map_err(fail)?;
+    let found: Option<String> =
+        sqlx::query_scalar("SELECT id FROM devices WHERE id=$1 FOR NO KEY UPDATE")
+            .bind(device)
+            .fetch_optional(tx)
+            .await
+            .map_err(fail)?;
     if found.is_none() {
         return Err(StorageError::CorrectionNotFound);
     }

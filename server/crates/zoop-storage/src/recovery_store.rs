@@ -48,6 +48,22 @@ ON CONFLICT(device_id,day,tz,formula_version) DO UPDATE
     Ok(())
 }
 impl PostgresStore {
+    /// Fetches only observations matching the exact current scoring inputs.
+    /// Historical revisions remain auditable; an unrelated latest row is never reused.
+    /// # Errors
+    /// Database failure.
+    pub async fn recovery_results(
+        &self,
+        device: &str,
+        tz: &str,
+        version: i32,
+        fingerprints: &[String],
+    ) -> StorageResult<std::collections::HashMap<String, Value>> {
+        let rows: Vec<(String, Value)> = sqlx::query_as("SELECT input_fingerprint,result FROM recovery_observations WHERE device_id=$1 AND tz=$2 AND formula_version=$3 AND input_fingerprint=ANY($4)")
+            .bind(device).bind(tz).bind(version).bind(fingerprints).fetch_all(self.pool()).await.map_err(fail)?;
+        Ok(rows.into_iter().collect())
+    }
+
     /// Adds missing dates for the current formula without rescheduling completed work.
     /// # Errors
     /// Database failure; the next reconciliation retries safely.

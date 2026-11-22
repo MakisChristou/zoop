@@ -13,6 +13,22 @@ import XCTest
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    func testWaitingForSyncIsNotAnActiveCalculation() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-demoSerial", "RECOVERY-awaiting_sync", "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-demoScreen", "today"]
+        app.launch()
+        let ring = app.buttons["openRecoverySummary"]
+        XCTAssertTrue(ring.waitForExistence(timeout: 15))
+        let waiting = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", "Waiting for sync"), object: ring)
+        XCTAssertEqual(XCTWaiter.wait(for: [waiting], timeout: 15), .completed)
+        XCTAssertEqual(ring.progressIndicators.count, 0)
+        shot(app, "Recovery waiting for sync")
+        ring.tap()
+        selectToday(app)
+        XCTAssertTrue(app.staticTexts["Waiting for sync"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.descendants(matching: .any)["recoveryScoreLoading"].firstMatch.exists)
+        shot(app, "Recovery detail waiting")
+    }
     func testSelectionCalendarPagingAndRanges() {
         let app = launch()
         let chart = app.otherElements["recoveryHistoryChart"]

@@ -68,6 +68,12 @@ pub struct MinuteRow {
 
 impl PostgresStore {
     pub async fn upsert_sample(&self, sample: &NewSample<'_>) -> StorageResult<()> {
+        let mut tx =
+            self.pool().begin().await.map_err(|source| {
+                StorageError::unavailable(StoreOperation::UpsertSample, source)
+            })?;
+        crate::session_store::lock_device(&mut tx, sample.device_id).await?;
+        crate::sleep_evidence::invalidate(&mut tx, sample.device_id, &[sample.ts]).await?;
         sqlx::query(
             "INSERT INTO samples
                (device_id, ts, hr, rr_ms, skin_temp_c, steps, accel_dyn_g, gravity_x, gravity_y, gravity_z,
@@ -101,10 +107,13 @@ impl PostgresStore {
         .bind(sample.band_state)
         .bind(sample.spo2_pct)
         .bind(sample.raw_frame_id)
-        .execute(self.pool())
+        .execute(&mut *tx)
         .await
         .map_err(|source| StorageError::unavailable(StoreOperation::UpsertSample, source))?;
-        Ok(())
+        crate::sleep_evidence::invalidate(&mut tx, sample.device_id, &[sample.ts]).await?;
+        tx.commit()
+            .await
+            .map_err(|source| StorageError::unavailable(StoreOperation::UpsertSample, source))
     }
 
     pub async fn insert_event(&self, event: &NewEvent<'_>) -> StorageResult<()> {

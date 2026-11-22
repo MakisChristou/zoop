@@ -104,10 +104,10 @@ struct RecoveryHistoryChart: View {
             Text(focus.formatted(dateStyle.weekday(.abbreviated).day().month(.abbreviated)))
                 .font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 .accessibilityIdentifier("recoverySelectedDate")
-            if reading?.recovery.isPending == true {
+            if reading?.recovery.isCalculating == true {
                 ProgressView().tint(ZoopStyle.text)
                     .frame(height: 28)
-                    .accessibilityLabel(reading?.recovery.state == "awaiting_sync" ? "Syncing recovery" : "Updating recovery")
+                    .accessibilityLabel("Updating recovery")
                     .accessibilityIdentifier("recoveryScoreLoading")
             } else {
                 let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))

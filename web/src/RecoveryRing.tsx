@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, X } from "lucide-react";
+import { Clock, LoaderCircle, X } from "lucide-react";
 import { duration, number } from "./calendar";
 import type { Insights } from "./data";
-import { recoveryPending, recoveryReading } from "./recovery";
+import { recoveryReading } from "./recovery";
 
 export function RecoveryRing({
   insight,
@@ -12,7 +12,7 @@ export function RecoveryRing({
   loading: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  loading = loading || recoveryPending(insight);
+  loading = loading || insight?.recovery?.state === "updating";
   const reading = recoveryReading(insight);
   return (
     <>
@@ -142,7 +142,12 @@ export function RecoveryRingFace({
   reading,
   loading = false,
 }: {
-  reading: { score: number | null; fraction: number | null; color: string };
+  reading: {
+    score: number | null;
+    fraction: number | null;
+    color: string;
+    waiting?: boolean;
+  };
   loading?: boolean;
 }) {
   return (
@@ -179,6 +184,8 @@ export function RecoveryRingFace({
                 role="status"
                 aria-label="Loading recovery"
               />
+            ) : reading.waiting ? (
+              <Clock size={20} aria-label="Waiting for sync" />
             ) : (
               (reading.score ?? "—")
             )}
@@ -186,7 +193,7 @@ export function RecoveryRingFace({
         </div>
       </div>
       <span>
-        Recovery
+        {reading.waiting && !loading ? "Recovery · Waiting" : "Recovery"}
         {loading && reading.score != null && (
           <LoaderCircle
             className="spinner recovery-refresh"

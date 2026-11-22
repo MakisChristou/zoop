@@ -31,12 +31,35 @@ pub async fn morning_insights(
     else {
         return Ok(None);
     };
-    Ok(Some(from_snapshot(day, tz, snapshot)))
+    let (fingerprint, _) = crate::recovery::recovery_inputs(day, tz, &snapshot)?;
+    let stored = store
+        .recovery_results(
+            device,
+            tz,
+            zoop_analytics::recovery::RECOVERY_VERSION,
+            std::slice::from_ref(&fingerprint),
+        )
+        .await?;
+    let cached = stored
+        .get(&fingerprint)
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()?;
+    Ok(Some(from_snapshot_with_recovery(day, tz, snapshot, cached)))
 }
 pub(crate) fn from_snapshot(
     day: NaiveDate,
     tz: &str,
     snapshot: InsightSnapshot,
+) -> MorningInsights {
+    from_snapshot_with_recovery(day, tz, snapshot, None)
+}
+
+pub(crate) fn from_snapshot_with_recovery(
+    day: NaiveDate,
+    tz: &str,
+    snapshot: InsightSnapshot,
+    cached: Option<zoop_analytics::recovery::Recovery>,
 ) -> MorningInsights {
     let mut recovery_nights = Vec::new();
     for row in &snapshot.nights {
@@ -59,10 +82,11 @@ pub(crate) fn from_snapshot(
         }
     }
     let nights = snapshot.nights.iter().map(input_ref).collect::<Vec<_>>();
-    let mut brief = insights::calculate(day, tz, &nights, snapshot.pending);
-    brief.recovery =
-        zoop_analytics::recovery::calculate(day, tz, &recovery_nights, snapshot.pending);
-    brief
+    // A late baseline correction must settle before we reuse it in a new score.
+    let pending = snapshot.pending || snapshot.nights.iter().any(|n| n.pending || n.day_pending);
+    let recovery = cached
+        .unwrap_or_else(|| zoop_analytics::recovery::calculate(day, tz, &recovery_nights, pending));
+    insights::calculate_with_recovery(day, tz, &nights, snapshot.pending, recovery)
 }
 pub(crate) fn input_ref(row: &InsightNight) -> Night {
     let metric = |key: &str| {

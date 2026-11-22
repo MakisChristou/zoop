@@ -36,6 +36,15 @@ final class RecoveryReadingTests: XCTestCase {
         XCTAssertEqual(reading.limitingText, "HRV")
         XCTAssertEqual(reading.components?.restingHr, 82)
     }
+    func testWaitingForSyncIsNotActiveCalculation() throws {
+        let waiting = try decode(state: "awaiting_sync", score: "null")
+        XCTAssertTrue(waiting.isPending)
+        XCTAssertTrue(waiting.isWaitingForSync)
+        XCTAssertFalse(waiting.isCalculating)
+        XCTAssertEqual(waiting.status, "Waiting for sync")
+        XCTAssertTrue(try decode(state: "updating").isCalculating)
+        XCTAssertFalse(try decode().isWaitingForSync)
+    }
     func testZeroAndHundredAreRealScores() throws {
         XCTAssertEqual(try decode(score: "0", band: "low").value, "0")
         XCTAssertEqual(try decode(score: "0").progress, 0)

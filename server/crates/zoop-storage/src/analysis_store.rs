@@ -54,10 +54,16 @@ impl PostgresStore {
         version: i32,
         backfill: bool,
     ) -> StorageResult<()> {
+        let mut tx = self.pool().begin().await.map_err(fail)?;
+        crate::session_store::lock_device(&mut tx, device).await?;
+        if kind == "sleep" {
+            sqlx::query("DELETE FROM sleep_evidence e USING sleep_sessions s WHERE e.session_id=s.id AND s.device_id=$1 AND (s.end_ts AT TIME ZONE $3)::date=$2")
+                .bind(device).bind(day).bind(tz).execute(&mut *tx).await.map_err(fail)?;
+        }
         sqlx::query("INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version,backfill) VALUES($1,$2,$3,$4,$5,$6)
             ON CONFLICT(device_id,kind,day,tz,algo_version) DO UPDATE SET generation=analysis_jobs.generation+1,available_at=now(),backfill=CASE WHEN analysis_jobs.generation>analysis_jobs.completed_generation THEN analysis_jobs.backfill OR EXCLUDED.backfill ELSE EXCLUDED.backfill END")
-            .bind(device).bind(kind).bind(day).bind(tz).bind(version).bind(backfill).execute(self.pool()).await.map_err(fail)?;
-        Ok(())
+            .bind(device).bind(kind).bind(day).bind(tz).bind(version).bind(backfill).execute(&mut *tx).await.map_err(fail)?;
+        tx.commit().await.map_err(fail)
     }
 
     /// Seeds existing history once per device, zone and version pair, transactionally.
@@ -347,6 +353,7 @@ pub(crate) async fn queue_samples(
     times: &[DateTime<Utc>],
     v: AnalysisVersions,
 ) -> StorageResult<()> {
+    crate::sleep_evidence::invalidate(tx, device, times).await?;
     sqlx::query("WITH z AS(SELECT coalesce((SELECT tz FROM profiles WHERE device_id=$1),'UTC') tz),
         changed AS(SELECT unnest($2::timestamptz[]) at), targets AS (
         SELECT 'sleep' kind,(at AT TIME ZONE z.tz)::date+n AS day,z.tz,$3::int version,at FROM changed,z,generate_series(-1,1)n
