@@ -10,8 +10,8 @@ struct TodayLiveMetric: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            content(now: context.date)
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            content(now: .now)
         }
     }
     @ViewBuilder private func content(now: Date) -> some View {

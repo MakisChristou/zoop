@@ -71,6 +71,11 @@ source fix and records the already-approved OS-only encryption classification in
 the app manifest. Neither changes the pending build 3 submission automatically.
 See [Release readiness](RELEASE_READINESS.md) for remaining qualification gates.
 
+Build 5 was uploaded to the private owner TestFlight group on 22 November. The
+owner confirmed sync, then reported that BPM and the Live label still alternate.
+Build 6 corrects rendering between clock ticks; it needs fresh device qualification
+before replacing the submitted build. Do not treat build 5 as release-qualified.
+
 ## Screenshot capture
 
 `AppStoreScreenshotTests` captures the actual Release interface with synthetic

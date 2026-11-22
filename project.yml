@@ -57,7 +57,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
-        CFBundleVersion: "5"
+        CFBundleVersion: "6"
         ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]

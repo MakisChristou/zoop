@@ -9,7 +9,7 @@ struct TimelineReading: Equatable {
 
     static func resolve(value: Double?, date: Date?, wantsLive: Bool,
                         sensorValue: UInt8?, sensorDate: Date?, streaming: Bool,
-                        now: Date, calendar: Calendar = .current) -> Self {
+                        now: Date = .now, calendar: Calendar = .current) -> Self {
         if wantsLive, let sensorValue, let sensorDate,
            sensorDate <= now, calendar.isDate(sensorDate, inSameDayAs: now) {
             let fresh = streaming && now.timeIntervalSince(sensorDate) < liveFreshness

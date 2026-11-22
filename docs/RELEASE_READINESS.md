@@ -9,9 +9,10 @@ available on the App Store.
 - Disposable Linux amd64 Compose installation, account isolation, restart and
   backup/restore are exercised in hosted CI. Web/API setup and migrations work
   without the developer's personal installation.
-- User-confirmed TestFlight 1.0 (4) connects to a real band, shows live heart rate
-  and completes sync. Build 3 remains the pending App Review submission; it has
-  not been replaced by later test builds.
+- User-confirmed TestFlight 1.0 (5) connects to a real band and completes sync.
+  Its live heart-rate display still switches value and freshness label, so it is
+  not qualified for release. Build 3 remains the submitted App Review build; it
+  has not been replaced by later test builds.
 - iOS state/transport tests cover account ownership, upload receipts, cancellation,
   credential-bearing redirects and first-run state. Synthetic UI tests cover setup,
   sign-in, goal history, loading and weight flows without using personal data.
@@ -31,11 +32,12 @@ available on the App Store.
 
 ## Remaining release gates
 
-1. **Qualify the final iPhone build.** A live-heart-rate source-switching fix is
-   prepared for build 5. Verify that actual strap readings update normally and a
+1. **Qualify the final iPhone build.** Build 6 corrects a second live-reading issue:
+   observation updates between scheduled UI ticks must use the current clock,
+   not the previous tick's date. Verify that actual strap readings update normally and a
    stale reading gains a timestamp without jumping to an older chart value. Keep
    the user's account, upload queue and Bluetooth bond intact.
-2. **Verify the supported iOS range.** Build 5 sets the approved minimum to iOS 26;
+2. **Verify the supported iOS range.** The approved minimum is iOS 26;
    hosted tests use iOS 26.5 and local tests use iOS 27. Older systems are no longer
    advertised. Confirm the minimum in the final archive and processed store build.
 3. **Complete device network checks.** Check LAN permission denial/retry,

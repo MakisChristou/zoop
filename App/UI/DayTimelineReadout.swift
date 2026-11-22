@@ -9,12 +9,13 @@ struct DayTimelineReadout: View {
     let decimals: Int
     @Environment(AppModel.self) private var model
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            // A sensor update can render between scheduled ticks. Use the actual
+            // render time; the previous tick can predate a newly received sample.
             let reading = TimelineReading.resolve(value: value, date: date, wantsLive: liveHeartRate,
                                                   sensorValue: model.strap.smoothedHeartRate,
                                                   sensorDate: model.strap.liveUpdatedAt,
-                                                  streaming: model.strap.state == .ready && model.strap.realtimeStreaming,
-                                                  now: context.date)
+                                                  streaming: model.strap.state == .ready && model.strap.realtimeStreaming)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(reading.value.map { $0.formatted(.number.precision(.fractionLength(decimals))) } ?? "—")
                     .font(ZoopType.font(size: 16, weight: .medium, relativeTo: .body)).monospacedDigit()

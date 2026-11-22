@@ -17,6 +17,37 @@ final class TimelineReadingTests: XCTestCase {
         XCTAssertFalse(reading(after: 5).isLive)
     }
 
+    func testSampleArrivingBetweenTimelineTicksUsesCurrentClock() {
+        let tick = Date.now.addingTimeInterval(-1)
+        let received = Date.now
+        // TimelineView's context still holds `tick` when observation renders a
+        // newly received sample. Reproduce the old 65 -> 61 / Live -> time switch.
+        let scheduled = TimelineReading.resolve(value: 61, date: tick.addingTimeInterval(-60), wantsLive: true,
+                                                sensorValue: 65, sensorDate: received, streaming: true, now: tick)
+        XCTAssertEqual(scheduled.value, 61)
+        XCTAssertFalse(scheduled.isLive)
+
+        // The readout now uses this default clock on every render, including
+        // observation updates that occur before the next scheduled tick.
+        let current = TimelineReading.resolve(value: 61, date: tick.addingTimeInterval(-60), wantsLive: true,
+                                              sensorValue: 65, sensorDate: received, streaming: true)
+        XCTAssertEqual(current.value, 65)
+        XCTAssertEqual(current.date, received)
+        XCTAssertTrue(current.isLive)
+    }
+
+    func testInterleavedSensorUpdatesAndTicksNeverFallBackToOlderChart() {
+        let samples: [(Double, UInt8)] = [(0.25, 65), (0.8, 66), (1.4, 64), (2.9, 65)]
+        for seconds in [0.25, 0.8, 1, 1.4, 2, 2.9, 3, 7.9] {
+            let sample = samples.last { $0.0 <= seconds }!
+            let result = TimelineReading.resolve(value: 61, date: at.addingTimeInterval(-60), wantsLive: true,
+                                                 sensorValue: sample.1, sensorDate: at.addingTimeInterval(sample.0),
+                                                 streaming: true, now: at.addingTimeInterval(seconds))
+            XCTAssertEqual(result.value, Double(sample.1))
+            XCTAssertEqual(result.isLive, seconds - sample.0 < 5)
+        }
+    }
+
     func testDisconnectKeepsTimestampedReadingWithoutLiveLabel() {
         XCTAssertEqual(reading(after: 1, streaming: false).value, 65)
         XCTAssertFalse(reading(after: 1, streaming: false).isLive)
