@@ -118,27 +118,23 @@ impl PostgresStore {
             return Err(StorageError::InvalidQuery("Invalid history window.".into()));
         }
         if matches!(key, "sleep" | "hrv" | "resting_hr") {
-            let pointer = match key {
-                "sleep" => "/sleep/window/asleep_s",
-                "hrv" => "/sleep/physiology/hrv_rmssd_ms",
-                _ => "/sleep/physiology/resting_hr",
-            };
-            // Use the same effective night and readiness gate as the daily rings.
-            // Routine reanalysis must not hide an already completed observation.
-            let snapshot = self.insight_snapshot(device, from, to, tz, version).await?;
-            return Ok(snapshot
-                .into_iter()
-                .flat_map(|s| s.nights)
-                .filter(|n| n.end_ts <= Utc::now())
-                .map(|n| {
-                    let value = if n.pending || n.day_pending {
-                        Value::Null
-                    } else {
-                        n.metrics.pointer(pointer).cloned().unwrap_or(Value::Null)
-                    };
-                    serde_json::json!({"day": n.day, "value": value})
-                })
-                .collect());
+            // Reuse the rings' exact effective-night query, but project the scalar
+            // inside Postgres. A year of chart points must not transfer full nightly
+            // stage bundles or evaluate unused physiology coverage to the API.
+            let sql = format!(
+                "SELECT jsonb_build_object('day', day, 'value', CASE WHEN pending OR day_pending THEN NULL ELSE CASE $6::text WHEN 'sleep' THEN metrics #> '{{sleep,window,asleep_s}}' WHEN 'hrv' THEN metrics #> '{{sleep,physiology,hrv_rmssd_ms}}' ELSE metrics #> '{{sleep,physiology,resting_hr}}' END END) FROM ({}) nights WHERE end_ts<=now() ORDER BY day",
+                include_str!("insight_snapshot.sql")
+            );
+            return sqlx::query_scalar(&sql)
+                .bind(device)
+                .bind(from)
+                .bind(to)
+                .bind(tz)
+                .bind(version)
+                .bind(key)
+                .fetch_all(self.pool())
+                .await
+                .map_err(fail);
         }
         let sql = match key {
             "steps" => {
