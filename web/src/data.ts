@@ -1,3 +1,4 @@
+import { withRequestDeadline } from "./request";
 export interface Account {
   id: number;
   email: string;
@@ -187,24 +188,27 @@ export async function api<T>(
   body?: unknown,
   method?: "PUT" | "POST",
 ): Promise<T> {
-  const r = await fetch(path, {
-    signal,
-    credentials: "same-origin",
-    cache: "no-store",
-    method: method ?? (body === undefined ? "GET" : "POST"),
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+  return withRequestDeadline(signal, async (signal) => {
+    const r = await fetch(path, {
+      redirect: "error",
+      signal,
+      credentials: "same-origin",
+      cache: "no-store",
+      method: method ?? (body === undefined ? "GET" : "POST"),
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!r.ok) {
+      if (r.status === 401 && !path.endsWith("/login"))
+        window.dispatchEvent(new Event("zoop:unauthorized"));
+      const e = await r.json().catch(() => null);
+      throw new ApiError(
+        r.status,
+        e?.error?.message ?? "Could not load this data.",
+      );
+    }
+    return r.status === 204 ? (undefined as T) : r.json();
   });
-  if (!r.ok) {
-    if (r.status === 401 && !path.endsWith("/login"))
-      window.dispatchEvent(new Event("zoop:unauthorized"));
-    const e = await r.json().catch(() => null);
-    throw new ApiError(
-      r.status,
-      e?.error?.message ?? "Could not load this data.",
-    );
-  }
-  return r.status === 204 ? (undefined as T) : r.json();
 }
 export const endpoint = (device: string, suffix: string) =>
   `/v1/devices/${encodeURIComponent(device)}/${suffix}`;

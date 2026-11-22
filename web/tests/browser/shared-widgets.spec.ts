@@ -228,3 +228,38 @@ test("empty richer widgets remain honest", async ({ page }) => {
     }),
   ).toBeVisible();
 });
+
+test("heatmap keeps recent history on resize without stealing an older selection", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await publicPage(page);
+  const scroll = page.locator(".heatmap-scroll");
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect
+    .poll(() =>
+      scroll.evaluate((e) => e.scrollWidth - e.clientWidth - e.scrollLeft),
+    )
+    .toBeLessThan(3);
+  await scroll.evaluate((e) => {
+    e.scrollLeft = 150;
+  });
+  await expect.poll(() => scroll.evaluate((e) => e.scrollLeft)).toBe(150);
+  await page.waitForTimeout(100);
+  await page.setViewportSize({ width: 450, height: 900 });
+  await expect.poll(() => scroll.evaluate((e) => e.scrollLeft)).toBe(150);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect
+    .poll(() => scroll.evaluate((e) => e.scrollWidth - e.clientWidth))
+    .toBe(0);
+  await page.evaluate(
+    () =>
+      new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect
+    .poll(() =>
+      scroll.evaluate((e) => e.scrollWidth - e.clientWidth - e.scrollLeft),
+    )
+    .toBeLessThan(3);
+});

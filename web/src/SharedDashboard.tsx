@@ -1,3 +1,4 @@
+import { useDashboardRefresh } from "./useDashboardRefresh";
 import { RecoveryCard } from "./RecoveryHistory";
 import { SleepTimeline } from "./SleepTimeline";
 import { SleepStages, NightMetrics } from "./NightWidgets";
@@ -8,7 +9,7 @@ import { recoveryScoreReading } from "./recovery";
 import { Ring } from "./Ring";
 import { RecoveryRingFace } from "./RecoveryRing";
 import { layoutFor } from "./shareLayout";
-import { memo, useEffect, useState, useRef, type FormEvent } from "react";
+import { memo, useEffect, useState, type FormEvent } from "react";
 import { BySport, TrainingHeatmap, RecentActivities } from "./Training";
 import { SharedCell, visualOrder } from "./SharedGrid";
 import { Chart } from "./Chart";
@@ -17,7 +18,6 @@ import { LoadingBar, LoadingCards } from "./Loading";
 import { dateLabel, number, duration, dayKey } from "./calendar";
 import {
   chartPoints,
-  dashboardPending,
   sharingRequest,
   widgets,
   type PublicDashboard,
@@ -32,7 +32,6 @@ export function SharedDashboard({ token }: { token: string }) {
     [busy, setBusy] = useState(true),
     [year, setYear] = useState<number>(),
     [attempt, setAttempt] = useState(0);
-  const poll = useRef({ scope: "", count: 0 });
   useEffect(() => {
     const meta = document.createElement("meta");
     meta.name = "robots";
@@ -69,34 +68,9 @@ export function SharedDashboard({ token }: { token: string }) {
       });
     return () => c.abort();
   }, [token, submitted, year, attempt]);
-  useEffect(() => {
-    const scope = `${token}:${submitted}:${year}`;
-    if (poll.current.scope !== scope) poll.current = { scope, count: 0 };
-    const recovery = data?.widgets.find(
-      (w) => w.key === "daily_rings",
-    )?.recovery;
-    if (busy || error || !dashboardPending(data)) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const schedule = () => {
-      clearTimeout(timer);
-      if (document.visibilityState !== "visible") return;
-      timer = setTimeout(
-        () => {
-          poll.current.count++;
-          setAttempt((n) => n + 1);
-        },
-        recovery?.state === "awaiting_sync" || poll.current.count >= 6
-          ? 30_000
-          : 5_000,
-      );
-    };
-    schedule();
-    document.addEventListener("visibilitychange", schedule);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", schedule);
-    };
-  }, [data, busy, error, token, submitted, year]);
+  useDashboardRefresh(`${token}:${submitted}:${year}`, data, busy, error, () =>
+    setAttempt((n) => n + 1),
+  );
   function unlock(e: FormEvent) {
     e.preventDefault();
     setSubmitted(password);

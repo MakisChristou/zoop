@@ -1,3 +1,4 @@
+import { withRequestDeadline } from "./request";
 import type { RecoveryDay } from "./RecoveryHistory";
 import type { SleepSummary } from "./SleepTimeline";
 import type { NightMetricsData } from "./NightWidgets";
@@ -224,39 +225,42 @@ export async function sharingRequest<T>(
   method = "POST",
   visitor = false,
 ): Promise<T> {
-  const response = await fetch(path, {
-    method,
-    credentials: visitor ? "omit" : "same-origin",
-    cache: "no-store",
-    referrerPolicy: "no-referrer",
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  });
-  if (!response.ok) {
-    const e = new Error(
-      visitor
-        ? response.status === 401
-          ? "Enter the dashboard password."
-          : response.status === 404
-            ? "This link is no longer available."
-            : response.status === 429
-              ? "Too many attempts. Try again in a minute."
-              : "Could not load this dashboard. Try again."
-        : method === "GET" || path.endsWith("/preview")
-          ? "Could not load this dashboard. Try again."
-          : "Could not save this change. Please try again.",
-    ) as Error & { status: number };
-    e.status = response.status;
-    if (!visitor) {
-      const detail = await response.json().catch(() => null);
-      e.message = detail?.error?.message ?? e.message;
+  return withRequestDeadline(signal, async (signal) => {
+    const response = await fetch(path, {
+      redirect: "error",
+      method,
+      credentials: visitor ? "omit" : "same-origin",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+    if (!response.ok) {
+      const e = new Error(
+        visitor
+          ? response.status === 401
+            ? "Enter the dashboard password."
+            : response.status === 404
+              ? "This link is no longer available."
+              : response.status === 429
+                ? "Too many attempts. Try again in a minute."
+                : "Could not load this dashboard. Try again."
+          : method === "GET" || path.endsWith("/preview")
+            ? "Could not load this dashboard. Try again."
+            : "Could not save this change. Please try again.",
+      ) as Error & { status: number };
+      e.status = response.status;
+      if (!visitor) {
+        const detail = await response.json().catch(() => null);
+        e.message = detail?.error?.message ?? e.message;
+      }
+      throw e;
     }
-    throw e;
-  }
-  return response.status === 204
-    ? (undefined as T)
-    : (response.json() as Promise<T>);
+    return response.status === 204
+      ? (undefined as T)
+      : (response.json() as Promise<T>);
+  });
 }
 
 // A pending calculation is loading, not a missing measurement. Both viewers retry it.
@@ -265,8 +269,10 @@ export function dashboardPending(data: PublicDashboard | null) {
     (w) =>
       w.state === "updating" ||
       w.sleep_state === "updating" ||
-      w.insight?.state === "updating" ||
+      ["updating", "awaiting_sync"].includes(w.insight?.state ?? "") ||
       ["updating", "awaiting_sync"].includes(w.recovery?.state ?? "") ||
-      w.points?.some((p) => p.recovery?.state === "updating"),
+      w.points?.some((p) =>
+        ["updating", "awaiting_sync"].includes(p.recovery?.state ?? ""),
+      ),
   );
 }

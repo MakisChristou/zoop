@@ -640,6 +640,7 @@ test("the same full catalog is offered by both editors", async ({ page }) => {
 test("a pending Sleep ring shows loading and automatically recovers", async ({
   page,
 }) => {
+  await page.clock.install({ time: new Date("2026-11-22T12:00:00Z") });
   const state = await fixture(page);
   state.preference = { config: initial, revision: 1 };
   let pending = true;
@@ -654,6 +655,7 @@ test("a pending Sleep ring shows loading and automatically recovers", async ({
     page.getByRole("status", { name: "Loading sleep", exact: true }),
   ).toBeVisible();
   pending = false;
+  await page.clock.fastForward(5001);
   await expect(page.locator('[data-widget="daily_rings"]')).toContainText(
     "8h 24m",
     { timeout: 10000 },

@@ -1,3 +1,4 @@
+import { withRequestDeadline } from "./request";
 export const PHOTO_BYTES = 256 * 1024;
 export type Crop = { x: number; y: number; zoom: number };
 export const initialCrop: Crop = { x: 0.5, y: 0.5, zoom: 1 };
@@ -49,24 +50,28 @@ export async function photoRequest(
   signal: AbortSignal,
   body?: Blob,
 ) {
-  const response = await fetch(path, {
-    method: body ? "PUT" : "GET",
-    credentials: "same-origin",
-    cache: "no-store",
-    signal,
-    headers: body ? { "Content-Type": "image/jpeg" } : undefined,
-    body,
+  return withRequestDeadline(signal, async (signal) => {
+    const response = await fetch(path, {
+      redirect: "error",
+      method: body ? "PUT" : "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+      headers: body ? { "Content-Type": "image/jpeg" } : undefined,
+      body,
+    });
+    if (!body && response.status === 404) return null;
+    if (!response.ok) {
+      if (response.status === 401)
+        window.dispatchEvent(new Event("zoop:unauthorized"));
+      const error = await response.json().catch(() => null);
+      throw new Error(
+        error?.error?.message ?? "Could not save your photo. Try again.",
+      );
+    }
+    const blob = await response.blob();
+    if (blob.type !== "image/jpeg")
+      throw new Error("Could not load your photo.");
+    return blob;
   });
-  if (!body && response.status === 404) return null;
-  if (!response.ok) {
-    if (response.status === 401)
-      window.dispatchEvent(new Event("zoop:unauthorized"));
-    const error = await response.json().catch(() => null);
-    throw new Error(
-      error?.error?.message ?? "Could not save your photo. Try again.",
-    );
-  }
-  const blob = await response.blob();
-  if (blob.type !== "image/jpeg") throw new Error("Could not load your photo.");
-  return blob;
 }

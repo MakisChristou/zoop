@@ -65,7 +65,7 @@ test("public initial loading shows placeholders without inventing readings", asy
 test("pending public recovery has a reduced-motion-safe indicator and refreshes to a score", async ({
   page,
 }) => {
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-11-20T12:00:00Z") });
   await page.emulateMedia({ reducedMotion: "reduce" });
   let ready = false,
     requests = 0;
@@ -171,4 +171,107 @@ test("switching public links cancels pending reads and removes previous readings
   await expect(page.getByRole("progressbar")).toBeVisible();
   held.release();
   await expect(page.locator(".shared-rings")).toBeVisible();
+});
+
+for (const kind of ["recovery", "morning_outlook"] as const) {
+  test(`${kind} alone refreshes while awaiting sync`, async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-11-20T12:00:00Z") });
+    let requests = 0;
+    await page.route("**/v1/public/dashboard", async (route) => {
+      requests++;
+      const d = {
+        ...dashboard(),
+        widgets:
+          kind === "recovery"
+            ? [
+                {
+                  key: kind,
+                  points: [
+                    {
+                      day: "2026-11-20",
+                      recovery: { state: "awaiting_sync", score: null },
+                    },
+                  ],
+                },
+              ]
+            : [{ key: kind, insight: { state: "awaiting_sync" } }],
+      };
+      await route.fulfill({ json: d });
+    });
+    await page.goto("/#share/" + token);
+    await expect(page.locator(".shared-content")).toBeVisible();
+    const before = requests;
+    await page.clock.fastForward(5001);
+    expect(requests).toBe(before);
+    await page.clock.fastForward(25_001);
+    await expect.poll(() => requests).toBeGreaterThan(before);
+  });
+}
+test("ready dashboards refresh after midnight and on returning to a visible tab", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-11-20T23:59:40Z") });
+  let requests = 0;
+  await page.route("**/v1/public/dashboard", async (r) => {
+    requests++;
+    await r.fulfill({ json: dashboard() });
+  });
+  await page.goto("/#share/" + token);
+  await expect(page.locator(".shared-content")).toBeVisible();
+  const before = requests;
+  await page.clock.fastForward(60_001);
+  await expect.poll(() => requests).toBeGreaterThan(before);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const hidden = requests;
+  await page.clock.fastForward(120_000);
+  expect(requests).toBe(hidden);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(() => requests).toBeGreaterThan(hidden);
+});
+test("a stalled visitor request ends with retry rather than an endless spinner", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const held = hold();
+  let stalled = true;
+  await page.route("**/v1/public/dashboard", async (r) => {
+    if (stalled) await held.promise;
+    await r.fulfill({ json: dashboard() }).catch(() => {});
+  });
+  await page.goto("/#share/" + token);
+  await expect(page.getByRole("progressbar")).toBeVisible();
+  await page.clock.fastForward(30_001);
+  await expect(page.getByRole("alert")).toContainText("took too long");
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
+  stalled = false;
+  held.release();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.locator(".shared-rings")).toBeVisible();
+});
+test("historical waiting observations do not create a fast refresh loop", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-11-22T12:00:00Z") });
+  let requests = 0;
+  await page.route("**/v1/public/dashboard", async (r) => {
+    requests++;
+    await r.fulfill({ json: dashboard("awaiting_sync", 2025) });
+  });
+  await page.goto("/#share/" + token);
+  await expect(page.locator(".shared-content")).toBeVisible();
+  const before = requests;
+  await page.clock.fastForward(300_000);
+  expect(requests).toBe(before);
 });

@@ -152,8 +152,36 @@ export function TrainingHeatmap({
     [focused, setFocused] = useState(end);
   const scroll = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (scroll.current) scroll.current.scrollLeft = scroll.current.scrollWidth;
-  }, [end]);
+    const element = scroll.current;
+    if (!element) return;
+    const rtl = getComputedStyle(element).direction === "rtl";
+    const latest = () => {
+      element.scrollLeft = rtl ? -element.scrollWidth : element.scrollWidth;
+    };
+    latest();
+    let width = element.clientWidth;
+    let contentWidth = element.scrollWidth;
+    let position = Math.abs(element.scrollLeft);
+    const remember = () => {
+      // A resize can clamp scrollLeft before the observer runs. Only record
+      // intentional scrolling at the previous dimensions here.
+      if (width === element.clientWidth && contentWidth === element.scrollWidth)
+        position = Math.abs(element.scrollLeft);
+    };
+    const observer = new ResizeObserver(() => {
+      const atEnd = contentWidth - width - position <= 2;
+      if (atEnd) latest();
+      width = element.clientWidth;
+      contentWidth = element.scrollWidth;
+      position = Math.abs(element.scrollLeft);
+    });
+    observer.observe(element);
+    element.addEventListener("scroll", remember, { passive: true });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", remember);
+    };
+  }, [end, start]);
   const active = selected ? byDay.get(selected) : null,
     workouts = selected ? (sessions.get(selected) ?? []) : [];
   const level = (value: number | null | undefined) =>
