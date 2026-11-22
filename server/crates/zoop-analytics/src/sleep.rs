@@ -315,14 +315,12 @@ fn spo2(inside: &[&Sample]) -> (Option<f64>, usize) {
     let mut last_ts: Option<DateTime<Utc>> = None;
     for s in inside {
         let Some(v) = s.spo2_pct else { continue };
-        match last_ts {
-            Some(prev) if (s.ts - prev).num_seconds() <= SPO2_WINDOW_GAP_S => {
-                windows
-                    .last_mut()
-                    .expect("window exists")
-                    .push(f64::from(v));
-            }
-            _ => windows.push(vec![f64::from(v)]),
+        if let Some(window) = windows.last_mut().filter(|_| {
+            last_ts.is_some_and(|prev| (s.ts - prev).num_seconds() <= SPO2_WINDOW_GAP_S)
+        }) {
+            window.push(f64::from(v));
+        } else {
+            windows.push(vec![f64::from(v)]);
         }
         last_ts = Some(s.ts);
     }

@@ -173,13 +173,24 @@ impl<'a> Frame<'a> {
 }
 
 /// Wraps an inner packet in a format-1 envelope.
-pub fn encode_frame(inner: &[u8], destination: u8, source: u8) -> Vec<u8> {
+///
+/// # Errors
+/// Returns an error for empty packets or packets exceeding the wire length field.
+pub fn encode_frame(inner: &[u8], destination: u8, source: u8) -> ProtoResult<Vec<u8>> {
+    if inner.is_empty() {
+        return Err(ProtoError::TooShort { len: 0 });
+    }
+    const MAX_INNER_LEN: usize = (u16::MAX as usize - TRAILER_LEN) & !3;
+    if inner.len() > MAX_INNER_LEN {
+        return Err(ProtoError::TooLarge { len: inner.len() });
+    }
     let padding = (4 - inner.len() % 4) % 4;
     let mut body = Vec::with_capacity(inner.len() + padding);
     body.extend_from_slice(inner);
     body.resize(inner.len() + padding, 0);
 
-    let declared = u16::try_from(body.len() + TRAILER_LEN).expect("frames are far below u16::MAX");
+    let declared = u16::try_from(body.len() + TRAILER_LEN)
+        .map_err(|_| ProtoError::TooLarge { len: inner.len() })?;
     let mut frame = Vec::with_capacity(HEADER_LEN + body.len() + TRAILER_LEN);
     frame.extend_from_slice(&[START_OF_FRAME, FORMAT1]);
     frame.extend_from_slice(&declared.to_le_bytes());
@@ -188,7 +199,7 @@ pub fn encode_frame(inner: &[u8], destination: u8, source: u8) -> Vec<u8> {
     frame.extend_from_slice(&header_crc.to_le_bytes());
     frame.extend_from_slice(&body);
     frame.extend_from_slice(&crc32(&body).to_le_bytes());
-    frame
+    Ok(frame)
 }
 
 /// Joins BLE notification fragments into complete frames.
@@ -270,7 +281,26 @@ mod tests {
     use super::*;
 
     fn command(inner: &[u8]) -> Vec<u8> {
-        encode_frame(inner, 0x00, 0x01)
+        encode_frame(inner, 0x00, 0x01).unwrap()
+    }
+
+    #[test]
+    fn encoder_rejects_empty_and_oversized_packets() {
+        assert_eq!(
+            encode_frame(&[], 0, 1),
+            Err(ProtoError::TooShort { len: 0 })
+        );
+        let limit = (u16::MAX as usize - TRAILER_LEN) & !3;
+        for len in [limit - 3, limit] {
+            let frame = encode_frame(&vec![1; len], 0, 1).unwrap();
+            assert!(Frame::parse(&frame).is_ok());
+        }
+        for len in [limit + 1, usize::from(u16::MAX) + 1] {
+            assert_eq!(
+                encode_frame(&vec![1; len], 0, 1),
+                Err(ProtoError::TooLarge { len })
+            );
+        }
     }
 
     #[test]

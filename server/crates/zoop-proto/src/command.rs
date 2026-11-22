@@ -44,7 +44,10 @@ impl Command {
 }
 
 /// Builds a COMMAND frame. `args` includes the per-command first byte.
-pub fn build_command(command: Command, sequence: u8, args: &[u8]) -> Vec<u8> {
+///
+/// # Errors
+/// Returns an error if the arguments exceed the wire length limit.
+pub fn build_command(command: Command, sequence: u8, args: &[u8]) -> ProtoResult<Vec<u8>> {
     let mut inner = Vec::with_capacity(3 + args.len());
     inner.extend_from_slice(&[crate::PacketType::COMMAND, sequence, command.code()]);
     inner.extend_from_slice(args);
@@ -52,12 +55,18 @@ pub fn build_command(command: Command, sequence: u8, args: &[u8]) -> Vec<u8> {
 }
 
 /// Ask where the history ring buffer stands. Argument byte 0x00.
-pub fn get_data_range(sequence: u8) -> Vec<u8> {
+///
+/// # Errors
+/// Propagates frame encoding errors.
+pub fn get_data_range(sequence: u8) -> ProtoResult<Vec<u8>> {
     build_command(Command::GetDataRange, sequence, &[0x00])
 }
 
 /// Start (or continue) the stored-data offload. Argument byte 0x00.
-pub fn send_historical_data(sequence: u8) -> Vec<u8> {
+///
+/// # Errors
+/// Propagates frame encoding errors.
+pub fn send_historical_data(sequence: u8) -> ProtoResult<Vec<u8>> {
     build_command(Command::SendHistoricalData, sequence, &[0x00])
 }
 
@@ -74,11 +83,7 @@ pub fn history_ack(sequence: u8, token: &[u8]) -> ProtoResult<Vec<u8>> {
     let mut args = Vec::with_capacity(9);
     args.push(0x01);
     args.extend_from_slice(token);
-    Ok(build_command(
-        Command::HistoricalDataResult,
-        sequence,
-        &args,
-    ))
+    build_command(Command::HistoricalDataResult, sequence, &args)
 }
 
 #[cfg(test)]
@@ -88,7 +93,7 @@ mod tests {
     #[test]
     fn hello_matches_the_captured_constant() {
         assert_eq!(
-            build_command(Command::GetHello, 1, &[0x01]),
+            build_command(Command::GetHello, 1, &[0x01]).unwrap(),
             CLIENT_HELLO.to_vec()
         );
     }

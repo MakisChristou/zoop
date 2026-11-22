@@ -29,7 +29,7 @@ async fn post(app: Router, path: &str, frames: Value) -> (u16, Value) {
 }
 fn frame(seq: i64, id: Option<&str>, inner: &[u8]) -> Value {
     json!({"client_seq":seq,"upload_id":id,"channel":5,"received_at":"2025-01-01T00:00:00Z",
-        "bytes":base64::engine::general_purpose::STANDARD.encode(zoop_proto::encode_frame(inner,1,0))})
+        "bytes":base64::engine::general_purpose::STANDARD.encode(zoop_proto::encode_frame(inner,1,0).unwrap())})
 }
 #[tokio::test]
 #[ignore = "requires development Postgres"]

@@ -2,6 +2,8 @@
 pub enum ProtoError {
     #[error("frame too short: {len} bytes")]
     TooShort { len: usize },
+    #[error("inner packet exceeds the wire length limit: {len} bytes")]
+    TooLarge { len: usize },
     #[error("not a format-1 frame (start {start:#04x}, format {format:#04x})")]
     NotFormat1 { start: u8, format: u8 },
     #[error("declared length {declared} does not match frame length {actual}")]

@@ -254,7 +254,7 @@ async fn scoped_phone_token_preserves_reads_writes_and_ingest_contract() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(receipt["rejected"], 1);
     assert_eq!(db.count("SELECT count(*) FROM raw_frames").await, 0);
-    let valid = json!({"device_id":support::DEVICE,"model":"TEST","frames":[{"client_seq":2,"upload_id":"00000000-0000-4000-8000-000000000002","channel":5,"received_at":"2026-01-01T00:00:00Z","bytes":base64::engine::general_purpose::STANDARD.encode(zoop_proto::encode_frame(&[0xfe,0,0,0],1,0))}]});
+    let valid = json!({"device_id":support::DEVICE,"model":"TEST","frames":[{"client_seq":2,"upload_id":"00000000-0000-4000-8000-000000000002","channel":5,"received_at":"2026-01-01T00:00:00Z","bytes":base64::engine::general_purpose::STANDARD.encode(zoop_proto::encode_frame(&[0xfe,0,0,0],1,0).unwrap())}]});
     let (status, receipt, _) = req(
         &app,
         "POST",

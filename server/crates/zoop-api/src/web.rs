@@ -1,4 +1,4 @@
-//! Browser sessions are read-only; the operator provisions accounts out of band.
+//! Authenticated browser access with account ownership and origin-checked mutations.
 use crate::{
     AppState,
     auth::{Principal, session_token},
