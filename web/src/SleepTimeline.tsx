@@ -1,8 +1,16 @@
 import { useId } from "react";
 import { ChevronRight } from "lucide-react";
 import { duration } from "./calendar";
-import type { Session } from "./data";
+import type { SleepData } from "./data";
 
+export interface SleepSummary {
+  start_ts: string;
+  end_ts: string;
+  timezone?: string;
+  sleep?: {
+    window: Pick<SleepData["window"], "onset" | "offset" | "asleep_s">;
+  } & Partial<Pick<SleepData, "stages" | "segments" | "partial">>;
+}
 const stages = [
   ["wake", "Awake", "#696969"],
   ["rem", "REM", "#555f89"],
@@ -15,7 +23,7 @@ export function SleepTimeline({
   tz,
   onOpen,
 }: {
-  sleep?: Session;
+  sleep?: SleepSummary;
   tz: string;
   onOpen?: () => void;
 }) {

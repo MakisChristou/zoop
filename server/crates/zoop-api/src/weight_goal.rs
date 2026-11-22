@@ -13,7 +13,7 @@ pub(crate) struct Response {
     goal: Option<WeightGoal>,
     summary: Option<zoop_core::WeightOutlook>,
 }
-async fn summary(
+pub(crate) async fn summary(
     s: &AppState,
     d: &str,
     g: &WeightGoal,

@@ -40,6 +40,12 @@ import {
   type PublicDashboard,
 } from "./sharing";
 const icons = {
+  sleep_timeline: Moon,
+  sleep_stages: Moon,
+  nightly_metrics: Heart,
+  morning_outlook: CircleGauge,
+  goal_progress: Scale,
+  goal_weight: Scale,
   daily_rings: CircleGauge,
   activity_heatmap: CalendarDays,
   recent_workouts: Dumbbell,
@@ -53,20 +59,7 @@ const icons = {
   hrv: Heart,
   resting_hr: Heart,
 };
-const library: Widget[] = [
-  "daily_rings",
-  "recovery",
-  "activity_heatmap",
-  "weight",
-  "sleep",
-  "steps",
-  "recent_workouts",
-  "by_sport",
-  "load",
-  "workouts",
-  "hrv",
-  "resting_hr",
-];
+const library = Object.keys(widgets) as Widget[];
 export function DashboardCanvas({
   config,
   data,

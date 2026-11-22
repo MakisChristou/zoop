@@ -84,9 +84,10 @@ and [SECURITY.md](SECURITY.md).
 
 ## Share a dashboard
 
-Open **Account → Shared dashboards → New dashboard**. Choose **Daily rings** (Sleep, Recovery and Load), charts, the **Every day** heatmap,
-**Recent activities** or **By sport**,
-then preview. Use **Arrange layout** to move fixed-size widgets into place, then save.
+Open **Account → Shared dashboards → New dashboard**. Drag cards into the canvas,
+arrange them and save. Private and shared dashboards offer the same 18 widgets,
+including **Daily recovery**, sleep stages, nightly metrics, goal progress, charts
+and activity heatmaps. Cards use the same appearance, interactions and safe sizes.
 Existing links keep their selections.
 
 History defaults to the **last 30 days**. **All history** includes future readings

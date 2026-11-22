@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   sharingRequest,
+  dashboardPending,
   type ShareConfig,
   type PublicDashboard,
 } from "./sharing";
@@ -55,6 +56,35 @@ export function useDashboardPreview(
       c.abort();
     };
   }, [scope, refresh, retry]);
+  const poll = useRef({ scope: "", count: 0 });
+  useEffect(() => {
+    if (poll.current.scope !== scope) poll.current = { scope, count: 0 };
+    if (
+      result.scope !== scope ||
+      result.loading ||
+      result.error ||
+      !dashboardPending(result.data)
+    )
+      return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (document.visibilityState !== "visible") return;
+      timer = setTimeout(
+        () => {
+          poll.current.count++;
+          setRetry((n) => n + 1);
+        },
+        poll.current.count < 6 ? 5000 : 30000,
+      );
+    };
+    schedule();
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", schedule);
+    };
+  }, [scope, result]);
   const current = result.scope === scope;
   return {
     data: current ? result.data : null,

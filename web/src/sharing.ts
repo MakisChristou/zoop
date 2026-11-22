@@ -1,3 +1,8 @@
+import type { RecoveryDay } from "./RecoveryHistory";
+import type { SleepSummary } from "./SleepTimeline";
+import type { NightMetricsData } from "./NightWidgets";
+import type { GoalPresentation } from "./Goals";
+import type { Goal, Insights } from "./data";
 import type { Placement } from "./shareLayout";
 import type { SportTotal } from "./Training";
 import { type Point } from "./Chart";
@@ -31,7 +36,13 @@ export const widgets = {
     bar: false,
   },
   sleep: { label: "Sleep", unit: "h", color: "var(--sleep)", bar: false },
-  recovery: { label: "Recovery", unit: "%", color: "#45ca86", bar: false },
+  recovery: {
+    label: "Daily recovery",
+    detail: "Daily score and recovery bands",
+    unit: "%",
+    color: "var(--recovery-high)",
+    bar: true,
+  },
   load: { label: "Load", unit: "", color: "var(--blue)", bar: true },
   steps: { label: "Steps", unit: "steps", color: "var(--blue)", bar: true },
   workouts: {
@@ -45,6 +56,48 @@ export const widgets = {
   resting_hr: {
     label: "Resting heart rate",
     unit: "bpm",
+    color: "var(--text)",
+    bar: false,
+  },
+  sleep_timeline: {
+    label: "Sleep timeline",
+    detail: "Last night’s stages and times",
+    unit: "",
+    color: "var(--sleep)",
+    bar: false,
+  },
+  sleep_stages: {
+    label: "Sleep stages",
+    detail: "Deep, REM, light and awake",
+    unit: "",
+    color: "var(--sleep)",
+    bar: false,
+  },
+  nightly_metrics: {
+    label: "Nightly metrics",
+    detail: "HRV, resting HR, efficiency and breathing",
+    unit: "",
+    color: "var(--text)",
+    bar: false,
+  },
+  morning_outlook: {
+    label: "Morning outlook",
+    detail: "Sleep, HRV and resting HR comparisons",
+    unit: "",
+    color: "var(--text)",
+    bar: false,
+  },
+  goal_progress: {
+    label: "Goal progress",
+    detail: "Current phase, start and target weight",
+    unit: "",
+    color: "var(--text)",
+    bar: false,
+  },
+  goal_weight: {
+    label: "Goal weight",
+    detail: "Weights in the shared period and current goal target",
+    unit: "kg",
     color: "var(--text)",
     bar: false,
   },
@@ -92,6 +145,15 @@ export interface SharedActivity {
   count?: number;
 }
 export interface SharedWidget {
+  state?: string;
+  sleep_state?: string;
+  night?: SleepSummary | null;
+  metrics?: NightMetricsData | null;
+  insight?: Insights | null;
+  goal?: GoalPresentation | null;
+  summary?: Goal["summary"];
+  as_of?: string;
+
   from?: string;
   to?: string;
   day?: string;
@@ -106,7 +168,11 @@ export interface SharedWidget {
     state: string;
   } | null;
   key: Widget;
-  points?: { day: string; value: number | null }[];
+  points?: {
+    day: string;
+    value: number | null;
+    recovery?: RecoveryDay["recovery"];
+  }[];
   activities?: SharedActivity[];
   sports?: SportTotal[];
 }
@@ -191,4 +257,16 @@ export async function sharingRequest<T>(
   return response.status === 204
     ? (undefined as T)
     : (response.json() as Promise<T>);
+}
+
+// A pending calculation is loading, not a missing measurement. Both viewers retry it.
+export function dashboardPending(data: PublicDashboard | null) {
+  return !!data?.widgets.some(
+    (w) =>
+      w.state === "updating" ||
+      w.sleep_state === "updating" ||
+      w.insight?.state === "updating" ||
+      ["updating", "awaiting_sync"].includes(w.recovery?.state ?? "") ||
+      w.points?.some((p) => p.recovery?.state === "updating"),
+  );
 }

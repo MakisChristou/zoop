@@ -3062,3 +3062,36 @@ th:last-child {
   padding: 6px 10px;
   font-size: 12px;
 }
+
+/* The exact same presentation components live in private and shared canvases. */
+.shared-cell > .panel {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.shared-cell .recovery-history .panel-head {
+  margin-bottom: 12px;
+}
+.shared-cell .recovery-history-controls {
+  gap: 8px;
+}
+.shared-cell .outlook-status {
+  margin: 0;
+}
+.shared-cell .outlook-detail {
+  padding-bottom: 0;
+}
+.shared-goal_progress > .panel,
+.shared-morning_outlook > .panel {
+  overflow: auto;
+  scrollbar-width: thin;
+}
+@container (max-width:640px) {
+  .shared-sleep_stages,
+  .shared-goal_progress {
+    height: 400px;
+  }
+  .shared-morning_outlook {
+    height: 320px;
+  }
+}

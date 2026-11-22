@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { widgets } from "../../src/sharing";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 const token = "d".repeat(64);
 const initial = {
   title: "My dashboard",
@@ -25,6 +26,7 @@ function projection(c: any) {
     layout: c.layout,
     widgets: c.widgets.map((key: string) => ({
       key,
+      ...extra(key),
       day: date,
       sleep_seconds: 30240,
       sleep_goal_minutes: 480,
@@ -38,6 +40,16 @@ function projection(c: any) {
       },
       points: Array.from({ length: 29 }, (_, i) => ({
         day: new Date(Date.UTC(2026, 9, 25 + i)).toISOString().slice(0, 10),
+        recovery:
+          key === "recovery"
+            ? {
+                version: 1,
+                method: "zoop-recovery-v1",
+                state: "ready",
+                score: [25, 55, 80][i % 3],
+                band: ["low", "moderate", "high"][i % 3],
+              }
+            : undefined,
         value:
           key === "weight"
             ? 64.5 - i * 0.025
@@ -53,6 +65,90 @@ function projection(c: any) {
       sports: [],
     })),
   };
+}
+function extra(key: string) {
+  const night = {
+    start_ts: "2026-11-22T00:00:00Z",
+    end_ts: "2026-11-22T08:24:00Z",
+    timezone: "UTC",
+    sleep: {
+      window: {
+        asleep_s: 30240,
+        onset: "2026-11-22T00:00:00Z",
+        offset: "2026-11-22T08:24:00Z",
+      },
+      stages: { deep_s: 7200, rem_s: 7200, light_s: 15840, wake_s: 300 },
+      segments: [
+        {
+          stage: "deep",
+          start: "2026-11-22T01:00:00Z",
+          end: "2026-11-22T03:00:00Z",
+        },
+        {
+          stage: "rem",
+          start: "2026-11-22T03:00:00Z",
+          end: "2026-11-22T05:00:00Z",
+        },
+      ],
+      partial: false,
+    },
+  };
+  if (key.startsWith("sleep_")) return { night, state: "ready" };
+  if (key === "nightly_metrics")
+    return {
+      state: "ready",
+      metrics: {
+        resting_hr: 48,
+        hrv_rmssd_ms: 81,
+        respiratory_rate: 13,
+        efficiency: 0.97,
+        partial: false,
+      },
+    };
+  if (key === "morning_outlook")
+    return {
+      insight: {
+        state: "ready",
+        outlook: { state: "good" },
+        metrics: [
+          { key: "sleep", value: 30240 },
+          { key: "hrv", value: 81 },
+          { key: "resting_hr", value: 48 },
+        ],
+      },
+    };
+  if (key.startsWith("goal_"))
+    return {
+      as_of: "2026-11-22T12:00:00Z",
+      goal: {
+        phase: "cut",
+        active: true,
+        started_at: "2026-11-01T00:00:00Z",
+        finish_date: "2026-12-01",
+        timezone: "UTC",
+        daily_steps_goal: 8000,
+      },
+      summary: {
+        state: "on_pace",
+        week_number: 3,
+        median_kg: 64,
+        change_kg: -0.4,
+        weeks: [],
+        progress: {
+          starting_weight_kg: 66,
+          current_weight_kg: 64,
+          total_lost_kg: 2,
+          target_weight_kg: 63,
+          finish_date: "2026-12-01",
+          completed: false,
+          weigh_ins: [
+            { day: "2026-11-15", kg: 64.5 },
+            { day: "2026-11-22", kg: 64 },
+          ],
+        },
+      },
+    };
+  return {};
 }
 async function fixture(page: Page) {
   const state = {
@@ -420,4 +516,149 @@ test("Escape and dropping outside the canvas leave the layout unchanged", async 
   );
   await drag(page, "Add Every day", 20, 150);
   await expect(page.locator(".shared-activity_heatmap")).toHaveCount(0);
+});
+
+// Capture the same card at the same physical origin, independent of page scroll.
+async function cardImage(card: Locator, path?: string) {
+  await card.page().mouse.move(0, 949);
+  const original = await card.getAttribute("style");
+  await card.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const backdrop = document.createElement("div");
+    backdrop.id = "comparison-backdrop";
+    Object.assign(backdrop.style, {
+      position: "fixed",
+      inset: "0",
+      background: "#0a0a0a",
+      zIndex: "9998",
+    });
+    document.body.append(backdrop);
+    Object.assign((el as HTMLElement).style, {
+      position: "fixed",
+      top: "0px",
+      left: "0px",
+      zIndex: "9999",
+      width: `${r.width}px`,
+      height: `${r.height}px`,
+      margin: "0",
+    });
+  });
+  const image = await card.screenshot({ animations: "disabled", path });
+  await card.evaluate(
+    (el, style) =>
+      style === null
+        ? el.removeAttribute("style")
+        : el.setAttribute("style", style),
+    original,
+  );
+  await card
+    .page()
+    .evaluate(() => document.getElementById("comparison-backdrop")?.remove());
+  return image;
+}
+for (const width of [320, 768, 1440, 2560]) {
+  test(`private and public share the complete widget catalog at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 950 });
+    const state = await fixture(page);
+    const config = { ...initial, widgets: Object.keys(widgets) };
+    state.preference = { config, revision: 1 };
+    state.shares = [
+      { id: 1, token, config, enabled: true, expires_at: null, revision: 1 },
+    ];
+    await page.goto("/#Today");
+    await expect(page.locator(".shared-cell")).toHaveCount(
+      Object.keys(widgets).length,
+    );
+    await page.evaluate(() => document.fonts.ready);
+    const snapshots = new Map<string, Buffer>();
+    for (const key of [
+      "recovery",
+      "sleep_timeline",
+      "sleep_stages",
+      "nightly_metrics",
+      "morning_outlook",
+      "goal_progress",
+      "goal_weight",
+    ]) {
+      const card = page.locator(`[data-widget="${key}"]`);
+      await card.scrollIntoViewIfNeeded();
+      snapshots.set(
+        key,
+        await cardImage(card, `/tmp/zoop-parity-private-${key}-${width}.png`),
+      );
+      const overflow = await card.evaluate(
+        (el) => el.scrollWidth > el.clientWidth + 1,
+      );
+      expect(overflow, `${key} overflows at ${width}`).toBe(false);
+    }
+    await page.goto(`/#share/${token}`);
+    await expect(page.locator(".shared-cell")).toHaveCount(
+      Object.keys(widgets).length,
+    );
+    await page.evaluate(() => document.fonts.ready);
+    for (const [key, expected] of snapshots) {
+      const card = page.locator(`[data-widget="${key}"]`);
+      await card.scrollIntoViewIfNeeded();
+      const actual = await cardImage(
+        card,
+        `/tmp/zoop-parity-${key}-${width}.png`,
+      );
+      expect(
+        actual.equals(expected),
+        `${key} must look identical at ${width}`,
+      ).toBe(true);
+    }
+    const recovery = page.locator('[data-widget="recovery"]');
+    await recovery.scrollIntoViewIfNeeded();
+    await recovery
+      .getByRole("group", { name: "Daily recovery history", exact: true })
+      .focus();
+    await page.keyboard.press("Home");
+    await expect(recovery.locator(".recovery-tooltip")).toContainText("25%");
+    for (const band of ["low", "moderate", "high"])
+      await expect(
+        recovery.locator(`path[fill="var(--recovery-${band})"]`).first(),
+      ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit goal", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator('a[href="#Sleep"]')).toHaveCount(0);
+  });
+}
+test("the same full catalog is offered by both editors", async ({ page }) => {
+  await fixture(page);
+  for (const shared of [false, true]) {
+    await open(page, shared);
+    for (const meta of Object.values(widgets))
+      await expect(
+        page.getByRole("button", { name: `Add ${meta.label}`, exact: true }),
+      ).toHaveCount(1);
+  }
+});
+test("a pending Sleep ring shows loading and automatically recovers", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  state.preference = { config: initial, revision: 1 };
+  let pending = true;
+  await page.route("**/v1/shares/preview", async (r) => {
+    const data = projection(r.request().postDataJSON().config);
+    data.widgets[0].sleep_seconds = pending ? null : 30240;
+    data.widgets[0].sleep_state = pending ? "updating" : "ready";
+    await r.fulfill({ json: data });
+  });
+  await page.goto("/#Today");
+  await expect(
+    page.getByRole("status", { name: "Loading sleep", exact: true }),
+  ).toBeVisible();
+  pending = false;
+  await expect(page.locator('[data-widget="daily_rings"]')).toContainText(
+    "8h 24m",
+    { timeout: 10000 },
+  );
+  await expect(
+    page.getByRole("status", { name: "Loading sleep", exact: true }),
+  ).toHaveCount(0);
 });

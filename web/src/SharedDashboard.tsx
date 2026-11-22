@@ -1,3 +1,8 @@
+import { RecoveryCard } from "./RecoveryHistory";
+import { SleepTimeline } from "./SleepTimeline";
+import { SleepStages, NightMetrics } from "./NightWidgets";
+import { OutlookStatus } from "./OutlookStatus";
+import { GoalProgressCard, GoalWeightCard } from "./Goals";
 import { SleepRing } from "./SleepRing";
 import { recoveryScoreReading } from "./recovery";
 import { Ring } from "./Ring";
@@ -12,6 +17,7 @@ import { LoadingBar, LoadingCards } from "./Loading";
 import { dateLabel, number, duration, dayKey } from "./calendar";
 import {
   chartPoints,
+  dashboardPending,
   sharingRequest,
   widgets,
   type PublicDashboard,
@@ -69,7 +75,7 @@ export function SharedDashboard({ token }: { token: string }) {
     const recovery = data?.widgets.find(
       (w) => w.key === "daily_rings",
     )?.recovery;
-    if (busy || error || !pendingRecovery(recovery?.state)) return;
+    if (busy || error || !dashboardPending(data)) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       clearTimeout(timer);
@@ -221,10 +227,6 @@ export function DashboardPreview({
   );
 }
 
-function pendingRecovery(state?: string) {
-  return state === "updating" || state === "awaiting_sync";
-}
-
 export const SharedCard = memo(function SharedCard({
   widget,
   data,
@@ -239,6 +241,122 @@ export const SharedCard = memo(function SharedCard({
   const { key, points = [] } = widget,
     meta = widgets[key];
   const rows = (widget.activities ?? []).map((row, i) => ({ ...row, key: i }));
+  if (
+    ["sleep_timeline", "sleep_stages", "nightly_metrics"].includes(key) &&
+    widget.state === "updating"
+  )
+    return (
+      <section className="panel shared-widget">
+        <h2>{meta.label}</h2>
+        <LoadingBar label={`Updating ${meta.label.toLowerCase()}`} />
+      </section>
+    );
+  if (key === "sleep_timeline")
+    return (
+      <SleepTimeline sleep={widget.night ?? undefined} tz={data.timezone} />
+    );
+  if (key === "sleep_stages")
+    return (
+      <section className="panel shared-widget">
+        <h2>Sleep stages</h2>
+        <SleepStages sleep={widget.night ?? undefined} tz={data.timezone} />
+      </section>
+    );
+  if (key === "nightly_metrics")
+    return (
+      <section className="panel shared-widget">
+        <h2>Nightly metrics</h2>
+        <NightMetrics metrics={widget.metrics} />
+      </section>
+    );
+  if (key === "morning_outlook")
+    return (
+      <section className="panel shared-widget">
+        <OutlookStatus
+          insight={widget.insight ?? null}
+          loading={loading || widget.insight?.state === "updating"}
+          privateLink={false}
+        />
+      </section>
+    );
+  if (key === "goal_progress" || key === "goal_weight") {
+    if (!widget.goal)
+      return (
+        <section className="panel shared-widget">
+          <h2>{meta.label}</h2>
+          <p className="empty">No goal for this period</p>
+        </section>
+      );
+    if (key === "goal_progress")
+      return (
+        <GoalProgressCard
+          goal={widget.goal}
+          summary={widget.summary ?? null}
+          now={new Date(widget.as_of ?? data.to + "T12:00:00Z")}
+        />
+      );
+    const readings = widget.summary?.progress?.weigh_ins ?? [];
+    const summary = widget.summary;
+    return (
+      <GoalWeightCard
+        points={chartPoints(
+          readings.map((r) => ({ day: r.day, value: r.kg })),
+          key,
+          data.from,
+          data.to,
+        )}
+        value={readings.at(-1)?.kg}
+        target={
+          widget.goal.phase === "maintenance"
+            ? null
+            : summary?.progress?.target_weight_kg
+        }
+        band={
+          summary?.maintenance_lower_kg != null &&
+          summary.maintenance_upper_kg != null
+            ? [summary.maintenance_lower_kg, summary.maintenance_upper_kg]
+            : null
+        }
+      />
+    );
+  }
+  if (key === "recovery") {
+    const hrv = data.widgets.find((w) => w.key === "hrv"),
+      rhr = data.widgets.find((w) => w.key === "resting_hr");
+    const rows = points.flatMap((p) =>
+      p.recovery
+        ? [
+            {
+              day: p.day,
+              recovery: p.recovery,
+              ...(hrv
+                ? {
+                    hrv_ms:
+                      hrv.points?.find((v) => v.day === p.day)?.value ?? null,
+                  }
+                : {}),
+              ...(rhr
+                ? {
+                    resting_hr:
+                      rhr.points?.find((v) => v.day === p.day)?.value ?? null,
+                  }
+                : {}),
+            },
+          ]
+        : [],
+    );
+    return (
+      <RecoveryCard
+        rows={rows}
+        from={data.from}
+        days={
+          Math.round((Date.parse(data.to) - Date.parse(data.from)) / 86400000) +
+          1
+        }
+        loading={loading}
+      />
+    );
+  }
   if (key === "daily_rings") {
     const reading = recoveryScoreReading(widget.recovery);
     const recoveryLoading = loading || widget.recovery?.state === "updating";
@@ -256,7 +374,7 @@ export const SharedCard = memo(function SharedCard({
         )}
         <div className="rings">
           <SleepRing
-            loading={loading}
+            loading={loading || widget.sleep_state === "updating"}
             seconds={widget.sleep_seconds}
             goalMinutes={widget.sleep_goal_minutes}
           />

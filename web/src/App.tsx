@@ -1,3 +1,5 @@
+import { OutlookStatus } from "./OutlookStatus";
+import { SleepStages, NightMetrics } from "./NightWidgets";
 import {
   useDashboardPreference,
   PrivateDashboardEditor,
@@ -435,104 +437,6 @@ function Metric({
     </div>
   );
 }
-function OutlookStatus({
-  insight,
-  loading,
-}: {
-  insight: Insights | null;
-  loading: boolean;
-}) {
-  const state =
-    insight?.state === "ready" ? insight.outlook?.state : insight?.state;
-  const tone =
-    state === "good"
-      ? "var(--green)"
-      : state === "low"
-        ? "var(--red)"
-        : state === "average" || state === "mixed"
-          ? "var(--muted)"
-          : "var(--muted)";
-  const metrics = (insight?.metrics ?? []).filter(
-    (m) => m.value != null && ["sleep", "hrv", "resting_hr"].includes(m.key),
-  );
-  return (
-    <details className="outlook-status">
-      <summary>
-        <span className="muted">Outlook</span>
-        {loading ? (
-          <LoaderCircle
-            className="spinner"
-            size={13}
-            aria-label="Updating outlook"
-          />
-        ) : (
-          <span className="outlook-dot" style={{ background: tone }} />
-        )}
-        <span>{loading && !insight ? "Updating" : outlook(state)}</span>
-        <ChevronRight
-          size={13}
-          className="outlook-chevron"
-          aria-hidden="true"
-        />
-      </summary>
-      <div className="outlook-detail">
-        {metrics.length ? (
-          <div className="metrics">
-            {metrics.map((m) => {
-              const comparison = m.comparison;
-              const delta = comparison?.delta;
-              const unit =
-                m.key === "hrv" ? "ms" : m.key === "resting_hr" ? "bpm" : "";
-              const deltaText =
-                delta == null
-                  ? null
-                  : `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${comparison?.unit === "seconds" ? duration(Math.abs(delta)) : number(Math.abs(delta), 0)}${comparison?.unit === "percent" ? "%" : comparison?.unit === "bpm" ? " bpm" : ""}`;
-              return (
-                <div key={m.key}>
-                  <Metric
-                    label={
-                      m.key === "sleep"
-                        ? "Time asleep"
-                        : m.key === "hrv"
-                          ? "HRV"
-                          : "Resting HR"
-                    }
-                    value={
-                      m.key === "sleep" ? duration(m.value) : number(m.value)
-                    }
-                    unit={unit}
-                  />
-                  {deltaText && (
-                    <span
-                      className="small"
-                      style={{
-                        color:
-                          comparison?.signal === "favourable"
-                            ? "var(--green)"
-                            : comparison?.signal === "unfavourable"
-                              ? "var(--red)"
-                              : "var(--muted)",
-                      }}
-                    >
-                      {deltaText}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="muted small">
-            {loading ? "Updating" : "No comparisons yet"}
-          </p>
-        )}
-        <a href="#Sleep" className="text-button">
-          View sleep
-        </a>
-      </div>
-    </details>
-  );
-}
 function Dashboard({
   page,
   device,
@@ -848,66 +752,6 @@ function Workouts({
     />
   );
 }
-function SleepStages({
-  sleep,
-  tz,
-}: {
-  sleep: Session | undefined;
-  tz: string;
-}) {
-  if (!sleep?.sleep?.stages) return <Empty>No sleep stages recorded</Empty>;
-  const s = sleep.sleep;
-  const stages = [
-    ["Deep", s.stages.deep_s, "var(--sleep)"],
-    ["REM", s.stages.rem_s, "#555f89"],
-    ["Light", s.stages.light_s, "#33394d"],
-    ["Awake", s.stages.wake_s, "#3b3b3b"],
-  ] as const;
-  const total = s.stages.deep_s + s.stages.rem_s + s.stages.light_s;
-  return (
-    <>
-      <div className="stage-bar" aria-label="Sleep stages">
-        {stages.map(([name, v, c]) => (
-          <span key={name} style={{ flex: v || 0, background: c }} />
-        ))}
-      </div>
-      <div className="stage-grid">
-        {stages.map(([name, v, c]) => (
-          <div key={name}>
-            <p>
-              <i style={{ background: c }} />
-              {name}
-            </p>
-            <strong>{duration(v)}</strong>{" "}
-            <span className="muted">
-              {name !== "Awake" && total > 0
-                ? `${Math.round((v / total) * 100)}%`
-                : ""}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="sleep-times">
-        {[
-          ["Fell asleep", s.window.onset ?? sleep.start_ts],
-          ["Woke up", s.window.offset ?? sleep.end_ts],
-        ].map(([label, time]) => (
-          <div key={label}>
-            <span>{label}</span>
-            <strong>
-              {new Date(time).toLocaleTimeString(undefined, {
-                timeZone: sleep.timezone ?? tz,
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </strong>
-          </div>
-        ))}
-      </div>
-      {s.partial && <p className="muted small">Partial recording</p>}
-    </>
-  );
-}
 function DataView({
   device,
   onGoalSaved,
@@ -1089,32 +933,17 @@ function DataView({
           {sleepChart}
         </Panel>
         <Panel title="Nightly metrics" wide>
-          <div className="metrics">
-            <Metric
-              label="Resting heart rate"
-              value={number(night?.sleep?.physiology.resting_hr)}
-              unit="bpm"
-            />
-            <Metric
-              label="HRV"
-              value={number(night?.sleep?.physiology.hrv_rmssd_ms)}
-              unit="ms"
-            />
-            <Metric
-              label="Efficiency"
-              value={
-                night?.sleep?.window.efficiency != null && !night.sleep.partial
-                  ? number(night.sleep.window.efficiency * 100)
-                  : "—"
-              }
-              unit="%"
-            />
-            <Metric
-              label="Breathing"
-              value={number(night?.sleep?.physiology.respiratory_rate, 1)}
-              unit="/ min"
-            />
-          </div>
+          <NightMetrics
+            metrics={
+              night?.sleep
+                ? {
+                    ...night.sleep.physiology,
+                    efficiency: night.sleep.window.efficiency,
+                    partial: night.sleep.partial,
+                  }
+                : undefined
+            }
+          />
         </Panel>
       </div>
     );
@@ -1232,24 +1061,6 @@ function DataView({
         onSaved={onGoalSaved}
       />
     </>
-  );
-}
-function outlook(state: string | undefined) {
-  return (
-    (
-      {
-        good: "Good",
-        average: "Average",
-        low: "Low",
-        mixed: "Mixed",
-        limited: "Limited",
-        learning: "Learning",
-        updating: "Updating",
-        insufficient: "Learning",
-        awaiting_sync: "Updating",
-        no_sleep: "No sleep",
-      } as Record<string, string>
-    )[state ?? ""] ?? "—"
   );
 }
 function Admin() {

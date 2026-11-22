@@ -113,7 +113,20 @@ export function goalWeekNumber(goal: Settings, weekStart: string) {
   const monday = addDays(start, -((atDay(start).getUTCDay() + 6) % 7));
   return Math.max(1, Math.floor(days(monday, weekStart) / 7) + 1);
 }
-export function goalProgress(g: Settings, summary: Goal["summary"], now: Date) {
+export type GoalPresentation = Pick<
+  Settings,
+  | "phase"
+  | "active"
+  | "started_at"
+  | "finish_date"
+  | "timezone"
+  | "daily_steps_goal"
+>;
+export function goalProgress(
+  g: GoalPresentation,
+  summary: Goal["summary"],
+  now: Date,
+) {
   const start = dayKey(new Date(g.started_at), g.timezone),
     today = dayKey(now, g.timezone);
   const total = g.finish_date ? days(start, g.finish_date) : null;
@@ -206,13 +219,13 @@ function ProgressRow({
     </div>
   );
 }
-function Progress({
+export function GoalProgressCard({
   goal,
   summary,
   now,
   steps,
 }: {
-  goal: Settings;
+  goal: GoalPresentation;
   summary: Goal["summary"];
   now: Date;
   steps?: number | null;
@@ -960,33 +973,20 @@ export function GoalView({
         {chartMode === "weekly" && active && g ? (
           <Weekly key={g.id} goal={g} summary={s} controls={chartControls} />
         ) : (
-          <Card
-            title="Weight"
-            headline={
-              <div className="goal-current-weight">
-                {number(rows.at(-1)?.value, 1)} <small>kg</small>
-              </div>
+          <GoalWeightCard
+            points={chartData}
+            value={rows.at(-1)?.value}
+            target={
+              active && g?.phase !== "maintenance"
+                ? s?.progress?.target_weight_kg
+                : null
             }
-            aside={active && chartControls}
-            className="goal-weight"
-          >
-            <Chart
-              data={chartData}
-              unit="kg"
-              height={200}
-              latestMarker
-              target={
-                active && g?.phase !== "maintenance"
-                  ? s?.progress?.target_weight_kg
-                  : null
-              }
-              targetLabel="Target"
-              band={rangeBand(s)}
-            />
-          </Card>
+            band={rangeBand(s)}
+            controls={active && chartControls}
+          />
         )}
         {active && g && (
-          <Progress
+          <GoalProgressCard
             goal={g}
             summary={s}
             now={now}
@@ -1129,7 +1129,7 @@ function Archived({ period: p }: { period: GoalPeriod }) {
         targetLabel="Target"
         latestMarker
       />
-      <Progress
+      <GoalProgressCard
         goal={{ ...p.goal, active: false }}
         summary={p.summary}
         now={new Date(new Date(p.ended_at).getTime() - 1)}
@@ -1139,5 +1139,42 @@ function Archived({ period: p }: { period: GoalPeriod }) {
         <Weekly goal={p.goal} summary={p.summary} />
       </details>
     </div>
+  );
+}
+
+export function GoalWeightCard({
+  points,
+  value,
+  target,
+  band,
+  controls,
+}: {
+  points: { day: string; x: number; value: number | null }[];
+  value?: number | null;
+  target?: number | null;
+  band?: [number, number] | null;
+  controls?: ReactNode;
+}) {
+  return (
+    <Card
+      title="Weight"
+      headline={
+        <div className="goal-current-weight">
+          {number(value, 1)} <small>kg</small>
+        </div>
+      }
+      aside={controls}
+      className="goal-weight"
+    >
+      <Chart
+        data={points}
+        unit="kg"
+        height={200}
+        latestMarker
+        target={target}
+        targetLabel="Target"
+        band={band}
+      />
+    </Card>
   );
 }

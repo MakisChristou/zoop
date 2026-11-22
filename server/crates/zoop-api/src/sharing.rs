@@ -13,8 +13,9 @@ use zoop_auth::{digest, hash_password, random_token, verify_password};
 use zoop_storage::SharedDashboard;
 mod layout;
 mod private;
+mod widgets;
 pub(crate) use private::{get_layout, save_layout};
-const WIDGETS: [&str; 12] = [
+const WIDGETS: [&str; 18] = [
     "sleep",
     "recovery",
     "load",
@@ -27,6 +28,12 @@ const WIDGETS: [&str; 12] = [
     "recent_workouts",
     "by_sport",
     "daily_rings",
+    "sleep_timeline",
+    "sleep_stages",
+    "nightly_metrics",
+    "morning_outlook",
+    "goal_progress",
+    "goal_weight",
 ];
 const MAX_HISTORY_DAYS: i64 = 365;
 
@@ -387,14 +394,15 @@ async fn project(
     let (from, to) = window(config, today, earliest, year)?;
     let mut widgets = Vec::new();
     for key in &config.widgets {
+        if let Some(widget) = widgets::project(s, device, &tz, from, to, key).await? {
+            widgets.push(widget);
+            continue;
+        }
         match key.as_str() {
             "daily_rings" => {
                 let sleep_goal = s.store.sleep_goal(device).await?;
                 // One date for all three readings. Never substitute older non-null values.
-                let sleep = s
-                    .store
-                    .shared_points(device, &tz, to, to, "sleep", zoop_analytics::ALGO_VERSION)
-                    .await?;
+                let (sleep, sleep_state) = widgets::sleep_reading(s, device, &tz, to).await?;
                 let load = s
                     .store
                     .shared_points(
@@ -408,7 +416,7 @@ async fn project(
                     .await?;
                 let brief = zoop_core::morning_insights(&s.store, device, to, &tz).await?;
                 let recovery = brief.map(|b| json!({"version":b.recovery.version,"method":b.recovery.method,"score":b.recovery.score,"band":b.recovery.band,"state":b.recovery.state}));
-                widgets.push(json!({"key":key,"day":to,"sleep_goal_minutes":sleep_goal.minutes,"sleep_seconds":sleep.first().and_then(|p| p.get("value")),"load":load.first().and_then(|p|p.get("value")),"recovery":recovery}));
+                widgets.push(json!({"key":key,"day":to,"sleep_goal_minutes":sleep_goal.minutes,"sleep_seconds":sleep,"sleep_state":sleep_state,"load":load.first().and_then(|p|p.get("value")),"recovery":recovery}));
                 continue;
             }
             "activity_heatmap" => {
@@ -453,7 +461,12 @@ async fn project(
             zoop_analytics::WORKOUT_ALGO_VERSION
         };
         let points = if key == "recovery" {
-            zoop_core::recovery_history(&s.store, device, from, to, &tz).await?
+            zoop_core::daily_recovery_history(&s.store, device, from, to, &tz)
+                .await?.unwrap_or_default().into_iter().map(|row| {
+                    let r = row.recovery;
+                    // Recovery-only shares never gain supporting health measurements.
+                    json!({"day":row.day,"value":r.score,"recovery":{"version":r.version,"method":r.method,"state":r.state,"score":r.score,"band":r.band}})
+                }).collect()
         } else {
             s.store
                 .shared_points(device, &tz, from, to, key, version)

@@ -162,21 +162,23 @@ for (const width of [320, 768, 1440, 2560])
     await page.setViewportSize({ width, height: 1000 });
     await visitor(page);
     await page.goto("/#share/" + token);
-    await expect(page.locator(".shared-widget")).toHaveCount(4);
+    await expect(page.locator(".shared-cell > .panel")).toHaveCount(4);
     await expect(page.locator(".recharts-surface").first()).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    const cards = await page.locator(".shared-widget").evaluateAll((nodes) =>
-      nodes.map((n) => ({
-        x: n.getBoundingClientRect().x,
-        y: n.getBoundingClientRect().y,
-        width: n.getBoundingClientRect().width,
-        height: n.getBoundingClientRect().height,
-      })),
-    );
+    const cards = await page
+      .locator(".shared-cell > .panel")
+      .evaluateAll((nodes) =>
+        nodes.map((n) => ({
+          x: n.getBoundingClientRect().x,
+          y: n.getBoundingClientRect().y,
+          width: n.getBoundingClientRect().width,
+          height: n.getBoundingClientRect().height,
+        })),
+      );
     if (width >= 768) {
       expect(cards[0].y).toBe(cards[1].y);
       expect(cards[0].height).toBe(cards[1].height);

@@ -28,6 +28,10 @@ production. Never activate a NixOS deployment without explicit approval.
 
 - Public links use a fragment capability and a dedicated POST projection. Never send
   account cookies, raw sensor data, email, device IDs or unselected metrics to visitors.
+- Private customization, share editing and public viewing use one widget catalog and
+  the same rendering components. Add each dashboard widget to both editors; keep sizes,
+  colors, loading states and chart interactions consistent. Public cards never expose
+  private edit actions or unselected supporting metrics.
 - Preview and visitor rendering share one component. Every range is bounded by the
   server; All history is year-paged. Passwords remain in memory, never browser storage.
 - Keep sharing opt-in. Scope edits invalidate previews, and account/device changes

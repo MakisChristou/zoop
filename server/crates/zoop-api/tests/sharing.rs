@@ -956,3 +956,129 @@ async fn private_layouts_are_owned_versioned_validated_and_not_public() {
         .await;
     assert_eq!(db.count("SELECT count(*) FROM dashboard_layouts").await, 0);
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn complete_widget_catalog_is_opt_in_bounded_and_matches_private_measurements() {
+    let (db, app, owner, member) = setup().await;
+    db.sql(r#"INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,fixed,metrics)
+      VALUES('TEST-RELIABILITY','2025-01-15T00:00:00Z','2025-01-15T08:00:00Z','main','main','UTC',true,
+      '{"private_marker":"never-share","sleep":{"algo_version":5,"partial":false,"window":{"asleep_s":28000,"coverage_s":28800,"efficiency":0.97,"onset":"2025-01-15T00:00:00Z","offset":"2025-01-15T08:00:00Z"},"stages":{"deep_s":7200,"rem_s":7200,"light_s":13600,"wake_s":800},"physiology":{"resting_hr":48,"hrv_rmssd_ms":81,"hrv_windows":96,"respiratory_rate":13,"secret_field":999},"segments":[{"stage":"deep","start":"2025-01-15T01:00:00Z","end":"2025-01-15T03:00:00Z","private_marker":"hidden"}]}}');
+      INSERT INTO weight_goals(device_id,phase,active,started_at,pace_started_at,timezone,weekly_loss_kg,reminder_enabled,reminder_weekday,reminder_minute,maintenance_reference_kg,revision,updated_at) VALUES('TEST-RELIABILITY','maintenance',true,'2025-01-01','2025-01-01','UTC',0,false,1,1200,70,1,'2025-01-01');
+      INSERT INTO weight_readings(device_id,id,measured_at,kg,source,source_name) VALUES('TEST-RELIABILITY','old','2025-01-01T12:00:00Z',70,'health','private source'),('TEST-RELIABILITY','inside','2025-01-15T12:00:00Z',69,'health','private source'),('TEST-RELIABILITY','future','2025-01-16T12:00:00Z',68,'health','private source');"#).await;
+    let keys = [
+        "recovery",
+        "sleep_timeline",
+        "sleep_stages",
+        "nightly_metrics",
+        "morning_outlook",
+        "goal_progress",
+        "goal_weight",
+    ];
+    for key in keys {
+        let mut body = input(json!([key]));
+        body["config"]["range"] = json!("fixed");
+        body["config"]["from"] = json!("2025-01-15");
+        body["config"]["to"] = json!("2025-01-15");
+        let (status, created, _) =
+            req(&app, "POST", "/v1/shares", Some(&owner), None, body.clone()).await;
+        assert_eq!(status, StatusCode::OK, "{key}: {created}");
+        let (status, public, _) = visit(&app, created["token"].as_str().unwrap(), "", None).await;
+        assert_eq!(status, StatusCode::OK, "{key}: {public}");
+        let (_, preview, _) = req(
+            &app,
+            "POST",
+            "/v1/shares/preview",
+            Some(&owner),
+            None,
+            json!({"device_id":support::DEVICE,"config":body["config"]}),
+        )
+        .await;
+        assert_eq!(preview, public, "{key} preview parity");
+        assert_eq!(public["widgets"].as_array().unwrap().len(), 1);
+        let text = public.to_string();
+        for hidden in [
+            "private_marker",
+            "secret_field",
+            "private source",
+            "device_id",
+            "session_id",
+            "reminder_minute",
+            "revision",
+            "2025-01-16",
+        ] {
+            assert!(!text.contains(hidden), "{key} leaked {hidden}");
+        }
+        let w = &public["widgets"][0];
+        match key {
+            "recovery" => {
+                assert!(w["points"][0]["recovery"].is_object());
+                assert!(!text.contains("hrv_ms"));
+                assert!(!text.contains("resting_hr"));
+            }
+            "sleep_timeline" => {
+                assert_eq!(w["night"]["sleep"]["segments"].as_array().unwrap().len(), 1);
+                assert!(!text.contains("physiology"));
+                assert!(!text.contains("deep_s"));
+            }
+            "sleep_stages" => {
+                assert_eq!(w["night"]["sleep"]["stages"]["deep_s"], 7200);
+                assert!(!text.contains("segments"));
+            }
+            "nightly_metrics" => {
+                assert_eq!(w["metrics"]["hrv_rmssd_ms"], 81);
+                assert_eq!(w["metrics"]["efficiency"], 0.97);
+                assert!(!text.contains("segments"));
+            }
+            "goal_weight" => {
+                assert_eq!(
+                    w["summary"]["progress"]["weigh_ins"],
+                    json!([{"day":"2025-01-15","kg":69.0}])
+                );
+                assert!(w["goal"].get("id").is_none());
+            }
+            "goal_progress" => {
+                assert_eq!(w["summary"]["progress"]["total_lost_kg"], 1.0);
+                assert_eq!(w["summary"]["progress"]["weigh_ins"], json!([]));
+            }
+            _ => {}
+        }
+        assert_eq!(
+            req(
+                &app,
+                "POST",
+                "/v1/shares/preview",
+                Some(&member),
+                None,
+                json!({"device_id":support::DEVICE,"config":body["config"]})
+            )
+            .await
+            .0,
+            StatusCode::NOT_FOUND
+        );
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn completed_sleep_survives_routine_queue_but_corrections_show_loading() {
+    let (db, app, owner, _) = setup().await;
+    db.sql(r#"INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,fixed,metrics)
+      VALUES('TEST-RELIABILITY','2025-01-15T00:00:00Z','2025-01-15T08:00:00Z','main','main','UTC',true,'{"sleep":{"window":{"asleep_s":28000}}}');
+      INSERT INTO sleep_evidence(session_id,revision,boundary_complete,hr_samples) SELECT id,revision,true,28800 FROM sleep_sessions;
+      INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version,generation,completed_generation) VALUES('TEST-RELIABILITY','sleep','2025-01-15','UTC',5,2,1);"#).await;
+    let mut c = input(json!(["daily_rings"]));
+    c["config"]["range"] = json!("fixed");
+    c["config"]["from"] = json!("2025-01-15");
+    c["config"]["to"] = json!("2025-01-15");
+    let (_, share, _) = req(&app, "POST", "/v1/shares", Some(&owner), None, c).await;
+    let token = share["token"].as_str().unwrap();
+    let (_, d, _) = visit(&app, token, "", None).await;
+    assert_eq!(d["widgets"][0]["sleep_seconds"], 28000);
+    assert_eq!(d["widgets"][0]["sleep_state"], "ready");
+    db.sql("UPDATE sleep_sessions SET metrics_pending=true")
+        .await;
+    let (_, d, _) = visit(&app, token, "", None).await;
+    assert!(d["widgets"][0]["sleep_seconds"].is_null());
+    assert_eq!(d["widgets"][0]["sleep_state"], "updating");
+}

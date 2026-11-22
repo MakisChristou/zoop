@@ -95,11 +95,11 @@ impl PostgresStore {
         keys: &[String],
     ) -> StorageResult<Option<NaiveDate>> {
         sqlx::query_scalar(r#"SELECT min(day) FROM (
- SELECT min((end_ts AT TIME ZONE $2)::date) AS day FROM sleep_sessions WHERE device_id=$1 AND status='active' AND kind='main' AND $3::text[] && ARRAY['sleep','hrv','resting_hr','recovery','daily_rings']
+ SELECT min((end_ts AT TIME ZONE $2)::date) AS day FROM sleep_sessions WHERE device_id=$1 AND status='active' AND kind='main' AND $3::text[] && ARRAY['sleep','hrv','resting_hr','recovery','daily_rings','sleep_timeline','sleep_stages','nightly_metrics','morning_outlook']
  UNION ALL SELECT min((ts AT TIME ZONE $2)::date) FROM (SELECT ts FROM samples WHERE device_id=$1 AND 'steps'=ANY($3) ORDER BY ts LIMIT 1) first_sample
  UNION ALL SELECT min(day) FROM strains WHERE device_id=$1 AND $3::text[] && ARRAY['load','activity_heatmap','daily_rings']
  UNION ALL SELECT min((start_ts AT TIME ZONE $2)::date) FROM workout_sessions WHERE device_id=$1 AND status='active' AND $3::text[] && ARRAY['workouts','activity_heatmap','recent_workouts','by_sport']
- UNION ALL SELECT min((measured_at AT TIME ZONE $2)::date) FROM weight_readings WHERE device_id=$1 AND NOT removed AND 'weight'=ANY($3)) dates"#)
+ UNION ALL SELECT min((measured_at AT TIME ZONE $2)::date) FROM weight_readings WHERE device_id=$1 AND NOT removed AND $3::text[] && ARRAY['weight','goal_progress','goal_weight']) dates"#)
    .bind(device).bind(tz).bind(keys).fetch_one(self.pool()).await.map_err(fail)
     }
     /// Public daily projections. Queries emit only the requested scalar, never raw metric bundles.

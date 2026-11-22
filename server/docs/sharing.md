@@ -10,6 +10,19 @@ reuse the private dashboard presentation:
 - **Every day:** daily Load plus per-day, per-sport workout counts and duration totals.
 - **Recent activities:** local date, sport, duration and Load for each workout.
 - **By sport:** workout counts and duration totals grouped by sport.
+- **Sleep timeline / Sleep stages:** selected end-day sleep times and either stage
+  segments or stage totals. Neither card includes physiology or session identifiers.
+- **Nightly metrics:** selected end-day HRV, resting HR, breathing and efficiency.
+- **Morning outlook:** selected end-day status and sleep/HRV/resting-HR comparisons.
+- **Goal progress / Goal weight:** the current phase and its backend summary as of
+  the selected end day. Goal progress includes its starting weight and target, which
+  may predate the displayed period; individual weigh-ins are restricted to that period.
+  Goal weight uses those readings and the phase target or maintenance bounds.
+
+Daily recovery reuses the private green/yellow/red bar chart. Its tooltip includes
+HRV and resting HR only when those widgets are also explicitly selected. Sleep rings
+retain valid completed readings during routine queue work; invalidated readings use
+`sleep_state: updating` and clients refresh automatically.
 
 These cards have separate selection keys; existing links never gain them implicitly.
 Only active, fully derived, completed workouts within the selected range are included.
@@ -52,7 +65,7 @@ quality-gated calculation as private insights, from one bounded snapshot includi
 28 prior days. No client derives scores. Missing measurements stay null. Reading
 steps may refresh the existing derived daily cache; it never edits health records.
 
-Limits: 50 dashboards per account, twelve distinct allowlisted widgets, 16 KiB request
+Limits: 50 dashboards per account, eighteen distinct allowlisted widgets, 16 KiB request
 bodies, four concurrent projections, existing four-slot password hashing bound,
 120 public requests/minute globally and 30/minute per resolved share. Rate-limit
 keys are bounded (one global key and one per existing share), not attacker-supplied.

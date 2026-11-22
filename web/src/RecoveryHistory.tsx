@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -17,9 +17,9 @@ import { recoveryScoreReading } from "./recovery";
 
 export interface RecoveryDay {
   day: string;
-  recovery: Recovery;
-  hrv_ms: number | null;
-  resting_hr: number | null;
+  recovery: Pick<Recovery, "version" | "method" | "state" | "score" | "band">;
+  hrv_ms?: number | null;
+  resting_hr?: number | null;
 }
 
 export function recoveryPoints(
@@ -56,7 +56,53 @@ export function RecoveryHistory({
     ),
     refresh + retry,
   );
-  const points = recoveryPoints(history.data ?? [], from, days);
+  return (
+    <RecoveryCard
+      rows={history.data}
+      from={from}
+      days={days}
+      loading={history.loading}
+      error={history.error ?? undefined}
+      retry={() => setRetry((value) => value + 1)}
+      controls={
+        <div
+          className="recovery-period"
+          role="group"
+          aria-label="Recovery period"
+        >
+          {[30, 90].map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={days === value}
+              onClick={() => setDays(value)}
+            >
+              {value} days
+            </button>
+          ))}
+        </div>
+      }
+    />
+  );
+}
+export function RecoveryCard({
+  rows,
+  from,
+  days,
+  loading = false,
+  error,
+  retry,
+  controls,
+}: {
+  rows: RecoveryDay[] | null;
+  from: string;
+  days: number;
+  loading?: boolean;
+  error?: string;
+  retry?: () => void;
+  controls?: ReactNode;
+}) {
+  const points = recoveryPoints(rows ?? [], from, days);
   const counts = { high: 0, moderate: 0, low: 0 };
   for (const point of points) {
     if (point.score != null && point.row?.recovery.band)
@@ -68,23 +114,8 @@ export function RecoveryHistory({
       <div className="panel-head">
         <h2 id={id}>Daily recovery</h2>
         <div className="recovery-history-controls">
-          <div
-            className="recovery-period"
-            role="group"
-            aria-label="Recovery period"
-          >
-            {[30, 90].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={days === value}
-                onClick={() => setDays(value)}
-              >
-                {value} days
-              </button>
-            ))}
-          </div>
-          {history.data && (
+          {controls}
+          {rows && (
             <div className="recovery-counts" aria-label="Recovery days by band">
               {(["high", "moderate", "low"] as const).map((band) => (
                 <span
@@ -103,21 +134,19 @@ export function RecoveryHistory({
           )}
         </div>
       </div>
-      {history.loading && <LoadingBar label="Loading recovery history" />}
-      {history.error && (
+      {loading && <LoadingBar label="Loading recovery history" />}
+      {error && (
         <div role="alert" className="error small">
           Recovery history unavailable.{" "}
-          <button type="button" onClick={() => setRetry((value) => value + 1)}>
+          <button type="button" onClick={retry}>
             Retry
           </button>
         </div>
       )}
-      {!history.data && history.loading ? (
+      {!rows && loading ? (
         <div className="recovery-chart-placeholder" aria-hidden="true" />
       ) : (
-        history.data && (
-          <RecoveryPlot key={`${device}:${from}:${tz}`} points={points} />
-        )
+        rows && <RecoveryPlot key={from} points={points} />
       )}
     </section>
   );
@@ -132,6 +161,8 @@ function RecoveryPlot({
   const [hover, setHover] = useState<string | null>(null);
   const id = useId();
   const valid = points.filter((p) => p.score != null);
+  const showHrv = points.some((p) => p.row?.hrv_ms !== undefined);
+  const showRhr = points.some((p) => p.row?.resting_hr !== undefined);
   const point = valid.find((p) => p.day === (hover ?? selected));
   const pick = (day: unknown) => valid.find((p) => p.day === day)?.day ?? null;
   const date = (day: string) =>
@@ -252,25 +283,29 @@ function RecoveryPlot({
             <span className="muted">Recovery</span>
             <span>{point.score}%</span>
           </div>
-          <div>
-            <span className="muted">HRV</span>
-            <span>
-              {number(point.row?.hrv_ms)}
-              {point.row?.hrv_ms != null ? " ms" : ""}
-            </span>
-          </div>
-          <div>
-            <span className="muted">Resting HR</span>
-            <span>
-              {number(point.row?.resting_hr)}
-              {point.row?.resting_hr != null ? " bpm" : ""}
-            </span>
-          </div>
+          {point.row?.hrv_ms !== undefined && (
+            <div>
+              <span className="muted">HRV</span>
+              <span>
+                {number(point.row?.hrv_ms)}
+                {point.row?.hrv_ms != null ? " ms" : ""}
+              </span>
+            </div>
+          )}
+          {point.row?.resting_hr !== undefined && (
+            <div>
+              <span className="muted">Resting HR</span>
+              <span>
+                {number(point.row?.resting_hr)}
+                {point.row?.resting_hr != null ? " bpm" : ""}
+              </span>
+            </div>
+          )}
         </div>
       )}
       <span className="sr-only" aria-live="polite">
         {selected && point
-          ? `${date(point.day)}: ${point.score}%, ${point.row?.recovery.band} recovery. HRV ${number(point.row?.hrv_ms)} milliseconds. Resting heart rate ${number(point.row?.resting_hr)} beats per minute.`
+          ? `${date(point.day)}: ${point.score}%, ${point.row?.recovery.band} recovery.${showHrv ? ` HRV ${number(point.row?.hrv_ms)} milliseconds.` : ""}${showRhr ? ` Resting heart rate ${number(point.row?.resting_hr)} beats per minute.` : ""}`
           : ""}
       </span>
       <div className="sr-only">
@@ -281,8 +316,8 @@ function RecoveryPlot({
               <th>Date</th>
               <th>Recovery</th>
               <th>Band</th>
-              <th>HRV</th>
-              <th>Resting HR</th>
+              {showHrv && <th>HRV</th>}
+              {showRhr && <th>Resting HR</th>}
             </tr>
           </thead>
           <tbody>
@@ -291,8 +326,8 @@ function RecoveryPlot({
                 <td>{date(p.day)}</td>
                 <td>{p.score == null ? "No reading" : `${p.score}%`}</td>
                 <td>{p.score == null ? "—" : p.row?.recovery.band}</td>
-                <td>{number(p.row?.hrv_ms)} ms</td>
-                <td>{number(p.row?.resting_hr)} bpm</td>
+                {showHrv && <td>{number(p.row?.hrv_ms)} ms</td>}
+                {showRhr && <td>{number(p.row?.resting_hr)} bpm</td>}
               </tr>
             ))}
           </tbody>
