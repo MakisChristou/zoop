@@ -2,8 +2,8 @@ import { SleepRing } from "./SleepRing";
 import { recoveryScoreReading } from "./recovery";
 import { Ring } from "./Ring";
 import { RecoveryRingFace } from "./RecoveryRing";
-import { layoutFor, type Placement } from "./shareLayout";
-import { useEffect, useState, useRef, type FormEvent } from "react";
+import { layoutFor } from "./shareLayout";
+import { memo, useEffect, useState, useRef, type FormEvent } from "react";
 import { BySport, TrainingHeatmap, RecentActivities } from "./Training";
 import { SharedCell, visualOrder } from "./SharedGrid";
 import { Chart } from "./Chart";
@@ -150,68 +150,70 @@ export function SharedDashboard({ token }: { token: string }) {
 export function DashboardPreview({
   data,
   onYear,
-  onLayout,
   loading = false,
+  hideHeading = false,
 }: {
   data: PublicDashboard;
   loading?: boolean;
   onYear: (year: number) => void;
-  onLayout?: (layout: Placement[]) => void;
+  hideHeading?: boolean;
 }) {
   const layout = layoutFor(
     data.widgets.map((w) => w.key),
     data.layout,
   );
   return (
-    <section
-      className={`shared-content${onLayout ? " layout-editing" : ""}`}
-      aria-busy={loading}
-    >
-      <div className="share-heading">
-        <div className="share-identity">
-          {data.photo && <img src={data.photo} alt="" />}
-          <div>
-            <h1>{data.title}</h1>
-            {data.display_name && <p>{data.display_name}</p>}
+    <section className="shared-content" aria-busy={loading}>
+      {!hideHeading && (
+        <div className="share-heading">
+          <div className="share-identity">
+            {data.photo && <img src={data.photo} alt="" />}
+            <div>
+              <h1>{data.title}</h1>
+              {data.display_name && <p>{data.display_name}</p>}
+            </div>
           </div>
+          {data.paged ? (
+            <label>
+              Year
+              <select
+                aria-label="Dashboard year"
+                disabled={loading}
+                value={Number(data.to.slice(0, 4))}
+                onChange={(e) => onYear(Number(e.target.value))}
+              >
+                {Array.from(
+                  { length: data.last_year - data.first_year + 1 },
+                  (_, i) => data.last_year - i,
+                ).map((y) => (
+                  <option key={y}>{y}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span>
+              {dateLabel(data.from)} –{" "}
+              {dateLabel(data.to, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          )}
         </div>
-        {data.paged ? (
-          <label>
-            Year
-            <select
-              aria-label="Dashboard year"
-              disabled={loading}
-              value={Number(data.to.slice(0, 4))}
-              onChange={(e) => onYear(Number(e.target.value))}
-            >
-              {Array.from(
-                { length: data.last_year - data.first_year + 1 },
-                (_, i) => data.last_year - i,
-              ).map((y) => (
-                <option key={y}>{y}</option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <span>
-            {dateLabel(data.from)} –{" "}
-            {dateLabel(data.to, {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </span>
-        )}
-      </div>
+      )}
       <div className="shared-grid">
         {visualOrder(data.widgets, layout).map((widget) => (
           <SharedCell
             key={`${widget.key}:${data.from}:${data.to}`}
             placement={layout.find((p) => p.key === widget.key)!}
-            layout={layout}
-            onMove={onLayout}
           >
-            <SharedCard widget={widget} data={data} loading={loading} />
+            <SharedCard
+              widget={widget}
+              data={data}
+              loading={loading}
+              hideRingDate={hideHeading}
+            />
           </SharedCell>
         ))}
       </div>
@@ -223,14 +225,16 @@ function pendingRecovery(state?: string) {
   return state === "updating" || state === "awaiting_sync";
 }
 
-function SharedCard({
+export const SharedCard = memo(function SharedCard({
   widget,
   data,
   loading,
+  hideRingDate = false,
 }: {
   widget: SharedWidget;
   data: PublicDashboard;
   loading: boolean;
+  hideRingDate?: boolean;
 }) {
   const { key, points = [] } = widget,
     meta = widgets[key];
@@ -240,14 +244,16 @@ function SharedCard({
     const recoveryLoading = loading || widget.recovery?.state === "updating";
     return (
       <section className="shared-rings" aria-label="Daily rings">
-        <div className="shared-ring-date">
-          {dateLabel(widget.day ?? data.to, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </div>
+        {!hideRingDate && (
+          <div className="shared-ring-date">
+            {dateLabel(widget.day ?? data.to, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
+        )}
         <div className="rings">
           <SleepRing
             loading={loading}
@@ -340,4 +346,4 @@ function SharedCard({
       />
     </section>
   );
-}
+});

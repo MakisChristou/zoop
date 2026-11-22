@@ -67,11 +67,13 @@ fn layout_rejects_overlaps_unknown_keys_and_out_of_bounds() {
     c.widgets = vec!["daily_rings".into(), "steps".into()];
     c.layout = vec![
         layout::Placement {
+            size: None,
             key: "daily_rings".into(),
             x: 0,
             y: 0,
         },
         layout::Placement {
+            size: None,
             key: "steps".into(),
             x: 0,
             y: 3,

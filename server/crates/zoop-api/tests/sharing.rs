@@ -862,3 +862,97 @@ async fn concurrent_sleep_goal_migration_keeps_the_first_saved_target() {
         a.minutes
     );
 }
+
+#[tokio::test]
+#[ignore = "requires ZOOP_TEST_DATABASE_URL"]
+async fn private_layouts_are_owned_versioned_validated_and_not_public() {
+    let (db, app, owner, member) = setup().await;
+    let path = format!("/v1/dashboard-layouts/{}", support::DEVICE);
+    let config = json!({"title":"My dashboard","widgets":["weight","sleep"],"layout":[{"key":"weight","x":0,"y":0,"size":"wide"},{"key":"sleep","x":0,"y":4}]});
+    let (status, empty, _) = req(&app, "GET", &path, Some(&owner), None, Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(empty, json!({"config":null,"revision":0}));
+    for method in ["GET", "PUT"] {
+        let (status, _, _) = req(
+            &app,
+            method,
+            &path,
+            Some(&member),
+            None,
+            json!({"config":config,"revision":0}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+    let input = json!({"config":config,"revision":0});
+    let (status, saved, _) = req(&app, "PUT", &path, Some(&owner), None, input.clone()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(saved["revision"], 1);
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&owner), None, input.clone())
+            .await
+            .0,
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        req(&app, "GET", &path, Some(&owner), None, Value::Null)
+            .await
+            .1,
+        saved
+    );
+    assert_eq!(db.count("SELECT count(*) FROM shared_dashboards").await, 0);
+    let mut bad = input.clone();
+    bad["revision"] = json!(1);
+    bad["config"]["layout"][1]["y"] = json!(0);
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&owner), None, bad).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    let mut bad = input.clone();
+    bad["config"]["layout"][0]["size"] = json!("huge");
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&owner), None, bad).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(&path)
+                .header("content-type", "application/json")
+                .header("origin", "https://attacker.example")
+                .header("cookie", &owner)
+                .body(Body::from(input.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        req(
+            &app,
+            "GET",
+            &path,
+            None,
+            Some("owner-phone-token"),
+            Value::Null
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        req(&app, "GET", &path, None, None, Value::Null).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    let mut next = input;
+    next["revision"] = json!(1);
+    assert_eq!(
+        req(&app, "PUT", &path, Some(&owner), None, next).await.1["revision"],
+        2
+    );
+    db.sql("DELETE FROM device_owners WHERE device_id='TEST-RELIABILITY'")
+        .await;
+    assert_eq!(db.count("SELECT count(*) FROM dashboard_layouts").await, 0);
+}

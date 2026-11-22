@@ -1,3 +1,8 @@
+import {
+  useDashboardPreference,
+  PrivateDashboardEditor,
+  CustomDashboard,
+} from "./PrivateDashboard";
 import { SleepRing } from "./SleepRing";
 import { Ring } from "./Ring";
 import {
@@ -206,7 +211,7 @@ function PrivateApp() {
           />
         ) : (
           <Dashboard
-            key={selected}
+            key={identity.account.id + ":" + selected}
             page={page}
             device={selected}
             picker={
@@ -537,6 +542,8 @@ function Dashboard({
   device: string;
   picker: ReactNode;
 }) {
+  const preference = useDashboardPreference(device);
+  const [editingDashboard, setEditingDashboard] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const { data, loading, error, completed } = useDataset(device, refresh);
   const [selected, setSelected] = useState(""),
@@ -609,6 +616,18 @@ function Dashboard({
     setSelected(n < 0 ? previous : next);
     setDetail(null);
   };
+  if (page === "Today" && editingDashboard && preference.value)
+    return (
+      <PrivateDashboardEditor
+        device={device}
+        preference={preference.value}
+        close={() => setEditingDashboard(false)}
+        saved={(v) => {
+          preference.setValue(v);
+          setEditingDashboard(false);
+        }}
+      />
+    );
   if (detail)
     return (
       <>
@@ -657,6 +676,14 @@ function Dashboard({
         <h1>{page}</h1>
         <div className="page-controls">
           {picker}
+          {page === "Today" && (
+            <button
+              disabled={!preference.value}
+              onClick={() => setEditingDashboard(true)}
+            >
+              Edit dashboard
+            </button>
+          )}
           <button
             className="icon-button"
             onClick={() => setRefresh((x) => x + 1)}
@@ -667,6 +694,12 @@ function Dashboard({
           </button>
         </div>
       </div>
+      {page === "Today" && preference.error && (
+        <p className="error" role="alert">
+          Could not load your layout.{" "}
+          <button onClick={preference.retry}>Retry layout</button>
+        </p>
+      )}
       {page !== "Goals" && (
         <div className={`period-row${page === "Today" ? " today-period" : ""}`}>
           <div className="date-control">
@@ -741,20 +774,30 @@ function Dashboard({
                 Morning data unavailable. {insights.error}
               </p>
             )}
-            <DataView
-              device={device}
-              onGoalSaved={() => setRefresh((x) => x + 1)}
-              page={page}
-              data={data}
-              date={date}
-              start={start}
-              end={end}
-              insight={insights.data}
-              insightLoading={insights.loading}
-              dataLoading={loading}
-              onDetail={setDetail}
-              onDay={(day) => setSelected(day)}
-            />
+            {page === "Today" && preference.value?.config ? (
+              <CustomDashboard
+                key={date}
+                device={device}
+                config={preference.value.config}
+                date={date}
+                refresh={refresh + insightRefresh}
+              />
+            ) : (
+              <DataView
+                device={device}
+                onGoalSaved={() => setRefresh((x) => x + 1)}
+                page={page}
+                data={data}
+                date={date}
+                start={start}
+                end={end}
+                insight={insights.data}
+                insightLoading={insights.loading}
+                dataLoading={loading}
+                onDetail={setDetail}
+                onDay={(day) => setSelected(day)}
+              />
+            )}
             <p className="updated">
               Updated{" "}
               {data.loadedAt.toLocaleTimeString(undefined, {

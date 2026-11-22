@@ -8,7 +8,7 @@ production. Never activate a NixOS deployment without explicit approval.
 - Preserve the approved Marc Lou health-page direction: Geist, black/charcoal,
   compact regular headings, purple sleep, blue activity, neutral weight. No welcome
   essays, duplicate facts or invented scores. Use measurements and clear hierarchy.
-- Browser sessions may start, edit and end their own goals and update their own profile photo through the same APIs as iPhone. They may also manage their own shared dashboards. All other health writes remain iPhone-only. Enforce ownership and same-origin protection on the server.
+- Browser sessions may start, edit and end their own goals and update their own profile photo through the same APIs as iPhone. They may also save their own private dashboard layouts and manage their own shared dashboards. All other health writes remain iPhone-only. Enforce ownership and same-origin protection on the server.
 - The API owns authorization and metric calculations. Never ship bearer credentials,
   implement client-only security, or silently replace unavailable data with zeros.
 - Admin is operational visibility, not permission to inspect other users' records.

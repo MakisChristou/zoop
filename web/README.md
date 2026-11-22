@@ -27,7 +27,8 @@ _Current UI, captured in the browser with sample data._
 - Explore sleep, activity and weight with interactive charts and heatmaps.
 - Start, edit and end cut, bulk or maintenance goals, and revisit past phases.
 - Update and crop your profile photo; it follows you to the iPhone app.
-- Share selected metrics with a private link, optional password and expiry.
+- Arrange your dashboard with drag-and-drop widgets and safe chart sizes.
+- Share a separate layout with selected metrics, an optional password and expiry.
 - Check ingestion, processing queues and worker health with an admin account.
 
 Each person sees their own data. Admins see operational aggregates, not other

@@ -50,3 +50,26 @@ describe("fixed dashboard placement", () => {
     expect(rows.every((r) => r.x === 0)).toBe(true);
   });
 });
+
+it("resizes only to safe widths and preserves every displaced widget", () => {
+  let rows = layoutFor(["weight", "sleep", "daily_rings", "steps"]);
+  rows = moveWidget(rows, "weight", 1, 0, "wide");
+  expect(rows.find((p) => p.key === "weight")).toMatchObject({
+    x: 0,
+    y: 0,
+    size: "wide",
+  });
+  for (const [i, a] of rows.entries())
+    for (const b of rows.slice(i + 1)) expect(overlaps(a, b)).toBe(false);
+  expect(
+    layoutFor(
+      rows.map((p) => p.key),
+      rows,
+    ),
+  ).toEqual(rows);
+  rows = moveWidget(rows, "sleep", 0, 0, "wide");
+  expect(rows.find((p) => p.key === "weight")?.size).toBe("wide");
+  for (const [i, a] of rows.entries())
+    for (const b of rows.slice(i + 1)) expect(overlaps(a, b)).toBe(false);
+  expect(footprint("activity_heatmap", "wide")).toEqual({ w: 2, h: 3 });
+});

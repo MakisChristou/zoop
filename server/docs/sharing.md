@@ -79,10 +79,11 @@ public health API is provided by this slice.
 
 ## Layout
 
-Each widget has a fixed footprint in a two-column grid. Owners drag handles or use
-arrow keys to place widgets; colliding pieces move to free positions. Width and height
-are not editable. The server rejects overlaps, unknown keys and out-of-bounds rows.
-Layouts are stored inside the existing config JSON; no migration is required. Legacy
+Widgets snap to a two-column grid. Charts offer `standard` (one column) and `wide`
+(two columns); rings, heatmaps and activity lists retain their fixed footprints.
+Owners drag from the library or move handles; arrow keys and touch reorder buttons
+provide alternatives. Collisions push cards down. The server rejects arbitrary sizes,
+overlaps, unknown keys and out-of-bounds rows. Shared layouts remain in config JSON. Legacy
 links with no layout receive an automatic layout. Mobile viewers stack widgets in
 visual reading order. A year-shaped heatmap leaves dates outside the shared period
 blank and disabled; its shape does not widen the authorized data range.
@@ -95,3 +96,23 @@ The `daily_rings` projection includes `sleep_goal_minutes`, the same server-owne
 sleep target used by the signed-in dashboard and iPhone. The Sleep arc fills at
 that target; the centre continues to show measured sleep duration. See
 [Sleep goal](SLEEP_GOAL.md).
+
+
+## Private dashboard editor
+
+`GET/PUT /v1/dashboard-layouts/{device}` reads/saves an account/device layout.
+Browser sessions and ownership are required; saves also check Origin and an optimistic
+`revision` (zero for the first save). Migration 0024 adds the private preferences table,
+with account/device deletion cascades. It creates no public links and changes no health
+records. Back up before applying the migration with the API/web update.
+
+The private Today page keeps its existing default until customized. Both editors use
+the same widget canvas and server projection. Selected historical days retain their
+own 30-day window; saved layouts do not change metric definitions. Layout-only edits
+reuse the projection, while metric/range changes cancel and replace it. Save commits
+the draft; cancel leaves the saved dashboard unchanged. Existing shared visitors keep
+the last saved configuration throughout editing. Mobile stacks cards in visual order.
+
+Older API versions do not recognize the optional layout `size` field. Once a widened
+layout is saved, rollbacks must preserve this validation contract (or remove its size
+presets first). The additive preferences table itself can remain in place.

@@ -138,23 +138,42 @@ test("arrange snaps by pointer and keyboard, saves placements and reopens them",
   });
   await page.goto("/#Shares");
   await page.getByRole("button", { name: "New dashboard" }).click();
-  for (const name of ["Sleep", "Recovery", "Load", "Steps"])
-    await page.getByRole("checkbox", { name, exact: true }).uncheck();
+  for (const name of [
+    "Sleep",
+    "Weight",
+    "Steps",
+    "Recent activities",
+    "Daily rings",
+  ])
+    await page
+      .getByRole("button", { name: `Remove ${name}`, exact: true })
+      .click();
   for (const name of [
     "Daily rings",
     "Every day",
     "Recent activities",
     "By sport",
   ])
-    await page.getByRole("checkbox", { name, exact: true }).check();
+    await page
+      .getByRole("button", { name: `Add ${name}`, exact: true })
+      .click();
+  await page
+    .getByRole("button", { name: "Sharing settings", exact: true })
+    .first()
+    .click();
   await expect(
     page.getByRole("combobox", { name: "Heatmap history" }),
   ).toHaveValue("dashboard");
   await page
     .getByRole("combobox", { name: "Heatmap history" })
     .selectOption("year");
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
-  await page.getByRole("button", { name: "Arrange layout" }).click();
+  await page
+    .getByRole("button", { name: "Sharing settings", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Save", exact: true }),
+  ).toBeEnabled();
   const handle = page.getByRole("button", {
       name: "Move By sport",
       exact: true,
@@ -168,6 +187,7 @@ test("arrange snaps by pointer and keyboard, saves placements and reopens them",
   const afterKey = await page
     .locator(".shared-by_sport")
     .evaluate((el) => Number(getComputedStyle(el).gridRowStart));
+  await handle.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + 12, box.y + 12);
   await page.mouse.down();
@@ -182,8 +202,7 @@ test("arrange snaps by pointer and keyboard, saves placements and reopens them",
     path: "/tmp/zoop-layout-editor.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Done arranging" }).click();
-  await page.getByRole("button", { name: "Create link" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   expect(saved.config.layout).toHaveLength(4);
   expect(saved.config.heatmap_year).toBe(true);
   await page.goto("/#share/" + token);

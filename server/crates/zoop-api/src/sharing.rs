@@ -12,6 +12,8 @@ use serde_json::{Value, json};
 use zoop_auth::{digest, hash_password, random_token, verify_password};
 use zoop_storage::SharedDashboard;
 mod layout;
+mod private;
+pub(crate) use private::{get_layout, save_layout};
 const WIDGETS: [&str; 12] = [
     "sleep",
     "recovery",

@@ -117,7 +117,7 @@ export const newConfig = (): ShareConfig => ({
   range: "last30",
   from: null,
   to: null,
-  widgets: ["sleep", "recovery", "load", "steps"],
+  widgets: ["daily_rings", "weight", "sleep", "recent_workouts", "steps"],
 });
 export function publicToken(hash: string): string | null {
   return hash.startsWith("#share/") ? hash.slice(7) : null;
@@ -177,7 +177,9 @@ export async function sharingRequest<T>(
             : response.status === 429
               ? "Too many attempts. Try again in a minute."
               : "Could not load this dashboard. Try again."
-        : "Could not save this change. Please try again.",
+        : method === "GET" || path.endsWith("/preview")
+          ? "Could not load this dashboard. Try again."
+          : "Could not save this change. Please try again.",
     ) as Error & { status: number };
     e.status = response.status;
     if (!visitor) {

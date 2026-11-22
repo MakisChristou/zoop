@@ -172,6 +172,10 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(
             Router::new()
+                .route(
+                    "/v1/dashboard-layouts/{device}",
+                    get(sharing::get_layout).put(sharing::save_layout),
+                )
                 .route("/v1/shares", get(sharing::list).post(sharing::create))
                 .route("/v1/shares/preview", post(sharing::preview))
                 .route(

@@ -1,25 +1,14 @@
-import { layoutFor, type Placement } from "./shareLayout";
+import { layoutFor } from "./shareLayout";
+import { DashboardEditor } from "./DashboardEditor";
 import { useEffect, useState, useRef } from "react";
+import { Copy, Plus, ExternalLink } from "lucide-react";
+import { LoadingBar } from "./Loading";
 import {
-  ArrowUp,
-  ArrowDown,
-  Copy,
-  Plus,
-  LoaderCircle,
-  ArrowLeft,
-  ExternalLink,
-} from "lucide-react";
-import { LoadingBar, LoadingCards } from "./Loading";
-import { DashboardPreview } from "./SharedDashboard";
-import {
-  widgets,
   newConfig,
   sharingRequest,
   shareURL,
   type Share,
   type ShareConfig,
-  type Widget,
-  type PublicDashboard,
 } from "./sharing";
 export function Sharing({ device }: { device: string }) {
   const [list, setList] = useState<Share[]>([]),
@@ -84,7 +73,7 @@ export function Sharing({ device }: { device: string }) {
       {!busy && !error && !list.length && (
         <div className="panel share-empty">
           <h2>Share the metrics you choose.</h2>
-          <p>Create a dashboard. Preview it before sharing.</p>
+          <p>Choose what appears on your link.</p>
         </div>
       )}
       <div className="share-list">
@@ -138,35 +127,24 @@ function ShareEditor({
   saved: () => void;
 }) {
   const [config, setConfig] = useState<ShareConfig>(
-      share?.config ?? newConfig(),
-    ),
-    [password, setPassword] = useState(""),
-    [changePassword, setChangePassword] = useState(false),
-    [expires, setExpires] = useState(
-      share?.expires_at?.slice(0, 16) ??
-        (share
-          ? ""
-          : new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16)),
-    ),
-    [enabled, setEnabled] = useState(share?.enabled ?? true),
-    [preview, setPreview] = useState<PublicDashboard | null>(null),
+    share?.config ?? newConfig(),
+  );
+  const [password, setPassword] = useState(""),
+    [changePassword, setChangePassword] = useState(false);
+  const [expires, setExpires] = useState(
+    share?.expires_at?.slice(0, 16) ??
+      (share
+        ? ""
+        : new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16)),
+  );
+  const [enabled, setEnabled] = useState(share?.enabled ?? true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirmDelete, setConfirmDelete] = useState(false),
-    [arranging, setArranging] = useState(false);
-  const request = useRef<AbortController | null>(null),
-    generation = useRef(0);
-  useEffect(
-    () => () => {
-      request.current?.abort();
-      generation.current++;
-    },
-    [],
-  );
+    [confirmDelete, setConfirmDelete] = useState(false);
+  const [initialAccess] = useState(() => JSON.stringify({ expires, enabled }));
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => request.current?.abort(), []);
   function change(update: Partial<ShareConfig>) {
-    request.current?.abort();
-    generation.current++;
-    setBusy(false);
     setConfig((c) => ({
       ...c,
       ...update,
@@ -174,46 +152,9 @@ function ShareEditor({
         ? layoutFor(update.widgets, update.layout ?? c.layout)
         : (update.layout ?? c.layout),
     }));
-    setPreview(null);
-    setError("");
-  }
-  function toggle(key: Widget) {
-    change({
-      widgets: config.widgets.includes(key)
-        ? config.widgets.filter((w) => w !== key)
-        : [...config.widgets, key],
-    });
-  }
-  function move(index: number, offset: number) {
-    const next = [...config.widgets];
-    [next[index], next[index + offset]] = [next[index + offset], next[index]];
-    change({ widgets: next, layout: [] });
-  }
-  function arrange(layout: Placement[]) {
-    setConfig((c) => ({ ...c, layout }));
-    setPreview((p) => (p ? { ...p, layout } : p));
-  }
-  async function view(year?: number) {
-    request.current?.abort();
-    const c = new AbortController();
-    request.current = c;
-    const id = ++generation.current;
-    setBusy(true);
-    setError("");
-    try {
-      const d = await sharingRequest<PublicDashboard>(
-        "/v1/shares/preview",
-        { device_id: share?.device_id ?? device, config, year },
-        c.signal,
-      );
-      if (id === generation.current) setPreview(d);
-    } catch (e) {
-      if (!c.signal.aborted) setError((e as Error).message);
-    } finally {
-      if (id === generation.current) setBusy(false);
-    }
   }
   async function save(remove = false) {
+    request.current?.abort();
     const c = new AbortController();
     request.current = c;
     setBusy(true);
@@ -244,270 +185,167 @@ function ShareEditor({
     }
   }
   return (
-    <section className="sharing">
-      <div className="share-heading">
-        <button onClick={close} disabled={busy}>
-          <ArrowLeft size={16} /> Back
-        </button>
-        <h1>{share ? "Edit dashboard" : "New dashboard"}</h1>
-      </div>
-      <div className="share-editor">
-        <div className="panel share-controls">
-          <fieldset disabled={busy}>
+    <DashboardEditor
+      device={share?.device_id ?? device}
+      config={config}
+      change={change}
+      busy={busy}
+      error={error}
+      close={close}
+      save={() => save()}
+      shared
+      accessDirty={
+        changePassword || JSON.stringify({ expires, enabled }) !== initialAccess
+      }
+    >
+      <fieldset disabled={busy} className="share-controls">
+        <label>
+          Title
+          <input
+            maxLength={80}
+            value={config.title}
+            onChange={(e) => change({ title: e.target.value })}
+          />
+        </label>
+        <label>
+          History
+          <select
+            aria-label="History"
+            value={config.range}
+            onChange={(e) =>
+              change({ range: e.target.value as ShareConfig["range"] })
+            }
+          >
+            <option value="last30">Last 30 days</option>
+            <option value="all">All history</option>
+            <option value="fixed">Selected dates</option>
+          </select>
+        </label>
+        {config.range === "fixed" && (
+          <div className="share-dates">
             <label>
-              Title
+              From
               <input
-                maxLength={80}
-                value={config.title}
-                onChange={(e) => change({ title: e.target.value })}
+                type="date"
+                value={config.from ?? ""}
+                onChange={(e) => change({ from: e.target.value })}
               />
             </label>
             <label>
-              History
-              <select
-                aria-label="History"
-                value={config.range}
-                onChange={(e) =>
-                  change({ range: e.target.value as ShareConfig["range"] })
-                }
-              >
-                <option value="last30">Last 30 days</option>
-                <option value="all">All history</option>
-                <option value="fixed">Selected dates</option>
-              </select>
-            </label>
-            {config.range === "fixed" && (
-              <div className="share-dates">
-                <label>
-                  From
-                  <input
-                    type="date"
-                    value={config.from ?? ""}
-                    onChange={(e) => change({ from: e.target.value })}
-                  />
-                </label>
-                <label>
-                  To
-                  <input
-                    type="date"
-                    value={config.to ?? ""}
-                    onChange={(e) => change({ to: e.target.value })}
-                  />
-                </label>
-              </div>
-            )}
-            <h2>Widgets</h2>
-            <div className="share-metrics">
-              {[
-                ...config.widgets,
-                ...(Object.keys(widgets) as Widget[]).filter(
-                  (k) => !config.widgets.includes(k),
-                ),
-              ].map((key) => {
-                const i = config.widgets.indexOf(key);
-                return (
-                  <div key={key}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        aria-label={widgets[key].label}
-                        checked={i >= 0}
-                        onChange={() => toggle(key)}
-                      />
-                      <span>
-                        {widgets[key].label}
-                        {"detail" in widgets[key] && (
-                          <small>
-                            {(widgets[key] as { detail: string }).detail}
-                          </small>
-                        )}
-                      </span>
-                    </label>
-                    {i >= 0 && (
-                      <>
-                        <button
-                          aria-label={`Move ${widgets[key].label} up`}
-                          disabled={i === 0}
-                          onClick={() => move(i, -1)}
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          aria-label={`Move ${widgets[key].label} down`}
-                          disabled={i === config.widgets.length - 1}
-                          onClick={() => move(i, 1)}
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {config.widgets.includes("activity_heatmap") && (
-              <label>
-                Heatmap history
-                <select
-                  aria-label="Heatmap history"
-                  value={config.heatmap_year ? "year" : "dashboard"}
-                  onChange={(e) =>
-                    change({ heatmap_year: e.target.value === "year" })
-                  }
-                >
-                  <option value="dashboard">Dashboard period</option>
-                  <option value="year">1 year</option>
-                </select>
-              </label>
-            )}
-            <details>
-              <summary>Identity & access</summary>
-              <label>
-                Display name
-                <input
-                  maxLength={80}
-                  value={config.display_name}
-                  onChange={(e) => change({ display_name: e.target.value })}
-                  placeholder="Optional"
-                />
-              </label>
-              <label className="share-check">
-                <input
-                  type="checkbox"
-                  checked={config.show_photo}
-                  onChange={(e) => change({ show_photo: e.target.checked })}
-                />
-                Show profile photo
-              </label>
-              <label>
-                Expires (UTC)
-                <input
-                  type="datetime-local"
-                  value={expires}
-                  onChange={(e) => setExpires(e.target.value)}
-                />
-              </label>
-              <button onClick={() => setExpires("")}>Never expires</button>
-              {!expires && <small>No expiry</small>}
-              {share?.password_protected && (
-                <label className="share-check">
-                  <input
-                    type="checkbox"
-                    checked={changePassword}
-                    onChange={(e) => setChangePassword(e.target.checked)}
-                  />
-                  Change or remove password
-                </label>
-              )}
-              {(!share?.password_protected || changePassword) && (
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    maxLength={128}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setChangePassword(true);
-                    }}
-                    placeholder={
-                      share?.password_protected
-                        ? "Leave empty to remove"
-                        : "Optional · at least 8 characters"
-                    }
-                  />
-                </label>
-              )}
-              {share && (
-                <label className="share-check">
-                  <input
-                    type="checkbox"
-                    checked={enabled}
-                    onChange={(e) => setEnabled(e.target.checked)}
-                  />
-                  Link enabled
-                </label>
-              )}
-            </details>
-          </fieldset>
-          <div className="share-actions">
-            <button
-              disabled={busy || !config.title.trim() || !config.widgets.length}
-              onClick={() => view()}
-            >
-              Preview
-            </button>
-            <button
-              className="primary"
-              disabled={
-                busy ||
-                (!preview &&
-                  (!share ||
-                    JSON.stringify(config) !== JSON.stringify(share.config)))
-              }
-              onClick={() => save()}
-            >
-              {busy && <LoaderCircle className="spinner" size={16} />}{" "}
-              {share ? "Save changes" : "Create link"}
-            </button>
-          </div>
-          <small>
-            Anyone with the link can view and copy the selected data.
-          </small>
-          {share && (
-            <div className="share-delete">
-              {confirmDelete ? (
-                <>
-                  <span>Delete this link?</span>
-                  <button disabled={busy} onClick={() => save(true)}>
-                    Delete
-                  </button>
-                  <button onClick={() => setConfirmDelete(false)}>
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button disabled={busy} onClick={() => setConfirmDelete(true)}>
-                  Delete link
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="share-preview">
-          <h2>Visitor preview</h2>
-          {busy && <LoadingBar label="Preparing dashboard" />}
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-          {preview ? (
-            <>
-              <button
-                className="arrange-toggle"
-                aria-pressed={arranging}
-                onClick={() => setArranging(!arranging)}
-              >
-                {arranging ? "Done arranging" : "Arrange layout"}
-              </button>
-              <DashboardPreview
-                data={preview}
-                onYear={view}
-                loading={busy}
-                onLayout={arranging && !busy ? arrange : undefined}
+              To
+              <input
+                type="date"
+                value={config.to ?? ""}
+                onChange={(e) => change({ to: e.target.value })}
               />
-            </>
-          ) : busy ? (
-            <LoadingCards />
-          ) : (
-            <div className="panel share-empty">
-              Choose your metrics, then preview.
-            </div>
+            </label>
+          </div>
+        )}
+        {config.widgets.includes("activity_heatmap") && (
+          <label>
+            Heatmap history
+            <select
+              aria-label="Heatmap history"
+              value={config.heatmap_year ? "year" : "dashboard"}
+              onChange={(e) =>
+                change({ heatmap_year: e.target.value === "year" })
+              }
+            >
+              <option value="dashboard">Dashboard period</option>
+              <option value="year">1 year</option>
+            </select>
+          </label>
+        )}
+        <div className="share-access">
+          <label>
+            Display name
+            <input
+              maxLength={80}
+              value={config.display_name}
+              onChange={(e) => change({ display_name: e.target.value })}
+              placeholder="Optional"
+            />
+          </label>
+          <label className="share-check">
+            <input
+              type="checkbox"
+              checked={config.show_photo}
+              onChange={(e) => change({ show_photo: e.target.checked })}
+            />
+            Show profile photo
+          </label>
+          <label>
+            Expires (UTC)
+            <input
+              type="datetime-local"
+              value={expires}
+              onChange={(e) => setExpires(e.target.value)}
+            />
+          </label>
+          <button onClick={() => setExpires("")}>Never expires</button>
+          {!expires && <small>No expiry</small>}
+          {share?.password_protected && (
+            <label className="share-check">
+              <input
+                type="checkbox"
+                checked={changePassword}
+                onChange={(e) => setChangePassword(e.target.checked)}
+              />
+              Change or remove password
+            </label>
+          )}
+          {(!share?.password_protected || changePassword) && (
+            <label>
+              Password
+              <input
+                type="password"
+                autoComplete="new-password"
+                maxLength={128}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setChangePassword(true);
+                }}
+                placeholder={
+                  share?.password_protected
+                    ? "Leave empty to remove"
+                    : "Optional · at least 8 characters"
+                }
+              />
+            </label>
+          )}
+          {share && (
+            <label className="share-check">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+              />
+              Link enabled
+            </label>
           )}
         </div>
-      </div>
-    </section>
+      </fieldset>
+      <small>Anyone with the link can view and copy the selected data.</small>
+      {share && (
+        <div className="share-delete">
+          {confirmDelete ? (
+            <>
+              <span>Delete this link?</span>
+              <button disabled={busy} onClick={() => save(true)}>
+                Delete
+              </button>
+              <button onClick={() => setConfirmDelete(false)}>
+                Cancel deletion
+              </button>
+            </>
+          ) : (
+            <button disabled={busy} onClick={() => setConfirmDelete(true)}>
+              Delete link
+            </button>
+          )}
+        </div>
+      )}
+    </DashboardEditor>
   );
 }

@@ -127,29 +127,30 @@ test("editor previews selected scope before creating and supports removal", asyn
   });
   await page.goto("/#Shares");
   await page.getByRole("button", { name: "New dashboard" }).click();
+  await page
+    .getByRole("button", { name: "Sharing settings", exact: true })
+    .first()
+    .click();
   await expect(page.getByLabel("History", { exact: true })).toHaveValue(
     "last30",
   );
-  await expect(
-    page.getByRole("button", { name: "Create link" }),
-  ).toBeDisabled();
   await page.getByLabel("Title", { exact: true }).fill("Training journal");
   await page.getByLabel("History", { exact: true }).selectOption("all");
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Create link" })).toBeEnabled();
-  expect(writes).toEqual(["preview"]);
-  await page.getByLabel("Weight", { exact: true }).check();
   await expect(
-    page.getByRole("button", { name: "Create link" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
-  await page.getByRole("button", { name: "Create link" }).click();
+    page.getByRole("button", { name: "Save", exact: true }),
+  ).toBeEnabled();
+  expect(writes.every((p) => p === "preview")).toBe(true);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Training journal" }),
   ).toBeVisible();
   expect(saved.config.range).toBe("all");
   expect(saved.config.widgets).toContain("weight");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Sharing settings", exact: true })
+    .first()
+    .click();
   await page.getByRole("button", { name: "Delete link" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(
@@ -238,12 +239,20 @@ for (const width of [320, 1440])
     });
     await page.goto("/#Shares");
     await page.getByRole("button", { name: "New dashboard" }).click();
+    await page
+      .getByRole("button", { name: "Sharing settings", exact: true })
+      .first()
+      .click();
     await page.getByLabel("Title", { exact: true }).fill("Training journal");
-    await page.getByRole("button", { name: "Move Sleep down" }).click();
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Sharing settings", exact: true })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Move Sleep", exact: true }).focus();
+    await page.keyboard.press("ArrowDown");
     await expect(
-      page.getByRole("heading", { name: "Training journal" }),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Save", exact: true }),
+    ).toBeEnabled();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

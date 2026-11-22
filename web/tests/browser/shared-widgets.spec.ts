@@ -167,35 +167,39 @@ test("new cards are optional and editing does not expand an existing link", asyn
   await page.goto("/#Shares");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(
-    page.getByRole("checkbox", { name: "Workout count", exact: true }),
-  ).toBeChecked();
+    page.getByRole("button", { name: "Remove Workout count", exact: true }),
+  ).toBeVisible();
   for (const name of ["Every day", "Recent activities", "By sport"])
     await expect(
-      page.getByRole("checkbox", { name, exact: true }),
-    ).not.toBeChecked();
-  await page.getByRole("checkbox", { name: "Every day", exact: true }).check();
+      page.getByRole("button", { name: `Add ${name}`, exact: true }),
+    ).toBeEnabled();
   await page
-    .getByRole("checkbox", { name: "Recent activities", exact: true })
-    .check();
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
+    .getByRole("button", { name: "Add Every day", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add Recent activities", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Save", exact: true }),
+  ).toBeEnabled();
   await expect(
     page.getByRole("heading", { name: "Recent activities", exact: true }),
   ).toBeVisible();
-  expect(preview.config.widgets).toEqual([
-    "workouts",
+  expect([...preview.config.widgets].sort()).toEqual([
     "activity_heatmap",
     "recent_workouts",
+    "workouts",
   ]);
   const cell = page
     .locator(
-      '.share-preview .training-heatmap button[data-level="3"]:not(:disabled)',
+      '.dashboard-canvas .training-heatmap button[data-level="3"]:not(:disabled)',
     )
     .first();
   expect(
     await cell.evaluate((el) => getComputedStyle(el).backgroundColor),
   ).toBe("rgb(57, 124, 175)");
   const labels = await page
-    .locator(".share-preview .heatmap-months span")
+    .locator(".dashboard-canvas .heatmap-months span")
     .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().top));
   expect(new Set(labels).size).toBe(1);
   await page.screenshot({

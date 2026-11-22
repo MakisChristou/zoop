@@ -1,6 +1,7 @@
 //! Postgres persistence. Raw frames are the durable source of truth; decoded tables
 //! are rebuilt from them whenever the protocol version advances.
 
+mod dashboard_layout;
 mod share_store;
 mod share_widgets;
 pub use share_store::SharedDashboard;
