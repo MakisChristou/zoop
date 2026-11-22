@@ -1,4 +1,5 @@
 import Foundation
+import ZoopTransport
 
 /// Ships queued frames to snoop-api in batches. Rows leave the queue only after a matching stored or duplicate receipt.
 public actor Uploader {
@@ -57,7 +58,7 @@ public actor Uploader {
     private(set) var stats = Stats()
     private var inFlight = false
 
-    public init(queue: FrameQueue, session: URLSession = .shared) {
+    public init(queue: FrameQueue, session: URLSession = ServerSession.shared) {
         self.queue = queue
         self.session = session
     }

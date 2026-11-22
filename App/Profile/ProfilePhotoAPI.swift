@@ -1,4 +1,5 @@
 import Foundation
+import ZoopTransport
 
 extension ZoopAPI {
     static func profilePhoto(device: String, method: String = "GET", jpeg: Data? = nil) async throws -> Data? {
@@ -6,7 +7,7 @@ extension ZoopAPI {
         request.httpMethod = method; request.httpBody = jpeg
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if jpeg != nil { request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type") }
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ServerSession.shared.data(for: request)
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw Failure.http(0) }
         if method == "GET", http.statusCode == 404 { return nil }

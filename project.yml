@@ -19,6 +19,8 @@ settings:
 packages:
   ZoopECG:
     path: Packages/ZoopECG
+  ZoopTransport:
+    path: Packages/ZoopTransport
   ZoopData:
     path: Packages/ZoopData
   ZoopHealth:
@@ -45,6 +47,7 @@ targets:
         com.apple.developer.healthkit.background-delivery: true
     dependencies:
       - package: ZoopECG
+      - package: ZoopTransport
       - package: ZoopData
       - package: ZoopHealth
       - package: ZoopSync

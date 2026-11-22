@@ -1,4 +1,5 @@
 import Foundation
+import ZoopTransport
 
 enum ServerSignIn {
     struct Account: Decodable { let id: Int64; let email: String }
@@ -33,10 +34,7 @@ enum ServerSignIn {
         request.httpShouldHandleCookies = false
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        let config = URLSessionConfiguration.ephemeral
-        config.httpCookieStorage = nil; config.urlCache = nil
-        let session = URLSession(configuration: config, delegate: NoRedirect(), delegateQueue: nil)
-        defer { session.finishTasksAndInvalidate() }
+        let session = ServerSession.shared
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Failure.unavailable }
         if path == "v1/account" {
@@ -99,12 +97,5 @@ enum ServerSignIn {
         catch Failure.rejected { /* Already revoked by the operator. */ }
         guard Settings.credential == old else { throw Failure.changed }
         try Settings.clear()
-    }
-}
-
-private final class NoRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        completionHandler(nil)
     }
 }

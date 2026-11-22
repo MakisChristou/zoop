@@ -1,5 +1,6 @@
 import ZoopData
 import Foundation
+import ZoopTransport
 
 /// Read side of the snoop-api server: nights, days, minutes, sessions, steps and the
 /// body profile. Every call is one request helper plus a decodable type.
@@ -337,7 +338,7 @@ enum ZoopAPI {
             let result = try await reads.data(for: request, maxAge: maxAge)
             data = result.data; response = result.response
         } else {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await ServerSession.shared.data(for: request)
         }
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {

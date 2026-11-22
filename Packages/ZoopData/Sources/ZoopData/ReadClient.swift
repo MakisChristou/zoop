@@ -1,4 +1,5 @@
 import Foundation
+import ZoopTransport
 
 /// Bounded, in-memory GET reuse. Each caller owns a cancellation lease. The last
 /// cancelled caller cancels transport, and invalidation prevents old data re-entering cache.
@@ -20,7 +21,7 @@ public actor ReadClient {
     private var generation = 0
 
     public init(capacity: Int = 64, byteLimit: Int = 8 * 1024 * 1024, transport: @escaping Transport = { request in
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ServerSession.shared.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         return Response(data: data, response: response)
     }) {

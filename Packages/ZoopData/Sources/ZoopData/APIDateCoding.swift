@@ -1,18 +1,16 @@
 import Foundation
 
-/// Formatters belong to one decoding pass; no mutable formatter is shared across tasks.
+/// Value-typed parse styles avoid sharing mutable formatters across decoding tasks.
 public enum APIDateCoding {
     public static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let whole = ISO8601DateFormatter()
-        whole.formatOptions = [.withInternetDateTime]
         decoder.dateDecodingStrategy = .custom { decoder in
+            let fractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            let whole = Date.ISO8601FormatStyle()
             let container = try decoder.singleValueContainer()
             let text = try container.decode(String.self)
-            guard let value = fractional.date(from: text) ?? whole.date(from: text) else {
+            guard let value = (try? fractional.parse(text)) ?? (try? whole.parse(text)) else {
                 throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid timestamp")
             }
             return value

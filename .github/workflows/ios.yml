@@ -15,7 +15,7 @@ jobs:
         run: brew install xcodegen
       - name: Test pure Swift packages
         run: |
-          for package in ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData ZoopECG; do
+          for package in ZoopTransport ZoopProtocol ZoopSync ZoopBattery ZoopHealth ZoopData ZoopECG; do
             swift test --package-path "Packages/$package"
           done
       - name: Generate unsigned project

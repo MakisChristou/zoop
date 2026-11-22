@@ -115,6 +115,20 @@ final class ReliabilityTests: XCTestCase {
             XCTAssertEqual(try queue.heldCount(), 0)
         }
     }
+    func testRedirectResponsesPreserveQueuedFramesForRetry() async throws {
+        let queue = try FrameQueue(path: path)
+        try queue.enqueue([1, 2, 3], channel: 5)
+        try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
+        let identity = try queue.peek(limit: 1)[0].uploadId
+        for code in [301, 302, 303, 307, 308] {
+            Transport.handler = { _ in (code, Data()) }
+            let stats = await flush(Uploader(queue: queue, session: session()))
+            XCTAssertEqual(stats.lastError, "HTTP \(code)")
+            XCTAssertEqual(try queue.count(), 1)
+            XCTAssertEqual(try queue.peek(limit: 1)[0].uploadId, identity)
+            XCTAssertEqual(try queue.peek(limit: 1)[0].bytes, [1, 2, 3])
+        }
+    }
     func testUnavailableV2DoesNotFallBackOrDiscard() async throws {
         let queue = try FrameQueue(path: path); try queue.enqueue([1], channel: 5)
         try queue.bind(sourceID: "TEST-SOURCE", deviceID: "TEST", adoptLegacy: true)
