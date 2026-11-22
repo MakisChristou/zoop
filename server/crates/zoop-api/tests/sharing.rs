@@ -1082,3 +1082,35 @@ async fn completed_sleep_survives_routine_queue_but_corrections_show_loading() {
     assert!(d["widgets"][0]["sleep_seconds"].is_null());
     assert_eq!(d["widgets"][0]["sleep_state"], "updating");
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn completed_sleep_remains_consistent_during_reanalysis() {
+    let (db, app, owner, _) = setup().await;
+    db.sql(r#"INSERT INTO sleep_sessions(device_id,start_ts,end_ts,kind,detected_kind,timezone,fixed,metrics)
+      VALUES('TEST-RELIABILITY','2025-01-15T00:00:00Z','2025-01-15T08:00:00Z','main','main','UTC',true,'{"sleep":{"window":{"asleep_s":28000},"physiology":{"hrv_rmssd_ms":80,"resting_hr":50}}}');
+      INSERT INTO sleep_evidence(session_id,revision,boundary_complete,hr_samples) SELECT id,revision,true,28800 FROM sleep_sessions;
+      INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version,generation,completed_generation) VALUES('TEST-RELIABILITY','sleep','2025-01-15','UTC',5,2,1);"#).await;
+    let mut c = input(json!(["daily_rings", "sleep", "hrv", "resting_hr"]));
+    c["config"]["range"] = json!("fixed");
+    c["config"]["from"] = json!("2025-01-15");
+    c["config"]["to"] = json!("2025-01-15");
+    let (_, share, _) = req(&app, "POST", "/v1/shares", Some(&owner), None, c).await;
+    let token = share["token"].as_str().unwrap();
+    let (_, d, _) = visit(&app, token, "", None).await;
+    assert_eq!(
+        d["widgets"][1]["points"][0]["value"], d["widgets"][0]["sleep_seconds"],
+        "same sleep must match"
+    );
+    assert_eq!(d["widgets"][0]["sleep_state"], "ready");
+    assert_eq!(d["widgets"][2]["points"][0]["value"], 80);
+    assert_eq!(d["widgets"][3]["points"][0]["value"], 50);
+    db.sql("UPDATE sleep_sessions SET metrics_pending=true")
+        .await;
+    let (_, d, _) = visit(&app, token, "", None).await;
+    assert!(d["widgets"][0]["sleep_seconds"].is_null());
+    assert_eq!(d["widgets"][0]["sleep_state"], "updating");
+    for i in 1..4 {
+        assert!(d["widgets"][i]["points"][0]["value"].is_null());
+    }
+}

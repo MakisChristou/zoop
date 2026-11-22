@@ -96,7 +96,7 @@ pub(crate) async fn admin(
         return Err(ApiError::Forbidden);
     }
     Ok(Json(
-        json!({"pipeline":s.store.admin_snapshot().await?,"http":s.telemetry.snapshot()}),
+        json!({"pipeline":s.store.admin_snapshot(zoop_storage::AnalysisVersions { sleep: zoop_analytics::ALGO_VERSION, workout: zoop_analytics::WORKOUT_ALGO_VERSION }).await?,"http":s.telemetry.snapshot()}),
     ))
 }
 

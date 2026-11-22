@@ -342,7 +342,13 @@ async fn sessions_expire_revoke_and_follow_current_roles() {
         .0,
         StatusCode::FORBIDDEN
     );
-    db.store.admin_snapshot().await.expect("operational query");
+    db.store
+        .admin_snapshot(zoop_storage::AnalysisVersions {
+            sleep: zoop_analytics::ALGO_VERSION,
+            workout: zoop_analytics::WORKOUT_ALGO_VERSION,
+        })
+        .await
+        .expect("operational query");
     let (status, data, _) = req(
         &app,
         "GET",
@@ -852,4 +858,29 @@ async fn recovery_endpoint_remains_owner_scoped_for_web_and_phone() {
             .0,
         StatusCode::NOT_FOUND
     );
+}
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn admin_backlog_counts_only_current_versions_and_profile_timezones() {
+    let (db, _, _, _) = setup().await;
+    db.sql("INSERT INTO profiles(device_id,tz) VALUES('TEST-RELIABILITY','Europe/Athens');
+        INSERT INTO analysis_jobs(device_id,kind,day,tz,algo_version,generation,completed_generation,last_error) VALUES
+        ('TEST-RELIABILITY','sleep','2025-01-01','Europe/Athens',5,2,1,NULL),
+        ('TEST-RELIABILITY','workout','2025-01-01','Europe/Athens',5,2,1,'synthetic failure'),
+        ('TEST-RELIABILITY','workout','2025-01-01','Europe/Athens',4,2,1,'retired'),
+        ('TEST-RELIABILITY','sleep','2025-01-01','UTC',5,2,1,'old timezone'),
+        ('OTHER','sleep','2025-01-01','UTC',5,1,1,NULL);").await;
+    let stats = db
+        .store
+        .admin_snapshot(zoop_storage::AnalysisVersions {
+            sleep: 5,
+            workout: 5,
+        })
+        .await
+        .unwrap();
+    assert_eq!(stats.pending_analysis, 2);
+    assert_eq!(stats.failed_analysis, 1);
+    // Retired work remains available for diagnostics; no historical rows are erased.
+    assert_eq!(db.count("SELECT count(*) FROM analysis_jobs").await, 5);
 }

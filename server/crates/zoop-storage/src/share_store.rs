@@ -117,16 +117,30 @@ impl PostgresStore {
         if to < from || (to - from).num_days() > 365 {
             return Err(StorageError::InvalidQuery("Invalid history window.".into()));
         }
+        if matches!(key, "sleep" | "hrv" | "resting_hr") {
+            let pointer = match key {
+                "sleep" => "/sleep/window/asleep_s",
+                "hrv" => "/sleep/physiology/hrv_rmssd_ms",
+                _ => "/sleep/physiology/resting_hr",
+            };
+            // Use the same effective night and readiness gate as the daily rings.
+            // Routine reanalysis must not hide an already completed observation.
+            let snapshot = self.insight_snapshot(device, from, to, tz, version).await?;
+            return Ok(snapshot
+                .into_iter()
+                .flat_map(|s| s.nights)
+                .filter(|n| n.end_ts <= Utc::now())
+                .map(|n| {
+                    let value = if n.pending || n.day_pending {
+                        Value::Null
+                    } else {
+                        n.metrics.pointer(pointer).cloned().unwrap_or(Value::Null)
+                    };
+                    serde_json::json!({"day": n.day, "value": value})
+                })
+                .collect());
+        }
         let sql = match key {
-            "sleep" | "hrv" | "resting_hr" => {
-                r#"WITH ranked AS (
- SELECT (end_ts AT TIME ZONE $2)::date AS day,timezone,end_ts,metrics,metrics_pending,
- row_number() OVER(PARTITION BY (end_ts AT TIME ZONE $2)::date ORDER BY fixed DESC,duration_s DESC,id) AS rank
- FROM sleep_sessions WHERE device_id=$1 AND status='active' AND kind='main'
- AND end_ts>=$3::date::timestamp AT TIME ZONE $2 AND end_ts<($4::date+1)::timestamp AT TIME ZONE $2 AND end_ts<=now())
- SELECT jsonb_build_object('day',day,'value',CASE WHEN metrics_pending OR EXISTS(SELECT 1 FROM analysis_jobs WHERE device_id=$1 AND kind='sleep' AND analysis_jobs.day=(ranked.end_ts AT TIME ZONE ranked.timezone)::date AND tz=ranked.timezone AND algo_version=$6 AND generation>completed_generation) THEN NULL ELSE CASE $5 WHEN 'sleep' THEN metrics #> '{sleep,window,asleep_s}' WHEN 'hrv' THEN metrics #> '{sleep,physiology,hrv_rmssd_ms}' ELSE metrics #> '{sleep,physiology,resting_hr}' END END)
- FROM ranked WHERE rank=1 ORDER BY day"#
-            }
             "steps" => {
                 r#"SELECT jsonb_build_object('day',d.day,'value',CASE WHEN d.samples>0 THEN d.steps_walking END) FROM generate_series($3::date::timestamp,$4::date::timestamp,interval '1 day') g CROSS JOIN LATERAL refresh_day_summary($1,$2,g::date) d WHERE $5='steps' ORDER BY d.day"#
             }
@@ -148,7 +162,7 @@ impl PostgresStore {
             .bind(from)
             .bind(to)
             .bind(key);
-        if matches!(key, "load" | "sleep" | "hrv" | "resting_hr") {
+        if key == "load" {
             query
                 .bind(version)
                 .fetch_all(self.pool())

@@ -93,6 +93,7 @@ impl PostgresStore {
             "analysis_bootstraps",
             "profile_revisions",
             "profile_photos",
+            "dashboard_layouts",
             "profiles",
             "weight_readings",
             "weight_cursors",

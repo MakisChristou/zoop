@@ -289,10 +289,13 @@ impl PostgresStore {
     /// Aggregate operational statistics. Errors are counted, never returned verbatim.
     /// # Errors
     /// Database failure.
-    pub async fn admin_snapshot(&self) -> StorageResult<AdminSnapshot> {
+    pub async fn admin_snapshot(
+        &self,
+        versions: crate::AnalysisVersions,
+    ) -> StorageResult<AdminSnapshot> {
         let (accounts,frames,pending,failed):(i64,i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM accounts WHERE enabled),(SELECT count(*) FROM raw_frames WHERE uploaded_at>now()-interval '24 hours'),(SELECT count(*) FROM raw_frames WHERE decoded_proto IS NULL),(SELECT count(*) FROM raw_frames WHERE decode_error IS NOT NULL)")
             .fetch_one(self.pool()).await.map_err(fail)?;
-        let (pending_analysis,failed_analysis):(i64,i64)=sqlx::query_as("SELECT count(*) FILTER(WHERE generation>completed_generation),count(*) FILTER(WHERE generation>completed_generation AND last_error IS NOT NULL) FROM analysis_jobs").fetch_one(self.pool()).await.map_err(fail)?;
+        let (pending_analysis,failed_analysis):(i64,i64)=sqlx::query_as("SELECT count(*) FILTER(WHERE generation>completed_generation),count(*) FILTER(WHERE generation>completed_generation AND last_error IS NOT NULL) FROM analysis_jobs j WHERE ((kind='sleep' AND algo_version=$1) OR (kind='workout' AND algo_version=$2)) AND tz=coalesce((SELECT tz FROM profiles p WHERE p.device_id=j.device_id),'UTC')").bind(versions.sleep).bind(versions.workout).fetch_one(self.pool()).await.map_err(fail)?;
         let workers:Value=sqlx::query_scalar("SELECT coalesce(jsonb_agg(jsonb_build_object('name',name,'heartbeat_at',heartbeat_at,'last_success',last_success,'paused',paused,'has_error',last_error IS NOT NULL,'healthy',heartbeat_at>now()-interval '2 minutes' AND last_error IS NULL AND NOT paused)),'[]') FROM worker_status").fetch_one(self.pool()).await.map_err(fail)?;
         let ingestion:Value=sqlx::query_scalar("SELECT coalesce(jsonb_agg(jsonb_build_object('hour',x.bucket,'frames',x.frames) ORDER BY x.bucket),'[]') FROM (SELECT date_trunc('hour',uploaded_at) AS bucket,count(*) frames FROM raw_frames WHERE uploaded_at>now()-interval '24 hours' GROUP BY 1) x").fetch_one(self.pool()).await.map_err(fail)?;
         let recent_jobs:Value=sqlx::query_scalar("SELECT coalesce(jsonb_agg(x ORDER BY x.completed_at DESC),'[]') FROM (SELECT kind,completed_at FROM analysis_jobs WHERE completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 10) x").fetch_one(self.pool()).await.map_err(fail)?;

@@ -209,3 +209,26 @@ async fn every_device_table_is_included_in_erasure_policy() {
         );
     }
 }
+
+#[tokio::test]
+#[ignore = "requires development Postgres"]
+async fn account_deletion_erases_saved_dashboard_layout() {
+    let (db, _app, id, hash) = setup().await;
+    db.store.upsert_device("OTHER", "TEST", None).await.unwrap();
+    db.store
+        .bind_account_device("admin@example.test", "OTHER")
+        .await
+        .unwrap();
+    db.sql("INSERT INTO dashboard_layouts(account_id,device_id,config) SELECT account_id,device_id,'{}'::jsonb FROM device_owners").await;
+    assert_eq!(db.count("SELECT count(*) FROM dashboard_layouts").await, 2);
+    assert_eq!(
+        db.store.delete_account(id, &hash).await.unwrap(),
+        AccountDeletion::Deleted
+    );
+    assert_eq!(db.count("SELECT count(*) FROM dashboard_layouts").await, 1);
+    assert_eq!(
+        db.count("SELECT count(*) FROM dashboard_layouts WHERE device_id='OTHER'")
+            .await,
+        1
+    );
+}
