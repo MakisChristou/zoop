@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ServerSettingsView: View {
-    @Environment(AppModel.self) private var model
+    @State private var previewingSetup = false
     @State private var deleting = false
     var body: some View {
         Form {
@@ -12,10 +12,11 @@ struct ServerSettingsView: View {
                 }
             }
             Section("Setup") {
-                Button("Show the welcome guide again") { model.isOnboarded = false }
+                Button("Preview setup") { previewingSetup = true }
             }
         }
         .scrollContentBackground(.hidden).zoopScreen()
+        .sheet(isPresented: $previewingSetup) { SetupPreviewView().presentationDetents([.large]).presentationDragIndicator(.hidden) }
         .sheet(isPresented: $deleting) { DeleteAccountView() }
         .navigationTitle("Server connection").navigationBarTitleDisplayMode(.inline)
     }

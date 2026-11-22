@@ -67,7 +67,8 @@ private struct AccountRootView: View {
                 OnboardingView()
             }
         }
-        .id(connection)
+        // Signing in must not recreate first-run setup halfway through its flow.
+        .id(model.isOnboarded ? connection : "first-run-setup")
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in connection = Settings.connectionID; signedIn = Settings.isConfigured }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in connection = Settings.connectionID; signedIn = Settings.isConfigured }
     }

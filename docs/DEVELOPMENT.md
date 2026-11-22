@@ -95,3 +95,15 @@ Other suites use the profile and weekly-weight fixture servers under `tools/`.
 
 Release hardening was verified with Xcode 27.2 and XcodeGen 2.46.0. Older Xcode
 compatibility is not currently a release guarantee. Device signing remains local.
+
+### Setup preview
+
+Open **Profile → Preview setup** to walk through the first-run screens with sample
+connection states. This does not sign out, reset onboarding, scan for a band or
+modify stored recordings. Closing or finishing the preview returns to Profile.
+Do not reset the onboarding preference on a phone to test setup.
+
+`SetupFlowTests` checks preview isolation and first-run transitions. `SetupUITests`
+checks the four screens, cancellation, large text and signing in without restarting
+the wizard, using the synthetic fixture server. Real Bluetooth permissions and
+connection still need a separate physical-device check.

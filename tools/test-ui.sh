@@ -19,4 +19,5 @@ xcodebuild -scheme Zoop -destination "platform=iOS Simulator,id=$device" \
   CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
   -only-testing:ZoopUITests/LoadingFeedbackTests \
   -only-testing:ZoopUITests/ActivityTimelineTests \
-  -only-testing:ZoopUITests/SignInTests test
+  -only-testing:ZoopUITests/SignInTests \
+  -only-testing:ZoopUITests/SetupUITests test

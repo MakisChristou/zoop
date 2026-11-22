@@ -1,149 +1,62 @@
 import SwiftUI
 
-/// First-run wizard. Explains Bluetooth before iOS asks for it, gets the strap connected,
-/// and collects the server details. Runs once; revisit anything from Settings.
+/// Only the first-run adapter has access to live services. The preview has none.
 struct OnboardingView: View {
     @Environment(AppModel.self) private var model
-    @State private var page = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var configured = Settings.isConfigured
+    var body: some View { LiveSetupView(model: model) }
+}
 
-    private let pageCount = 6
+private struct LiveSetupView: View {
+    let model: AppModel
+    @State private var flow: SetupFlow
 
-    var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $page) {
-                welcome.tag(0)
-                bluetooth.tag(1)
-                prepare.tag(2)
-                connect.tag(3)
-                server.tag(4)
-                done.tag(5)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(reduceMotion ? nil : .easeInOut, value: page)
-
-            ProgressView(value: Double(page + 1), total: Double(pageCount))
-                .padding(.horizontal, 40)
-                .padding(.bottom, 8)
-
-            HStack {
-                if page > 0 {
-                    Button("Back") { page -= 1 }
-                }
-                Spacer()
-                Button(page == pageCount - 1 ? "Start" : "Continue") { advance() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canAdvance)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-        }.zoopScreen()
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in configured = Settings.isConfigured }
+    init(model: AppModel) {
+        self.model = model
+        _flow = State(initialValue: SetupFlow(mode: .firstRun,
+            signedIn: Settings.isConfigured, server: Settings.credential?.server ?? "",
+            actions: .init(signIn: { server, email, password in
+                try await ServerSignIn.signIn(server: server, email: email, password: password)
+            }, connect: {
+                model.startStrap()
+                // start() is idempotent; connect() also retries an already-started manager.
+                if model.strap.state != .ready { model.strap.connect() }
+            }, finish: { model.isOnboarded = true })))
     }
 
-    private func advance() {
-        switch page {
-        case 1: model.startStrap()
-        case pageCount - 1: model.isOnboarded = true; return
-        default: break
-        }
-        page += 1
-    }
-
-    private var canAdvance: Bool {
-        switch page {
-        case 4, 5: configured
-        default: true
-        }
-    }
-
-    // MARK: - Pages
-
-    private var welcome: some View {
-        Page(symbol: "waveform.path.ecg", title: "Your strap, your data",
-             body: "Zoop reads your WHOOP 5.0 or MG directly over Bluetooth and sends the raw data to a server you run. No WHOOP account, no WHOOP cloud, no subscription.")
-    }
-
-    private var bluetooth: some View {
-        Page(symbol: "antenna.radiowaves.left.and.right", title: "Bluetooth, locally",
-             body: "Next, iOS will ask for Bluetooth access. Zoop uses it only to talk to the strap. The strap already trusts this phone because the official app paired it, so there is no pairing step.")
-    }
-
-    private var prepare: some View {
-        Page(symbol: "xmark.app", title: "Close the official app",
-             body: "The strap talks to one app at a time. Swipe the WHOOP app away in the app switcher. Do not unpair the strap. Then put it on your wrist and keep it within a metre.")
-    }
-
-    private var connect: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            ZStack {
-                Circle().stroke(.quaternary, lineWidth: 2).frame(width: 160, height: 160)
-                if model.strap.state == .ready {
-                    Image(systemName: "checkmark").font(.system(size: 64, weight: .semibold)).foregroundStyle(.green)
-                } else {
-                    ProgressView().controlSize(.large)
-                }
-            }
-            Text(model.strap.state == .ready ? "Found your strap" : "Looking for your strap")
-                .font(ZoopType.font(size: 20, weight: .semibold, relativeTo: .title2))
-            Text(connectDetail)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(ZoopStyle.secondary)
-                .padding(.horizontal, 32)
-            if model.strap.state != .ready {
-                Button("Try again") { model.strap.connect() }
-            }
-            Spacer()
-        }
-    }
-
-    private var connectDetail: String {
+    private var band: SetupBandStatus {
         switch model.strap.state {
         case .ready:
-            var parts: [String] = []
-            if !model.strap.serial.isEmpty { parts.append("WHOOP \(model.strap.model) · \(model.strap.serial)") }
-            if let battery = model.strap.batteryPercent { parts.append("Battery \(Int(battery)) %") }
-            return parts.joined(separator: "\n")
-        case .bluetoothOff:
-            return "Bluetooth is off. Turn it on in Control Centre."
-        case let .failed(reason):
-            return "Could not connect: \(reason)"
-        default:
-            return "Keep your WHOOP nearby and close the WHOOP app."
+            guard Settings.permitsDevice(model.strap.serial) else {
+                return .blocked("Ask your server administrator to assign this WHOOP to your account, then sign in again.")
+            }
+            return .connected(model.strap.model.isEmpty ? "WHOOP" : "WHOOP \(model.strap.model)")
+        case .bluetoothOff: return .blocked("Turn on Bluetooth in iPhone Settings. If access is disabled, allow it for Zoop.")
+        case .failed(let reason): return flow.requestedConnection ? .blocked(reason) : .idle
+        case .scanning, .connecting, .connected: return flow.requestedConnection ? .searching : .idle
         }
     }
 
-    private var server: some View {
-        Form { ServerSignInSection() }
-            .scrollContentBackground(.hidden)
-    }
-
-    private var done: some View {
-        Page(symbol: "checkmark.seal", title: "All set",
-             body: "Wear your WHOOP tonight. Your sleep analysis will appear after syncing.")
+    var body: some View {
+        SetupFlowView(flow: flow, band: band, syncing: model.isUploading)
+            .onChange(of: band, initial: true) { _, status in
+                if status.isConnected { flow.connectionBecameReady() }
+            }
     }
 }
 
-private struct Page: View {
-    let symbol: String
-    let title: String
-    let text: String
-
-    init(symbol: String, title: String, body: String) {
-        self.symbol = symbol
-        self.title = title
-        text = body
-    }
-
+/// Can be presented over the existing app without changing onboarding or account state.
+struct SetupPreviewView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var flow = SetupFlow.preview()
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: symbol).font(.system(size: 64)).foregroundStyle(.tint)
-            Text(title).font(ZoopType.font(size: 20, weight: .medium, relativeTo: .title2))
-            Text(text).multilineTextAlignment(.center).foregroundStyle(ZoopStyle.secondary).padding(.horizontal, 32)
-            Spacer()
-        }
+        SetupFlowView(flow: flow, band: flow.previewConnected ? .connected("WHOOP MG") : .idle,
+                      syncing: flow.previewConnected, close: { dismiss() })
+            .onChange(of: flow.finished) { _, finished in if finished { dismiss() } }
     }
+}
+
+enum SetupBandStatus: Equatable {
+    case idle, searching, connected(String), blocked(String)
+    var isConnected: Bool { if case .connected = self { true } else { false } }
+    var name: String { if case .connected(let name) = self { name } else { "WHOOP" } }
 }

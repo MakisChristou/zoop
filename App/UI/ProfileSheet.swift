@@ -11,6 +11,7 @@ struct ProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var path: [Page] = []
     @State private var editingPhoto = false
+    @State private var previewingSetup = false
     private var photoScope: ProfilePhotoStore.Scope { .init(device: model.dataDevice, connection: Settings.connectionID) }
     private let open: Page?
 
@@ -55,6 +56,8 @@ struct ProfileSheet: View {
                 Section {
                     NavigationLink(value: Page.server) { Label("Account", systemImage: "person.crop.circle") }
                     Link("Privacy policy", destination: URL(string: "https://zoop.health/docs/data-privacy/")!)
+                    Button { previewingSetup = true } label: { Label("Preview setup", systemImage: "play.rectangle") }
+                        .accessibilityIdentifier("previewSetup")
                     Link("Help & support", destination: URL(string: "https://zoop.health/docs/help/")!)
                     NavigationLink(value: Page.advanced) { Label("Advanced", systemImage: "slider.horizontal.3") }
                 }
@@ -81,6 +84,7 @@ struct ProfileSheet: View {
             }
             .task { await model.battery.refreshAuthorization() }
             .task(id: photoScope) { await model.photo.load(photoScope, force: true) }
+            .sheet(isPresented: $previewingSetup) { SetupPreviewView().presentationDetents([.large]).presentationDragIndicator(.hidden) }
             .sheet(isPresented: $editingPhoto) { ProfilePhotoView(scope: photoScope) }
             .onAppear { if let open, path.isEmpty, open != .ecg || BuildFeatures.manualECG { path = [open] } }
         }
