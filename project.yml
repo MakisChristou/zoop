@@ -57,7 +57,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]
         UILaunchScreen: {}
