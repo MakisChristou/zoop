@@ -6,6 +6,7 @@ All mutations are in memory and disappear when the process exits.
 import json
 import os
 import copy
+import threading
 import math
 import time
 from datetime import datetime, timedelta, timezone
@@ -91,6 +92,7 @@ def sleep_rows(device):
 # Independent device scopes let entry tests exercise empty and completed days.
 weight_devices = {}
 slow_devices = {}
+held_devices = {}
 def weight_rows(device):
     if device not in weight_devices:
         rows = [dict(row) for row in weights]
@@ -131,11 +133,24 @@ def insight(day, mature=False, early_count=11):
 class Handler(BaseHTTPRequestHandler):
     def send(self, body, status=200):
         data = json.dumps(body).encode()
+        held = getattr(self, 'held_response', None)
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Content-Length', str(len(data)))
+        if held is None:
+            self.send_header('Content-Length', str(len(data)))
         self.end_headers()
-        self.wfile.write(data)
+        try:
+            # Tests release the response after inspecting the loading UI. JSON
+            # whitespace keeps the connection active without completing the body.
+            # The deadline also releases abandoned tests without hanging workers.
+            deadline = time.monotonic() + 50
+            while held is not None and not held.is_set() and time.monotonic() < deadline:
+                self.wfile.write(b' ')
+                self.wfile.flush()
+                held.wait(0.5)
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         if self.path == "/health": return self.send({"status": "ok"})
@@ -147,6 +162,8 @@ class Handler(BaseHTTPRequestHandler):
         device, route = parts[2], '/'.join(parts[3:])
         query = parse_qs(url.query)
         limit = int(query.get('limit', ['120'])[0])
+        if device.startswith('RINGS-HELD-') and (route in ('sleeps', 'days', 'weight-goal') or route.endswith('/insights') or route.endswith('/steps')):
+            self.held_response = held_devices.setdefault(device, threading.Event())
         if device.startswith('RINGS-SLOW-') and (route in ('sleeps', 'days', 'weight-goal') or route.endswith('/insights') or route.endswith('/steps')):
             started = slow_devices.setdefault(device, time.monotonic())
             time.sleep(max(0, 14 - (time.monotonic() - started)))
@@ -290,6 +307,9 @@ class Handler(BaseHTTPRequestHandler):
         return self.send({}, 404)
 
     def do_POST(self):
+        if self.path.startswith('/__test/loading/release/RINGS-HELD-'):
+            held_devices.setdefault(self.path.rsplit('/', 1)[1], threading.Event()).set()
+            return self.send({})
         if self.path == '/v1/auth/native/login':
             row = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
             if row.get('password') != 'synthetic-password': return self.send({}, 401)

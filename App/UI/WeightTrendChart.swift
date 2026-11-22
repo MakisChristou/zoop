@@ -103,9 +103,16 @@ struct WeightTrendChart: View {
                     }
                 }.font(ZoopType.caption).foregroundStyle(ZoopStyle.secondary)
                 Spacer(minLength: 4)
-                Button("Latest") { anchor = now; selectedID = nil }
-                    .font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption)).frame(minHeight: 44)
-                    .opacity(canReturn ? 1 : 0).disabled(!canReturn).accessibilityHidden(!canReturn).accessibilityIdentifier("weightChartLatest")
+                if canReturn {
+                    Button { anchor = now; selectedID = nil } label: {
+                        Text("Latest")
+                            .font(ZoopType.font(size: 12, weight: .medium, relativeTo: .caption))
+                            .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                            .contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityIdentifier("weightChartLatest")
+                } else {
+                    Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+                }
             }
         }
         .onChange(of: readings, initial: true) { _, _ in prepare() }

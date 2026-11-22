@@ -72,10 +72,14 @@ import XCTest
         XCTAssertTrue(app.segmentedControls.buttons["All"].isSelected)
         shot(app, "Weight trend all history")
         let chart = app.descendants(matching: .any)["Weight chart"].firstMatch
-        XCTAssertTrue(chart.exists); chart.tap()
-        XCTAssertTrue(app.buttons["weightChartLatest"].waitForExistence(timeout: 5))
+        XCTAssertTrue(chart.exists)
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)).tap()
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Selected weigh-in"), object: app.staticTexts["weightChartHeadline"])
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
+        let latest = app.buttons["weightChartLatest"]
+        XCTAssertTrue(latest.isEnabled && latest.isHittable)
         shot(app, "Selected weight measurement")
-        app.buttons["weightChartLatest"].tap()
+        latest.tap()
         XCTAssertFalse(app.buttons["weightChartLatest"].exists)
         app.buttons["Weight options"].tap()
         XCTAssertTrue(app.switches["weightMovingAverage"].waitForExistence(timeout: 5))
