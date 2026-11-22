@@ -2,7 +2,6 @@ name: Compose installation
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -15,6 +14,7 @@ concurrency:
 
 jobs:
   install:
+    name: Compose installation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

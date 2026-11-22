@@ -1,0 +1,44 @@
+name: Security checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
+permissions:
+  contents: read
+jobs:
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          rust-src-dir: server
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install pinned audit tools
+        run: |
+          cargo install cargo-audit --version 0.22.1 --locked
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Scan reachable history for secrets
+        run: '"$(go env GOPATH)/bin/gitleaks" git --redact --no-banner --log-opts="--all"'
+      - name: Check workflow syntax
+        run: '"$(go env GOPATH)/bin/actionlint"'
+      - name: Check advisory exception policy
+        run: python3 tools/test-audit-rust.py
+      - name: Audit Rust dependencies and active graph
+        run: python3 tools/audit-rust.py
+      - name: Audit web dependencies
+        working-directory: web
+        run: npm audit --audit-level=low
+      - name: Audit website dependencies
+        working-directory: site
+        run: npm audit --audit-level=low
