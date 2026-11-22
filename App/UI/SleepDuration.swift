@@ -12,10 +12,11 @@ struct SleepDuration: View {
     var body: some View {
         Group {
             if let seconds {
-                (Text("\(seconds / 3600)").font(ZoopType.fixed(size: size, weight: .semibold))
-                 + Text("h ").font(ZoopType.headline)
-                 + Text("\((seconds % 3600) / 60)").font(ZoopType.fixed(size: size, weight: .semibold))
-                 + Text("m").font(ZoopType.headline))
+                let hours = Text("\(seconds / 3600)").font(ZoopType.fixed(size: size, weight: .semibold))
+                let hourUnit = Text("h ").font(ZoopType.headline)
+                let minutes = Text("\((seconds % 3600) / 60)").font(ZoopType.fixed(size: size, weight: .semibold))
+                let minuteUnit = Text("m").font(ZoopType.headline)
+                Text("\(hours)\(hourUnit)\(minutes)\(minuteUnit)")
             } else {
                 Text("—").font(ZoopType.fixed(size: size, weight: .semibold))
             }

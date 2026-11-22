@@ -131,25 +131,37 @@ struct TrendChartCard: View {
     private var plotDomain: ClosedRange<Date> { ChartPresentation.dateDomain(interval, now: now) }
     private var axisDates: [Date] { ChartPresentation.dateTicks(plotDomain) }
     private var axisValues: [Double] { ChartPresentation.ticks(yDomain) }
+    private var isolatedDates: Set<Date> {
+        let segments = Dictionary(grouping: series.points) { series.segmentByDate[$0.date] ?? 0 }
+        return Set(segments.values.filter { $0.count == 1 }.compactMap { $0.first?.date })
+    }
+    @ChartContentBuilder private var comparisonMarks: some ChartContent {
+        if showComparisons {
+            ForEach(series.rolling) { point in
+                LineMark(x: .value("Date", point.date), y: .value("7-day average", point.value), series: .value("Series", "mean-\(series.segmentByDate[point.date] ?? 0)"))
+                    .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+            }
+            if let average = series.average {
+                RuleMark(y: .value("Period average", average))
+                    .foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
+            }
+        }
+    }
+    @ChartContentBuilder private var dailyMarks: some ChartContent {
+        let isolated = isolatedDates
+        let lineWidth: CGFloat = showComparisons ? 1 : 2
+        let color = metric.color.opacity(showComparisons ? 0.35 : 1)
+        ForEach(series.points) { point in
+            LineMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value), series: .value("Series", "daily-\(series.segmentByDate[point.date] ?? 0)"))
+                .foregroundStyle(color).lineStyle(StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+            PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
+                .foregroundStyle(metric.color).symbolSize(isolated.contains(point.date) ? 30 : 0)
+        }
+    }
     private var chart: some View {
-        let isolated = Set(Dictionary(grouping: series.points) { series.segmentByDate[$0.date] ?? 0 }.values.filter { $0.count == 1 }.compactMap { $0.first?.date })
-        return Chart {
-            if showComparisons {
-                ForEach(series.rolling) { point in
-                    LineMark(x: .value("Date", point.date), y: .value("7-day average", point.value), series: .value("Series", "mean-\(series.segmentByDate[point.date] ?? 0)"))
-                        .foregroundStyle(metric.color).lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                }
-                if let average = series.average {
-                    RuleMark(y: .value("Period average", average))
-                        .foregroundStyle(ZoopStyle.secondary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
-                }
-            }
-            ForEach(series.points) { point in
-                LineMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value), series: .value("Series", "daily-\(series.segmentByDate[point.date] ?? 0)"))
-                    .foregroundStyle(metric.color.opacity(showComparisons ? 0.35 : 1)).lineStyle(StrokeStyle(lineWidth: showComparisons ? 1 : 2, lineCap: .round))
-                PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
-                    .foregroundStyle(metric.color).symbolSize(isolated.contains(point.date) ? 30 : 0)
-            }
+        Chart {
+            comparisonMarks
+            dailyMarks
             if let point = selected ?? series.points.last {
                 PointMark(x: .value("Date", point.date), y: .value(metric.rawValue, point.value))
                     .foregroundStyle(metric.color.opacity(0.18)).symbolSize(170)
