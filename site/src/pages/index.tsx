@@ -162,8 +162,10 @@ export default function Home(): ReactNode {
               </div>
             </dl>
             <p>
-              The iPhone app is approved for the App Store and awaiting release.{" "}
-              <Link to="/docs/iphone">iPhone setup.</Link>
+              <a href="https://apps.apple.com/app/id6837762327">
+                Download on the App Store
+              </a>
+              . <Link to="/docs/iphone">iPhone setup</Link>.
             </p>
           </div>
         </section>

@@ -3,7 +3,7 @@
 Reviewed 24 November 2026. This is dated release evidence, not a security
 certification. The repository is public. App Store Connect accepted the release
 of iOS 1.0 build 6 on 24 November and shows **Ready for Distribution**. The public
-listing was still propagating at the first post-release check.
+App Store listing and download link were verified on the same day.
 
 ## Established
 

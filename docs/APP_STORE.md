@@ -59,8 +59,8 @@ Release status (verified 24 November 2026):
   Five current screenshots are uploaded. Age rating, export compliance, privacy,
   wellness-device status and regional availability are saved in the store draft.
 - Version 1.0 **build 6** was released with owner approval on 24 November 2026.
-  App Store Connect shows **Ready for Distribution**; the public listing was still
-  propagating at the first post-release check. Build 3 was the original submission;
+  App Store Connect shows **Ready for Distribution**; the public App Store listing
+  and download link were verified the same day. Build 3 was the original submission;
   builds 4 and 5 were intermediate TestFlight builds.
 - The owner confirmed that build 6 connects/syncs and that live heart rate changes
   to Live once and remains stable. The approved hardware video was recorded with

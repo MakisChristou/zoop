@@ -12,8 +12,7 @@ You need a WHOOP 5.0 or MG, an iPhone on iOS 26+, and a running
 
 ## Install Zoop
 
-Zoop is approved for the App Store and awaiting release.
-The download link will appear here when it is available. If you already have Zoop through TestFlight, you can connect below.
+[Download Zoop from the App Store](https://apps.apple.com/app/id6837762327).
 
 ## Connect to your server
 

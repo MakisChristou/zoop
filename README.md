@@ -38,8 +38,7 @@ You need three things:
 - **Server:** a machine running Docker with Compose v2.
 
 The server is required; the phone keeps an upload queue during connection outages.
-The iPhone app is approved for the App Store and awaiting release.
-The download link will appear here when it is available.
+[Download Zoop from the App Store](https://apps.apple.com/app/id6837762327).
 
 ```sh
 git clone https://github.com/MakisChristou/zoop.git
