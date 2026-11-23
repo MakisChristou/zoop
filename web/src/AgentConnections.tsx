@@ -227,13 +227,14 @@ function CopyValue({
   secret?: boolean;
 }) {
   const [copied, setCopied] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [revealed, setRevealed] = useState(false);
   return (
     <div className="agent-copy">
       <input
         aria-label={secret ? "Access key" : "MCP server URL"}
         readOnly
-        type={secret ? "password" : "text"}
+        type={secret && !revealed ? "password" : "text"}
         value={value}
         autoComplete="off"
         spellCheck={false}
@@ -246,6 +247,9 @@ function CopyValue({
             setCopied(true);
             setError("");
           } catch {
+            // Clipboard access requires a secure browser context. LAN HTTP users
+            // still need a selectable, readable key after explicitly asking to copy.
+            setRevealed(true);
             setError("Copy unavailable. Select the value to copy it.");
           }
         }}

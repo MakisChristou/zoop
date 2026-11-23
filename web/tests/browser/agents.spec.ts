@@ -100,6 +100,22 @@ test("explicit permissions, one-time secret, no browser persistence and revocati
   expect(
     await page.evaluate(() => [localStorage.length, sessionStorage.length]),
   ).toEqual([0, 0]);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await page
+    .getByRole("button", { name: "Copy access key", exact: true })
+    .click();
+  await expect(page.getByLabel("Access key", { exact: true })).toHaveAttribute(
+    "type",
+    "text",
+  );
+  await expect(
+    page.getByText("Copy unavailable. Select the value to copy it."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByLabel("Access key", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Revoke", exact: true }).click();
