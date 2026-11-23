@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 zoop-auth.workspace = true
+zoop-agent.workspace = true
 zoop-proto = { workspace = true }
 zoop-storage = { workspace = true }
 zoop-analytics = { workspace = true }

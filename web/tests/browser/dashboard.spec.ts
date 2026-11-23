@@ -299,6 +299,8 @@ test("period paging and chart readings are keyboard accessible", async ({
   await page.getByRole("button", { name: "Week", exact: true }).click();
   await page.getByRole("button", { name: "Previous period" }).click();
   await page.getByRole("button", { name: "Next period" }).click();
+  // A week can contain just one reading on Monday; keyboard paging needs two.
+  await page.getByRole("button", { name: "Month", exact: true }).click();
   await expect(page.getByText("Readings", { exact: true })).toHaveCount(0);
   const chart = page.locator(".chart-frame").first();
   await chart.focus();

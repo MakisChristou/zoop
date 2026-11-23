@@ -94,6 +94,8 @@ impl PostgresStore {
             "profile_revisions",
             "profile_photos",
             "dashboard_layouts",
+            // Credentials cascade from their connection, including revoked grants.
+            "agent_connections",
             "profiles",
             "weight_readings",
             "weight_cursors",

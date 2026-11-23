@@ -28,6 +28,7 @@ const config: Config = {
             "METRICS_GUIDE.md",
             "HELP.md",
             "DATA_PRIVACY.md",
+            "CONNECT_AGENT.md",
           ],
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/MakisChristou/zoop/edit/main/docs/",

@@ -26,3 +26,6 @@ pub use weight_outlook::{WeightOutlook, WeightWeek, phase_outlook, weight_outloo
 
 mod cut_progress;
 pub use cut_progress::{CutProgress, cut_progress};
+
+mod goal_outlook;
+pub use goal_outlook::goal_outlook;

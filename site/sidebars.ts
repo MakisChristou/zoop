@@ -18,7 +18,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Your data",
       collapsed: false,
-      items: ["measurements", "data-privacy"],
+      items: ["measurements", "connect-agent", "data-privacy"],
     },
   ],
 };

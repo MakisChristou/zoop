@@ -19,31 +19,9 @@ pub(crate) async fn summary(
     g: &WeightGoal,
     now: DateTime<Utc>,
 ) -> Result<zoop_core::WeightOutlook, ApiError> {
-    let today = s.store.weight_local_day(now, &g.timezone).await?;
-    let started = s.store.weight_local_day(g.started_at, &g.timezone).await?;
-    let pace = s
-        .store
-        .weight_local_day(g.pace_started_at, &g.timezone)
-        .await?;
-    let as_of = g.finish_date.map_or(today, |end| end.min(today));
-    let cut_days = s
-        .store
-        .cut_weight_days(d, &g.timezone, started, as_of, now)
-        .await?;
-    let mut result = zoop_core::phase_outlook(&cut_days, as_of, started, pace, g);
-    result.progress = Some(zoop_core::cut_progress(
-        &cut_days,
-        today,
-        started,
-        g.finish_date,
-        if g.phase == "bulk" {
-            -g.weekly_loss_kg
-        } else {
-            g.weekly_loss_kg
-        },
-    ));
-    Ok(result)
+    Ok(zoop_core::goal_outlook(&s.store, d, g, now).await?)
 }
+
 pub(crate) async fn get(
     State(s): State<AppState>,
     Path(d): Path<String>,

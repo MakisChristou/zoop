@@ -100,3 +100,5 @@ measurements. Revocation stops new requests; it cannot recall copies already mad
 Website embedding and developer API access are not part of this version.
 
 The heatmap can use its own **1 year** history; other widgets keep the dashboard period.
+
+Connect your own assistant through **Account → Connected agents**. [Agent setup](../docs/CONNECT_AGENT.md) covers MCP, read-only access keys and revocation.

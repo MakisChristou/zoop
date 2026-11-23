@@ -8,6 +8,9 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/v1": process.env.ZOOP_API_URL ?? "http://127.0.0.1:18471",
+      "/oauth": process.env.ZOOP_API_URL ?? "http://127.0.0.1:18471",
+      "/mcp": process.env.ZOOP_API_URL ?? "http://127.0.0.1:18471",
+      "/.well-known": process.env.ZOOP_API_URL ?? "http://127.0.0.1:18471",
       "/health": process.env.ZOOP_API_URL ?? "http://127.0.0.1:18471",
     },
   },

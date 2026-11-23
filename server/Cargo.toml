@@ -18,6 +18,8 @@ zoop-config = { path = "crates/zoop-config" }
 zoop-storage = { path = "crates/zoop-storage" }
 zoop-core = { path = "crates/zoop-core" }
 zoop-api = { path = "crates/zoop-api" }
+zoop-agent = { path = "crates/zoop-agent" }
+rmcp = { version = "3.11", features = ["server", "transport-streamable-http-server"] }
 
 # Passwords and opaque sessions
 argon2 = "0.5"

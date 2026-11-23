@@ -162,6 +162,20 @@ pub(crate) fn constant_time_eq(a: &str, b: &str) -> bool {
     diff == 0
 }
 
+/// Reject integration credentials before parsing any unrelated route body.
+pub(crate) async fn agent_boundary(request: Request, next: Next) -> Response {
+    let agent = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("Bearer zoop_"));
+    let path = request.uri().path();
+    if agent && path != "/mcp" && !path.starts_with("/v1/agent/") {
+        return ApiError::Unauthorized.into_response();
+    }
+    next.run(request).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::constant_time_eq;

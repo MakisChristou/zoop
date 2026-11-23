@@ -23,11 +23,13 @@ def compose(*args, input=None, env=None, check=True):
                           capture_output=True, check=check)
 
 
-def request(path, body=None, expected=200, client=None, origin=ORIGIN):
+def request(path, body=None, expected=200, client=None, origin=ORIGIN, method=None, bearer=None):
     headers = {"Origin": origin}
+    if bearer is not None:
+        headers["Authorization"] = "Bearer " + bearer
     if body is not None:
         headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(ORIGIN + path, json.dumps(body).encode() if body is not None else None, headers)
+    req = urllib.request.Request(ORIGIN + path, json.dumps(body).encode() if body is not None else None, headers, method=method)
     try:
         response = (client or urllib.request.build_opener()).open(req, timeout=20)
     except urllib.error.HTTPError as error:
@@ -65,10 +67,34 @@ request("/v1/admin/stats", client=member, expected=403)
 request("/v1/devices/COMPOSE-OWNER/profile", client=member, expected=404)
 assert request("/v1/auth/me", client=member)[0]["devices"] == ["COMPOSE-MEMBER"]
 
+# Agent access must work through the packaged web proxy, not only the API router.
+assert request("/.well-known/oauth-protected-resource/mcp")[0]["resource"] == ORIGIN + "/mcp"
+assert request("/.well-known/oauth-authorization-server")[0]["issuer"] == ORIGIN
+assert request("/v1/agent-openapi.json")[0]["openapi"] == "3.1.0"
+agent_consent = {"device_id": "COMPOSE-OWNER", "name": "Compose assistant", "scopes": ["sleep:read"], "history_days": 30, "timezone": "UTC", "expires_in_days": 7}
+agent = request("/v1/agent-connections", agent_consent, client=owner)[0]
+agent_key = agent["key"]
+assert "key" not in request("/v1/agent-connections", client=owner)[0]["connections"][0]
+assert request("/v1/agent-connections", client=member)[0]["connections"] == []
+request("/v1/agent-connections/" + str(agent["connection"]["id"]), client=member, method="DELETE", expected=404)
+request("/v1/agent/available_data", bearer=agent_key)
+request("/v1/agent/weight_history", bearer=agent_key, expected=403)
+request("/v1/admin/stats", bearer=agent_key, expected=401)
+request("/v1/ingest", {}, bearer=agent_key, expected=401)
+initialize = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "compose-test", "version": "1"}}}
+# The MCP SDK requires the Streamable HTTP Accept header.
+mcp_request = urllib.request.Request(ORIGIN + "/mcp", json.dumps(initialize).encode(), {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Authorization": "Bearer " + agent_key})
+with urllib.request.urlopen(mcp_request, timeout=20) as response:
+    assert "tools" in json.load(response)["result"]["capabilities"]
+revoked = request("/v1/agent-connections", agent_consent, client=owner)[0]
+request("/v1/agent-connections/" + str(revoked["connection"]["id"]), client=owner, method="DELETE", expected=204)
+request("/v1/agent/available_data", bearer=revoked["key"], expected=401)
+
 compose("restart", "api", "web")
 compose("up", "-d", "--wait")
 assert request("/v1/setup")[0]["available"] is False
 request("/v1/auth/me", client=owner)
+request("/v1/agent/available_data", bearer=agent_key)
 
 # A backup cannot overwrite a file and restoration cannot overwrite a live database.
 backup = ROOT / "backups/compose-test.dump"
@@ -87,7 +113,9 @@ try:
     assert request("/v1/setup")[0]["available"] is False
     request("/v1/auth/login", {"email": payload["email"], "password": PASSWORD}, client=restored, origin=ORIGIN)
     assert request("/v1/auth/me", client=restored)[0]["devices"] == ["COMPOSE-OWNER"]
-    print("PASS: first setup, origin checks, account isolation, restart, backup and empty-database restore")
+    request("/v1/agent/available_data", bearer=agent_key, origin=ORIGIN)
+    request("/v1/agent/available_data", bearer=revoked["key"], origin=ORIGIN, expected=401)
+    print("PASS: setup, isolation, agent permissions/MCP/revocation, restart, backup and restore")
 finally:
     compose("down", "-v", env=restore_env, check=False)
     backup.unlink(missing_ok=True)

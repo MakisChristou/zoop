@@ -1,3 +1,4 @@
+import { AgentConnections, AgentAuthorization } from "./AgentConnections";
 import { OutlookStatus } from "./OutlookStatus";
 import { SleepStages, NightMetrics } from "./NightWidgets";
 import {
@@ -61,10 +62,19 @@ import { Sharing } from "./SharingSettings";
 import { SharedDashboard } from "./SharedDashboard";
 import { publicToken } from "./sharing";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
-type Page = (typeof pages)[number] | "Admin" | "Shares";
+type Page =
+  | (typeof pages)[number]
+  | "Admin"
+  | "Shares"
+  | "Agents"
+  | "AgentAuthorization";
 function currentPage(): Page {
+  if (location.hash.startsWith("#agent-authorize?"))
+    return "AgentAuthorization";
   const p = decodeURIComponent(location.hash.slice(1));
-  return [...pages, "Admin", "Shares"].includes(p) ? (p as Page) : "Today";
+  return [...pages, "Admin", "Shares", "Agents"].includes(p)
+    ? (p as Page)
+    : "Today";
 }
 export function App() {
   const [token, setToken] = useState(() => publicToken(location.hash));
@@ -86,6 +96,9 @@ function PrivateApp() {
   const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState<Page>(currentPage),
     [device, setDevice] = useState("");
+  const [agentQuery, setAgentQuery] = useState(
+    () => location.hash.split("?")[1] || "",
+  );
   useEffect(() => {
     const c = new AbortController();
     api<Identity>("/v1/auth/me", c.signal)
@@ -105,6 +118,7 @@ function PrivateApp() {
     };
     const hash = () => {
       setPage(currentPage());
+      setAgentQuery(location.hash.split("?")[1] || "");
     };
     window.addEventListener("zoop:unauthorized", expired);
     window.addEventListener("hashchange", hash);
@@ -188,7 +202,19 @@ function PrivateApp() {
         </p>
       )}
       <main id="content">
-        {page === "Admin" ? (
+        {page === "Agents" ? (
+          <AgentConnections
+            devices={availableDevices}
+            key={identity.account.id + ":" + selected}
+            device={selected}
+          />
+        ) : page === "AgentAuthorization" ? (
+          <AgentAuthorization
+            devices={availableDevices}
+            key={identity.account.id + ":" + selected + ":" + agentQuery}
+            device={selected}
+          />
+        ) : page === "Admin" ? (
           identity.account.is_admin ? (
             <Admin />
           ) : (

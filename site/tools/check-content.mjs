@@ -26,6 +26,7 @@ const publicPages = [
   "docs/help/index.html",
   "docs/measurements/index.html",
   "docs/data-privacy/index.html",
+  "docs/connect-agent/index.html",
 ].sort();
 assert.deepEqual(
   built

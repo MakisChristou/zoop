@@ -47,6 +47,16 @@ use crate::{
 };
 
 pub fn build_router(state: AppState) -> Router {
+    let agents = state
+        .web
+        .as_ref()
+        .map(|web| {
+            zoop_agent::router(zoop_agent::AgentState::new(
+                state.store.clone(),
+                web.origin.clone(),
+            ))
+        })
+        .unwrap_or_default();
     let protected = Router::new()
         .route(
             "/v1/devices/{deviceId}/weight-goal",
@@ -209,7 +219,9 @@ pub fn build_router(state: AppState) -> Router {
             telemetry::observe,
         ))
         .with_state(state)
+        .merge(agents)
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(auth::agent_boundary))
         .layer(middleware::from_fn(no_store))
 }
 

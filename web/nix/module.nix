@@ -23,7 +23,7 @@ in {
       extraConfig = headers;
       locations."/" = { tryFiles = "$uri /index.html"; extraConfig = headers + "add_header Cache-Control no-store always;"; };
       locations."/assets/".extraConfig = "expires 1y;";
-      locations."/v1/" = { proxyPass = cfg.apiUrl; extraConfig = headers + ''
+      locations."~ ^/(v1/|oauth/|\\.well-known/oauth-|mcp$)" = { proxyPass = cfg.apiUrl; extraConfig = headers + ''
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 30s;

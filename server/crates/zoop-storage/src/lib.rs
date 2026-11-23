@@ -7,7 +7,12 @@ mod share_widgets;
 pub use share_store::SharedDashboard;
 mod account_deletion;
 mod accounts;
+mod agent_data;
+mod agent_store;
 pub use account_deletion::{AccountDeletion, AccountWriteLease};
+pub use agent_store::{
+    AgentClient, AgentConnection, AgentCredential, AgentExchange, NewAgentConnection,
+};
 mod setup;
 pub use accounts::{Account, AdminSnapshot, LoginAccount};
 mod analysis_store;
