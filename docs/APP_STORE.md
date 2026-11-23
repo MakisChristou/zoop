@@ -42,7 +42,7 @@ change, and check that the manifest is present in the archived app.
 
 ## Release preparation (21 November 2026)
 
-Release status (verified 23 November 2026):
+Release status (verified 24 November 2026):
 
 - In-app privacy/support links and the retention/deletion policy are published.
 - Password-confirmed account deletion is implemented with owner isolation, last-admin
@@ -58,10 +58,10 @@ Release status (verified 23 November 2026):
 - The isolated synthetic review server and private reviewer access are prepared.
   Five current screenshots are uploaded. Age rating, export compliance, privacy,
   wellness-device status and regional availability are saved in the store draft.
-- Version 1.0 **build 6** is approved: App Store Connect showed **Pending Developer
-  Release** on 23 November 2026, with build 6 selected and manual release enabled.
-  It is not publicly available yet. Build 3 was the original submission; builds 4
-  and 5 were intermediate TestFlight builds and are not the release candidate.
+- Version 1.0 **build 6** was released with owner approval on 24 November 2026.
+  App Store Connect shows **Ready for Distribution**; the public listing was still
+  propagating at the first post-release check. Build 3 was the original submission;
+  builds 4 and 5 were intermediate TestFlight builds.
 - The owner confirmed that build 6 connects/syncs and that live heart rate changes
   to Live once and remains stable. The approved hardware video was recorded with
   build 3; the reviewer notes disclose this and explain the unchanged connection flow.

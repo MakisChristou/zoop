@@ -1,8 +1,10 @@
-# App Store listing draft
+# App Store listing
 
-Prepared for review; nothing in this file authorizes upload or submission.
+Version 1.0 build 6 was released on 24 November 2026 with owner approval.
+App Store Connect shows **Ready for Distribution**. Future submissions and
+releases still require approval.
 
-| Field | Proposed value |
+| Field | Value |
 | --- | --- |
 | Name | Zoop: Your Health Data |
 | Subtitle | Your health, on your server |
@@ -40,13 +42,14 @@ Measurements and scores are estimates for general wellness, not medical diagnose
 
 sleep,recovery,fitness,weight,steps,self-hosted,health,activity,training
 
-## Review notes draft
+## Review notes summary
 
 Zoop requires a WHOOP 5.0 or MG and a self-hosted Zoop backend. The reviewer account
-will connect to an isolated server containing synthetic data, allowing review of
+connects to an isolated server containing synthetic data, allowing review of
 history, charts, goals, settings and account deletion without a band. Live Bluetooth
-capture requires the hardware. Supply an actual-device demonstration video with the
-submission; a simulator recording alone does not demonstrate hardware behavior.
+capture requires the hardware. The private submission includes an actual-device
+video recorded with build 3; the notes explain that build 6 retains the connection
+workflow. A simulator recording alone does not demonstrate hardware behavior.
 
 The release excludes manual ECG. It does not include a VO₂ max, biological-age or
 blood-pressure estimate. It uses no advertising, tracking SDK or in-app purchases.
@@ -63,22 +66,23 @@ requires the password. It erases owned server records and revokes sessions/share
 The last administrator must assign another enabled administrator first. Operator
 backups and copies deliberately exported to Apple Health or files are separate.
 
-## Submission material still required
+## Saved submission information
 
-- Activated, isolated reviewer server; private reviewer login and review contact.
-- Actual-device hardware video and final release screenshots at Apple's accepted sizes.
-- Final age-rating, export-compliance and App Privacy answers reviewed by the owner.
-- Non-trader declaration: owner describes this as a personal, non-commercial project;
-  re-evaluate if its commercial purpose changes. Do not infer this from “free” alone.
-- Distribution signing, upload validation, TestFlight and explicit submission approval.
+- Isolated synthetic reviewer server and private review login/contact.
+- Actual-device hardware video and five iPhone screenshots.
+- Owner-approved age rating (9+), OS-only encryption answer and App Privacy label.
+- Non-trader declaration for this personal, non-commercial project; re-evaluate if
+  its commercial purpose changes. Do not infer this from “free” alone.
+- Free distribution in all selected regions except China mainland (174 regions).
+- General wellness; declared not a regulated medical device and no third-party content.
+- Distribution signing, upload validation, TestFlight and Apple approval completed.
 
-## App Privacy worksheet
+## App Privacy
 
-This is a data-flow inventory, **not submitted privacy labels**. Apple's collection
-question depends on who can access off-device data. Normal operation sends data to
-the user's chosen operator, not a central developer service. Do not automatically
-select either “Data Not Collected” or “developer collects everything.” Resolve the
-operator/developer distinction before completing the declaration.
+The owner approved and published **Data Not Collected** for developer collection.
+Normal operation sends data to the user's chosen operator, not a central developer
+service. Reassess the declaration if that model changes. The inventory below
+records destinations; it does not mean the app keeps all data on the phone.
 
 | Data | Destination and purpose |
 | --- | --- |

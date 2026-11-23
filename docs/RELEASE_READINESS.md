@@ -1,18 +1,19 @@
 # Release readiness
 
-Reviewed 23 November 2026. This is dated release evidence, not a security
-certification. The repository is public; the iPhone app is not yet publicly
-available on the App Store.
+Reviewed 24 November 2026. This is dated release evidence, not a security
+certification. The repository is public. App Store Connect accepted the release
+of iOS 1.0 build 6 on 24 November and shows **Ready for Distribution**. The public
+listing was still propagating at the first post-release check.
 
 ## Established
 
 - Disposable Linux amd64 Compose installation, account isolation, restart and
   backup/restore are exercised in hosted CI. Web/API setup and migrations work
   without the developer's personal installation.
-- Version 1.0 build 6 is **approved, Pending Developer Release**, verified in App
-  Store Connect on 23 November. Manual release remains selected. The owner confirmed
-  real-band sync and stable live heart rate through TestFlight. Build 6 supersedes
-  builds 3–5 as the release candidate; no public release has occurred.
+- Version 1.0 build 6 was manually released on 24 November, with App Store Connect
+  showing **Ready for Distribution** for the approved 174-region release. The owner
+  confirmed real-band sync and stable live heart rate through TestFlight. Build 6
+  supersedes builds 3–5; no new binary was created for publication.
 - The build 6 archive declares iPhone only and minimum iOS 26.0; its privacy
   manifest and local-network usage description are present. Hosted tests exercise
   iOS 26.5; local simulator checks exercise iOS 27.
@@ -39,14 +40,14 @@ available on the App Store.
   for scope, findings and limits. Licensing and history are unchanged. No release tag
   or container image has been published as part of this work.
 
-## Remaining release gates
+## Release follow-up
 
-1. **Complete real-device network qualification.** Build 6’s normal connection and
-   sync are user-confirmed. Explicit offline → restored connection/upload recovery
-   and local-network permission denial → Settings → retry still need their own
-   observed results. Automated redirect and receipt/queue tests pass; these do not
-   prove iOS permission behavior. Never sign out, repoint a personal queue or delete
-   the app simply to run a release test.
+1. **Retain the network qualification limitation.** On 24 November the owner
+   confirmed that build 6 recovers after internet is disabled and restored, without
+   signing in again. Local-network permission denial → Settings → retry remains
+   unverified; the owner accepted shipping with that limitation. Automated redirect
+   and receipt/queue tests do not prove iOS permission behavior. Never sign out,
+   repoint a personal queue or delete the app simply to run a release test.
 2. **Require green exact-commit checks.** The connector update passed web, Rust,
    PostgreSQL, security and disposable Compose checks. The iOS harness now boots its
    simulator explicitly, sets an appearance for every launch and waits for navigation
@@ -58,9 +59,28 @@ available on the App Store.
    follow [Release procedure](RELEASING.md). Linux arm64 and prebuilt images are not
    claimed as validated distribution paths. The historical-data review is complete
    with informed owner acceptance; do not describe the history as fully anonymous.
-4. **Approve publication separately.** The App Store candidate is selected and
-   approved. Public app release, website deployment, release tags and packages remain
-   separate approvals. Add the store download link only after it works publicly.
+4. **Complete authorized publication.** On 24 November the owner authorized releasing
+   build 6 and then publishing the working App Store link in the website and guides.
+   Apple accepted the release and shows **Ready for Distribution**. Release tags and
+   packages are outside this publication scope. Add the store download link only
+   after it works publicly.
+
+## Final sign-in check, 24 November
+
+The isolated reviewer installation passed a fresh native login and authenticated
+reads for sleep, workouts, weight, daily summaries, profile and recovery. Unowned
+device access returned 404, administrator access was denied, unauthenticated data
+access was denied, and logout invalidated the test session. No health data or
+account settings were changed. This is an API smoke check, not an additional iPhone
+UI test.
+
+The reviewer API/web configuration pins both to
+`8ac8beafd8583337e3991090c743c79e6d5e1570` (migrations through `0021`). The personal
+installation configuration pins both to
+`f6ecf9f40c397fb871deb9a33dafc1bf960460ec` (migrations through `0025`), where the
+owner tested build 6. These are existing compatibility observations, not a
+deployment of the newer connector changes on main. Build 6's app sources remain
+unchanged in the current checkout. The VO₂ research remains outside the release.
 
 Re-run the required checks against the exact commit being published. The latest
 workflow results, not old test counts in a checklist, are the evidence for a new
