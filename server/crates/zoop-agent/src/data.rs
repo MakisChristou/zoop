@@ -96,6 +96,7 @@ pub(crate) async fn execute(
             .max(earliest_allowed.unwrap_or(NaiveDate::MIN)),
     };
     if to < from
+        || from.checked_sub_signed(Duration::days(28)).is_none()
         || to > today
         || (to - from).num_days() > 89
         || earliest_allowed.is_some_and(|min| from < min)
@@ -273,8 +274,27 @@ async fn recovery(
     from: NaiveDate,
     to: NaiveDate,
 ) -> AgentResult<Value> {
-    serde_json::to_value(
-        zoop_core::daily_recovery_history(&s.store, &g.device_id, from, to, &g.timezone).await?,
-    )
-    .map_err(|_| AgentError::Unavailable)
+    let Some(days) =
+        zoop_core::daily_recovery_history(&s.store, &g.device_id, from, to, &g.timezone).await?
+    else {
+        return Ok(Value::Null);
+    };
+    // Keep the canonical score, but do not expose internal sleep components or
+    // historical baseline counts through a Recovery-only permission.
+    Ok(json!(
+        days.into_iter()
+            .map(|day| json!({
+                "day": day.day,
+                "recovery": {
+                    "version": day.recovery.version,
+                    "method": day.recovery.method,
+                    "state": day.recovery.state,
+                    "score": day.recovery.score,
+                    "band": day.recovery.band,
+                },
+                "hrv_ms": day.hrv_ms,
+                "resting_hr": day.resting_hr,
+            }))
+            .collect::<Vec<_>>()
+    ))
 }

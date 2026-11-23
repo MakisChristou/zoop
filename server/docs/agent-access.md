@@ -46,7 +46,8 @@ limited by the same grant without requiring an OAuth client.
 
 Scopes are `sleep:read`, `recovery:read`, `activity:read`, `weight:read`, `goals:read`.
 Sleep excludes physiology; Recovery includes nightly HRV/RHR; Activity includes
-workout heart rate. Summary fields and tool discovery are scope-filtered, and each
+workout heart rate. Recovery excludes internal sleep-component diagnostics and
+baseline-history counts. Summary fields and tool discovery are scope-filtered, and each
 tool independently checks permissions. Goals also needs Weight for measured
 progress. Full-goal progress is withheld when its baseline predates the requested
 window or its calendar differs from the consent timezone. Backend Recovery is reused, never calculated independently by the adapter.

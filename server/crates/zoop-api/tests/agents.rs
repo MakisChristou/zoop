@@ -859,10 +859,21 @@ async fn sleep_projection_keeps_corrections_pending_and_physiology_scope_separat
     )
     .await
     .unwrap();
-    assert_eq!(
-        actual["data"]["days"],
-        serde_json::to_value(expected).unwrap()
-    );
+    let expected = expected.unwrap();
+    let actual_days = actual["data"]["days"].as_array().unwrap();
+    assert_eq!(actual_days.len(), expected.len());
+    for (actual, expected) in actual_days.iter().zip(expected) {
+        assert_eq!(actual["day"], json!(expected.day));
+        assert_eq!(actual["recovery"]["score"], json!(expected.recovery.score));
+        assert_eq!(actual["recovery"]["state"], json!(expected.recovery.state));
+        assert_eq!(actual["recovery"]["band"], json!(expected.recovery.band));
+        assert_eq!(actual["hrv_ms"], json!(expected.hrv_ms));
+        assert_eq!(actual["resting_hr"], json!(expected.resting_hr));
+        let fields = actual["recovery"].as_object().unwrap();
+        assert_eq!(fields.len(), 5);
+        assert!(!fields.contains_key("components"));
+        assert!(!fields.contains_key("baseline_count"));
+    }
 }
 
 #[tokio::test]
