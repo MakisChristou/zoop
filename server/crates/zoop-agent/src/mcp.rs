@@ -31,7 +31,7 @@ impl ServerHandler for AgentMcp {
             TOOLS
                 .iter()
                 .filter(|(_, _, scope)| scope.is_empty() || g.scopes.iter().any(|s| s == scope))
-                .map(|(name, description, _)| {
+                .map(|(name, description, scope)| {
                     Tool::new(*name, *description, schema.clone()).with_annotations(
                         ToolAnnotations::from_raw(
                             None,
@@ -40,7 +40,7 @@ impl ServerHandler for AgentMcp {
                             Some(true),
                             Some(false),
                         ),
-                    )
+                    ).with_meta(MetaObject(json!({"securitySchemes":[{"type":"oauth2","scopes":if scope.is_empty(){vec![]}else{vec![*scope]}}]}).as_object().cloned().unwrap_or_default()))
                 })
                 .collect(),
         ))
@@ -61,6 +61,22 @@ impl ServerHandler for AgentMcp {
                 })?;
         match data::execute(&self.0, &g, &r.name, range).await {
             Ok(v) => Ok(CallToolResult::structured(v).into()),
+            Err(crate::AgentError::InsufficientScope(scope)) => {
+                let challenge = format!(
+                    "Bearer error=\"insufficient_scope\", resource_metadata=\"{}/.well-known/oauth-protected-resource/mcp\", scope=\"{scope}\"",
+                    self.0.origin
+                );
+                Ok(CallToolResult::structured_error(
+                    json!({"error":"Additional read permission is required."}),
+                )
+                .with_meta(Some(MetaObject(
+                    json!({"mcp/www_authenticate":[challenge]})
+                        .as_object()
+                        .cloned()
+                        .unwrap_or_default(),
+                )))
+                .into())
+            }
             Err(e) => Ok(CallToolResult::structured_error(json!({"error":e.to_string()})).into()),
         }
     }

@@ -6,7 +6,7 @@ import {
   LoaderCircle,
   X,
   Share2,
-  Plug,
+  Settings,
 } from "lucide-react";
 import { endpoint, type Account } from "./data";
 import {
@@ -66,6 +66,11 @@ export function AccountMenu({
     window.addEventListener("hashchange", close);
     return () => window.removeEventListener("hashchange", close);
   }, []);
+  useEffect(() => {
+    const edit = () => setEditing(true);
+    window.addEventListener("zoop:edit-photo", edit);
+    return () => window.removeEventListener("zoop:edit-photo", edit);
+  }, []);
   const wasEditing = useRef(false);
   useEffect(() => {
     if (!editing && wasEditing.current) trigger.current?.focus();
@@ -103,8 +108,8 @@ export function AccountMenu({
           <a href="#Shares" onClick={() => setMenu(false)}>
             <Share2 size={16} /> Shared dashboards
           </a>
-          <a href="#Agents" onClick={() => setMenu(false)}>
-            <Plug size={16} /> Connected agents
+          <a href="#Settings/agents" onClick={() => setMenu(false)}>
+            <Settings size={16} /> Settings
           </a>
           {account.is_admin && (
             <a href="#Admin" onClick={() => setMenu(false)}>

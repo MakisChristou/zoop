@@ -1,4 +1,8 @@
-import { AgentConnections, AgentAuthorization } from "./AgentConnections";
+import { Sharing } from "./SharingSettings";
+import { Settings, type SettingsTab } from "./Settings";
+import { ConnectAgent } from "./ConnectAgent";
+import { Plug } from "lucide-react";
+import { AgentAuthorization } from "./AgentConnections";
 import { OutlookStatus } from "./OutlookStatus";
 import { SleepStages, NightMetrics } from "./NightWidgets";
 import {
@@ -58,7 +62,6 @@ import {
   activityRows,
   RecentActivities,
 } from "./Training";
-import { Sharing } from "./SharingSettings";
 import { SharedDashboard } from "./SharedDashboard";
 import { publicToken } from "./sharing";
 const pages = ["Today", "Activity", "Sleep", "Trends", "Goals"] as const;
@@ -67,10 +70,13 @@ type Page =
   | "Admin"
   | "Shares"
   | "Agents"
+  | "Settings"
   | "AgentAuthorization";
 function currentPage(): Page {
   if (location.hash.startsWith("#agent-authorize?"))
     return "AgentAuthorization";
+  if (location.hash === "#Settings/shares") return "Shares";
+  if (location.hash.startsWith("#Settings")) return "Settings";
   const p = decodeURIComponent(location.hash.slice(1));
   return [...pages, "Admin", "Shares", "Agents"].includes(p)
     ? (p as Page)
@@ -93,6 +99,14 @@ function PrivateApp() {
   const [identity, setIdentity] = useState<Identity | null>(null),
     [checking, setChecking] = useState(true),
     [error, setError] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() =>
+    location.hash.endsWith("/profile")
+      ? "profile"
+      : location.hash.endsWith("/shares")
+        ? "shares"
+        : "agents",
+  );
   const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState<Page>(currentPage),
     [device, setDevice] = useState("");
@@ -114,10 +128,18 @@ function PrivateApp() {
   useEffect(() => {
     const expired = () => {
       setIdentity(null);
+      setConnecting(false);
       setDevice("");
     };
     const hash = () => {
       setPage(currentPage());
+      setSettingsTab(
+        location.hash.endsWith("/profile")
+          ? "profile"
+          : location.hash.endsWith("/shares") || location.hash === "#Shares"
+            ? "shares"
+            : "agents",
+      );
       setAgentQuery(location.hash.split("?")[1] || "");
     };
     window.addEventListener("zoop:unauthorized", expired);
@@ -133,6 +155,7 @@ function PrivateApp() {
     try {
       await api("/v1/auth/logout", undefined, {});
       setIdentity(null);
+      setConnecting(false);
       setDevice("");
       location.hash = "Today";
     } catch (e) {
@@ -188,6 +211,14 @@ function PrivateApp() {
             </a>
           ))}
         </nav>
+        <button
+          aria-label="Connect your agent"
+          className="connect-agent-trigger"
+          onClick={() => setConnecting(true)}
+        >
+          <Plug size={16} />
+          <span>Connect your agent</span>
+        </button>
         <AccountMenu
           key={identity.account.id + ":" + selected}
           account={identity.account}
@@ -196,17 +227,26 @@ function PrivateApp() {
           logout={logout}
         />
       </header>
+      {connecting && (
+        <ConnectAgent
+          key={identity.account.id}
+          onClose={() => setConnecting(false)}
+        />
+      )}
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       <main id="content">
-        {page === "Agents" ? (
-          <AgentConnections
-            devices={availableDevices}
+        {page === "Agents" || page === "Settings" ? (
+          <Settings
             key={identity.account.id + ":" + selected}
+            tab={page === "Agents" ? "agents" : settingsTab}
+            account={identity.account}
+            devices={availableDevices}
             device={selected}
+            connect={() => setConnecting(true)}
           />
         ) : page === "AgentAuthorization" ? (
           <AgentAuthorization

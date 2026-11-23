@@ -66,8 +66,8 @@ pub(crate) async fn guard(State(s): State<AgentState>, mut r: Request, next: Nex
             let mut response = e.into_response();
             if response.status() == 401
                 && let Ok(v) = format!(
-                    "Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource/mcp\"",
-                    s.origin
+                    "Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource/mcp\", scope=\"{}\"",
+                    s.origin, crate::permissions::SCOPES.join(" ")
                 )
                 .parse()
             {

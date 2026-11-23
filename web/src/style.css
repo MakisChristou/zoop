@@ -3256,3 +3256,332 @@ th:last-child {
   outline: 2px solid var(--text);
   outline-offset: 3px;
 }
+
+/* Account settings and connector setup use the same quiet dashboard surfaces. */
+.connect-agent-trigger {
+  border-radius: 999px;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+.settings-page > h1 {
+  margin-block: 24px 32px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-nav a {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.settings-nav a[aria-current] {
+  color: var(--text);
+  background: var(--panel);
+}
+.settings-content {
+  min-width: 0;
+}
+.settings-content .page-head {
+  margin-block: 0 20px;
+}
+.settings-profile {
+  margin-block-start: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.settings-profile p {
+  overflow-wrap: anywhere;
+}
+.agent-advanced {
+  margin-block: 24px;
+}
+.agent-advanced summary {
+  cursor: pointer;
+  padding-block: 12px;
+  color: var(--muted);
+}
+.agent-advanced summary span {
+  font-size: 11px;
+  margin-inline-start: 8px;
+}
+.agent-advanced .agent-connect {
+  margin-block-start: 12px;
+}
+.agent-row {
+  gap: 16px;
+  align-items: center;
+  margin-block: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+}
+.agent-row h2 {
+  font-size: 14px;
+  margin: 0;
+}
+.agent-row p {
+  margin-block: 6px;
+}
+.agent-row small {
+  color: var(--muted);
+}
+.connection-details {
+  margin-inline-start: auto;
+  position: relative;
+}
+.connection-details summary {
+  cursor: pointer;
+  padding: 12px;
+  list-style: none;
+}
+.connection-details summary::-webkit-details-marker {
+  display: none;
+}
+.connection-details > div {
+  position: absolute;
+  inset-inline-end: 0;
+  z-index: 2;
+  width: 220px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.connection-action:empty {
+  display: none;
+}
+.connect-agent-dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 24px;
+  overscroll-behavior: contain;
+}
+.connect-agent-dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  margin-block-end: 24px;
+}
+.connect-agent-dialog h2 {
+  font-size: 18px;
+  font-weight: 500;
+}
+.provider-picker {
+  display: flex;
+  gap: 12px;
+  margin-block-end: 28px;
+}
+.provider-picker button {
+  width: 64px;
+  min-height: 52px;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.provider-picker button[aria-pressed="true"] {
+  background: #292929;
+  border-color: #737373;
+}
+.provider-logo {
+  width: 26px;
+  height: 26px;
+  filter: invert(1);
+}
+.provider-logo.claude {
+  filter: invert(65%) sepia(30%) saturate(900%) hue-rotate(330deg);
+}
+.agent-server-label {
+  display: block;
+  color: var(--muted);
+}
+.agent-server-label .agent-copy {
+  margin-block-start: 8px;
+}
+.connect-steps {
+  padding-inline-start: 24px;
+  margin-block: 24px;
+}
+.connect-steps li {
+  padding-inline-start: 8px;
+  margin-block: 14px;
+}
+.connect-steps li::marker {
+  color: var(--muted);
+}
+.connect-privacy {
+  font-size: 12px;
+  color: var(--muted);
+}
+.connect-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.connect-agent-dialog footer {
+  margin-block-start: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .settings-nav a {
+    padding: 10px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  .settings-nav svg {
+    display: none;
+  }
+  .connect-agent-trigger span {
+    display: none;
+  }
+  .connect-agent-trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .agent-row {
+    flex-wrap: wrap;
+  }
+  .connect-agent-dialog {
+    padding: 20px;
+  }
+}
+.settings-content .agent-page {
+  max-width: none;
+}
+.settings-content .agent-row {
+  margin-block: 0;
+}
+.settings-content .agent-row:first-of-type {
+  border-start-start-radius: 18px;
+  border-start-end-radius: 18px;
+}
+.settings-content .agent-row:last-of-type {
+  border-end-start-radius: 18px;
+  border-end-end-radius: 18px;
+}
+.connection-icon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.connect-agent-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.connect-agent-dialog button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.connect-agent-dialog .provider-picker button[aria-pressed="true"] {
+  background: #292929;
+  border-color: #737373;
+}
+@media (max-width: 480px) {
+  .settings-content .agent-page .page-head {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+.shell {
+  container-type: inline-size;
+}
+@container (max-width:850px) {
+  .shell > header {
+    gap: 16px;
+    padding-block: 20px;
+  }
+  .shell > header > .brand {
+    flex: 1;
+  }
+  .shell > header > nav {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .connect-agent-trigger span {
+    display: none;
+  }
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .settings-nav a {
+    font-size: 12px;
+    padding: 10px;
+  }
+}
+.connection-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-start: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  vertical-align: middle;
+}
+.connection-details button {
+  margin-block-start: 12px;
+  width: 100%;
+}
+.settings-nav {
+  order: 0;
+  flex: none;
+}
+.settings-content .agent-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+.settings-content .agent-row > div {
+  flex: 1;
+}
+.settings-content .agent-row .connection-details {
+  flex: none;
+}

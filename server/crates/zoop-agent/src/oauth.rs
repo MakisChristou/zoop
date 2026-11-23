@@ -1,6 +1,7 @@
 //! Local OAuth authorization code + S256 PKCE; no external identity provider.
 use crate::{
     auth::browser,
+    clients,
     error::{AgentError, AgentResult},
     permissions::{Consent, SCOPES},
     state::AgentState,
@@ -65,6 +66,7 @@ pub(crate) async fn register(
     if !s.store.allow_login("agent-register", 30, 3600).await? {
         return Err(AgentError::Limited);
     }
+    s.store.purge_unused_agent_clients().await?;
     let id = random_token().map_err(|_| AgentError::Unavailable)?;
     s.store
         .register_agent_client(&id, r.client_name.trim(), &r.redirect_uris)
@@ -73,7 +75,7 @@ pub(crate) async fn register(
 }
 pub(crate) async fn metadata(State(s): State<AgentState>) -> Json<Value> {
     Json(
-        json!({"issuer":s.origin,"authorization_endpoint":format!("{}/oauth/authorize",s.origin),"token_endpoint":format!("{}/oauth/token",s.origin),"registration_endpoint":format!("{}/oauth/register",s.origin),"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"],"token_endpoint_auth_methods_supported":["none"],"scopes_supported":SCOPES}),
+        json!({"issuer":s.origin,"authorization_endpoint":format!("{}/oauth/authorize",s.origin),"token_endpoint":format!("{}/oauth/token",s.origin),"registration_endpoint":format!("{}/oauth/register",s.origin),"response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"],"token_endpoint_auth_methods_supported":["none"],"scopes_supported":SCOPES,"client_id_metadata_document_supported":true,"authorization_response_iss_parameter_supported":true}),
     )
 }
 pub(crate) async fn resource_metadata(State(s): State<AgentState>) -> Json<Value> {
@@ -94,8 +96,8 @@ pub(crate) struct Authorization {
     state: Option<String>,
 }
 impl Authorization {
-    async fn validate(&self, s: &AgentState) -> AgentResult<String> {
-        if self.client_id.len() > 128
+    fn validate_parameters(&self, s: &AgentState) -> AgentResult<()> {
+        if self.client_id.len() > 2048
             || self.response_type != "code"
             || self.code_challenge_method != "S256"
             || self.code_challenge.len() != 43
@@ -111,24 +113,42 @@ impl Authorization {
         {
             return Err(AgentError::Invalid("Invalid authorization request."));
         }
-        let client = s
-            .store
-            .agent_client(&self.client_id)
-            .await?
-            .ok_or(AgentError::Invalid("Unknown client. Register it first."))?;
-        if !client.redirect_uris.contains(&self.redirect_uri) {
+        Ok(())
+    }
+    async fn validate(&self, s: &AgentState) -> AgentResult<zoop_storage::AgentClient> {
+        self.validate_parameters(s)?;
+        let client = clients::resolve(s, &self.client_id).await?;
+        if !client
+            .redirect_uris
+            .iter()
+            .any(|uri| clients::redirect_matches(uri, &self.redirect_uri))
+        {
             return Err(AgentError::Invalid(
                 "Callback does not match the registered client.",
             ));
         }
-        Ok(client.name)
+        Ok(client)
     }
 }
 pub(crate) async fn authorize(
     State(s): State<AgentState>,
     Query(a): Query<Authorization>,
 ) -> AgentResult<Redirect> {
-    a.validate(&s).await?;
+    let client = clients::resolve(&s, &a.client_id).await?;
+    if !client
+        .redirect_uris
+        .iter()
+        .any(|uri| clients::redirect_matches(uri, &a.redirect_uri))
+    {
+        return Err(AgentError::Invalid(
+            "Callback does not match the registered client.",
+        ));
+    }
+    if a.validate_parameters(&s).is_err() {
+        return Ok(Redirect::to(
+            callback(&a, &s, "error", "invalid_request")?.as_str(),
+        ));
+    }
     let mut dest = Url::parse(&format!("{}/", s.origin)).map_err(|_| AgentError::Unavailable)?;
     let mut params = url::form_urlencoded::Serializer::new(String::new());
     let value = serde_json::to_value(&a).map_err(|_| AgentError::Unavailable)?;
@@ -148,9 +168,9 @@ pub(crate) async fn details(
     Query(a): Query<Authorization>,
 ) -> AgentResult<Json<Value>> {
     browser(&s, &h, false).await?;
-    let name = a.validate(&s).await?;
+    let client = a.validate(&s).await?;
     Ok(Json(
-        json!({"client_name":name,"redirect_uri":a.redirect_uri,"scopes":a.scope.unwrap_or_else(||SCOPES.join(" ")).split_whitespace().collect::<Vec<_>>()}),
+        json!({"client_name":client.name,"client_id":client.id,"redirect_uri":a.redirect_uri,"scopes":a.scope.unwrap_or_else(||SCOPES.join(" ")).split_whitespace().collect::<Vec<_>>()}),
     ))
 }
 #[derive(Debug, Deserialize)]
@@ -165,7 +185,7 @@ pub(crate) async fn approve(
     Json(a): Json<Approval>,
 ) -> AgentResult<Json<Value>> {
     let (owner, session) = browser(&s, &h, true).await?;
-    let name = a.authorization.validate(&s).await?;
+    let client = a.authorization.validate(&s).await?;
     a.consent.validate(&s).await?;
     let requested = a.authorization.scope.as_deref().unwrap_or("");
     if a.authorization.scope.is_some()
@@ -183,12 +203,15 @@ pub(crate) async fn approve(
     {
         return Err(AgentError::Limited);
     }
+    if a.authorization.client_id.starts_with("https://") {
+        s.store.cache_agent_client(&client).await?;
+    }
     let code = random_token().map_err(|_| AgentError::Unavailable)?;
     let hash = digest(&code);
     let n = NewAgentConnection {
         account_id: owner.id,
         device: &a.consent.device_id,
-        name: &name,
+        name: &client.name,
         scopes: &a.consent.scopes,
         history_days: a.consent.history_days,
         timezone: &a.consent.timezone,
@@ -207,14 +230,32 @@ pub(crate) async fn approve(
         .create_agent_connection(&n, &session, &cred)
         .await?
         .ok_or(AgentError::Forbidden)?;
-    let mut callback =
-        Url::parse(&a.authorization.redirect_uri).map_err(|_| AgentError::Unavailable)?;
-    callback.query_pairs_mut().append_pair("code", &code);
-    if let Some(state) = a.authorization.state {
-        callback.query_pairs_mut().append_pair("state", &state);
-    }
+    let callback = callback(&a.authorization, &s, "code", &code)?;
     Ok(Json(json!({"redirect_to":callback.as_str()})))
 }
+fn callback(a: &Authorization, s: &AgentState, key: &str, value: &str) -> AgentResult<Url> {
+    let mut callback = Url::parse(&a.redirect_uri).map_err(|_| AgentError::Unavailable)?;
+    callback
+        .query_pairs_mut()
+        .append_pair(key, value)
+        .append_pair("iss", &s.origin);
+    if let Some(state) = &a.state {
+        callback.query_pairs_mut().append_pair("state", state);
+    }
+    Ok(callback)
+}
+pub(crate) async fn deny(
+    State(s): State<AgentState>,
+    h: HeaderMap,
+    Json(a): Json<Authorization>,
+) -> AgentResult<Json<Value>> {
+    browser(&s, &h, true).await?;
+    a.validate(&s).await?;
+    Ok(Json(
+        json!({"redirect_to":callback(&a, &s, "error", "access_denied")?.as_str()}),
+    ))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TokenRequest {
@@ -230,8 +271,18 @@ pub(crate) struct TokenRequest {
 pub(crate) async fn token(
     State(s): State<AgentState>,
     h: HeaderMap,
-    Form(t): Form<TokenRequest>,
+    form: Result<Form<TokenRequest>, axum::extract::rejection::FormRejection>,
 ) -> Response {
+    let t = match form {
+        Ok(Form(t)) => t,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_request"})),
+            )
+                .into_response();
+        }
+    };
     match exchange(&s, &h, t).await {
         Ok(v) => Json(v).into_response(),
         Err(e) => {
@@ -251,7 +302,7 @@ async fn exchange(s: &AgentState, h: &HeaderMap, t: TokenRequest) -> AgentResult
         || h.contains_key("authorization")
         || h.get("origin")
             .is_some_and(|v| v.to_str().ok() != Some(s.origin.as_str()))
-        || t.client_id.len() > 128
+        || t.client_id.len() > 2048
         || t.resource != s.resource()
         || t.scope.is_some()
     {
@@ -309,7 +360,7 @@ async fn exchange(s: &AgentState, h: &HeaderMap, t: TokenRequest) -> AgentResult
         .await?
         .ok_or(AgentError::Unauthorized)?;
     Ok(
-        json!({"access_token":access,"token_type":"Bearer","expires_in":(g.expires_at-Utc::now()).num_seconds().clamp(0,900),"refresh_token":refresh,"scope":g.scopes.join(" ")}),
+        json!({"access_token":access,"token_type":"Bearer","expires_in":(g.expires_at-Utc::now()).num_seconds().clamp(0,3600),"refresh_token":refresh,"scope":g.scopes.join(" ")}),
     )
 }
 #[cfg(test)]

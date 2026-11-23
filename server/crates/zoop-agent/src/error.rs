@@ -14,6 +14,9 @@ pub enum AgentError {
     /// The credential does not permit this operation.
     #[error("Access not allowed.")]
     Forbidden,
+    /// Additional explicitly consented read permission is required.
+    #[error("This connection does not include {0}.")]
+    InsufficientScope(&'static str),
     /// No owned resource exists.
     #[error("Connection not found.")]
     NotFound,
@@ -55,12 +58,22 @@ impl IntoResponse for AgentError {
     fn into_response(self) -> Response {
         let status = match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::Forbidden | Self::InsufficientScope(_) => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::Invalid(_) => StatusCode::BAD_REQUEST,
             Self::Limited => StatusCode::TOO_MANY_REQUESTS,
             Self::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         };
-        (status, Json(json!({"error":{"message":self.to_string()}}))).into_response()
+        let mut response =
+            (status, Json(json!({"error":{"message":self.to_string()}}))).into_response();
+        if let Self::InsufficientScope(scope) = self
+            && let Ok(value) =
+                format!("Bearer error=\"insufficient_scope\", scope=\"{scope}\"").parse()
+        {
+            response
+                .headers_mut()
+                .insert(axum::http::header::WWW_AUTHENTICATE, value);
+        }
+        response
     }
 }

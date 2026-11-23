@@ -534,6 +534,7 @@ async fn approve(f: &Fixture, a: Value) -> String {
     assert_eq!(status, 200, "{v}");
     let url = v["redirect_to"].as_str().unwrap();
     assert!(url.contains("state=client-state"));
+    assert!(url.contains("iss=https%3A%2F%2Fzoop.example"));
     url.split("code=")
         .nth(1)
         .unwrap()
@@ -1138,5 +1139,326 @@ async fn simultaneous_code_exchange_has_one_winner_and_revokes_on_reuse() {
         .await
         .0,
         StatusCode::UNAUTHORIZED
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires isolated development Postgres"]
+async fn connector_metadata_challenges_and_consent_cancel_are_bound() {
+    let f = Fixture::new().await;
+    let (_, meta) = req(
+        &f.app,
+        "GET",
+        "/.well-known/oauth-authorization-server",
+        None,
+        None,
+        None,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(meta["issuer"], ORIGIN);
+    assert_eq!(meta["code_challenge_methods_supported"], json!(["S256"]));
+    assert_eq!(
+        meta["token_endpoint_auth_methods_supported"],
+        json!(["none"])
+    );
+    assert_eq!(meta["client_id_metadata_document_supported"], true);
+    assert_eq!(meta["authorization_response_iss_parameter_supported"], true);
+    let (_, resource) = req(
+        &f.app,
+        "GET",
+        "/.well-known/oauth-protected-resource/mcp",
+        None,
+        None,
+        None,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(resource["resource"], format!("{ORIGIN}/mcp"));
+    assert_eq!(resource["authorization_servers"], json!([ORIGIN]));
+    let r = f
+        .app
+        .clone()
+        .oneshot(Request::builder().uri("/mcp").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 401);
+    let challenge = r.headers()["www-authenticate"].to_str().unwrap();
+    assert!(challenge.contains(
+        "resource_metadata=\"https://zoop.example/.well-known/oauth-protected-resource/mcp\""
+    ));
+    assert!(
+        challenge
+            .contains("scope=\"sleep:read recovery:read activity:read weight:read goals:read\"")
+    );
+    let (_, a) = authorization(&f).await;
+    let (status, v) = req(
+        &f.app,
+        "POST",
+        "/v1/agent-authorization/deny",
+        Some(&f.owner),
+        None,
+        Some(ORIGIN),
+        a.clone(),
+    )
+    .await;
+    assert_eq!(status, 200);
+    let u = url::Url::parse(v["redirect_to"].as_str().unwrap()).unwrap();
+    let fields: std::collections::HashMap<_, _> = u.query_pairs().collect();
+    assert_eq!(fields.get("iss").unwrap(), ORIGIN);
+    assert_eq!(fields.get("state").unwrap(), "client-state");
+    assert_eq!(fields.get("error").unwrap(), "access_denied");
+    assert_eq!(
+        f.db.count("SELECT count(*) FROM agent_connections").await,
+        0
+    );
+    assert_eq!(
+        req(
+            &f.app,
+            "POST",
+            "/v1/agent-authorization/deny",
+            Some(&f.owner),
+            None,
+            Some("https://evil.example"),
+            a.clone()
+        )
+        .await
+        .0,
+        403
+    );
+    let mut bad = a;
+    bad["redirect_uri"] = json!("https://evil.example/callback");
+    assert_eq!(
+        req(
+            &f.app,
+            "POST",
+            "/v1/agent-authorization/deny",
+            Some(&f.owner),
+            None,
+            Some(ORIGIN),
+            bad
+        )
+        .await
+        .0,
+        400
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires isolated development Postgres"]
+async fn registration_cleanup_and_limits_preserve_connected_clients() {
+    let f = Fixture::new().await;
+    let (id, a) = authorization(&f).await;
+    approve(&f, a).await;
+    f.db.store
+        .register_agent_client("abandoned", "Unused", &["https://client.example/cb".into()])
+        .await
+        .unwrap();
+    f.db.sql("UPDATE agent_clients SET created_at=now()-interval '8 days'")
+        .await;
+    f.db.store.purge_unused_agent_clients().await.unwrap();
+    assert!(f.db.store.agent_client(&id).await.unwrap().is_some());
+    assert!(
+        f.db.store
+            .agent_client("abandoned")
+            .await
+            .unwrap()
+            .is_none()
+    );
+    for _ in 0..29 {
+        let (status, _) = req(
+            &f.app,
+            "POST",
+            "/oauth/register",
+            None,
+            None,
+            None,
+            json!({"client_name":"Test","redirect_uris":["https://client.example/cb"]}),
+        )
+        .await;
+        assert_eq!(status, 201);
+    }
+    assert_eq!(
+        req(
+            &f.app,
+            "POST",
+            "/oauth/register",
+            None,
+            None,
+            None,
+            json!({"client_name":"Test","redirect_uris":["https://client.example/cb"]})
+        )
+        .await
+        .0,
+        429
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires isolated development Postgres"]
+async fn token_expiry_audience_and_malformed_requests_fail_closed() {
+    let f = Fixture::new().await;
+    let (id, a) = authorization(&f).await;
+    let code = approve(&f, a).await;
+    let fields = [
+        ("grant_type", "authorization_code"),
+        ("client_id", id.as_str()),
+        ("resource", "https://zoop.example/mcp"),
+        ("code", code.as_str()),
+        ("redirect_uri", "http://127.0.0.1:9000/callback"),
+        ("code_verifier", VERIFIER),
+    ];
+    let (status, t) = exchange(&f, &fields).await;
+    assert_eq!(status, 200);
+    assert!(t["expires_in"].as_i64().unwrap() <= 3600);
+    assert!(t["expires_in"].as_i64().unwrap() > 3500);
+    assert_eq!(f.db.count("SELECT count(*) FROM agent_credentials WHERE kind='refresh' AND expires_at <= now()+interval '30 days' AND expires_at > now()+interval '29 days'").await,1);
+    assert!(
+        f.db.store
+            .authenticate_agent(
+                &digest(t["access_token"].as_str().unwrap()),
+                "https://other.example/mcp"
+            )
+            .await
+            .unwrap()
+            .is_none()
+    );
+    f.db.sql(
+        "UPDATE agent_credentials SET expires_at=now()-interval '1 second' WHERE kind='refresh'",
+    )
+    .await;
+    let (status, error) = exchange(
+        &f,
+        &[
+            ("grant_type", "refresh_token"),
+            ("client_id", &id),
+            ("resource", "https://zoop.example/mcp"),
+            ("refresh_token", t["refresh_token"].as_str().unwrap()),
+        ],
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert_eq!(error["error"], "invalid_grant");
+    let (status, error) = exchange(&f, &[("grant_type", "authorization_code")]).await;
+    assert_eq!(status, 400);
+    assert_eq!(error["error"], "invalid_request");
+}
+
+#[tokio::test]
+#[ignore = "requires isolated development Postgres"]
+async fn authorization_error_issuer_and_native_callback_ports() {
+    let f = Fixture::new().await;
+    let (_, a) = authorization(&f).await;
+    let mut bad = a.clone();
+    bad["code_challenge_method"] = json!("plain");
+    let query = |a: &Value| {
+        let mut q = url::form_urlencoded::Serializer::new(String::new());
+        for (k, v) in a.as_object().unwrap() {
+            if let Some(v) = v.as_str() {
+                q.append_pair(k, v);
+            }
+        }
+        q.finish()
+    };
+    let r = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/oauth/authorize?{}", query(&bad)))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(r.status().is_redirection());
+    let callback = url::Url::parse(r.headers()["location"].to_str().unwrap()).unwrap();
+    let fields: std::collections::HashMap<_, _> = callback.query_pairs().collect();
+    assert_eq!(fields.get("iss").unwrap(), ORIGIN);
+    assert_eq!(fields.get("error").unwrap(), "invalid_request");
+    bad["redirect_uri"] = json!("https://evil.example/cb");
+    let r = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/oauth/authorize?{}", query(&bad)))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 400);
+    assert!(r.headers().get("location").is_none());
+    let (_, registered) = req(
+        &f.app,
+        "POST",
+        "/oauth/register",
+        None,
+        None,
+        None,
+        json!({"client_name":"Native test","redirect_uris":["http://localhost/callback"]}),
+    )
+    .await;
+    let id = registered["client_id"].as_str().unwrap();
+    let mut native = a;
+    native["client_id"] = json!(id);
+    native["redirect_uri"] = json!("http://localhost:34567/callback");
+    let code = approve(&f, native).await;
+    let mut fields = [
+        ("grant_type", "authorization_code"),
+        ("client_id", id),
+        ("resource", "https://zoop.example/mcp"),
+        ("code", code.as_str()),
+        ("redirect_uri", "http://localhost:34568/callback"),
+        ("code_verifier", VERIFIER),
+    ];
+    assert_eq!(exchange(&f, &fields).await.0, 400);
+    fields[4].1 = "http://localhost:34567/callback";
+    assert_eq!(exchange(&f, &fields).await.0, 200);
+}
+
+#[tokio::test]
+#[ignore = "requires isolated development Postgres"]
+async fn simultaneous_refresh_reuse_revokes_the_connection() {
+    let f = Fixture::new().await;
+    let (id, a) = authorization(&f).await;
+    let code = approve(&f, a).await;
+    let (_, token) = exchange(
+        &f,
+        &[
+            ("grant_type", "authorization_code"),
+            ("client_id", &id),
+            ("resource", "https://zoop.example/mcp"),
+            ("code", &code),
+            ("redirect_uri", "http://127.0.0.1:9000/callback"),
+            ("code_verifier", VERIFIER),
+        ],
+    )
+    .await;
+    let fields = [
+        ("grant_type", "refresh_token"),
+        ("client_id", id.as_str()),
+        ("resource", "https://zoop.example/mcp"),
+        ("refresh_token", token["refresh_token"].as_str().unwrap()),
+    ];
+    let (a, b) = tokio::join!(exchange(&f, &fields), exchange(&f, &fields));
+    let (ok, bad) = if a.0 == 200 { (a, b) } else { (b, a) };
+    assert_eq!(ok.0, 200);
+    assert_eq!(bad.0, 400);
+    assert_eq!(bad.1["error"], "invalid_grant");
+    assert_eq!(
+        req(
+            &f.app,
+            "GET",
+            "/v1/agent/available_data",
+            None,
+            ok.1["access_token"].as_str(),
+            None,
+            Value::Null
+        )
+        .await
+        .0,
+        401
     );
 }

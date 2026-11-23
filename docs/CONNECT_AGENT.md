@@ -13,7 +13,7 @@ This connection cannot edit your health records or manage your account.
 
 ## Connect
 
-1. Open your dashboard’s account menu → **Connected agents** → **Connect your agent**.
+1. Select **Connect your agent** at the top of your dashboard and choose your agent’s logo.
 2. Copy the **Server URL** into your agent’s remote MCP settings.
 3. Sign in to your own Zoop server when prompted. Choose the data categories,
    history window and expiry, then select **Allow read access**.
@@ -29,7 +29,7 @@ already received. Never connect a shared team credential to your private reading
 ### Access keys
 
 If your client supports a fixed authorization header instead of sign-in, open
-**Access key instead**. Choose its permissions and create a key. Save it immediately
+**Settings → Connected apps → Access keys**. Choose its permissions and create a key. Save it immediately
 in your agent’s secret settings; Zoop only shows it once.
 
 Use the HTTP header `Authorization: Bearer <your access key>`. Do not put keys in
@@ -40,7 +40,7 @@ and public dashboard links cannot be used as agent keys.
 
 A local agent can reach Zoop over your LAN or VPN. A cloud-hosted connector must
 reach your server from the provider’s infrastructure; access from your laptop alone
-is not enough. Cloud clients may require HTTPS and a standard port.
+is not enough. Claude and ChatGPT need a publicly reachable HTTPS endpoint on port 443.
 
 Zoop does not expose your server automatically or bundle a TLS proxy. Choose your
 own access arrangement. Use encrypted transport outside a trusted local connection.
@@ -67,7 +67,7 @@ exposed.
 
 ## Revoke access
 
-Open **Connected agents** and select **Revoke**. The connection stops working on its
+Open **Settings → Connected apps** and select **Disconnect**. The connection stops working on its
 next request, including existing OAuth refresh tokens. Password recovery, account
 disabling/deletion and band ownership changes also invalidate connections.
 
@@ -90,6 +90,12 @@ Read endpoints: `available_data`, `daily_summary`, `sleep_history`,
 in `YYYY-MM-DD` format. Account, device and timezone cannot be overridden by a call.
 
 MCP uses Streamable HTTP. OAuth clients must support authorization code with S256
-PKCE, resource indicators and public-client registration. Select automatic
-registration if your client offers it. Client compatibility varies; this guide does
-not promise support for every agent or hosted plan.
+PKCE and resource indicators. Client ID Metadata Documents are preferred, with
+dynamic public-client registration as a fallback. No client secret or API key is
+needed for OAuth. Connector availability depends on your provider’s plan and
+workspace settings.
+
+In Claude, open **Settings → Connectors → Add custom connector**. In ChatGPT, enable
+developer mode where available, then add an app in its Apps/Connectors settings.
+Paste Zoop’s Server URL exactly, including `/mcp`, and use OAuth. The provider opens
+your Zoop sign-in and permission screen. Your Zoop password stays with your server.

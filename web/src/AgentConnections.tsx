@@ -1,3 +1,4 @@
+import { ProviderLogo } from "./ProviderLogo";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Copy, LoaderCircle, Plug, Plus } from "lucide-react";
 import { sharingRequest } from "./sharing";
@@ -29,7 +30,7 @@ type Consent = {
   timezone: string;
   expires_in_days: number;
 };
-async function request<T>(
+export async function request<T>(
   path: string,
   body?: unknown,
   signal?: AbortSignal,
@@ -52,7 +53,11 @@ const date = (value: string) =>
 
 type Devices = { device?: string; devices: string[] };
 
-export function AgentConnections({ device, devices }: Devices) {
+export function AgentConnections({
+  device,
+  devices,
+  connect,
+}: Devices & { connect: () => void }) {
   const [data, setData] = useState<List | null>(null),
     [busy, setBusy] = useState(true),
     [error, setError] = useState(""),
@@ -101,19 +106,11 @@ export function AgentConnections({ device, devices }: Devices) {
   return (
     <section className="agent-page">
       <div className="page-head">
-        <h1>Connected agents</h1>
-        {!adding && (
-          <button
-            className="primary"
-            onClick={() => {
-              setAdding(true);
-              setKey("");
-            }}
-            disabled={!data || !device}
-          >
-            <Plus size={16} /> Connect your agent
-          </button>
-        )}
+        <h2>Connected apps</h2>
+        <button onClick={connect}>
+          <Plus size={16} />
+          Connect
+        </button>
       </div>
       {busy && <LoadingBar label="Loading connections" />}
       {error && (
@@ -122,29 +119,84 @@ export function AgentConnections({ device, devices }: Devices) {
           <button onClick={() => setAttempt((n) => n + 1)}>Retry</button>
         </p>
       )}
-      {adding && data && device && (
-        <section className="panel agent-connect">
-          <div className="panel-head">
-            <h2>Connect your agent</h2>
-            <button
-              onClick={() => {
-                setAdding(false);
-                setKey("");
-              }}
-            >
-              Done
-            </button>
+      {data && !data.connections.length && !adding && (
+        <section className="panel agent-empty">
+          <Plug size={22} />
+          <p>No connected apps</p>
+        </section>
+      )}
+      {data?.connections.map((c) => (
+        <section className="panel agent-row" key={c.id}>
+          <span className="connection-icon">
+            <ProviderLogo
+              provider={
+                c.client_id === "https://chatgpt.com/oauth/client.json"
+                  ? "ChatGPT"
+                  : c.client_id ===
+                      "https://claude.ai/oauth/mcp-oauth-client-metadata"
+                    ? "Claude"
+                    : "Other"
+              }
+            />
+          </span>
+          <div>
+            <h2>
+              {c.name}
+              {!c.revoked_at && new Date(c.expires_at) > new Date() && (
+                <span className="connection-dot" aria-label="Active" />
+              )}
+            </h2>
+            <p>
+              {c.scopes
+                .map((s) => permissions.find((p) => p[0] === s)?.[1])
+                .join(" · ")}
+            </p>
+            <small>
+              {c.history_days ? `Last ${c.history_days} days` : "All history"}
+              {c.revoked_at
+                ? " · Disconnected"
+                : new Date(c.expires_at) <= new Date()
+                  ? " · Expired"
+                  : ""}
+            </small>
           </div>
-          <label>
-            Server URL
-            <CopyValue value={data.mcp_url} label="Copy server URL" />
-          </label>
-          <p>
-            Add this MCP server in your agent, then sign in to Zoop to choose
-            its access.
-          </p>
-          <details>
-            <summary>Access key instead</summary>
+          <details className="connection-details">
+            <summary aria-label={`Details for ${c.name}`}>•••</summary>
+            <div>
+              <p>Expires {date(c.expires_at)}</p>
+              <p>
+                {c.last_used_at
+                  ? `Last used ${date(c.last_used_at)}`
+                  : "Not used yet"}
+              </p>
+              {!c.revoked_at && new Date(c.expires_at) > new Date() && (
+                <button
+                  disabled={revoking !== null}
+                  onClick={() => revoke(c.id)}
+                >
+                  {revoking === c.id && (
+                    <LoaderCircle size={16} className="spinner" />
+                  )}{" "}
+                  Disconnect
+                </button>
+              )}{" "}
+            </div>
+          </details>
+        </section>
+      ))}
+      {data && device && (
+        <details
+          className="agent-advanced"
+          open={adding}
+          onToggle={(e) => {
+            setAdding(e.currentTarget.open);
+            if (!e.currentTarget.open) setKey("");
+          }}
+        >
+          <summary>
+            Access keys <span>Advanced</span>
+          </summary>
+          <section className="panel agent-connect">
             {key ? (
               <div role="status">
                 <p>Save this key now. It won’t be shown again.</p>
@@ -153,6 +205,14 @@ export function AgentConnections({ device, devices }: Devices) {
                   Keep it in your agent’s secret settings, never in a chat or
                   repository.
                 </p>
+                <button
+                  onClick={() => {
+                    setAdding(false);
+                    setKey("");
+                  }}
+                >
+                  Done
+                </button>
               </div>
             ) : (
               <ConsentForm
@@ -172,52 +232,13 @@ export function AgentConnections({ device, devices }: Devices) {
                 }}
               />
             )}
-          </details>
-        </section>
+          </section>
+        </details>
       )}
-      {data && !data.connections.length && !adding && (
-        <section className="panel agent-empty">
-          <Plug size={22} />
-          <p>No connected agents</p>
-        </section>
-      )}
-      {data?.connections.map((c) => (
-        <section className="panel agent-row" key={c.id}>
-          <div>
-            <h2>{c.name}</h2>
-            <p>
-              {c.scopes
-                .map((s) => permissions.find((p) => p[0] === s)?.[1])
-                .join(" · ")}
-            </p>
-            <p>
-              {c.history_days ? `Last ${c.history_days} days` : "All history"} ·{" "}
-              {c.revoked_at
-                ? "Revoked"
-                : new Date(c.expires_at) <= new Date()
-                  ? "Expired"
-                  : `Expires ${date(c.expires_at)}`}
-            </p>
-            <p>
-              {c.last_used_at
-                ? `Last used ${date(c.last_used_at)}`
-                : "Not used yet"}
-            </p>
-          </div>
-          {!c.revoked_at && new Date(c.expires_at) > new Date() && (
-            <button disabled={revoking !== null} onClick={() => revoke(c.id)}>
-              {revoking === c.id && (
-                <LoaderCircle size={16} className="spinner" />
-              )}{" "}
-              Revoke
-            </button>
-          )}
-        </section>
-      ))}
     </section>
   );
 }
-function CopyValue({
+export function CopyValue({
   value,
   label,
   secret = false,
@@ -428,11 +449,18 @@ function ConsentForm({
 export function AgentAuthorization({ device, devices }: Devices) {
   const [details, setDetails] = useState<{
       client_name: string;
+      client_id?: string;
       redirect_uri: string;
       scopes: string[];
     } | null>(null),
     [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [cancelling, setCancelling] = useState(false);
+  const consentLifetime = useRef(new AbortController());
+  useEffect(() => {
+    consentLifetime.current = new AbortController();
+    return () => consentLifetime.current.abort();
+  }, []);
   const query = location.hash.split("?")[1] || "";
   useEffect(() => {
     const c = new AbortController();
@@ -465,6 +493,9 @@ export function AgentAuthorization({ device, devices }: Devices) {
       ) : (
         <section className="panel">
           <h2>{details.client_name}</h2>
+          {details.client_id?.startsWith("https://") && (
+            <p>{new URL(details.client_id).hostname}</p>
+          )}
           <p className="agent-callback">
             Returns to {new URL(details.redirect_uri).origin}
           </p>
@@ -494,9 +525,27 @@ export function AgentAuthorization({ device, devices }: Devices) {
           ) : (
             <p>Link a band before connecting an agent.</p>
           )}
-          <a className="agent-cancel" href="#Agents">
-            Cancel
-          </a>
+          <button
+            className="agent-cancel"
+            disabled={cancelling}
+            onClick={async () => {
+              setCancelling(true);
+              try {
+                const result = await request<{ redirect_to: string }>(
+                  "/v1/agent-authorization/deny",
+                  Object.fromEntries(new URLSearchParams(query)),
+                  consentLifetime.current.signal,
+                );
+                if (!consentLifetime.current.signal.aborted)
+                  location.assign(result.redirect_to);
+              } catch (e) {
+                setError((e as Error).message);
+                setCancelling(false);
+              }
+            }}
+          >
+            {cancelling && <LoaderCircle size={16} className="spinner" />}Cancel
+          </button>
         </section>
       )}
     </section>

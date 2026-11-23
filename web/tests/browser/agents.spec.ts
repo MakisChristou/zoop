@@ -81,7 +81,8 @@ test("explicit permissions, one-time secret, no browser persistence and revocati
   await expect(page.getByLabel("MCP server URL")).toHaveValue(
     "https://zoop.example/mcp",
   );
-  await page.getByText("Access key instead", { exact: true }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByText("Access keys Advanced", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Create access key" }),
   ).toBeDisabled();
@@ -118,8 +119,9 @@ test("explicit permissions, one-time secret, no browser persistence and revocati
   ).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByLabel("Access key", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Revoke", exact: true }).click();
-  await expect(page.getByText("Last 30 days · Revoked")).toBeVisible();
+  await page.getByLabel("Details for My assistant").click();
+  await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+  await expect(page.getByText("Last 30 days · Disconnected")).toBeVisible();
   expect(state.writes).toEqual([
     "/v1/agent-connections",
     "/v1/agent-connections/1",
@@ -160,7 +162,9 @@ test("OAuth consent stays explicit, restricted to requested scopes and handles f
   );
   expect(state.saved().consent.scopes).toEqual(["sleep:read"]);
   expect(state.saved().authorization.state).toBe("new-authorization-request");
-  await page.getByRole("link", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Allow read access" }),
+  ).toBeEnabled();
   expect(state.writes).toEqual(["/v1/agent-authorization"]);
 });
 for (const width of [320, 768, 1440, 2560])
@@ -172,7 +176,8 @@ for (const width of [320, 768, 1440, 2560])
     await mock(page);
     await page.goto("/#Agents");
     await page.getByRole("button", { name: "Connect your agent" }).click();
-    await page.getByText("Access key instead", { exact: true }).focus();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByText("Access keys Advanced", { exact: true }).focus();
     await page.keyboard.press("Enter");
     await page.getByLabel("Name", { exact: true }).fill("Local assistant");
     await page
@@ -204,7 +209,7 @@ test("connection failure offers retry without showing a false empty state", asyn
   );
   await page.goto("/#Agents");
   await expect(page.getByRole("alert")).toContainText("Try again shortly.");
-  await expect(page.getByText("No connected agents")).toHaveCount(0);
+  await expect(page.getByText("No connected apps")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
@@ -223,7 +228,8 @@ test("band selection is explicit and enlarged RTL consent stays contained", asyn
   await page.setViewportSize({ width: 768, height: 1200 });
   await page.goto("/#Agents");
   await page.getByRole("button", { name: "Connect your agent" }).click();
-  await page.getByText("Access key instead", { exact: true }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByText("Access keys Advanced", { exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill("Local assistant");
   await page
     .getByRole("combobox", { name: "Band", exact: true })
@@ -242,3 +248,141 @@ test("band selection is explicit and enlarged RTL consent stays contained", asyn
   await expect(page.getByLabel("Access key", { exact: true })).toBeVisible();
   expect(state.saved().device_id).toBe("SECOND");
 });
+
+test("logo picker is keyboard accessible, closes with Escape and restores focus", async ({
+  page,
+}) => {
+  await mock(page);
+  await page.goto("/#Settings/agents");
+  const trigger = page.getByRole("button", {
+    name: "Connect your agent",
+    exact: true,
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Connect your agent" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Claude", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("button", { name: "ChatGPT", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByRole("button", { name: "ChatGPT", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    dialog.getByRole("link", { name: "Open ChatGPT" }),
+  ).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(dialog.locator(".provider-picker")).not.toContainText("Claude");
+  await page.screenshot({ path: "/tmp/zoop-connector-picker.png" });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await page.getByRole("link", { name: "Profile", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Profile", exact: true }),
+  ).toBeVisible();
+});
+
+test("cancel returns to the verified client without granting access", async ({
+  page,
+}) => {
+  const state = await mock(page);
+  let cancelled: any;
+  await page.route("**/v1/agent-authorization/deny", (route) => {
+    cancelled = route.request().postDataJSON();
+    return route.fulfill({ json: { redirect_to: "/#Settings/agents" } });
+  });
+  await page.goto("/#agent-authorize?client_id=test&state=original");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  expect(cancelled).toEqual({ client_id: "test", state: "original" });
+  expect(state.writes).toEqual([]);
+});
+
+test("sign-in preserves the exact authorization request", async ({ page }) => {
+  await mock(page);
+  let signedIn = false;
+  await page.route("**/v1/auth/me", (route) =>
+    signedIn
+      ? route.fulfill({
+          json: {
+            account: { id: 1, email: "owner@example.test", is_admin: false },
+            devices: ["TEST"],
+          },
+        })
+      : route.fulfill({ status: 401, json: { error: { message: "Sign in" } } }),
+  );
+  await page.route("**/v1/auth/login", (route) => {
+    signedIn = true;
+    return route.fulfill({ json: {} });
+  });
+  const hash =
+    "#agent-authorize?client_id=test&state=preserve-this&scope=sleep%3Aread";
+  await page.goto("/" + hash);
+  await page.getByLabel("Email", { exact: true }).fill("owner@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("synthetic-test-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "My assistant" }),
+  ).toBeVisible();
+  expect(new URL(page.url()).hash).toBe(hash);
+  await expect(page.getByRole("checkbox")).not.toBeChecked();
+});
+
+for (const width of [390, 1440])
+  test(`connected apps and logo picker render at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mock(page);
+    await page.route("**/v1/agent-connections", (route) =>
+      route.fulfill({
+        json: {
+          mcp_url: "https://zoop.example/mcp",
+          api_url: "https://zoop.example/v1/agent",
+          connections: [
+            {
+              ...connection,
+              name: "Claude",
+              client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata",
+              scopes: ["sleep:read", "recovery:read"],
+            },
+            {
+              ...connection,
+              id: 2,
+              name: "ChatGPT",
+              client_id: "https://chatgpt.com/oauth/client.json",
+              scopes: ["activity:read"],
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto("/#Settings/agents");
+    await expect(page.getByRole("heading", { name: "Claude" })).toBeVisible();
+    await expect(page.locator(".agent-row img")).toHaveCount(2);
+    const row = await page.locator(".agent-row").first().boundingBox();
+    expect(row!.height).toBeLessThan(150);
+    const nav = await page
+      .getByRole("navigation", { name: "Settings", exact: true })
+      .boundingBox();
+    expect(nav!.y).toBeLessThan(row!.y + 30);
+    await page.screenshot({
+      path: `/tmp/zoop-connected-apps-${width}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole("button", { name: "Connect your agent", exact: true })
+      .click();
+    await expect(page.getByLabel("MCP server URL")).toHaveValue(
+      "https://zoop.example/mcp",
+    );
+    const bounds = await page.getByRole("dialog").boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `/tmp/zoop-connect-dialog-${width}.png` });
+  });

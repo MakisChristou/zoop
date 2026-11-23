@@ -51,6 +51,7 @@ pub fn router(s: AgentState) -> Router {
         .route("/oauth/register", post(oauth::register))
         .route("/oauth/authorize", get(oauth::authorize))
         .route("/oauth/token", post(oauth::token))
+        .route("/v1/agent-authorization/deny", post(oauth::deny))
         .route(
             "/v1/agent-authorization",
             get(oauth::details).post(oauth::approve),

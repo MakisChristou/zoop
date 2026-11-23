@@ -59,7 +59,7 @@ pub struct NewAgentConnection<'a> {
     pub expires_at: DateTime<Utc>,
 }
 /// A registered public OAuth client; no fetched metadata or client secrets.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct AgentClient {
     /// Random client identifier.
     pub id: String,
@@ -122,6 +122,23 @@ impl PostgresStore {
             .execute(self.pool())
             .await
             .map_err(fail)?;
+        Ok(())
+    }
+    /// Cache validated public client metadata. Never changes existing grants.
+    /// # Errors
+    /// Database failure.
+    pub async fn cache_agent_client(&self, client: &AgentClient) -> StorageResult<()> {
+        sqlx::query("INSERT INTO agent_clients(id,name,redirect_uris) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET name=excluded.name,redirect_uris=excluded.redirect_uris")
+            .bind(&client.id).bind(&client.name).bind(&client.redirect_uris)
+            .execute(self.pool()).await.map_err(fail)?;
+        Ok(())
+    }
+    /// Purge abandoned registrations; preserve every client referenced by a grant.
+    /// # Errors
+    /// Database failure.
+    pub async fn purge_unused_agent_clients(&self) -> StorageResult<()> {
+        sqlx::query("DELETE FROM agent_clients c WHERE created_at < now()-interval '7 days' AND NOT EXISTS(SELECT 1 FROM agent_connections g WHERE g.client_id=c.id)")
+            .execute(self.pool()).await.map_err(fail)?;
         Ok(())
     }
     /// Resolve only locally registered metadata.
@@ -189,7 +206,7 @@ impl PostgresStore {
         digest: &str,
         resource: &str,
     ) -> StorageResult<Option<AgentConnection>> {
-        sqlx::query_as("UPDATE agent_connections g SET last_used_at=now() FROM agent_credentials c,accounts a,device_owners d WHERE c.digest=$1 AND c.connection_id=g.id AND c.kind IN ('key','access') AND NOT c.consumed AND c.expires_at>now() AND g.expires_at>now() AND g.revoked_at IS NULL AND (c.kind='key' OR g.resource=$2) AND a.id=g.account_id AND a.enabled AND d.account_id=g.account_id AND d.device_id=g.device_id RETURNING g.*")
+        sqlx::query_as("UPDATE agent_connections g SET last_used_at=now() FROM agent_credentials c,accounts a,device_owners d WHERE c.digest=$1 AND c.connection_id=g.id AND c.kind IN ('key','access') AND NOT c.consumed AND c.expires_at>now() AND g.expires_at>now() AND g.revoked_at IS NULL AND g.resource=$2 AND a.id=g.account_id AND a.enabled AND d.account_id=g.account_id AND d.device_id=g.device_id RETURNING g.*")
             .bind(digest).bind(resource).fetch_optional(self.pool()).await.map_err(fail)
     }
     /// Rotate refreshes, enforce PKCE and revoke the family on replay.
@@ -227,7 +244,7 @@ impl PostgresStore {
             .execute(&mut *tx)
             .await
             .map_err(fail)?;
-        sqlx::query("INSERT INTO agent_credentials(digest,connection_id,kind,expires_at) VALUES($1,$3,'access',least($4,now()+interval '15 minutes')),($2,$3,'refresh',$4)")
+        sqlx::query("INSERT INTO agent_credentials(digest,connection_id,kind,expires_at) VALUES($1,$3,'access',least($4,now()+interval '1 hour')),($2,$3,'refresh',least($4,now()+interval '30 days'))")
             .bind(x.access).bind(x.refresh).bind(g.id).bind(g.expires_at).execute(&mut *tx).await.map_err(fail)?;
         tx.commit().await.map_err(fail)?;
         Ok(Some(g))

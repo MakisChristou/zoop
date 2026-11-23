@@ -6,6 +6,7 @@ use zoop_storage::PostgresStore;
 pub struct AgentState {
     pub(crate) store: PostgresStore,
     pub(crate) origin: String,
+    pub(crate) clients: Arc<crate::clients::Registry>,
     pub(crate) slots: Arc<tokio::sync::Semaphore>,
 }
 impl AgentState {
@@ -14,6 +15,7 @@ impl AgentState {
         Self {
             store,
             origin: origin.trim_end_matches('/').into(),
+            clients: Arc::new(crate::clients::Registry::default()),
             slots: Arc::new(tokio::sync::Semaphore::new(2)),
         }
     }

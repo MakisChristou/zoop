@@ -81,7 +81,7 @@ pub(crate) async fn execute(
         .find(|(name, _, _)| *name == tool)
         .ok_or(AgentError::NotFound)?;
     if !scope.is_empty() && !has(g, scope) {
-        return Err(AgentError::Forbidden);
+        return Err(AgentError::InsufficientScope(scope));
     }
     let today = s.store.weight_local_day(Utc::now(), &g.timezone).await?;
     let earliest_allowed = g

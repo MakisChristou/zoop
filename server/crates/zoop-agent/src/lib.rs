@@ -1,5 +1,6 @@
 //! Read-only, individually revocable access for user-chosen agents.
 mod auth;
+mod clients;
 mod connections;
 mod data;
 mod error;

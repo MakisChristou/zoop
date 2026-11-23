@@ -26,6 +26,7 @@ image = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+url.workspace = true
 sqlx = { workspace = true }
 tower = { workspace = true }
 

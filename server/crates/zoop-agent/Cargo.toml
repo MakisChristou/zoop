@@ -7,7 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+live-provider-check = []
+
 [dependencies]
+reqwest.workspace = true
 zoop-auth.workspace = true
 zoop-storage.workspace = true
 zoop-core.workspace = true
