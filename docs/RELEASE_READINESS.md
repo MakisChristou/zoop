@@ -33,8 +33,11 @@ available on the App Store.
   and deletion. Tested candidate commits can advance main without a mandatory PR.
 - Security scanning is repeatable in CI. Changes to date/time dependencies need
   explicit timezone and historical-result regression coverage.
-- Licensing and history are unchanged. No release tag or container image has been
-  published as part of this work.
+- Historical data privacy was reviewed on 23 November. The owner accepted retention
+  of the disclosed old sensor packets and local build metadata; previously approved
+  screenshots remain authorized. See [Historical privacy review](HISTORICAL_PRIVACY_REVIEW.md)
+  for scope, findings and limits. Licensing and history are unchanged. No release tag
+  or container image has been published as part of this work.
 
 ## Remaining release gates
 
@@ -53,8 +56,8 @@ available on the App Store.
    connector/server/web changes are separate from that approved binary. Record the
    exact API/web revision, migrations and verified compatibility when publishing;
    follow [Release procedure](RELEASING.md). Linux arm64 and prebuilt images are not
-   claimed as validated distribution paths. Historical sensor captures/build material
-   still need the approved privacy review before promoting the repository.
+   claimed as validated distribution paths. The historical-data review is complete
+   with informed owner acceptance; do not describe the history as fully anonymous.
 4. **Approve publication separately.** The App Store candidate is selected and
    approved. Public app release, website deployment, release tags and packages remain
    separate approvals. Add the store download link only after it works publicly.
