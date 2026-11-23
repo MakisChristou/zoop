@@ -17,7 +17,7 @@ import XCTest
     func testAccountDeletionRequiresPasswordThenReturnsToSignIn() {
         let app = XCUIApplication()
         app.launchArguments = ["-onboarded", "YES", "-demoSerial", "", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
         app.textFields["Email"].tap(); app.textFields["Email"].typeText("owner@example.test")
         app.secureTextFields["Password"].tap(); app.secureTextFields["Password"].typeText("synthetic-password")
@@ -40,14 +40,14 @@ import XCTest
         app.secureTextFields["Confirm your password"].typeText("synthetic-password")
         app.buttons["confirmDeleteAccount"].tap()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 12))
-        app.terminate(); app.launchArguments = ["-onboarded", "YES", "-demoSerial", ""]; app.launch()
+        app.terminate(); app.launchArguments = ["-onboarded", "YES", "-demoSerial", ""]; app.launchSynthetic()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
     }
 
     func testRejectedLoginThenSuccessfulLoginPersistsAcrossRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-onboarded", "YES", "-demoSerial", "", "-resetAuthTest", "-serverURL", "http://127.0.0.1:28476"]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
         app.textFields["Email"].tap(); app.textFields["Email"].typeText("owner@example.test")
         app.secureTextFields["Password"].tap(); app.secureTextFields["Password"].typeText("wrong-password")
@@ -70,7 +70,7 @@ import XCTest
         XCTAssertTrue(app.buttons["sleepTimelineDetails"].waitForExistence(timeout: 12))
         app.terminate()
         app.launchArguments = ["-onboarded", "YES", "-demoSerial", ""]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.textFields["Email"].exists)
         app.buttons["tab-Activity"].tap()

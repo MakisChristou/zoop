@@ -18,8 +18,8 @@ You’ll need three things:
 - **Phone:** an iPhone running iOS 26 or later, with Zoop installed.
 - **Server:** a machine running Docker with Compose v2.
 
-The iPhone app is awaiting App Store approval. The download link will appear in
-the [iPhone guide](IPHONE_SETUP.md#install-zoop) when it is available.
+The iPhone app is approved for the App Store and awaiting release.
+The download link will appear in the [iPhone guide](IPHONE_SETUP.md#install-zoop) when it is available.
 
 ## 1. Start your server
 

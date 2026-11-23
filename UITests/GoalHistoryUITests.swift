@@ -9,7 +9,7 @@ import XCTest
             "-UIPreferredContentSizeCategoryName",
             large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL",
         ]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.otherElements["goalWeightChart"].waitForExistence(timeout: 20))
         return app
     }

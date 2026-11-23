@@ -42,7 +42,7 @@ change, and check that the manifest is present in the archived app.
 
 ## Release preparation (21 November 2026)
 
-Preparation status, not evidence of App Review approval:
+Release status (verified 23 November 2026):
 
 - In-app privacy/support links and the retention/deletion policy are published.
 - Password-confirmed account deletion is implemented with owner isolation, last-admin
@@ -58,23 +58,19 @@ Preparation status, not evidence of App Review approval:
 - The isolated synthetic review server and private reviewer access are prepared.
   Five current screenshots are uploaded. Age rating, export compliance, privacy,
   wellness-device status and regional availability are saved in the store draft.
-- Version 1.0 (build 3) was submitted on 21 November 2026 and is **Waiting for Review**.
-  The owner confirmed TestFlight live heart rate or sync with their band. The
-  hardware demonstration video is attached privately with explicit permission.
-  Manual release remains enabled; the app is not publicly available yet.
-- Keep submission and publication separately approved. TestFlight availability
-  does not mean App Review approval or public availability.
-
-Build 4 was subsequently uploaded for private TestFlight testing. The owner
-confirmed live heart rate and sync on 22 November. Build 5 prepares the live-reading
-source fix and records the already-approved OS-only encryption classification in
-the app manifest. Neither changes the pending build 3 submission automatically.
-See [Release readiness](RELEASE_READINESS.md) for remaining qualification gates.
-
-Build 5 was uploaded to the private owner TestFlight group on 22 November. The
-owner confirmed sync, then reported that BPM and the Live label still alternate.
-Build 6 corrects rendering between clock ticks; it needs fresh device qualification
-before replacing the submitted build. Do not treat build 5 as release-qualified.
+- Version 1.0 **build 6** is approved: App Store Connect showed **Pending Developer
+  Release** on 23 November 2026, with build 6 selected and manual release enabled.
+  It is not publicly available yet. Build 3 was the original submission; builds 4
+  and 5 were intermediate TestFlight builds and are not the release candidate.
+- The owner confirmed that build 6 connects/syncs and that live heart rate changes
+  to Live once and remains stable. The approved hardware video was recorded with
+  build 3; the reviewer notes disclose this and explain the unchanged connection flow.
+- The archived build 6 declares iPhone only (`UIDeviceFamily = [1]`) and iOS 26.0
+  minimum. Its privacy manifest and local-network usage description are present.
+- Keep approval, submission and publication separate. Do not release the approved
+  version, publish an App Store badge or change production deployments without
+  authorization. See [Release readiness](RELEASE_READINESS.md) for the remaining
+  device checks and the distinction between build 6 and newer source changes.
 
 ## Screenshot capture
 
@@ -109,7 +105,7 @@ Once the public listing is live and its download link works:
 
 - Add the verified App Store link to the root README, website and iPhone guide.
 - Make the default setup: WHOOP 5.0/MG → Zoop on iPhone → Docker Compose server.
-- Replace the temporary “awaiting App Store approval” notices on those pages and
+- Replace the temporary “awaiting release” notices on those pages and
   `docs/GET_STARTED.md` with the download link. Keep Xcode, signing and XcodeGen in
   [Development](DEVELOPMENT.md#build-the-iphone-app-from-source).
 - Retain the real server prerequisites. Docker currently builds from source;

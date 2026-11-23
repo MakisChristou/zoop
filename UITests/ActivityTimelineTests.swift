@@ -7,7 +7,7 @@ import XCTest
             "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES",
             "-demoScreen", "activity", "-UIPreferredContentSizeCategoryName",
             large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.staticTexts["Recent activities"].waitForExistence(timeout: 15))
         return app
     }

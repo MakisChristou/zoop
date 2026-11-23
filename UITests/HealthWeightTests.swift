@@ -7,7 +7,7 @@ import XCTest
         let app = XCUIApplication()
         app.launchArguments = ["-demoSerial", serial, "-serverURL", ProcessInfo.processInfo.environment["SNOOP_UI_SERVER_URL"] ?? "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES", "-weightUnit", "kg"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
-        app.launch()
+        app.launchSynthetic()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
         if allow.waitForExistence(timeout: 2) { allow.tap() }
         return app
@@ -17,8 +17,11 @@ import XCTest
     }
     private func profile(_ app: XCUIApplication) {
         let button = app.buttons["openProfile"].firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 15)); button.tap()
-        XCTAssertTrue(app.navigationBars["Profile & settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(button.waitForExistence(timeout: 15))
+        let ready = expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: button)
+        wait(for: [ready], timeout: 10)
+        button.tap()
+        XCTAssertTrue(app.navigationBars["Profile & settings"].waitForExistence(timeout: 15))
     }
     private func openWeight(_ app: XCUIApplication) {
         let card = app.buttons["todayWeight"].firstMatch

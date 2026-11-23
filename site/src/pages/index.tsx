@@ -162,7 +162,7 @@ export default function Home(): ReactNode {
               </div>
             </dl>
             <p>
-              The iPhone app is awaiting App Store approval.{" "}
+              The iPhone app is approved for the App Store and awaiting release.{" "}
               <Link to="/docs/iphone">iPhone setup.</Link>
             </p>
           </div>

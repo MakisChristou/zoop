@@ -7,7 +7,7 @@ import XCTest
             "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token", "-onboarded", "YES"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         if light { app.launchArguments += ["-AppleInterfaceStyle", "Light"] }
-        app.launch()
+        app.launchSynthetic()
         let preview = app.buttons["previewSetup"]
         XCTAssertTrue(app.navigationBars["Profile & settings"].waitForExistence(timeout: 10))
         for _ in 0..<12 { if preview.exists && preview.isHittable { break }; app.swipeUp() }
@@ -75,14 +75,14 @@ import XCTest
     func testFirstRunSignsInWithoutRestartingWizardAndCanSkipBand() {
         let app = XCUIApplication()
         app.launchArguments = ["-onboarded", "NO", "-demoScreen", "setup", "-demoSerial", "", "-resetAuthTest"]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.buttons["setupPrimary"].waitForExistence(timeout: 8))
         app.buttons["setupPrimary"].tap()
         XCTAssertFalse(app.buttons["setupPrimary"].isEnabled)
-        app.textFields["setupServer"].tap(); app.textFields["setupServer"].typeText("http://127.0.0.1:28476")
-        app.textFields["setupEmail"].tap(); app.textFields["setupEmail"].typeText("owner@example.test")
-        app.secureTextFields["setupPassword"].tap(); app.secureTextFields["setupPassword"].typeText("synthetic-password")
-        app.buttons["setupPrimary"].tap()
+        app.textFields["setupServer"].tap(); app.textFields["setupServer"].typeText("http://127.0.0.1:28476\n")
+        app.textFields["setupEmail"].typeText("owner@example.test\n")
+        // Use the form’s Next/Go actions; offscreen fields move with keyboard focus.
+        app.secureTextFields["setupPassword"].typeText("synthetic-password\n")
         XCTAssertTrue(app.buttons["setupSkipBand"].waitForExistence(timeout: 10))
         let notNow = app.buttons["Not Now"]
         if notNow.waitForExistence(timeout: 2) { notNow.tap() }
@@ -90,7 +90,7 @@ import XCTest
         XCTAssertTrue(app.buttons["openProfile"].waitForExistence(timeout: 10))
         app.terminate()
         app.launchArguments = ["-demoScreen", "setup", "-demoSerial", ""]
-        app.launch()
+        app.launchSynthetic()
         XCTAssertTrue(app.buttons["openProfile"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["setupPrimary"].exists)
     }

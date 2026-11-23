@@ -7,7 +7,7 @@ import XCTest
         app.launchArguments = ["-demoSerial", serial,
             "-serverURL", "http://127.0.0.1:28476", "-ingestToken", "ui-test-token",
             "-onboarded", "YES", "-demoScreen", screen]
-        app.launch()
+        app.launchSynthetic()
         let indicator = app.descendants(matching: .any).matching(identifier: "loadingIndicator").firstMatch
         XCTAssertTrue(indicator.waitForExistence(timeout: 6))
         let initial = indicator.frame
