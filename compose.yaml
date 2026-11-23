@@ -45,6 +45,9 @@ services:
 
   api:
     <<: *api
+    # Fetch public OAuth client metadata; database access stays on the private network.
+    # This adds outbound access only: the API has no published host port.
+    networks: [default, private]
     command: [run, --config, /etc/zoop/zoop.toml]
     depends_on:
       migrate:

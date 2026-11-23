@@ -39,6 +39,13 @@ def request(path, body=None, expected=200, client=None, origin=ORIGIN, method=No
     return json.loads(data) if data and data[:1] in (b"{", b"[") else data, response.headers
 
 
+configuration = json.loads(compose("config", "--format", "json").stdout)
+assert set(configuration["services"]["api"]["networks"]) == {"default", "private"}
+assert not configuration["services"]["api"].get("ports")
+assert set(configuration["services"]["database"]["networks"]) == {"private"}
+assert configuration["networks"]["private"]["internal"] is True
+assert not configuration["networks"]["default"].get("internal", False)
+
 assert request("/v1/setup")[0]["available"] is True
 request("/v1/admin/stats", expected=401)
 payload = {"code": CONFIG["ZOOP_SETUP_CODE"], "email": "owner@example.test", "password": PASSWORD, "device": "COMPOSE-OWNER"}
@@ -113,8 +120,11 @@ try:
     assert request("/v1/setup")[0]["available"] is False
     request("/v1/auth/login", {"email": payload["email"], "password": PASSWORD}, client=restored, origin=ORIGIN)
     assert request("/v1/auth/me", client=restored)[0]["devices"] == ["COMPOSE-OWNER"]
-    request("/v1/agent/available_data", bearer=agent_key, origin=ORIGIN)
+    # Moving a backup to another origin must not extend the old key's audience.
+    request("/v1/agent/available_data", bearer=agent_key, origin=ORIGIN, expected=401)
     request("/v1/agent/available_data", bearer=revoked["key"], origin=ORIGIN, expected=401)
+    restored_agent = request("/v1/agent-connections", agent_consent, client=restored, origin=ORIGIN)[0]
+    request("/v1/agent/available_data", bearer=restored_agent["key"], origin=ORIGIN)
     print("PASS: setup, isolation, agent permissions/MCP/revocation, restart, backup and restore")
 finally:
     compose("down", "-v", env=restore_env, check=False)

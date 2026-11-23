@@ -89,6 +89,10 @@ Two concurrent agent requests per API process, a 20-second request deadline,
 20 connection issuances/hour/account, 30 client registrations/hour/installation and
 120 token exchanges/minute/installation. Metadata fetching permits four concurrent
 requests and 120 attempts/minute/installation. Limits are conservative self-host defaults.
+Client metadata needs outbound DNS and HTTPS from the API. Compose permits that
+without publishing an API port; Postgres remains on its internal network. Tokens
+are bound to the configured MCP URL. After restoring to a different origin,
+users must reconnect their agents rather than reuse the old credentials.
 Grant last-use timestamps contain no prompts or response payloads. Do not log
 Authorization headers, OAuth form bodies or health results in an upstream proxy.
 
