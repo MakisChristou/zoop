@@ -1,0 +1,8 @@
+App Store badge artwork is supplied by Apple and is not covered by Zoop's MIT license.
+Apple and the Apple logo are trademarks of Apple Inc. App Store is a service mark of Apple Inc.
+
+Original artwork (unmodified):
+https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us
+
+Usage guidelines:
+https://developer.apple.com/app-store/marketing/guidelines/

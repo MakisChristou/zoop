@@ -85,15 +85,23 @@ export default function Home(): ReactNode {
             number.
           </p>
           <div className="hero-actions">
+            <a
+              className="app-store-badge"
+              href="https://apps.apple.com/app/id6837762327"
+            >
+              <img
+                src={useBaseUrl("/badges/app-store.svg")}
+                alt="Download on the App Store"
+                width="144"
+                height="48"
+              />
+            </a>
             <Link
-              className="site-button site-button-primary"
+              className="site-button site-button-secondary"
               to="/docs/get-started"
             >
-              Get started
+              Set up your server
             </Link>
-            <a className="site-button site-button-secondary" href="#product">
-              Explore the app
-            </a>
           </div>
         </section>
 
@@ -162,10 +170,7 @@ export default function Home(): ReactNode {
               </div>
             </dl>
             <p>
-              <a href="https://apps.apple.com/app/id6837762327">
-                Download on the App Store
-              </a>
-              . <Link to="/docs/iphone">iPhone setup</Link>.
+              <Link to="/docs/iphone">iPhone setup</Link>
             </p>
           </div>
         </section>

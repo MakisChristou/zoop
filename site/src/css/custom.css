@@ -186,9 +186,20 @@ a {
 .hero-actions {
   display: flex;
   justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
   gap: 12px;
   margin: 30px 0 18px;
+}
+.app-store-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
+.app-store-badge img {
+  display: block;
+  width: auto;
+  height: 48px;
 }
 .site-button {
   display: inline-flex;

@@ -8,6 +8,8 @@ Zoop collects recordings from your WHOOP and keeps them on your own server.
 Explore sleep, recovery, activity and weight through the iPhone app and web dashboard.
 Keep the original data, export it, and rerun analysis as the software improves.
 
+<a href="https://apps.apple.com/app/id6837762327"><img src="site/static/badges/app-store.svg" height="48" alt="Download on the App Store" /></a>
+
 [Self-hosting](docs/SELF_HOSTING.md) · [iPhone setup](docs/IPHONE_SETUP.md) ·
 [Web dashboard](web/README.md) · [Contributing](CONTRIBUTING.md)
 
@@ -38,7 +40,6 @@ You need three things:
 - **Server:** a machine running Docker with Compose v2.
 
 The server is required; the phone keeps an upload queue during connection outages.
-[Download Zoop from the App Store](https://apps.apple.com/app/id6837762327).
 
 ```sh
 git clone https://github.com/MakisChristou/zoop.git
