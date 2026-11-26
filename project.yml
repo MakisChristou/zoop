@@ -15,6 +15,8 @@ settings:
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: $(ZOOP_TEAM_ID)
+    MARKETING_VERSION: "1.1"
+    CURRENT_PROJECT_VERSION: 7
     PRODUCT_BUNDLE_IDENTIFIER: $(ZOOP_BUNDLE_ID)
 packages:
   ZoopECG:
@@ -40,12 +42,15 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
     sources:
       - App
+      - WidgetShared
     entitlements:
       path: App/Zoop.entitlements
       properties:
+        com.apple.security.application-groups: ["group.$(ZOOP_BUNDLE_ID).widgets"]
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.background-delivery: true
     dependencies:
+      - target: ZoopWidgets
       - package: ZoopECG
       - package: ZoopTransport
       - package: ZoopData
@@ -57,7 +62,9 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Zoop
-        CFBundleVersion: "6"
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WidgetGroup: group.$(ZOOP_BUNDLE_ID).widgets
         ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Geist-Regular.otf, Geist-Medium.otf, Geist-SemiBold.otf]
@@ -71,11 +78,36 @@ targets:
         UIBackgroundModes: [bluetooth-central]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+  ZoopWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [Widgets, WidgetShared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ZOOP_BUNDLE_ID).widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    entitlements:
+      path: Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.application-groups: ["group.$(ZOOP_BUNDLE_ID).widgets"]
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Zoop Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WidgetGroup: group.$(ZOOP_BUNDLE_ID).widgets
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   ZoopTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - AppTests
+      - Widgets/ZoopWidgetPanel.swift
+      - WidgetShared
     dependencies:
       - target: Zoop
     settings:

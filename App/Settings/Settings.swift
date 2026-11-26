@@ -39,10 +39,12 @@ enum Settings {
     static var isConfigured: Bool { credential != nil }
     static func save(_ credential: ServerCredential) throws {
         try credentials.save(credential)
+        WidgetSnapshot.clear()
         NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
     }
     static func clear() throws {
         try credentials.clear()
+        WidgetSnapshot.clear()
         NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
     }
     static func hash(_ value: String) -> String {

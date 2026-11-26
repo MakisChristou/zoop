@@ -88,6 +88,9 @@ struct RootView: View {
             if phase == .background { model.ecg.cancel() }
             if phase == .active { model.refreshReminders(); Task { await model.health.refreshReminderCompletion() }; model.health.activate(model.dataDevice); model.health.checkSoon(); model.workouts.checkSoon(force: true); if model.analysisUpdating { model.refreshAnalysis() } }
         }
+        .task(id: model.dataDevice) { model.widgets.refresh(model, force: true) }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.widgets.refresh(model, force: true) } }
+        .onChange(of: weightUnit) { model.widgets.weight(model) }
         .onAppear(perform: applyDemoRoute)
     }
 

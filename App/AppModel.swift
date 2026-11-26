@@ -39,6 +39,7 @@ final class AppModel {
     let activity = WorkoutStore()
     let sleep = SleepStore()
     let health = HealthCoordinator()
+    let widgets = WidgetPublisher()
     let photo = ProfilePhotoStore()
     let sleepGoal: SleepGoalStore
     var analysisRevision = 0
@@ -72,7 +73,10 @@ final class AppModel {
         ecg = ECGRecorder(transport: strap)
         guard servicesEnabled else { return }
         weeklyWeight.onGoalChange = { [weak self] in self?.refreshStepsReminder() }
-        health.onReminderChange = { [weak self] in self?.refreshReminders() }
+        health.onReminderChange = { [weak self] in
+            guard let self else { return }
+            self.refreshReminders(); self.widgets.weight(self)
+        }
         ecg.onHistoryChanged = { [weak self] in self?.refreshReminders() }
         reminderSettingsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -251,6 +255,7 @@ final class AppModel {
             processing = status
             processingError = nil
         } catch { if strap.serial == device, Settings.connectionID == connection { processingError = error.localizedDescription } }
+        widgets.refresh(self)
         health.activate(strap.serial)
         health.checkSoon()
     }
