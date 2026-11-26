@@ -15,6 +15,18 @@ struct ZoopWidgetEntry: TimelineEntry {
             data.recovery.append(.init(day: date, score: score, band: score >= 67 ? "high" : score <= 33 ? "low" : "moderate"))
             data.weights.append(.init(day: date, kg: [64.4,64.2,64.3,64.1,64.0,63.9,63.8][i], segment: 0))
         }
+        let heatDays = WidgetHistory.heatmapDays(through: now, calendar: calendar)
+        var loads: [Date: Double] = [:]
+        for (index, date) in heatDays.enumerated() where date <= now && index % 23 != 10 {
+            loads[date] = Double((index * 17 + index / 3 * 7) % 23)
+        }
+        data.activity = .init(refreshed: now, zone: calendar.timeZone.identifier, loads: loads)
+        let earlierScores: [Int?] = [78,73,55,61,69,84,88,72,64,38,31,51,68,77,82,73,nil,81,90,66,52,49,72]
+        for (index, score) in earlierScores.enumerated() {
+            guard let score else { continue }
+            let day = calendar.date(byAdding: .day, value: index - 29, to: now)!
+            data.recovery.append(.init(day: day, score: score, band: score >= 67 ? "high" : score <= 33 ? "low" : "moderate"))
+        }
         data.steps = 8_000
         data.stepsGoal = 10_000
         data.latestKg = 63.8
@@ -22,12 +34,14 @@ struct ZoopWidgetEntry: TimelineEntry {
     }
 }
 enum ZoopWidgetKind: String {
-    case today = "Today", recovery = "Recovery", weight = "Weight", steps = "Steps"
+    case today = "Today", recovery = "Recovery", weight = "Weight", steps = "Steps", everyDay = "Every day"
     var family: WidgetFamily { self == .recovery || self == .steps ? .systemSmall : .systemMedium }
+    var families: [WidgetFamily] { self == .recovery ? [.systemSmall, .systemMedium] : [family] }
     var detail: String {
         switch self {
         case .today: "Sleep, recovery and load."
-        case .recovery: "Your recovery over the last week."
+        case .recovery: "Your daily recovery over a week or a month."
+        case .everyDay: "Your daily load over the past 20 weeks."
         case .weight: "Your weight trend and weekly check-ins."
         case .steps: "Today’s steps and progress toward your goal."
         }
@@ -36,6 +50,7 @@ enum ZoopWidgetKind: String {
 struct ZoopWidgetPanel: View {
     let kind: ZoopWidgetKind
     let entry: ZoopWidgetEntry
+    let family: WidgetFamily
     private var data: WidgetSnapshot { entry.data }
     private let sleep = Color(red: 0.51, green: 0.58, blue: 0.86)
     private let blue = Color(red: 0.28, green: 0.62, blue: 0.92)
@@ -48,6 +63,13 @@ struct ZoopWidgetPanel: View {
         switch band { case "high": .green; case "moderate": .yellow; case "low": .red; default: .secondary }
     }
     var body: some View {
+        if kind == .everyDay || (kind == .recovery && family == .systemMedium) {
+            WidgetHistoryPanel(entry: entry, isActivity: kind == .everyDay)
+        } else {
+            compactPanel
+        }
+    }
+    private var compactPanel: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(kind.rawValue).font(.subheadline.weight(.medium))
@@ -81,6 +103,8 @@ struct ZoopWidgetPanel: View {
                         }.accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted) + ", " + (reading?.score.map { "\($0) percent" } ?? "No score"))
                     }
                 }
+            case .everyDay:
+                EmptyView()
             case .steps:
                 let reading = data.stepsReading(on: entry.date)
                 ZStack {

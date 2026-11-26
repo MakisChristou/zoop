@@ -22,6 +22,7 @@ struct WidgetSnapshot: Codable, Equatable {
     var steps: Int?
     var stepsGoal: Int?
     var recovery: [Recovery] = []
+    var activity: ActivityHistory?
     var weights: [Weight] = []
     var latestKg: Double?
     var unit = "kg"

@@ -25,9 +25,12 @@ final class WidgetPublisher {
         request = Task {
             let now = Date(), calendar = Calendar.current
             let today = calendar.startOfDay(for: now)
-            let from = calendar.date(byAdding: .day, value: -6, to: today)!
+            let from = calendar.date(byAdding: .day, value: 1 - WidgetHistory.recoveryDays, to: today)!
+            let cached = WidgetSnapshot.read().scoped(to: scope).activity
+            let fullHistory = cached?.isFresh(on: today, calendar: calendar) != true
+            let dayLimit = fullHistory ? WidgetHistory.weeks * 7 : 7
             async let nights = ZoopAPI.nights(deviceId: device, limit: 7, summary: true)
-            async let days = ZoopAPI.days(deviceId: device, limit: 7)
+            async let days = ZoopAPI.days(deviceId: device, limit: dayLimit)
             async let steps = ZoopAPI.steps(deviceId: device, day: today)
             async let goal = ZoopAPI.sleepGoal(deviceId: device)
             async let history = ZoopAPI.recoveryHistory(deviceId: device, from: from, to: today, timezone: calendar.timeZone.identifier)
@@ -48,7 +51,17 @@ final class WidgetPublisher {
                 value.steps = ZoopAPI.StepsDay.displayedCount(on: dayKey, details: stepDetails, summary: summary)
             }
             value.stepsGoal = model.weeklyWeight.stepsTarget(forScope: scope, on: today)
-            if dayRows != nil {
+            if let dayRows {
+                let dated = dayRows.compactMap { row in
+                    DayKey.date(row.day, timeZone: calendar.timeZone).map { ($0, row.load) }
+                }
+                let oldest = dated.map(\.0).min() ?? today
+                var loads = fullHistory || dayRows.count < dayLimit ? [:] : (cached?.loads ?? [:]).filter { $0.key < oldest }
+                let firstDay = WidgetHistory.heatmapDays(through: today, calendar: calendar)[0]
+                for (date, load) in dated where date >= firstDay && date <= today {
+                    loads[date] = load
+                }
+                value.activity = .init(refreshed: today, zone: calendar.timeZone.identifier, loads: loads)
                 value.load = summary?.load
                 value.loadFraction = value.load.map { $0 / LoadRing.maximum }
             }

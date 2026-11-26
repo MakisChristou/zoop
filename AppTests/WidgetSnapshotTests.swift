@@ -46,6 +46,31 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertEqual(old.owner, "a")
     }
 
+    func testHistoryCalendarAndLoadBucketsMatchTheDashboard() throws {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Nicosia"))
+        let today = try XCTUnwrap(cal.date(from: DateComponents(year: 2026, month: 11, day: 26)))
+        let grid = WidgetHistory.heatmapDays(through: today, calendar: cal)
+        XCTAssertEqual(grid.count, 140)
+        XCTAssertEqual(cal.component(.weekday, from: grid[0]), 2)
+        XCTAssertEqual(grid.filter { $0 > today }.count, 3)
+        XCTAssertEqual(Set(grid).count, grid.count)
+        let dates = WidgetHistory.calendarDays(ending: today, count: 30, calendar: cal)
+        XCTAssertEqual(dates.last, today)
+        XCTAssertEqual(cal.component(.day, from: dates[0]), 28)
+        XCTAssertEqual([0, 0.1, 4.2, 4.21, 8.4, 16.8, 21, 22].map(WidgetHistory.loadLevel), [0,1,1,2,2,4,5,5])
+        let saved = WidgetSnapshot.ActivityHistory(refreshed: today, zone: cal.timeZone.identifier, loads: [today: 0])
+        XCTAssertTrue(saved.isFresh(on: today, calendar: cal))
+        XCTAssertFalse(saved.isFresh(on: dates[0], calendar: cal))
+        var utc = cal
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        XCTAssertFalse(saved.isFresh(on: today, calendar: utc))
+        let snapshot = WidgetSnapshot(owner: "a", activity: saved)
+        XCTAssertEqual(try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(snapshot)), snapshot)
+        XCTAssertNil(snapshot.scoped(to: "b").activity)
+        XCTAssertNil(saved.loads[dates[0]])
+    }
+
     func testDisplayedStepsPreferFilteredDetailThenFilteredSummary() throws {
         let day = "2026-01-03"
         let summary = try JSONDecoder().decode(ZoopAPI.Day.self, from: Data(

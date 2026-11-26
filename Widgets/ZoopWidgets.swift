@@ -14,21 +14,32 @@ private struct Provider: TimelineProvider {
     }
 }
 
+private struct WidgetContent: View {
+    @Environment(\.widgetFamily) var family
+    let kind: ZoopWidgetKind
+    let entry: ZoopWidgetEntry
+
+    var body: some View {
+        ZoopWidgetPanel(kind: kind, entry: entry, family: family)
+    }
+}
+
 private protocol ZoopWidget: Widget { var kind: ZoopWidgetKind { get } }
 private struct TodayWidget: ZoopWidget { let kind = ZoopWidgetKind.today }
 private struct RecoveryWidget: ZoopWidget { let kind = ZoopWidgetKind.recovery }
 private struct StepsWidget: ZoopWidget { let kind = ZoopWidgetKind.steps }
+private struct EveryDayWidget: ZoopWidget { let kind = ZoopWidgetKind.everyDay }
 private struct WeightWidget: ZoopWidget { let kind = ZoopWidgetKind.weight }
 private extension ZoopWidget {
     @MainActor var body: some WidgetConfiguration {
         StaticConfiguration(kind: "Zoop" + kind.rawValue, provider: Provider()) { entry in
-            ZoopWidgetPanel(kind: kind, entry: entry)
+            WidgetContent(kind: kind, entry: entry)
                 .privacySensitive()
                 .containerBackground(for: .widget) { Color(white: 0.085) }
         }
         .configurationDisplayName(kind.rawValue)
         .description(kind.detail)
-        .supportedFamilies([kind.family])
+        .supportedFamilies(kind.families)
     }
 }
 @main
@@ -38,5 +49,6 @@ struct ZoopWidgets: WidgetBundle {
         RecoveryWidget()
         WeightWidget()
         StepsWidget()
+        EveryDayWidget()
     }
 }

@@ -107,6 +107,7 @@ targets:
     sources:
       - AppTests
       - Widgets/ZoopWidgetPanel.swift
+      - Widgets/WidgetHistoryPanel.swift
       - WidgetShared
     dependencies:
       - target: Zoop
