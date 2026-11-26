@@ -23,13 +23,15 @@ Keep the original data, export it, and rerun analysis as the software improves.
 
 ## Widgets for iPhone and Mac
 
-See your sleep, recovery and load in **Today**, your last seven scores in **Recovery**,
-and your weight trend and weekly check-ins in **Weight**. The iPhone widgets also
+**Today** shows sleep, recovery and load. **Recovery** shows your last seven scores.
+**Steps** shows today’s count inside a ring that fills toward your step goal.
+**Weight** shows your trend and weekly check-ins. The iPhone widgets also
 appear in the Mac widget gallery when **Use iPhone widgets** is enabled.
 
 <p>
   <img src="site/static/img/widgets/today.png" width="270" alt="Today widget with sleep, recovery and load rings" />
   <img src="site/static/img/widgets/recovery.png" width="126" alt="Recovery widget with a score and seven daily bars" />
+  <img src="site/static/img/widgets/steps.png" width="126" alt="Steps widget showing 8,000 steps toward a 10,000-step goal" />
   <img src="site/static/img/widgets/weight.png" width="270" alt="Weight widget with a trend line and weekly check-ins" />
 </p>
 

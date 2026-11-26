@@ -15,18 +15,21 @@ struct ZoopWidgetEntry: TimelineEntry {
             data.recovery.append(.init(day: date, score: score, band: score >= 67 ? "high" : score <= 33 ? "low" : "moderate"))
             data.weights.append(.init(day: date, kg: [64.4,64.2,64.3,64.1,64.0,63.9,63.8][i], segment: 0))
         }
+        data.steps = 8_000
+        data.stepsGoal = 10_000
         data.latestKg = 63.8
         return ZoopWidgetEntry(date: now, data: data)
     }
 }
 enum ZoopWidgetKind: String {
-    case today = "Today", recovery = "Recovery", weight = "Weight"
-    var family: WidgetFamily { self == .recovery ? .systemSmall : .systemMedium }
+    case today = "Today", recovery = "Recovery", weight = "Weight", steps = "Steps"
+    var family: WidgetFamily { self == .recovery || self == .steps ? .systemSmall : .systemMedium }
     var detail: String {
         switch self {
         case .today: "Sleep, recovery and load."
         case .recovery: "Your recovery over the last week."
         case .weight: "Your weight trend and weekly check-ins."
+        case .steps: "Today’s steps and progress toward your goal."
         }
     }
 }
@@ -52,7 +55,7 @@ struct ZoopWidgetPanel: View {
                 if kind == .weight {
                     Text(data.latestKg.map { (data.unit == "lb" ? $0 * 2.2046226218 : $0).formatted(.number.precision(.fractionLength(1))) + " " + data.unit } ?? "—")
                         .font(.headline)
-                } else if let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
+                } else if kind != .steps, let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
                     Text(date, format: .dateTime.day().month(.abbreviated)).font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -78,6 +81,26 @@ struct ZoopWidgetPanel: View {
                         }.accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted) + ", " + (reading?.score.map { "\($0) percent" } ?? "No score"))
                     }
                 }
+            case .steps:
+                let reading = data.stepsReading(on: entry.date)
+                ZStack {
+                    Circle().strokeBorder(.gray.opacity(0.35), lineWidth: 4)
+                    if let fraction = reading?.fraction, fraction > 0 {
+                        Circle().inset(by: 2).trim(from: 0, to: fraction)
+                            .stroke(blue, style: .init(lineWidth: 4, lineCap: .round))
+                            .rotationEffect(.degrees(-90)).widgetAccentable()
+                    }
+                    Text(reading?.count.formatted() ?? "—")
+                        .font(.system(size: 25, weight: .semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.6).padding(8)
+                }
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Steps")
+                .accessibilityValue(reading.map { reading in
+                    reading.count.formatted() + (reading.goal.map { " of " + $0.formatted() } ?? "")
+                } ?? "No reading")
             case .weight:
                 Chart(data.weights, id: \.day) { point in
                     LineMark(x: .value("Date", point.day), y: .value("Weight in kg", point.kg), series: .value("Segment", point.segment))

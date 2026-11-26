@@ -1,4 +1,5 @@
 import Combine
+import ZoopData
 import ZoopProtocol
 import SwiftUI
 
@@ -146,7 +147,9 @@ struct TodayView: View {
             }
     }
 
-    private var stepCount: Int? { currentSteps?.walking ?? selectedSummary?.stepsWalking }
+    private var stepCount: Int? {
+        ZoopAPI.StepsDay.displayedCount(on: DayKey.string(viewedDay), details: steps, summary: selectedSummary)
+    }
     private var stepTarget: Int? { CutTargets.steps(goal: model.weeklyWeight.goal, day: viewedDay, now: now) }
 
     private var outlookStatus: some View {

@@ -177,6 +177,15 @@ enum ZoopAPI {
         let total: Int
         let walking: Int
         let bouts: [Bout]
+
+        /// A zero-filled hourly response needs a daily summary to distinguish rest from missing data.
+        static func displayedCount(on day: String, details: Self?, summary: Day?) -> Int? {
+            let summary = summary?.day == day ? summary : nil
+            if let details, details.day == day, details.walking > 0 || summary != nil {
+                return details.walking
+            }
+            return summary?.stepsWalking
+        }
     }
 
     /// Body profile for calories and zones, and the home time zone days are cut in.

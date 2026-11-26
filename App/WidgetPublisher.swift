@@ -28,20 +28,28 @@ final class WidgetPublisher {
             let from = calendar.date(byAdding: .day, value: -6, to: today)!
             async let nights = ZoopAPI.nights(deviceId: device, limit: 7, summary: true)
             async let days = ZoopAPI.days(deviceId: device, limit: 7)
+            async let steps = ZoopAPI.steps(deviceId: device, day: today)
             async let goal = ZoopAPI.sleepGoal(deviceId: device)
             async let history = ZoopAPI.recoveryHistory(deviceId: device, from: from, to: today, timezone: calendar.timeZone.identifier)
             let (nightRows, dayRows, target, scores) = await (try? nights, try? days, try? goal, try? history)
+            let stepDetails = try? await steps
             guard !Task.isCancelled, model.dataDevice == device, Settings.connectionID == connection,
                   calendar.isDateInToday(today) else { return }
-            guard nightRows != nil || dayRows != nil || scores != nil else { return }
+            guard nightRows != nil || dayRows != nil || scores != nil || stepDetails != nil else { return }
             var value = WidgetSnapshot.read().scoped(to: scope)
             value.beginDay(today)
             if let nightRows {
                 value.sleepSeconds = nightRows.first { calendar.isDate($0.metrics.window.offset, inSameDayAs: today) }?.metrics.window.asleepS
             }
             if let target { value.sleepFraction = value.sleepSeconds.map { SleepGoal(minutes: target.minutes).progress(asleepSeconds: $0) } }
-            if let dayRows {
-                value.load = dayRows.first { $0.day == DayKey.string(today) }?.load
+            let dayKey = DayKey.string(today)
+            let summary = dayRows?.first { $0.day == dayKey }
+            if dayRows != nil || stepDetails != nil {
+                value.steps = ZoopAPI.StepsDay.displayedCount(on: dayKey, details: stepDetails, summary: summary)
+            }
+            value.stepsGoal = model.weeklyWeight.stepsTarget(forScope: scope, on: today)
+            if dayRows != nil {
+                value.load = summary?.load
                 value.loadFraction = value.load.map { $0 / LoadRing.maximum }
             }
             if let scores {
@@ -53,6 +61,14 @@ final class WidgetPublisher {
             }
             value.save()
         }
+    }
+
+    func updateStepsGoal(_ model: AppModel) {
+        let scope = Settings.healthScope(device: model.dataDevice)
+        var snapshot = WidgetSnapshot.read()
+        guard !scope.isEmpty, snapshot.owner == scope, let day = snapshot.day, Calendar.current.isDateInToday(day) else { return }
+        snapshot.stepsGoal = model.weeklyWeight.stepsTarget(forScope: scope, on: day)
+        snapshot.save()
     }
 
     func weight(_ model: AppModel) {

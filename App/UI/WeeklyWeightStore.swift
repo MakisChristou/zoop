@@ -34,6 +34,11 @@ import Observation
     init(defaults: UserDefaults = .standard, reminder: WeeklyWeightReminder = WeeklyWeightReminder(), loader: @escaping Loader = { try await ZoopAPI.weeklyWeight($0) }, saver: @escaping Saver = { try await ZoopAPI.saveWeightGoal($0, input: $1) }, historyLoader: @escaping HistoryLoader = { try await ZoopAPI.goalHistory($0,before:$1) }, periodLoader: @escaping PeriodLoader = { try await ZoopAPI.goalPeriod($0,id:$1) }) {
         self.defaults = defaults; self.reminder = reminder; self.loader = loader; self.saver = saver; self.historyLoader = historyLoader; self.periodLoader = periodLoader
     }
+    func stepsTarget(forScope scope: String, on day: Date) -> Int? {
+        guard self.scope == scope, connection == Settings.connectionID else { return nil }
+        return CutTargets.steps(goal: goal, day: day)
+    }
+
     func activate(device: String, scope: String?) {
         if self.scope != scope || self.device != device || connection != Settings.connectionID {
             scheduled?.cancel(); scheduled = nil; request = UUID()

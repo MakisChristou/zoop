@@ -111,8 +111,8 @@ export default function Home(): ReactNode {
           <div className="section-intro">
             <h2 id="widgets-title">Widgets for iPhone and Mac</h2>
             <p>
-              Pin your daily rings, recovery history or weight trend to your
-              Home Screen or Mac desktop.
+              See your daily rings, recovery history, steps and weight trend on
+              your Home Screen or Mac desktop.
             </p>
           </div>
           <figure className="widget-previews">
@@ -130,6 +130,13 @@ export default function Home(): ReactNode {
                 height="158"
                 loading="lazy"
                 alt="Recovery score with seven daily bars"
+              />
+              <img
+                src={useBaseUrl("/img/widgets/steps.png")}
+                width="158"
+                height="158"
+                loading="lazy"
+                alt="8,000 steps toward a 10,000-step goal"
               />
               <img
                 src={useBaseUrl("/img/widgets/weight.png")}

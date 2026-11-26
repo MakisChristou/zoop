@@ -19,6 +19,8 @@ struct WidgetSnapshot: Codable, Equatable {
     var sleepFraction: Double?
     var load: Double?
     var loadFraction: Double?
+    var steps: Int?
+    var stepsGoal: Int?
     var recovery: [Recovery] = []
     var weights: [Weight] = []
     var latestKg: Double?
@@ -35,6 +37,14 @@ struct WidgetSnapshot: Codable, Equatable {
         sleepFraction = nil
         load = nil
         loadFraction = nil
+        steps = nil
+        stepsGoal = nil
+    }
+
+    func stepsReading(on date: Date, calendar: Calendar = .current) -> (count: Int, goal: Int?, fraction: Double?)? {
+        guard let day, calendar.isDate(day, inSameDayAs: date), let steps, steps >= 0 else { return nil }
+        let goal = stepsGoal.flatMap { $0 > 0 ? $0 : nil }
+        return (steps, goal, goal.map { min(Double(steps) / Double($0), 1) })
     }
 
     private static var file: URL? {

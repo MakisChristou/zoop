@@ -17,6 +17,7 @@ private struct Provider: TimelineProvider {
 private protocol ZoopWidget: Widget { var kind: ZoopWidgetKind { get } }
 private struct TodayWidget: ZoopWidget { let kind = ZoopWidgetKind.today }
 private struct RecoveryWidget: ZoopWidget { let kind = ZoopWidgetKind.recovery }
+private struct StepsWidget: ZoopWidget { let kind = ZoopWidgetKind.steps }
 private struct WeightWidget: ZoopWidget { let kind = ZoopWidgetKind.weight }
 private extension ZoopWidget {
     @MainActor var body: some WidgetConfiguration {
@@ -36,5 +37,6 @@ struct ZoopWidgets: WidgetBundle {
         TodayWidget()
         RecoveryWidget()
         WeightWidget()
+        StepsWidget()
     }
 }
