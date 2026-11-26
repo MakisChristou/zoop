@@ -302,6 +302,24 @@ a {
   max-width: 440px;
   margin-bottom: 0;
 }
+.widget-previews {
+  margin: 28px 0 0;
+}
+.widget-previews > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.widget-previews img {
+  max-width: 100%;
+  height: auto;
+}
+.widget-previews figcaption {
+  color: var(--site-muted);
+  margin-top: 14px;
+  font-size: 13px;
+}
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

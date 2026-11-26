@@ -107,6 +107,44 @@ export default function Home(): ReactNode {
 
         <ProductPreview />
 
+        <section className="section-wrap" aria-labelledby="widgets-title">
+          <div className="section-intro">
+            <h2 id="widgets-title">Widgets for iPhone and Mac</h2>
+            <p>
+              Pin your daily rings, recovery history or weight trend to your
+              Home Screen or Mac desktop.
+            </p>
+          </div>
+          <figure className="widget-previews">
+            <div>
+              <img
+                src={useBaseUrl("/img/widgets/today.png")}
+                width="338"
+                height="158"
+                loading="lazy"
+                alt="Today with sleep, recovery and load rings"
+              />
+              <img
+                src={useBaseUrl("/img/widgets/recovery.png")}
+                width="158"
+                height="158"
+                loading="lazy"
+                alt="Recovery score with seven daily bars"
+              />
+              <img
+                src={useBaseUrl("/img/widgets/weight.png")}
+                width="338"
+                height="158"
+                loading="lazy"
+                alt="Weight trend with this week’s check-ins"
+              />
+            </div>
+            <figcaption>
+              Zoop 1.1 · Internal TestFlight preview · Sample data
+            </figcaption>
+          </figure>
+        </section>
+
         <section
           className="ownership section-wrap"
           aria-labelledby="ownership-title"

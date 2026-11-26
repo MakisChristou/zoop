@@ -21,6 +21,20 @@ Keep the original data, export it, and rerun analysis as the software improves.
 </p>
 <p align="center"><sub>Current app UI, captured in the simulator with sample data.</sub></p>
 
+## Widgets for iPhone and Mac
+
+See your sleep, recovery and load in **Today**, your last seven scores in **Recovery**,
+and your weight trend and weekly check-ins in **Weight**. The iPhone widgets also
+appear in the Mac widget gallery when **Use iPhone widgets** is enabled.
+
+<p>
+  <img src="site/static/img/widgets/today.png" width="270" alt="Today widget with sleep, recovery and load rings" />
+  <img src="site/static/img/widgets/recovery.png" width="126" alt="Recovery widget with a score and seven daily bars" />
+  <img src="site/static/img/widgets/weight.png" width="270" alt="Weight widget with a trend line and weekly check-ins" />
+</p>
+
+Available in the internal Zoop 1.1 TestFlight build. Previews show sample data.
+
 ## What you can do
 
 - Explore sleep stages, nightly measurements and your daily Recovery index.
