@@ -150,6 +150,29 @@ export default function Home(): ReactNode {
               Zoop 1.1 · Internal TestFlight preview · Sample data
             </figcaption>
           </figure>
+          <figure
+            className="widget-previews"
+            aria-labelledby="widget-history-title"
+          >
+            <h3 id="widget-history-title">Coming next</h3>
+            <div>
+              <img
+                src={useBaseUrl("/img/widgets/every-day.png")}
+                width="338"
+                height="158"
+                loading="lazy"
+                alt="Every day widget with 20 weeks of daily training load, from dark to bright blue"
+              />
+              <img
+                src={useBaseUrl("/img/widgets/daily-recovery.png")}
+                width="338"
+                height="158"
+                loading="lazy"
+                alt="Medium Recovery widget with 30 days of scores in green, yellow and red"
+              />
+            </div>
+            <figcaption>Widget previews · Sample data</figcaption>
+          </figure>
         </section>
 
         <section

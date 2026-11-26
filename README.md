@@ -35,7 +35,15 @@ appear in the Mac widget gallery when **Use iPhone widgets** is enabled.
   <img src="site/static/img/widgets/weight.png" width="270" alt="Weight widget with a trend line and weekly check-ins" />
 </p>
 
-Available in the internal Zoop 1.1 TestFlight build. Previews show sample data.
+These four widgets are available in Zoop 1.1 on internal TestFlight.
+
+**Coming next:** **Every day** shows 20 weeks of training load, one square per day.
+**Daily recovery** shows 30 days of scores in the medium Recovery widget. Both previews use sample data.
+
+<p>
+  <img src="site/static/img/widgets/every-day.png" width="338" alt="Every day widget with 20 weeks of blue daily load squares" />
+  <img src="site/static/img/widgets/daily-recovery.png" width="338" alt="Medium Recovery widget with 30 days of green, yellow and red scores" />
+</p>
 
 ## What you can do
 
