@@ -44,6 +44,46 @@ test("responsive homepage and product previews", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("six widget previews have distinct positions at each screen size", async ({
+  page,
+}) => {
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const gallery = page.locator(".widget-previews");
+    await gallery.scrollIntoViewIfNeeded();
+    const figures = gallery.locator("figure");
+    await expect(figures).toHaveCount(6);
+    const bounds = await figures.evaluateAll(async (items) =>
+      Promise.all(
+        items.map(async (item) => {
+          const image = item.querySelector("img")!;
+          await image.decode();
+          const { left, top, right, bottom } = item.getBoundingClientRect();
+          return { left, top, right, bottom };
+        }),
+      ),
+    );
+    for (const [index, a] of bounds.entries()) {
+      expect(a.left).toBeGreaterThanOrEqual(0);
+      expect(a.right).toBeLessThanOrEqual(width);
+      for (const b of bounds.slice(index + 1)) {
+        expect(
+          a.right <= b.left ||
+            b.right <= a.left ||
+            a.bottom <= b.top ||
+            b.bottom <= a.top,
+        ).toBe(true);
+      }
+    }
+    if (width === 390 || width === 1440) {
+      await gallery.screenshot({
+        path: `test-results/widget-gallery-${width}.png`,
+      });
+    }
+  }
+});
+
 test("guides, anchors and responsive reading", async ({ page }) => {
   const paths = [
     "get-started",

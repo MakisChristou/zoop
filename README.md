@@ -23,26 +23,22 @@ Keep the original data, export it, and rerun analysis as the software improves.
 
 ## Widgets for iPhone and Mac
 
-**Today** shows sleep, recovery and load. **Recovery** shows your last seven scores.
-**Steps** shows today’s count inside a ring that fills toward your step goal.
-**Weight** shows your trend and weekly check-ins. The iPhone widgets also
-appear in the Mac widget gallery when **Use iPhone widgets** is enabled.
+Preview the iPhone widgets below with sample readings. On Mac, enable **Use iPhone widgets** to add them to your desktop.
+
+**Today, Steps and Recovery** show your daily rings, step count and latest recovery score. **Weight** pairs a trend line with seven daily check-ins.
 
 <p>
-  <img src="site/static/img/widgets/today.png" width="270" alt="Today widget with sleep, recovery and load rings" />
-  <img src="site/static/img/widgets/recovery.png" width="126" alt="Recovery widget with a score and seven daily bars" />
-  <img src="site/static/img/widgets/steps.png" width="126" alt="Steps widget showing 8,000 steps toward a 10,000-step goal" />
-  <img src="site/static/img/widgets/weight.png" width="270" alt="Weight widget with a trend line and weekly check-ins" />
+  <img src="site/static/img/widgets/today.png" width="270" alt="Sleep, recovery and load rings with a moon, heart and lightning bolt" />
+  <img src="site/static/img/widgets/steps.png" width="126" alt="8,000 steps in a blue ring filled to 80 percent" />
+  <img src="site/static/img/widgets/recovery.png" width="126" alt="78 percent recovery above seven daily bars" />
+  <img src="site/static/img/widgets/weight.png" width="270" alt="63.8 kg with a trend line and seven check-in dots" />
 </p>
 
-These four widgets are available in Zoop 1.1 on internal TestFlight.
-
-**Coming next:** **Every day** shows 20 weeks of training load, one square per day.
-**Daily recovery** shows 30 days of scores in the medium Recovery widget. Both previews use sample data.
+**Every day** shows 20 weeks of training load, one square per day. Choose the medium **Recovery** widget for 30 days of recovery bars.
 
 <p>
-  <img src="site/static/img/widgets/every-day.png" width="338" alt="Every day widget with 20 weeks of blue daily load squares" />
-  <img src="site/static/img/widgets/daily-recovery.png" width="338" alt="Medium Recovery widget with 30 days of green, yellow and red scores" />
+  <img src="site/static/img/widgets/every-day.png" width="338" alt="Twenty weeks of daily load squares in shades of blue" />
+  <img src="site/static/img/widgets/daily-recovery.png" width="338" alt="Thirty days of green, yellow and red recovery bars" />
 </p>
 
 ## What you can do

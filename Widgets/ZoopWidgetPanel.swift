@@ -59,9 +59,6 @@ struct ZoopWidgetPanel: View {
     private var todayScore: WidgetSnapshot.Recovery? {
         data.recovery.first { calendar.isDate($0.day, inSameDayAs: reference) }
     }
-    private func tone(_ band: String?) -> Color {
-        switch band { case "high": .green; case "moderate": .yellow; case "low": .red; default: .secondary }
-    }
     var body: some View {
         if kind == .everyDay || (kind == .recovery && family == .systemMedium) {
             WidgetHistoryPanel(entry: entry, isActivity: kind == .everyDay)
@@ -71,32 +68,33 @@ struct ZoopWidgetPanel: View {
     }
     private var compactPanel: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(kind.rawValue).font(.subheadline.weight(.medium))
-                Spacer(minLength: 2)
-                if kind == .weight {
-                    Text(data.latestKg.map { (data.unit == "lb" ? $0 * 2.2046226218 : $0).formatted(.number.precision(.fractionLength(1))) + " " + data.unit } ?? "—")
-                        .font(.headline)
-                } else if kind != .steps, let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
-                    Text(date, format: .dateTime.day().month(.abbreviated)).font(.caption2).foregroundStyle(.secondary)
-                }
+            if (kind == .today || kind == .recovery), let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
+                Text(date, format: .dateTime.day().month(.abbreviated))
+                    .font(.caption2).foregroundStyle(.secondary)
             }
             switch kind {
             case .today:
                 HStack(spacing: 12) {
-                    ring("Sleep", data.sleepSeconds.map { "\($0 / 3600)h \(($0 % 3600) / 60)m" }, data.sleepFraction, sleep)
-                    ring("Recovery", todayScore?.score.map { "\($0)%" }, todayScore?.score.map { Double($0)/100 }, tone(todayScore?.band))
-                    ring("Load", data.load?.formatted(.number.precision(.fractionLength(1))), data.loadFraction, blue)
+                    ring("Sleep", icon: "moon", data.sleepSeconds.map { "\($0 / 3600)h \(($0 % 3600) / 60)m" }, data.sleepFraction, sleep)
+                    ring("Recovery", icon: "heart", todayScore?.score.map { "\($0)%" }, todayScore?.score.map { Double($0)/100 }, todayScore?.widgetColor ?? .secondary)
+                    ring("Load", icon: "bolt", data.load?.formatted(.number.precision(.fractionLength(1))), data.loadFraction, blue)
                 }.frame(maxHeight: .infinity)
             case .recovery:
-                Text(todayScore?.score.map { "\($0)%" } ?? "—").font(.system(size: 34, weight: .semibold)).minimumScaleFactor(0.7)
+                Group {
+                    if let score = todayScore?.score {
+                        Text("\(score)\(Text("%").font(.title3.weight(.semibold)))")
+                            .accessibilityLabel("Recovery, \(score) percent")
+                    } else {
+                        Text("—").accessibilityLabel("No recovery score")
+                    }
+                }.font(.system(size: 32, weight: .semibold)).minimumScaleFactor(0.7)
                 HStack(alignment: .bottom, spacing: 4) {
                     ForEach(-6..<1, id: \.self) { offset in
                         let date = calendar.date(byAdding: .day, value: offset, to: reference)!
                         let reading = data.recovery.first { calendar.isDate($0.day, inSameDayAs: date) }
                         GeometryReader { size in
                             if let score = reading?.score {
-                                RoundedRectangle(cornerRadius: 2).fill(tone(reading?.band)).widgetAccentable()
+                                RoundedRectangle(cornerRadius: 2).fill(reading?.widgetColor ?? .secondary).widgetAccentable()
                                     .frame(height: max(1, size.size.height * CGFloat(score)/100))
                                     .frame(maxHeight: .infinity, alignment: .bottom)
                             }
@@ -108,14 +106,14 @@ struct ZoopWidgetPanel: View {
             case .steps:
                 let reading = data.stepsReading(on: entry.date)
                 ZStack {
-                    Circle().strokeBorder(.gray.opacity(0.35), lineWidth: 4)
+                    Circle().strokeBorder(.gray.opacity(0.35), lineWidth: 5)
                     if let fraction = reading?.fraction, fraction > 0 {
-                        Circle().inset(by: 2).trim(from: 0, to: fraction)
-                            .stroke(blue, style: .init(lineWidth: 4, lineCap: .round))
+                        Circle().inset(by: 2.5).trim(from: 0, to: fraction)
+                            .stroke(blue, style: .init(lineWidth: 5, lineCap: .round))
                             .rotationEffect(.degrees(-90)).widgetAccentable()
                     }
                     Text(reading?.count.formatted() ?? "—")
-                        .font(.system(size: 25, weight: .semibold)).monospacedDigit()
+                        .font(.system(size: 32, weight: .semibold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6).padding(8)
                 }
                 .aspectRatio(1, contentMode: .fit)
@@ -126,42 +124,67 @@ struct ZoopWidgetPanel: View {
                     reading.count.formatted() + (reading.goal.map { " of " + $0.formatted() } ?? "")
                 } ?? "No reading")
             case .weight:
+                if let kg = data.latestKg {
+                    let value = data.unit == "lb" ? kg * 2.2046226218 : kg
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(value.formatted(.number.precision(.fractionLength(1)))).font(.title.bold())
+                        Text(data.unit).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Weight, \(value.formatted(.number.precision(.fractionLength(1)))) \(data.unit)")
+                } else {
+                    Text("—").font(.title.bold()).accessibilityLabel("No weigh-in")
+                }
                 Chart(data.weights, id: \.day) { point in
                     LineMark(x: .value("Date", point.day), y: .value("Weight in kg", point.kg), series: .value("Segment", point.segment))
                     PointMark(x: .value("Date", point.day), y: .value("Weight in kg", point.kg))
                         .symbolSize(point.day == data.weights.last?.day || data.weights.filter { $0.segment == point.segment }.count == 1 ? 12 : 0)
                 }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis(.hidden).chartYAxis(.hidden)
                     .foregroundStyle(.primary).padding(.vertical, 4)
-                HStack {
+                HStack(spacing: 0) {
                     ForEach(0..<7) { offset in
                         let start = calendar.dateInterval(of: .weekOfYear, for: entry.date)!.start
                         let day = calendar.date(byAdding: .day, value: offset, to: start)!
                         let logged = data.weights.contains { calendar.isDate($0.day, inSameDayAs: day) }
-                        VStack(spacing: 3) {
-                            Circle().fill(logged ? Color.green : .clear)
-                                .overlay { Circle().stroke(logged ? .clear : .secondary, lineWidth: 1) }
-                                .overlay { if calendar.isDate(day, inSameDayAs: entry.date) { Circle().stroke().padding(-2) } }
-                                .frame(width: 8, height: 8)
-                            Text(day, format: .dateTime.weekday(.narrow)).font(.caption2).foregroundStyle(.secondary)
-                        }.frame(maxWidth: .infinity)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(day.formatted(.dateTime.weekday(.wide)) + (logged ? ", logged" : ", no weigh-in"))
+                        if offset > 0 { Spacer(minLength: 0) }
+                        let isToday = calendar.isDate(day, inSameDayAs: entry.date)
+                        Circle().fill(logged ? Color.green : .clear)
+                            .overlay { Circle().stroke(logged ? .clear : .secondary, lineWidth: 1) }
+                            .overlay { if isToday { Circle().stroke(logged ? Color.green : .primary, lineWidth: 1.5).padding(-2.5) } }
+                            .frame(width: 7, height: 7).padding(3)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel((isToday ? "Today, " : "") + day.formatted(.dateTime.weekday(.wide)) + (logged ? ", logged" : ", no weigh-in"))
                     }
                 }
             }
         }.foregroundStyle(.primary).environment(\.colorScheme, .dark)
     }
 
-    private func ring(_ label: String, _ value: String?, _ fraction: Double?, _ color: Color) -> some View {
-        VStack(spacing: 5) {
-            ZStack {
-                Circle().stroke(.gray.opacity(0.35), lineWidth: 4)
-                Circle().trim(from: 0, to: min(max(fraction ?? 0, 0), 1))
-                    .stroke(color, style: .init(lineWidth: 4, lineCap: .round)).rotationEffect(.degrees(-90)).widgetAccentable()
-                Text(value ?? "—").font(.headline).minimumScaleFactor(0.6).lineLimit(1).padding(5)
-            }.aspectRatio(1, contentMode: .fit)
-            Text(label).font(.caption).foregroundStyle(.secondary)
-        }.frame(maxWidth: .infinity)
+    private func ring(_ label: String, icon: String, _ value: String?, _ fraction: Double?, _ color: Color) -> some View {
+        ZStack {
+            Circle().strokeBorder(.gray.opacity(0.35), lineWidth: 4)
+            if let fraction, fraction > 0 {
+                Circle().inset(by: 2).trim(from: 0, to: min(fraction, 1))
+                    .stroke(color, style: .init(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90)).widgetAccentable()
+            }
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.caption).foregroundStyle(.secondary)
+                Text(value ?? "—").font(.headline).minimumScaleFactor(0.6).lineLimit(1)
+            }.padding(7)
+        }
+        .aspectRatio(1, contentMode: .fit).frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore).accessibilityLabel(label + ", " + (value ?? "No reading"))
+    }
+}
+
+extension WidgetSnapshot.Recovery {
+    var widgetColor: Color {
+        switch band {
+        case "high": Color(red: 0.278, green: 0.812, blue: 0.475)
+        case "moderate": Color(red: 0.988, green: 0.769, blue: 0.278)
+        case "low": Color(red: 0.969, green: 0.361, blue: 0.380)
+        default: .secondary
+        }
     }
 }

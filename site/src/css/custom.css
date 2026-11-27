@@ -303,22 +303,51 @@ a {
   margin-bottom: 0;
 }
 .widget-previews {
-  margin: 28px 0 0;
+  display: grid;
+  max-width: 880px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-areas: "steps today today every-day every-day" "recovery weight weight daily-recovery daily-recovery";
+  gap: 18px 14px;
+  margin-top: 28px;
 }
-.widget-previews > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+.widget-previews figure {
+  margin: 0;
+}
+.widget-previews [data-widget="steps"] {
+  grid-area: steps;
+}
+.widget-previews [data-widget="today"] {
+  grid-area: today;
+}
+.widget-previews [data-widget="every-day"] {
+  grid-area: every-day;
+}
+.widget-previews [data-widget="recovery"] {
+  grid-area: recovery;
+}
+.widget-previews [data-widget="weight"] {
+  grid-area: weight;
+}
+.widget-previews [data-widget="daily-recovery"] {
+  grid-area: daily-recovery;
 }
 .widget-previews img {
-  max-width: 100%;
+  display: block;
+  width: 100%;
   height: auto;
 }
 .widget-previews figcaption {
+  text-align: center;
   color: var(--site-muted);
-  margin-top: 14px;
+  margin-top: 6px;
   font-size: 13px;
+}
+@media (max-width: 700px) {
+  .widget-previews {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "steps recovery" "today today" "weight weight" "every-day every-day" "daily-recovery daily-recovery";
+    max-width: 400px;
+  }
 }
 .feature-grid {
   display: grid;

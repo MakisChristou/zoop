@@ -24,6 +24,65 @@ const views = [
   },
 ];
 
+const widgets = [
+  {
+    name: "Steps",
+    file: "steps",
+    width: 158,
+    alt: "8,000 steps in a blue ring filled to 80 percent",
+  },
+  {
+    name: "Recovery",
+    file: "recovery",
+    width: 158,
+    alt: "78 percent recovery above seven daily bars",
+  },
+  {
+    name: "Today",
+    file: "today",
+    width: 338,
+    alt: "Three rings for sleep, recovery and load",
+  },
+  {
+    name: "Weight",
+    file: "weight",
+    width: 338,
+    alt: "63.8 kg above a weight trend and seven check-in dots",
+  },
+  {
+    name: "Every day",
+    file: "every-day",
+    width: 338,
+    alt: "20 weeks of training load in blue squares, one per day",
+  },
+  {
+    name: "Daily recovery",
+    file: "daily-recovery",
+    width: 338,
+    alt: "30 days of recovery scores in green, yellow and red bars",
+  },
+];
+
+function WidgetGallery() {
+  const directory = useBaseUrl("/img/widgets/");
+  return (
+    <div className="widget-previews">
+      {widgets.map(({ name, file, width, alt }) => (
+        <figure key={file} data-widget={file}>
+          <img
+            src={directory + file + ".png"}
+            width={width}
+            height={158}
+            loading="lazy"
+            alt={alt}
+          />
+          <figcaption>{name}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 function ProductPreview() {
   const [selected, setSelected] = useState(0);
   const view = views[selected];
@@ -111,68 +170,11 @@ export default function Home(): ReactNode {
           <div className="section-intro">
             <h2 id="widgets-title">Widgets for iPhone and Mac</h2>
             <p>
-              See your daily rings, recovery history, steps and weight trend on
-              your Home Screen or Mac desktop.
+              Preview the Home Screen and Mac desktop widgets with sample
+              readings.
             </p>
           </div>
-          <figure className="widget-previews">
-            <div>
-              <img
-                src={useBaseUrl("/img/widgets/today.png")}
-                width="338"
-                height="158"
-                loading="lazy"
-                alt="Today with sleep, recovery and load rings"
-              />
-              <img
-                src={useBaseUrl("/img/widgets/recovery.png")}
-                width="158"
-                height="158"
-                loading="lazy"
-                alt="Recovery score with seven daily bars"
-              />
-              <img
-                src={useBaseUrl("/img/widgets/steps.png")}
-                width="158"
-                height="158"
-                loading="lazy"
-                alt="8,000 steps toward a 10,000-step goal"
-              />
-              <img
-                src={useBaseUrl("/img/widgets/weight.png")}
-                width="338"
-                height="158"
-                loading="lazy"
-                alt="Weight trend with this week’s check-ins"
-              />
-            </div>
-            <figcaption>
-              Zoop 1.1 · Internal TestFlight preview · Sample data
-            </figcaption>
-          </figure>
-          <figure
-            className="widget-previews"
-            aria-labelledby="widget-history-title"
-          >
-            <h3 id="widget-history-title">Coming next</h3>
-            <div>
-              <img
-                src={useBaseUrl("/img/widgets/every-day.png")}
-                width="338"
-                height="158"
-                loading="lazy"
-                alt="Every day widget with 20 weeks of daily training load, from dark to bright blue"
-              />
-              <img
-                src={useBaseUrl("/img/widgets/daily-recovery.png")}
-                width="338"
-                height="158"
-                loading="lazy"
-                alt="Medium Recovery widget with 30 days of scores in green, yellow and red"
-              />
-            </div>
-            <figcaption>Widget previews · Sample data</figcaption>
-          </figure>
+          <WidgetGallery />
         </section>
 
         <section

@@ -20,12 +20,7 @@ struct WidgetHistoryPanel: View {
         let recovery = Dictionary(entry.data.recovery.map { (calendar.startOfDay(for: $0.day), $0) },
                                   uniquingKeysWith: { _, last in last })
         let hasReadings = dates.contains { isActivity ? loads[$0] != nil : recovery[$0]?.score != nil }
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(isActivity ? "Every day" : "Daily recovery").font(.subheadline.weight(.medium))
-                Spacer()
-                Text(isActivity ? "20 weeks" : "30 days").font(.caption2).foregroundStyle(muted)
-            }
+        Group {
             if hasReadings {
                 Canvas { context, size in
                     if isActivity {
@@ -35,6 +30,7 @@ struct WidgetHistoryPanel: View {
                     }
                 }
                 .accessibilityElement(children: .contain)
+                .accessibilityLabel(isActivity ? "Every day, 20 weeks" : "Daily recovery, 30 days")
                 .accessibilityChildren {
                     ForEach(dates, id: \.self) { date in
                         if isActivity, let load = loads[date] {
@@ -56,30 +52,16 @@ struct WidgetHistoryPanel: View {
         Color(red: Double(rgb >> 16) / 255, green: Double(rgb >> 8 & 255) / 255, blue: Double(rgb & 255) / 255)
     }
 
-    private func label(_ text: String, _ x: CGFloat, _ y: CGFloat, in context: GraphicsContext, anchor: UnitPoint = .leading) {
-        context.draw(Text(verbatim: text).font(.system(size: 10)).foregroundStyle(muted),
-                     at: CGPoint(x: x, y: y), anchor: anchor)
-    }
-
     private func drawHeatmap(_ context: GraphicsContext, _ size: CGSize, _ dates: [Date], _ loads: [Date: Double]) {
-        let left: CGFloat = 27, top: CGFloat = 17
-        let dx = (size.width - left) / CGFloat(WidgetHistory.weeks)
-        let dy = (size.height - top) / 7
-        let side = max(1, min(dx, dy) - 2)
-        var previousLabel: CGFloat = -100
+        let columns = CGFloat(WidgetHistory.weeks)
+        let gap: CGFloat = 2
+        let pitch = min((size.width + gap) / columns, (size.height + gap) / 7)
+        let side = max(0, pitch - gap)
+        let left = (size.width - (columns * pitch - gap)) / 2
+        let top = (size.height - (7 * pitch - gap)) / 2
         for (i, date) in dates.enumerated() where date <= entry.date {
-            let x = left + CGFloat(i / 7) * dx, y = top + CGFloat(i % 7) * dy
-            if i == 0 || calendar.component(.day, from: date) == 1 {
-                let labelX = min(x, size.width - 24)
-                if labelX - previousLabel >= 25 {
-                    label(date.formatted(.dateTime.month(.abbreviated)), labelX, 6, in: context)
-                    previousLabel = labelX
-                }
-            }
-            if [0, 2, 4].contains(i) {
-                label(date.formatted(.dateTime.weekday(.narrow)), 0, y + side / 2, in: context)
-            }
-            let tile = Path(roundedRect: CGRect(x: x, y: y, width: side, height: side), cornerRadius: 2)
+            let x = left + CGFloat(i / 7) * pitch, y = top + CGFloat(i % 7) * pitch
+            let tile = Path(roundedRect: CGRect(x: x, y: y, width: side, height: side), cornerRadius: 2.5)
             if let load = loads[date] {
                 context.fill(tile, with: .color(color(loadColors[WidgetHistory.loadLevel(load)])))
             } else {
@@ -90,34 +72,13 @@ struct WidgetHistoryPanel: View {
     }
 
     private func drawRecovery(_ context: GraphicsContext, _ size: CGSize, _ dates: [Date], _ readings: [Date: WidgetSnapshot.Recovery]) {
-        let left: CGFloat = 30, top: CGFloat = 5, bottom = size.height - 18
-        let height = max(1, bottom - top), dx = (size.width - left) / CGFloat(dates.count)
-        for tick in [0, 33, 67, 100] {
-            let y = bottom - CGFloat(tick) / 100 * height
-            var line = Path()
-            line.move(to: CGPoint(x: left, y: y))
-            line.addLine(to: CGPoint(x: size.width, y: y))
-            context.stroke(line, with: .color(Color(white: 0.21)), style: StrokeStyle(lineWidth: 0.6, dash: [2, 3]))
-            label("\(tick)%", left - 4, y, in: context, anchor: .trailing)
-        }
+        let dx = size.width / CGFloat(dates.count)
+        let gap = min(3, dx / 3)
         for (i, date) in dates.enumerated() {
             guard let reading = readings[date], let score = reading.score else { continue }
-            let h = max(1, height * CGFloat(min(100, max(0, score))) / 100)
-            let bar = CGRect(x: left + CGFloat(i) * dx + 1, y: bottom - h, width: max(1, dx - 2), height: h)
-            let fill: Color
-            switch reading.band {
-            case "high": fill = color(0x47cf79)
-            case "moderate": fill = color(0xfcc447)
-            case "low": fill = color(0xf75c61)
-            default: fill = muted
-            }
-            context.fill(Path(roundedRect: bar, cornerRadius: 1.5), with: .color(fill))
-        }
-        for i in [0, dates.count / 2, dates.count - 1] {
-            let first = i == 0, last = i == dates.count - 1
-            label(dates[i].formatted(.dateTime.month(.abbreviated).day()),
-                  first ? left : last ? size.width : left + (CGFloat(i) + 0.5) * dx,
-                  size.height - 5, in: context, anchor: first ? .leading : last ? .trailing : .center)
+            let h = max(1, size.height * CGFloat(min(100, max(0, score))) / 100)
+            let bar = CGRect(x: CGFloat(i) * dx + gap / 2, y: size.height - h, width: dx - gap, height: h)
+            context.fill(Path(roundedRect: bar, cornerRadius: 3), with: .color(reading.widgetColor))
         }
     }
 }
