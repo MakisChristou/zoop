@@ -26,8 +26,15 @@ import XCTest
     private func openWeight(_ app: XCUIApplication) {
         let card = app.buttons["todayWeight"].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 15))
-        for _ in 0..<10 { if card.isHittable { break }; app.swipeUp() }
-        XCTAssertTrue(card.isHittable); shot(app, "Compact Today weight card"); card.tap()
+        let tabBarTop = app.buttons["tab-Today"].frame.minY
+        for _ in 0..<10 {
+            if card.isHittable && card.frame.maxY < tabBarTop { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(card.isHittable)
+        XCTAssertLessThan(card.frame.maxY, tabBarTop)
+        shot(app, "Compact Today weight card")
+        card.tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
     }
     /// Seed a synthetic connected HealthSync journal with exportWeight=true on the
