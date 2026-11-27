@@ -26,15 +26,26 @@ import XCTest
     private func openWeight(_ app: XCUIApplication) {
         let card = app.buttons["todayWeight"].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 15))
-        let tabBarTop = app.buttons["tab-Today"].frame.minY
-        for _ in 0..<10 {
-            if card.isHittable && card.frame.maxY < tabBarTop { break }
-            app.swipeUp()
+        // All weight scenarios include historical readings. Wait for those to
+        // arrive before scrolling, since they resize the Today layout.
+        XCTAssertTrue(app.buttons["View weight chart"].waitForExistence(timeout: 15))
+        let viewport = app.frame
+        let readableArea = (viewport.minY + viewport.height * 0.2)...(viewport.minY + viewport.height * 0.78)
+        let upper = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.40))
+        let lower = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.66))
+        for _ in 0..<20 {
+            let y = card.frame.midY
+            if readableArea.contains(y) && card.isHittable { break }
+            if y > readableArea.upperBound {
+                lower.press(forDuration: 0.05, thenDragTo: upper)
+            } else {
+                upper.press(forDuration: 0.05, thenDragTo: lower)
+            }
         }
         XCTAssertTrue(card.isHittable)
-        XCTAssertLessThan(card.frame.maxY, tabBarTop)
+        XCTAssertTrue(readableArea.contains(card.frame.midY))
         shot(app, "Compact Today weight card")
-        card.tap()
+        card.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
         XCTAssertTrue(app.navigationBars["Weight"].waitForExistence(timeout: 5))
     }
     /// Seed a synthetic connected HealthSync journal with exportWeight=true on the
