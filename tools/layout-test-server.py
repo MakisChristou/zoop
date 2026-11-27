@@ -50,7 +50,9 @@ for i in range(120):
     # Today has a manual reading so the manual-entry test can replace it. Historical
     # readings exercise Health imports; their Health-first preference is unchanged.
     source = 'snoop' if i == 0 else 'health'
-    weights.append(dict(id=f'{source}:layout-{i}', measured_at=stamp(day+timedelta(hours=7)),
+    # An already logged reading must be visible even when CI starts before 07:00 UTC.
+    measured_at = datetime.now(timezone.utc) if i == 0 else day + timedelta(hours=7)
+    weights.append(dict(id=f'{source}:layout-{i}', measured_at=stamp(measured_at),
                         kg=75.2+i*.02+math.sin(i)*.3, source=source, source_name='Zoop' if i == 0 else 'Test scale', version=1, removed=False))
 
 
