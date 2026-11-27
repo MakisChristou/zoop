@@ -23,9 +23,9 @@ Keep the original data, export it, and rerun analysis as the software improves.
 
 ## Widgets for iPhone and Mac
 
-Preview the iPhone widgets below with sample readings. On Mac, enable **Use iPhone widgets** to add them to your desktop.
+Coming in **Zoop 1.1** for your iPhone Home Screen and Mac desktop. The previews use sample readings. On Mac, enable **Use iPhone widgets** in System Settings.
 
-**Today, Steps and Recovery** show your daily rings, step count and latest recovery score. **Weight** pairs a trend line with seven daily check-ins.
+**Today, Steps and Recovery** show your daily rings, step count and latest recovery score. **Weight** marks your latest weight with a dotted line and shows the week’s check-ins.
 
 <p>
   <img src="site/static/img/widgets/today.png" width="270" alt="Sleep, recovery and load rings with a moon, heart and lightning bolt" />
@@ -41,6 +41,14 @@ Preview the iPhone widgets below with sample readings. On Mac, enable **Use iPho
   <img src="site/static/img/widgets/daily-recovery.png" width="338" alt="Thirty days of green, yellow and red recovery bars" />
 </p>
 
+**Sleep stages** breaks last night into deep, REM, light and awake time. **Nightly metrics** shows resting heart rate, HRV, efficiency and breathing. **Recent activities** shows your last two workouts with duration and load.
+
+<p>
+  <img src="site/static/img/widgets/sleep-stages.png" width="260" alt="Time asleep and duration in each sleep stage" />
+  <img src="site/static/img/widgets/nightly-metrics.png" width="260" alt="Four overnight measurements with their units" />
+  <img src="site/static/img/widgets/recent-activities.png" width="260" alt="Strength training and walking with duration and load" />
+</p>
+
 ## What you can do
 
 - Explore sleep stages, nightly measurements and your daily Recovery index.
@@ -49,7 +57,8 @@ Preview the iPhone widgets below with sample readings. On Mac, enable **Use iPho
 - Correct sleep and workouts while keeping the original recordings.
 - Sync with Apple Health and export weight as CSV.
 - Try manual ECG on WHOOP MG in development builds.
-- Share selected charts through revocable links with optional passwords and expiry.
+- Arrange a personal dashboard and share selected charts through revocable links with optional passwords and expiry.
+- Connect your own AI assistant to selected health metrics through read-only MCP access.
 
 ## Get started
 

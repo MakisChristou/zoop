@@ -47,7 +47,25 @@ const widgets = [
     name: "Weight",
     file: "weight",
     width: 338,
-    alt: "63.8 kg above a weight trend and seven check-in dots",
+    alt: "63.8 kg with a dotted reference line and weekday check-ins",
+  },
+  {
+    name: "Sleep stages",
+    file: "sleep-stages",
+    width: 338,
+    alt: "7h 32m asleep with durations for deep, REM, light and awake stages",
+  },
+  {
+    name: "Nightly metrics",
+    file: "nightly-metrics",
+    width: 338,
+    alt: "Resting heart rate, HRV, sleep efficiency and breathing rate",
+  },
+  {
+    name: "Recent activities",
+    file: "recent-activities",
+    width: 338,
+    alt: "Strength training and a walk with duration and training load",
   },
   {
     name: "Every day",
@@ -202,8 +220,8 @@ export default function Home(): ReactNode {
           <div className="section-intro">
             <h2 id="widgets-title">Widgets for iPhone and Mac</h2>
             <p>
-              Your readings on the Home Screen or desktop. Previews use sample
-              data.
+              Coming in Zoop 1.1. See last night’s sleep, your latest workouts
+              and your weight trend at a glance. Previews use sample data.
             </p>
           </div>
           <WidgetGallery />

@@ -44,7 +44,7 @@ test("responsive homepage and product previews", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("six widget previews have distinct positions at each screen size", async ({
+test("nine widget previews have distinct positions at each screen size", async ({
   page,
 }) => {
   for (const width of [320, 390, 768, 1440]) {
@@ -53,7 +53,7 @@ test("six widget previews have distinct positions at each screen size", async ({
     const gallery = page.locator(".widget-previews");
     await gallery.scrollIntoViewIfNeeded();
     const figures = gallery.locator("figure");
-    await expect(figures).toHaveCount(6);
+    await expect(figures).toHaveCount(9);
     const bounds = await figures.evaluateAll(async (items) =>
       Promise.all(
         items.map(async (item) => {
