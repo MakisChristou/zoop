@@ -71,6 +71,48 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertNil(saved.loads[dates[0]])
     }
 
+    func testSparseRecoveryTrimsMarginsAndPreservesZeroAndMissingDays() {
+        let today = Date()
+        let dates = WidgetHistory.calendarDays(ending: today, count: 8, calendar: .current)
+        var snapshot = WidgetSnapshot()
+        XCTAssertTrue(snapshot.recoverySpan(through: today, count: 7).isEmpty)
+        snapshot.recovery = [
+            .init(day: dates[0], score: 99, band: "high"),
+            .init(day: dates[4], score: 0, band: "low"),
+            .init(day: dates[6], score: 52, band: "moderate"),
+            .init(day: dates[7], score: nil, band: nil)
+        ]
+        let span = snapshot.recoverySpan(through: today, count: 7)
+        XCTAssertEqual(span.map { $0?.score }, [0, nil, 52])
+        XCTAssertEqual(span.last??.day, dates[6])
+    }
+
+    @MainActor func testPartialNightAndPendingDataMatchDashboard() throws {
+        let example = TrendStoreTests.night(day: "2026-11-27")
+        func session(partial: Bool, pending: Bool = false) -> ZoopAPI.SleepSession {
+            .init(id: 1, startTs: example.startTs, endTs: example.endTs, durationS: 28800, kind: "main",
+                  edited: false, autoDetected: true, revision: 1, status: "active", lastEdit: nil, replacements: [],
+                  metricsPending: pending, timezone: "UTC",
+                  sleep: .init(window: example.metrics.window, physiology: example.metrics.physiology, stages: nil,
+                               segments: [], algoVersion: 1, efficiency: nil, partial: partial, unknownS: nil, unclassifiedS: nil))
+        }
+        let full = try XCTUnwrap(WidgetPublisher.night(session(partial: false)))
+        XCTAssertEqual(full.efficiency, example.metrics.window.efficiency * 100)
+        XCTAssertEqual(full.restingHR, example.metrics.physiology.restingHr)
+        XCTAssertEqual(full.asleepSeconds, example.metrics.window.asleepS)
+        XCTAssertNil(full.stages)
+        let partial = try XCTUnwrap(WidgetPublisher.night(session(partial: true)))
+        var corrected = session(partial: false)
+        corrected.fixed = true
+        let picked = WidgetPublisher.primaryNight([session(partial: false), corrected], endingBy: corrected.endTs, calendar: .current)
+        XCTAssertEqual(picked?.fixed, true)
+        XCTAssertNil(WidgetPublisher.primaryNight([corrected], endingBy: corrected.startTs, calendar: .current))
+        XCTAssertTrue(partial.partial)
+        XCTAssertNil(partial.efficiency)
+        XCTAssertEqual(partial.hrv, full.hrv)
+        XCTAssertNil(WidgetPublisher.night(session(partial: false, pending: true)))
+    }
+
     func testDisplayedStepsPreferFilteredDetailThenFilteredSummary() throws {
         let day = "2026-01-03"
         let summary = try JSONDecoder().decode(ZoopAPI.Day.self, from: Data(

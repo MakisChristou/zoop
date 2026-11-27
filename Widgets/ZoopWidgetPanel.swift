@@ -27,6 +27,12 @@ struct ZoopWidgetEntry: TimelineEntry {
             let day = calendar.date(byAdding: .day, value: index - 29, to: now)!
             data.recovery.append(.init(day: day, score: score, band: score >= 67 ? "high" : score <= 33 ? "low" : "moderate"))
         }
+        data.night = .init(end: now, asleepSeconds: 27120, stages: .init(deep: 5520, rem: 6480, light: 15120, awake: 1680),
+                           restingHR: 48, hrv: 81, efficiency: 92, breathing: 13.2, partial: false)
+        data.workouts = [
+            .init(id: 1, start: now, name: "Strength training", icon: "dumbbell.fill", duration: 3060, load: 9.3),
+            .init(id: 2, start: calendar.date(byAdding: .day, value: -1, to: now)!, name: "Walk", icon: "figure.walk", duration: 2520, load: 5.8)
+        ]
         data.steps = 8_000
         data.stepsGoal = 10_000
         data.latestKg = 63.8
@@ -35,10 +41,14 @@ struct ZoopWidgetEntry: TimelineEntry {
 }
 enum ZoopWidgetKind: String {
     case today = "Today", recovery = "Recovery", weight = "Weight", steps = "Steps", everyDay = "Every day"
+    case stages = "Sleep stages", workouts = "Recent activities", metrics = "Nightly metrics"
     var family: WidgetFamily { self == .recovery || self == .steps ? .systemSmall : .systemMedium }
     var families: [WidgetFamily] { self == .recovery ? [.systemSmall, .systemMedium] : [family] }
     var detail: String {
         switch self {
+        case .stages: "Your latest night of sleep by stage."
+        case .workouts: "Your two most recent workouts."
+        case .metrics: "Resting heart rate, HRV, efficiency and breathing during sleep."
         case .today: "Sleep, recovery and load."
         case .recovery: "Your daily recovery over a week or a month."
         case .everyDay: "Your daily load over the past 20 weeks."
@@ -60,15 +70,19 @@ struct ZoopWidgetPanel: View {
         data.recovery.first { calendar.isDate($0.day, inSameDayAs: reference) }
     }
     var body: some View {
-        if kind == .everyDay || (kind == .recovery && family == .systemMedium) {
-            WidgetHistoryPanel(entry: entry, isActivity: kind == .everyDay)
+        if kind == .everyDay {
+            WidgetHistoryPanel(entry: entry)
+        } else if kind == .recovery {
+            WidgetRecoveryPanel(entry: entry, wide: family == .systemMedium)
+        } else if kind == .stages || kind == .workouts || kind == .metrics {
+            WidgetDetailsPanel(kind: kind, entry: entry)
         } else {
             compactPanel
         }
     }
     private var compactPanel: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if (kind == .today || kind == .recovery), let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
+            if kind == .today, let date = data.day, !calendar.isDate(date, inSameDayAs: entry.date) {
                 Text(date, format: .dateTime.day().month(.abbreviated))
                     .font(.caption2).foregroundStyle(.secondary)
             }
@@ -79,29 +93,7 @@ struct ZoopWidgetPanel: View {
                     ring("Recovery", icon: "heart", todayScore?.score.map { "\($0)%" }, todayScore?.score.map { Double($0)/100 }, todayScore?.widgetColor ?? .secondary)
                     ring("Load", icon: "bolt", data.load?.formatted(.number.precision(.fractionLength(1))), data.loadFraction, blue)
                 }.frame(maxHeight: .infinity)
-            case .recovery:
-                Group {
-                    if let score = todayScore?.score {
-                        Text("\(score)\(Text("%").font(.title3.weight(.semibold)))")
-                            .accessibilityLabel("Recovery, \(score) percent")
-                    } else {
-                        Text("—").accessibilityLabel("No recovery score")
-                    }
-                }.font(.system(size: 32, weight: .semibold)).minimumScaleFactor(0.7)
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(-6..<1, id: \.self) { offset in
-                        let date = calendar.date(byAdding: .day, value: offset, to: reference)!
-                        let reading = data.recovery.first { calendar.isDate($0.day, inSameDayAs: date) }
-                        GeometryReader { size in
-                            if let score = reading?.score {
-                                RoundedRectangle(cornerRadius: 2).fill(reading?.widgetColor ?? .secondary).widgetAccentable()
-                                    .frame(height: max(1, size.size.height * CGFloat(score)/100))
-                                    .frame(maxHeight: .infinity, alignment: .bottom)
-                            }
-                        }.accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted) + ", " + (reading?.score.map { "\($0) percent" } ?? "No score"))
-                    }
-                }
-            case .everyDay:
+            case .recovery, .everyDay, .stages, .workouts, .metrics:
                 EmptyView()
             case .steps:
                 let reading = data.stepsReading(on: entry.date)
@@ -112,7 +104,7 @@ struct ZoopWidgetPanel: View {
                             .stroke(blue, style: .init(lineWidth: 5, lineCap: .round))
                             .rotationEffect(.degrees(-90)).widgetAccentable()
                     }
-                    Text(reading?.count.formatted() ?? "—")
+                    Text(reading?.count.formatted(.number.grouping(.never)) ?? "—")
                         .font(.system(size: 32, weight: .semibold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6).padding(8)
                 }
@@ -125,7 +117,7 @@ struct ZoopWidgetPanel: View {
                 } ?? "No reading")
             case .weight:
                 if let kg = data.latestKg {
-                    let value = data.unit == "lb" ? kg * 2.2046226218 : kg
+                    let value = displayWeight(kg)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(value.formatted(.number.precision(.fractionLength(1)))).font(.title.bold())
                         Text(data.unit).font(.subheadline).foregroundStyle(.secondary)
@@ -135,10 +127,18 @@ struct ZoopWidgetPanel: View {
                 } else {
                     Text("—").font(.title.bold()).accessibilityLabel("No weigh-in")
                 }
-                Chart(data.weights, id: \.day) { point in
-                    LineMark(x: .value("Date", point.day), y: .value("Weight in kg", point.kg), series: .value("Segment", point.segment))
-                    PointMark(x: .value("Date", point.day), y: .value("Weight in kg", point.kg))
-                        .symbolSize(point.day == data.weights.last?.day || data.weights.filter { $0.segment == point.segment }.count == 1 ? 12 : 0)
+                Chart {
+                    if !data.weights.isEmpty, let latest = data.latestKg {
+                        RuleMark(y: .value("Latest weight (\(data.unit))", displayWeight(latest)))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 4]))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                    ForEach(data.weights, id: \.day) { point in
+                        LineMark(x: .value("Date", point.day), y: .value("Weight (\(data.unit))", displayWeight(point.kg)), series: .value("Segment", point.segment))
+                        PointMark(x: .value("Date", point.day), y: .value("Weight (\(data.unit))", displayWeight(point.kg)))
+                            .symbolSize(point.day == data.weights.last?.day || data.weights.filter { $0.segment == point.segment }.count == 1 ? 12 : 0)
+                    }
                 }.chartYScale(domain: .automatic(includesZero: false)).chartXAxis(.hidden).chartYAxis(.hidden)
                     .foregroundStyle(.primary).padding(.vertical, 4)
                 HStack(spacing: 0) {
@@ -148,16 +148,24 @@ struct ZoopWidgetPanel: View {
                         let logged = data.weights.contains { calendar.isDate($0.day, inSameDayAs: day) }
                         if offset > 0 { Spacer(minLength: 0) }
                         let isToday = calendar.isDate(day, inSameDayAs: entry.date)
-                        Circle().fill(logged ? Color.green : .clear)
-                            .overlay { Circle().stroke(logged ? .clear : .secondary, lineWidth: 1) }
-                            .overlay { if isToday { Circle().stroke(logged ? Color.green : .primary, lineWidth: 1.5).padding(-2.5) } }
-                            .frame(width: 7, height: 7).padding(3)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel((isToday ? "Today, " : "") + day.formatted(.dateTime.weekday(.wide)) + (logged ? ", logged" : ", no weigh-in"))
+                        VStack(spacing: 2) {
+                            Circle().fill(logged ? Color.green : .clear)
+                                .overlay { Circle().stroke(logged ? .clear : .secondary, lineWidth: 1) }
+                                .overlay { if isToday { Circle().stroke(logged ? Color.green : .primary, lineWidth: 1.5).padding(-2.5) } }
+                                .frame(width: 7, height: 7).padding(3)
+                            Text(day, format: .dateTime.weekday(.narrow))
+                                .font(.caption2).foregroundStyle(isToday ? .primary : .secondary)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel((isToday ? "Today, " : "") + day.formatted(.dateTime.weekday(.wide)) + (logged ? ", logged" : ", no weigh-in"))
                     }
                 }
             }
         }.foregroundStyle(.primary).environment(\.colorScheme, .dark)
+    }
+
+    private func displayWeight(_ kg: Double) -> Double {
+        data.unit == "lb" ? kg * 2.2046226218 : kg
     }
 
     private func ring(_ label: String, icon: String, _ value: String?, _ fraction: Double?, _ color: Color) -> some View {

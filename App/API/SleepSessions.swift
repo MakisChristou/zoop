@@ -10,6 +10,7 @@ extension ZoopAPI {
             let segments: [Night.Segment]
             let algoVersion: Int
             let efficiency: Double?
+            var partial: Bool? = nil
             let unknownS: Int?
             let unclassifiedS: Int?
         }
@@ -18,6 +19,7 @@ extension ZoopAPI {
         let endTs: Date
         let durationS: Int
         let kind: String
+        var fixed: Bool? = nil
         let edited: Bool
         let autoDetected: Bool
         let revision: Int64

@@ -12,6 +12,7 @@ struct RootView: View {
     @State private var goalLink: GoalLink?
     @AppStorage("weightUnit") private var weightUnit = "kg"
     @State private var selection = Tab.today
+    @State private var sleepDay: Date?
     @State private var selectedNight: ZoopAPI.Night?
     @State private var selectedActivityDay: Date?
     @State private var activityRequest = UUID()
@@ -33,7 +34,7 @@ struct RootView: View {
                     .tabItem { Label("Activity", systemImage: "figure.run") }
                     .tag(Tab.activity)
                     .toolbar(.hidden, for: .tabBar)
-                SleepView(selected: $selectedNight).id(sleepRequest)
+                SleepView(selected: $selectedNight, day: sleepDay ?? Date()).id(sleepRequest)
                     .tabItem { Label("Sleep", systemImage: "moon.fill") }
                     .tag(Tab.sleep)
                     .toolbar(.hidden, for: .tabBar)
@@ -91,6 +92,22 @@ struct RootView: View {
         .task(id: model.dataDevice) { model.widgets.refresh(model, force: true) }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.widgets.refresh(model, force: true) } }
         .onChange(of: weightUnit) { model.widgets.weight(model) }
+        .onOpenURL { url in
+            guard url.scheme == "zoop", url.host == "widget" else { return }
+            switch url.path {
+            case "/sleep":
+                let scope = Settings.healthScope(device: model.dataDevice)
+                sleepDay = WidgetSnapshot.read().scoped(to: scope).night?.end ?? Date()
+                selectedNight = nil
+                sleepRequest = UUID()
+                selection = .sleep
+            case "/activity":
+                selectedActivityDay = nil
+                activityRequest = UUID()
+                selection = .activity
+            default: break
+            }
+        }
         .onAppear(perform: applyDemoRoute)
     }
 

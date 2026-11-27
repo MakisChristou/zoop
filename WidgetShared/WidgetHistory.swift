@@ -33,3 +33,14 @@ extension WidgetSnapshot {
         }
     }
 }
+
+extension WidgetSnapshot {
+    /// Trim empty margins, preserving one horizontal slot for each intervening calendar day.
+    func recoverySpan(through date: Date, count: Int, calendar: Calendar = .current) -> [Recovery?] {
+        let indexed = Dictionary(recovery.filter { $0.score != nil }.map { (calendar.startOfDay(for: $0.day), $0) },
+                                 uniquingKeysWith: { _, newest in newest })
+        let values = WidgetHistory.calendarDays(ending: date, count: count, calendar: calendar).map { indexed[$0] }
+        guard let first = values.firstIndex(where: { $0 != nil }), let last = values.lastIndex(where: { $0 != nil }) else { return [] }
+        return Array(values[first...last])
+    }
+}

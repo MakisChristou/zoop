@@ -13,6 +13,25 @@ struct WidgetSnapshot: Codable, Equatable {
         let kg: Double
         let segment: Int
     }
+    struct Night: Codable, Equatable {
+        struct Stages: Codable, Equatable {
+            let deep, rem, light, awake: Int
+        }
+        let end: Date
+        let asleepSeconds: Int
+        let stages: Stages?
+        let restingHR, hrv, efficiency, breathing: Double?
+        let partial: Bool
+    }
+    struct Workout: Codable, Equatable, Identifiable {
+        let id: Int64
+        let start: Date
+        let name, icon: String
+        let duration: Int
+        let load: Double?
+    }
+    var night: Night?
+    var workouts: [Workout]?
     var owner = ""
     var day: Date?
     var sleepSeconds: Int?

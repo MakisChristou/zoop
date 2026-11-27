@@ -30,6 +30,9 @@ private struct RecoveryWidget: ZoopWidget { let kind = ZoopWidgetKind.recovery }
 private struct StepsWidget: ZoopWidget { let kind = ZoopWidgetKind.steps }
 private struct EveryDayWidget: ZoopWidget { let kind = ZoopWidgetKind.everyDay }
 private struct WeightWidget: ZoopWidget { let kind = ZoopWidgetKind.weight }
+private struct SleepStagesWidget: ZoopWidget { let kind = ZoopWidgetKind.stages }
+private struct RecentActivitiesWidget: ZoopWidget { let kind = ZoopWidgetKind.workouts }
+private struct NightlyMetricsWidget: ZoopWidget { let kind = ZoopWidgetKind.metrics }
 private extension ZoopWidget {
     @MainActor var body: some WidgetConfiguration {
         StaticConfiguration(kind: "Zoop" + kind.rawValue, provider: Provider()) { entry in
@@ -50,5 +53,8 @@ struct ZoopWidgets: WidgetBundle {
         WeightWidget()
         StepsWidget()
         EveryDayWidget()
+        SleepStagesWidget()
+        RecentActivitiesWidget()
+        NightlyMetricsWidget()
     }
 }
