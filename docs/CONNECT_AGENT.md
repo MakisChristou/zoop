@@ -95,7 +95,7 @@ dynamic public-client registration as a fallback. No client secret or API key is
 needed for OAuth. Connector availability depends on your provider’s plan and
 workspace settings.
 
-In Claude, open **Settings → Connectors → Add custom connector**. In ChatGPT, enable
-developer mode where available, then add an app in its Apps/Connectors settings.
+In Claude, open **Settings → Connectors → Add custom connector**. In ChatGPT on the web, open
+[Plugins](https://chatgpt.com/plugins), select **+ → Add custom MCP server**, and name it Zoop.
 Paste Zoop’s Server URL exactly, including `/mcp`, and use OAuth. The provider opens
 your Zoop sign-in and permission screen. Your Zoop password stays with your server.

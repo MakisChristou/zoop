@@ -77,11 +77,10 @@ test("explicit permissions, one-time secret, no browser persistence and revocati
   const state = await mock(page, true);
   await page.goto("/#Agents");
   await expect(page.getByRole("progressbar")).toBeVisible();
-  await page.getByRole("button", { name: "Connect your agent" }).click();
+  await page.getByRole("link", { name: "Connect your agent" }).click();
   await expect(page.getByLabel("MCP server URL")).toHaveValue(
     "https://zoop.example/mcp",
   );
-  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByText("Access keys Advanced", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Create access key" }),
@@ -121,7 +120,7 @@ test("explicit permissions, one-time secret, no browser persistence and revocati
   await expect(page.getByLabel("Access key", { exact: true })).toHaveCount(0);
   await page.getByLabel("Details for My assistant").click();
   await page.getByRole("button", { name: "Disconnect", exact: true }).click();
-  await expect(page.getByText("Last 30 days · Disconnected")).toBeVisible();
+  await expect(page.getByText("Disconnected", { exact: true })).toBeVisible();
   expect(state.writes).toEqual([
     "/v1/agent-connections",
     "/v1/agent-connections/1",
@@ -175,8 +174,7 @@ for (const width of [320, 768, 1440, 2560])
     await page.emulateMedia({ reducedMotion: "reduce" });
     await mock(page);
     await page.goto("/#Agents");
-    await page.getByRole("button", { name: "Connect your agent" }).click();
-    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("link", { name: "Connect your agent" }).click();
     await page.getByText("Access keys Advanced", { exact: true }).focus();
     await page.keyboard.press("Enter");
     await page.getByLabel("Name", { exact: true }).fill("Local assistant");
@@ -227,8 +225,7 @@ test("band selection is explicit and enlarged RTL consent stays contained", asyn
   );
   await page.setViewportSize({ width: 768, height: 1200 });
   await page.goto("/#Agents");
-  await page.getByRole("button", { name: "Connect your agent" }).click();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("link", { name: "Connect your agent" }).click();
   await page.getByText("Access keys Advanced", { exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill("Local assistant");
   await page
@@ -249,40 +246,33 @@ test("band selection is explicit and enlarged RTL consent stays contained", asyn
   expect(state.saved().device_id).toBe("SECOND");
 });
 
-test("logo picker is keyboard accessible, closes with Escape and restores focus", async ({
+test("header opens inline setup and provider choices use the real handoff links", async ({
   page,
 }) => {
-  await mock(page);
-  await page.goto("/#Settings/agents");
-  const trigger = page.getByRole("button", {
-    name: "Connect your agent",
-    exact: true,
-  });
-  await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Connect your agent" });
-  await expect(dialog).toBeVisible();
+  const state = await mock(page);
+  await page.goto("/#Settings/profile");
+  await page
+    .getByRole("link", { name: "Connect your agent", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#Settings\/agents$/);
+  const picker = page.getByRole("group", { name: "Choose your agent" });
+  await expect(picker.getByRole("button", { name: "ChatGPT" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(
-    dialog.getByRole("button", { name: "Claude", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await dialog.getByRole("button", { name: "ChatGPT", exact: true }).focus();
+    page.getByRole("link", { name: "Open ChatGPT" }),
+  ).toHaveAttribute("href", "https://chatgpt.com/plugins");
+  await picker.getByRole("button", { name: "Claude" }).focus();
   await page.keyboard.press("Enter");
-  await expect(
-    dialog.getByRole("button", { name: "ChatGPT", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(
-    dialog.getByRole("link", { name: "Open ChatGPT" }),
-  ).toHaveAttribute("rel", "noopener noreferrer");
-  await expect(dialog.locator(".provider-picker")).not.toContainText("Claude");
-  await page.screenshot({ path: "/tmp/zoop-connector-picker.png" });
-  await page.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
-  await page.getByRole("link", { name: "Profile", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Profile", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Claude" })).toHaveAttribute(
+    "href",
+    "https://claude.ai/settings/connectors",
+  );
+  await picker.getByRole("button", { name: "Other" }).click();
+  await expect(page.getByText("remote MCP servers")).toBeVisible();
+  expect(state.writes).toEqual([]);
 });
-
 test("cancel returns to the verified client without granting access", async ({
   page,
 }) => {
@@ -363,12 +353,12 @@ for (const width of [390, 1440])
       }),
     );
     await page.goto("/#Settings/agents");
-    await expect(page.getByRole("heading", { name: "Claude" })).toBeVisible();
+    await expect(page.getByLabel("Details for Claude")).toBeVisible();
     await expect(page.locator(".agent-row img")).toHaveCount(2);
     const row = await page.locator(".agent-row").first().boundingBox();
     expect(row!.height).toBeLessThan(150);
     const nav = await page
-      .getByRole("navigation", { name: "Settings", exact: true })
+      .locator(width < 640 ? ".settings-picker" : ".settings-nav")
       .boundingBox();
     expect(nav!.y).toBeLessThan(row!.y + 30);
     await page.screenshot({
@@ -376,13 +366,59 @@ for (const width of [390, 1440])
       fullPage: true,
     });
     await page
-      .getByRole("button", { name: "Connect your agent", exact: true })
+      .getByRole("link", { name: "Connect your agent", exact: true })
       .click();
     await expect(page.getByLabel("MCP server URL")).toHaveValue(
       "https://zoop.example/mcp",
     );
-    const bounds = await page.getByRole("dialog").boundingBox();
+    const bounds = await page.locator(".agent-setup").boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: `/tmp/zoop-connect-dialog-${width}.png` });
+    if (width === 390) {
+      await page
+        .getByLabel("Settings section")
+        .selectOption("#Settings/profile");
+      await expect(
+        page.getByRole("button", { name: "Change photo" }),
+      ).toBeVisible();
+      await page.goBack();
+      await expect(page.getByLabel("MCP server URL")).toBeVisible();
+    }
   });
+
+test("returning from the provider lists a grant only after Zoop confirms it", async ({
+  page,
+}) => {
+  const state = await mock(page);
+  let granted = false;
+  await page.route("**/v1/agent-connections", (route) =>
+    route.fulfill({
+      json: {
+        mcp_url: "https://zoop.example/mcp",
+        api_url: "https://zoop.example/v1/agent",
+        connections: granted
+          ? [
+              {
+                ...connection,
+                name: "ChatGPT",
+                client_id: "https://chatgpt.com/oauth/client.json",
+              },
+            ]
+          : [],
+      },
+    }),
+  );
+  await page.goto("/#Settings/agents");
+  const handoff = page.getByRole("link", { name: "Open ChatGPT" });
+  await expect(handoff).toBeVisible();
+  await expect(handoff).toHaveAttribute("target", "_blank");
+  await expect(handoff).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(page.getByText("Your connections", { exact: true })).toHaveCount(
+    0,
+  );
+  granted = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByLabel("Details for ChatGPT")).toBeVisible();
+  await expect(page.getByText("Sleep · Last 30 days")).toBeVisible();
+  expect(state.writes).toEqual([]);
+});

@@ -1,6 +1,8 @@
+import { CopyValue } from "./CopyValue";
+import { ConnectAgent } from "./ConnectAgent";
 import { ProviderLogo } from "./ProviderLogo";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Copy, LoaderCircle, Plug, Plus } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
 import { sharingRequest } from "./sharing";
 import { LoadingBar } from "./Loading";
 
@@ -53,11 +55,7 @@ const date = (value: string) =>
 
 type Devices = { device?: string; devices: string[] };
 
-export function AgentConnections({
-  device,
-  devices,
-  connect,
-}: Devices & { connect: () => void }) {
+export function AgentConnections({ device, devices }: Devices) {
   const [data, setData] = useState<List | null>(null),
     [busy, setBusy] = useState(true),
     [error, setError] = useState(""),
@@ -86,6 +84,11 @@ export function AgentConnections({
       });
     return () => c.abort();
   }, [attempt]);
+  useEffect(() => {
+    const refresh = () => setAttempt((n) => n + 1);
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
   async function revoke(id: number) {
     setRevoking(id);
     setError("");
@@ -105,13 +108,7 @@ export function AgentConnections({
   }
   return (
     <section className="agent-page">
-      <div className="page-head">
-        <h2>Connected apps</h2>
-        <button onClick={connect}>
-          <Plus size={16} />
-          Connect
-        </button>
-      </div>
+      <h1>Connected apps</h1>
       {busy && <LoadingBar label="Loading connections" />}
       {error && (
         <p role="alert" className="error">
@@ -119,71 +116,76 @@ export function AgentConnections({
           <button onClick={() => setAttempt((n) => n + 1)}>Retry</button>
         </p>
       )}
-      {data && !data.connections.length && !adding && (
-        <section className="panel agent-empty">
-          <Plug size={22} />
-          <p>No connected apps</p>
-        </section>
-      )}
-      {data?.connections.map((c) => (
-        <section className="panel agent-row" key={c.id}>
-          <span className="connection-icon">
-            <ProviderLogo
-              provider={
+      {data && <ConnectAgent url={data.mcp_url} />}
+      {data && data.connections.length > 0 && (
+        <>
+          <h2 className="connections-title">Your connections</h2>
+          <div className="connection-list">
+            {data.connections.map((c) => {
+              const status = c.revoked_at
+                ? "Disconnected"
+                : Date.parse(c.expires_at) <= Date.now()
+                  ? "Expired"
+                  : "Active";
+              const provider =
                 c.client_id === "https://chatgpt.com/oauth/client.json"
                   ? "ChatGPT"
                   : c.client_id ===
                       "https://claude.ai/oauth/mcp-oauth-client-metadata"
                     ? "Claude"
-                    : "Other"
-              }
-            />
-          </span>
-          <div>
-            <h2>
-              {c.name}
-              {!c.revoked_at && new Date(c.expires_at) > new Date() && (
-                <span className="connection-dot" aria-label="Active" />
-              )}
-            </h2>
-            <p>
-              {c.scopes
-                .map((s) => permissions.find((p) => p[0] === s)?.[1])
-                .join(" · ")}
-            </p>
-            <small>
-              {c.history_days ? `Last ${c.history_days} days` : "All history"}
-              {c.revoked_at
-                ? " · Disconnected"
-                : new Date(c.expires_at) <= new Date()
-                  ? " · Expired"
-                  : ""}
-            </small>
+                    : "Other";
+              return (
+                <details key={c.id} className="agent-row">
+                  <summary aria-label={`Details for ${c.name}`}>
+                    <span className="connection-icon">
+                      <ProviderLogo provider={provider} />
+                    </span>
+                    <span className="connection-info">
+                      <strong>{c.name}</strong>
+                      <small>
+                        {c.scopes
+                          .map(
+                            (s) =>
+                              permissions.find((p) => p[0] === s)?.[1] ?? s,
+                          )
+                          .join(", ")}{" "}
+                        ·{" "}
+                        {c.history_days
+                          ? `Last ${c.history_days} days`
+                          : "All history"}
+                      </small>
+                    </span>
+                    <span className="connection-status">
+                      {status === "Active" && <i />}
+                      {status}
+                    </span>
+                    <ChevronDown className="connection-chevron" size={15} />
+                  </summary>
+                  <div className="connection-details">
+                    <p>
+                      Expires {date(c.expires_at)} ·{" "}
+                      {c.last_used_at
+                        ? `Last used ${date(c.last_used_at)}`
+                        : "Not used yet"}
+                    </p>
+                    {status === "Active" && (
+                      <button
+                        disabled={revoking !== null}
+                        onClick={() => revoke(c.id)}
+                      >
+                        {revoking === c.id && (
+                          <LoaderCircle className="spinner" size={16} />
+                        )}
+                        Disconnect
+                      </button>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
           </div>
-          <details className="connection-details">
-            <summary aria-label={`Details for ${c.name}`}>•••</summary>
-            <div>
-              <p>Expires {date(c.expires_at)}</p>
-              <p>
-                {c.last_used_at
-                  ? `Last used ${date(c.last_used_at)}`
-                  : "Not used yet"}
-              </p>
-              {!c.revoked_at && new Date(c.expires_at) > new Date() && (
-                <button
-                  disabled={revoking !== null}
-                  onClick={() => revoke(c.id)}
-                >
-                  {revoking === c.id && (
-                    <LoaderCircle size={16} className="spinner" />
-                  )}{" "}
-                  Disconnect
-                </button>
-              )}{" "}
-            </div>
-          </details>
-        </section>
-      ))}
+        </>
+      )}
       {data && device && (
         <details
           className="agent-advanced"
@@ -236,49 +238,6 @@ export function AgentConnections({
         </details>
       )}
     </section>
-  );
-}
-export function CopyValue({
-  value,
-  label,
-  secret = false,
-}: {
-  value: string;
-  label: string;
-  secret?: boolean;
-}) {
-  const [copied, setCopied] = useState(false),
-    [error, setError] = useState(""),
-    [revealed, setRevealed] = useState(false);
-  return (
-    <div className="agent-copy">
-      <input
-        aria-label={secret ? "Access key" : "MCP server URL"}
-        readOnly
-        type={secret && !revealed ? "password" : "text"}
-        value={value}
-        autoComplete="off"
-        spellCheck={false}
-      />
-      <button
-        aria-label={label}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            setError("");
-          } catch {
-            // Clipboard access requires a secure browser context. LAN HTTP users
-            // still need a selectable, readable key after explicitly asking to copy.
-            setRevealed(true);
-            setError("Copy unavailable. Select the value to copy it.");
-          }
-        }}
-      >
-        <Copy size={16} />
-      </button>
-      <span role="status">{error || (copied ? "Copied" : "")}</span>
-    </div>
   );
 }
 function ConsentForm({

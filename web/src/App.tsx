@@ -1,8 +1,7 @@
 import { Sharing } from "./SharingSettings";
-import { Settings, type SettingsTab } from "./Settings";
-import { ConnectAgent } from "./ConnectAgent";
-import { Plug } from "lucide-react";
-import { AgentAuthorization } from "./AgentConnections";
+import { Settings } from "./Settings";
+import { ProviderLogo } from "./ProviderLogo";
+import { AgentConnections, AgentAuthorization } from "./AgentConnections";
 import { OutlookStatus } from "./OutlookStatus";
 import { SleepStages, NightMetrics } from "./NightWidgets";
 import {
@@ -70,13 +69,14 @@ type Page =
   | "Admin"
   | "Shares"
   | "Agents"
-  | "Settings"
+  | "Profile"
   | "AgentAuthorization";
 function currentPage(): Page {
   if (location.hash.startsWith("#agent-authorize?"))
     return "AgentAuthorization";
   if (location.hash === "#Settings/shares") return "Shares";
-  if (location.hash.startsWith("#Settings")) return "Settings";
+  if (location.hash === "#Settings/profile") return "Profile";
+  if (location.hash.startsWith("#Settings")) return "Agents";
   const p = decodeURIComponent(location.hash.slice(1));
   return [...pages, "Admin", "Shares", "Agents"].includes(p)
     ? (p as Page)
@@ -99,14 +99,6 @@ function PrivateApp() {
   const [identity, setIdentity] = useState<Identity | null>(null),
     [checking, setChecking] = useState(true),
     [error, setError] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() =>
-    location.hash.endsWith("/profile")
-      ? "profile"
-      : location.hash.endsWith("/shares")
-        ? "shares"
-        : "agents",
-  );
   const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState<Page>(currentPage),
     [device, setDevice] = useState("");
@@ -128,18 +120,10 @@ function PrivateApp() {
   useEffect(() => {
     const expired = () => {
       setIdentity(null);
-      setConnecting(false);
       setDevice("");
     };
     const hash = () => {
       setPage(currentPage());
-      setSettingsTab(
-        location.hash.endsWith("/profile")
-          ? "profile"
-          : location.hash.endsWith("/shares") || location.hash === "#Shares"
-            ? "shares"
-            : "agents",
-      );
       setAgentQuery(location.hash.split("?")[1] || "");
     };
     window.addEventListener("zoop:unauthorized", expired);
@@ -155,7 +139,6 @@ function PrivateApp() {
     try {
       await api("/v1/auth/logout", undefined, {});
       setIdentity(null);
-      setConnecting(false);
       setDevice("");
       location.hash = "Today";
     } catch (e) {
@@ -211,14 +194,17 @@ function PrivateApp() {
             </a>
           ))}
         </nav>
-        <button
+        <a
           aria-label="Connect your agent"
           className="connect-agent-trigger"
-          onClick={() => setConnecting(true)}
+          href="#Settings/agents"
         >
-          <Plug size={16} />
-          <span>Connect your agent</span>
-        </button>
+          <span className="trigger-label">Connect your agent</span>
+          <span className="trigger-marks" aria-hidden="true">
+            <ProviderLogo provider="Claude" />
+            <ProviderLogo provider="ChatGPT" />
+          </span>
+        </a>
         <AccountMenu
           key={identity.account.id + ":" + selected}
           account={identity.account}
@@ -227,39 +213,50 @@ function PrivateApp() {
           logout={logout}
         />
       </header>
-      {connecting && (
-        <ConnectAgent
-          key={identity.account.id}
-          onClose={() => setConnecting(false)}
-        />
-      )}
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       <main id="content">
-        {page === "Agents" || page === "Settings" ? (
+        {page === "Admin" && !identity.account.is_admin ? (
+          <Empty>No access to this page.</Empty>
+        ) : page === "Agents" ||
+          page === "Profile" ||
+          page === "Shares" ||
+          page === "Admin" ? (
           <Settings
             key={identity.account.id + ":" + selected}
-            tab={page === "Agents" ? "agents" : settingsTab}
+            tab={
+              page === "Shares"
+                ? "shares"
+                : page === "Admin"
+                  ? "admin"
+                  : page === "Agents"
+                    ? "agents"
+                    : "profile"
+            }
             account={identity.account}
-            devices={availableDevices}
             device={selected}
-            connect={() => setConnecting(true)}
-          />
+          >
+            {page === "Admin" ? (
+              <Admin />
+            ) : page === "Shares" ? (
+              selected ? (
+                <Sharing device={selected} />
+              ) : (
+                <p>Link a band to share your dashboard.</p>
+              )
+            ) : (
+              <AgentConnections devices={availableDevices} device={selected} />
+            )}
+          </Settings>
         ) : page === "AgentAuthorization" ? (
           <AgentAuthorization
             devices={availableDevices}
             key={identity.account.id + ":" + selected + ":" + agentQuery}
             device={selected}
           />
-        ) : page === "Admin" ? (
-          identity.account.is_admin ? (
-            <Admin />
-          ) : (
-            <Empty>No access to this page.</Empty>
-          )
         ) : !selected ? (
           <section className="panel onboarding">
             <h1>Connect your iPhone</h1>
@@ -272,11 +269,6 @@ function PrivateApp() {
               Check for recordings
             </button>
           </section>
-        ) : page === "Shares" ? (
-          <Sharing
-            key={identity.account.id + ":" + selected}
-            device={selected}
-          />
         ) : (
           <Dashboard
             key={identity.account.id + ":" + selected}

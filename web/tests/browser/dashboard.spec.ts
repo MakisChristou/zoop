@@ -231,6 +231,10 @@ test("desktop dashboard, five pages, details and admin", async ({ page }) => {
     page.getByRole("heading", { name: "Activity", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Account menu" }).click();
+  await page
+    .locator(".menu")
+    .getByRole("link", { name: "Profile", exact: true })
+    .click();
   await page.getByRole("link", { name: "Admin", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Backend" })).toBeVisible();
   await expect(page.getByText("Stale heartbeat")).toBeVisible();

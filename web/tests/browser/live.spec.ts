@@ -29,31 +29,40 @@ test("real API: private data, admin stats, read-only access and session logout",
     ).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   }
-  await page.getByRole("button", { name: "Start a goal", exact: true }).click();
-  await page.getByRole("button", { name: "Start cut", exact: true }).click();
+  await page.getByRole("button", { name: "Edit goal", exact: true }).click();
+  await page.getByLabel("Goal", { exact: true }).selectOption("cut");
+  await page.getByRole("button", { name: "Start goal", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Progress", exact: true }),
+    page.getByRole("heading", { name: "Cut", exact: true }),
   ).toBeVisible();
   const before = await (
     await page.request.get("/v1/devices/DEMO-A/weight-goal")
   ).json();
   await page.getByLabel("Goal options").click();
   await page.getByRole("button", { name: "End goal", exact: true }).click();
-  await page.getByRole("button", { name: "End cut", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "End goal", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Maintenance", exact: true }),
   ).toBeVisible();
   const archive = await (
     await page.request.get("/v1/devices/DEMO-A/weight-goals")
   ).json();
-  expect(archive.items).toHaveLength(1);
+  expect(
+    archive.items.filter(
+      (item: { goal: { phase: string } }) => item.goal.phase === "cut",
+    ),
+  ).toHaveLength(1);
   expect(archive.items[0].id).toBe(before.goal.id);
   expect(archive.items[0].summary.progress.current_weight_kg).toBe(64.2);
   expect(archive.items[0].summary.progress.total_lost_kg).toBe(0);
-  await page.getByRole("button", { name: "Start a goal", exact: true }).click();
-  await page.getByRole("button", { name: "Start cut", exact: true }).click();
+  await page.getByRole("button", { name: "Edit goal", exact: true }).click();
+  await page.getByLabel("Goal", { exact: true }).selectOption("cut");
+  await page.getByRole("button", { name: "Start goal", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Progress", exact: true }),
+    page.getByRole("heading", { name: "Cut", exact: true }),
   ).toBeVisible();
   const after = await (
     await page.request.get("/v1/devices/DEMO-A/weight-goal")
@@ -68,6 +77,10 @@ test("real API: private data, admin stats, read-only access and session logout",
     ).status(),
   ).toBe(403);
   await page.getByRole("button", { name: "Account menu" }).click();
+  await page
+    .locator(".menu")
+    .getByRole("link", { name: "Profile", exact: true })
+    .click();
   await page.getByRole("link", { name: "Admin", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Backend", exact: true }),

@@ -67,8 +67,10 @@ async function fixture(page: Page) {
 async function open(page: Page) {
   await page.getByRole("button", { name: "Account menu" }).click();
   await page
-    .getByRole("button", { name: "Profile photo", exact: true })
+    .locator(".menu")
+    .getByRole("link", { name: "Profile", exact: true })
     .click();
+  await page.getByRole("button", { name: "Change photo" }).click();
   await expect(
     page.getByRole("dialog", { name: "Profile photo" }),
   ).toBeVisible();

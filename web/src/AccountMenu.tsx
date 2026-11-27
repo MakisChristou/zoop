@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import {
-  Camera,
-  LogOut,
-  Shield,
-  LoaderCircle,
-  X,
-  Share2,
-  Settings,
-} from "lucide-react";
+import { Camera, LogOut, User, LoaderCircle, X, Settings } from "lucide-react";
 import { endpoint, type Account } from "./data";
 import {
   clamp,
@@ -95,27 +87,12 @@ export function AccountMenu({
       {menu && (
         <div className="menu">
           <span className="email">{account.email}</span>
-          {device && (
-            <button
-              onClick={() => {
-                setMenu(false);
-                setEditing(true);
-              }}
-            >
-              <Camera size={16} /> Profile photo
-            </button>
-          )}
-          <a href="#Shares" onClick={() => setMenu(false)}>
-            <Share2 size={16} /> Shared dashboards
+          <a href="#Settings/profile" onClick={() => setMenu(false)}>
+            <User size={16} /> Profile
           </a>
           <a href="#Settings/agents" onClick={() => setMenu(false)}>
             <Settings size={16} /> Settings
           </a>
-          {account.is_admin && (
-            <a href="#Admin" onClick={() => setMenu(false)}>
-              <Shield size={16} /> Admin
-            </a>
-          )}
           <button onClick={logout} disabled={signingOut}>
             {signingOut ? (
               <LoaderCircle className="spinner" size={16} />

@@ -3257,279 +3257,285 @@ th:last-child {
   outline-offset: 3px;
 }
 
-/* Account settings and connector setup use the same quiet dashboard surfaces. */
-.connect-agent-trigger {
-  border-radius: 999px;
-  margin-inline-start: auto;
-  white-space: nowrap;
+/* Account navigation and agent setup */
+.shell {
+  container-type: inline-size;
 }
-.settings-page > h1 {
-  margin-block: 24px 32px;
+.connect-agent-trigger,
+.trigger-marks,
+.provider-picker,
+.connection-icon,
+.connect-open,
+.setup-footer span,
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+}
+.connect-agent-trigger {
+  margin-inline-start: auto;
+  gap: 11px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #373737;
+  background: var(--panel);
+  white-space: nowrap;
+  font-weight: 500;
+}
+.trigger-marks {
+  gap: 2px;
+}
+.provider-logo {
+  width: 21px;
+  height: 21px;
+  filter: invert(1);
+}
+.provider-logo.claude {
+  filter: invert(65%) sepia(30%) saturate(900%) hue-rotate(330deg);
 }
 .settings-layout {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 40px;
+  grid-template-columns: 176px minmax(0, 1fr);
   align-items: start;
+  gap: 54px;
+  margin-top: 38px;
 }
 .settings-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  order: 0;
+  gap: 3px;
+}
+.settings-nav h2 {
+  font-size: 17px;
+  margin: 0 0 13px;
+  padding-inline-start: 9px;
 }
 .settings-nav a {
   display: flex;
-  gap: 10px;
   align-items: center;
-  padding: 12px;
-  border-radius: 10px;
+  gap: 11px;
+  padding: 9px;
   color: var(--muted);
-  text-decoration: none;
+  border-radius: 7px;
+  font-size: 14px;
 }
-.settings-nav a[aria-current] {
+.settings-nav a[aria-current],
+.settings-nav a:hover {
+  background: #202020;
   color: var(--text);
-  background: var(--panel);
 }
 .settings-content {
   min-width: 0;
 }
-.settings-content .page-head {
-  margin-block: 0 20px;
+.settings-picker {
+  display: none;
+}
+.settings-content h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 550;
+  letter-spacing: -1px;
+}
+.settings-content .agent-page {
+  max-width: none;
+}
+.settings-content .agent-page > h1 {
+  margin-bottom: 20px;
+}
+.settings-content .page-head,
+.settings-content .share-heading {
+  margin-top: 0;
 }
 .settings-profile {
   margin-block-start: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 .settings-profile p {
   overflow-wrap: anywhere;
 }
-.agent-advanced {
-  margin-block: 24px;
-}
-.agent-advanced summary {
-  cursor: pointer;
-  padding-block: 12px;
-  color: var(--muted);
-}
-.agent-advanced summary span {
-  font-size: 11px;
-  margin-inline-start: 8px;
-}
-.agent-advanced .agent-connect {
-  margin-block-start: 12px;
-}
-.agent-row {
-  gap: 16px;
-  align-items: center;
-  margin-block: 0;
-  border-radius: 0;
-  border-bottom: 1px solid var(--border);
-}
-.agent-row h2 {
-  font-size: 14px;
-  margin: 0;
-}
-.agent-row p {
-  margin-block: 6px;
-}
-.agent-row small {
-  color: var(--muted);
-}
-.connection-details {
-  margin-inline-start: auto;
-  position: relative;
-}
-.connection-details summary {
-  cursor: pointer;
-  padding: 12px;
-  list-style: none;
-}
-.connection-details summary::-webkit-details-marker {
-  display: none;
-}
-.connection-details > div {
-  position: absolute;
-  inset-inline-end: 0;
-  z-index: 2;
-  width: 220px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+.agent-setup,
+.connection-list {
   background: var(--panel);
+  border: 1px solid #2b2b2b;
+  border-radius: 16px;
 }
-.connection-action:empty {
-  display: none;
-}
-.connect-agent-dialog {
-  width: min(480px, calc(100vw - 32px));
+.setup-body {
   padding: 24px;
-  overscroll-behavior: contain;
 }
-.connect-agent-dialog header {
+.setup-head,
+.setup-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border: 0;
-  padding: 0;
-  margin-block-end: 24px;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-.connect-agent-dialog h2 {
-  font-size: 18px;
-  font-weight: 500;
+.setup-head h2 {
+  font-size: 17px;
+  font-weight: 550;
+  letter-spacing: -0.4px;
 }
 .provider-picker {
-  display: flex;
-  gap: 12px;
-  margin-block-end: 28px;
+  border-radius: 11px;
+  border: 1px solid #343434;
+  background: #101010;
+  padding: 3px;
+  gap: 3px;
 }
-.provider-picker button {
-  width: 64px;
-  min-height: 52px;
-  justify-content: center;
-  border: 1px solid var(--border);
-  background: transparent;
+.agent-page .provider-picker button {
+  min-height: 36px;
+  width: 42px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
 }
-.provider-picker button[aria-pressed="true"] {
-  background: #292929;
-  border-color: #737373;
-}
-.provider-logo {
-  width: 26px;
-  height: 26px;
-  filter: invert(1);
-}
-.provider-logo.claude {
-  filter: invert(65%) sepia(30%) saturate(900%) hue-rotate(330deg);
+.agent-page .provider-picker button[aria-pressed="true"] {
+  background: #323232;
+  border-color: #454545;
 }
 .agent-server-label {
-  display: block;
+  margin-top: 22px;
+  font-size: 13px;
   color: var(--muted);
 }
-.agent-server-label .agent-copy {
-  margin-block-start: 8px;
+.agent-setup .agent-copy {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0;
+  background: #0e0e0e;
+  border: 1px solid #363636;
+  border-radius: 9px;
+  padding-inline: 10px;
 }
-.connect-steps {
-  padding-inline-start: 24px;
-  margin-block: 24px;
+.agent-setup .agent-copy input {
+  border: none;
+  background: none;
+  font:
+    13px ui-monospace,
+    monospace;
+  padding: 10px 2px;
 }
-.connect-steps li {
-  padding-inline-start: 8px;
-  margin-block: 14px;
-}
-.connect-steps li::marker {
+.agent-setup .agent-copy button {
   color: var(--muted);
+  border: none;
+  padding: 6px;
 }
-.connect-privacy {
+.agent-copy [role="status"]:empty {
+  display: none;
+}
+.agent-page .setup-hint {
+  margin: 15px 0 0;
+}
+.setup-hint strong {
+  font-weight: 500;
+  color: var(--text);
+}
+.setup-footer {
+  padding: 14px 24px;
+  background: #141414;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 16px 16px;
+}
+.setup-footer span {
+  gap: 6px;
   font-size: 12px;
   color: var(--muted);
 }
 .connect-open {
-  display: inline-flex;
-  align-items: center;
+  padding: 9px 14px;
+  border-radius: 8px;
   gap: 8px;
-  text-decoration: none;
-  border-radius: 10px;
-  padding: 12px 16px;
+  color: #151515;
+  background: #ededed;
+  font-weight: 550;
 }
-.connect-agent-dialog footer {
-  margin-block-start: 24px;
+.agent-page .connections-title {
+  margin: 28px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.agent-row {
+  display: block;
+}
+.agent-row + .agent-row {
+  border-top: 1px solid var(--border);
+}
+.agent-row summary {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 16px 20px;
+  list-style: none;
 }
-@media (max-width: 760px) {
-  .settings-layout {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  .settings-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .settings-nav a {
-    padding: 10px;
-    font-size: 12px;
-    gap: 6px;
-  }
-  .settings-nav svg {
-    display: none;
-  }
-  .connect-agent-trigger span {
-    display: none;
-  }
-  .connect-agent-trigger {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .agent-row {
-    flex-wrap: wrap;
-  }
-  .connect-agent-dialog {
-    padding: 20px;
-  }
-}
-.settings-content .agent-page {
-  max-width: none;
-}
-.settings-content .agent-row {
-  margin-block: 0;
-}
-.settings-content .agent-row:first-of-type {
-  border-start-start-radius: 18px;
-  border-start-end-radius: 18px;
-}
-.settings-content .agent-row:last-of-type {
-  border-end-start-radius: 18px;
-  border-end-end-radius: 18px;
+.agent-row summary::-webkit-details-marker {
+  display: none;
 }
 .connection-icon {
-  display: flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-.connect-agent-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 14px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-}
-.connect-agent-dialog button {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
+  flex: none;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: transparent;
+  border: 1px solid #393939;
+  background: #1e1e1e;
 }
-.connect-agent-dialog .provider-picker button[aria-pressed="true"] {
-  background: #292929;
-  border-color: #737373;
+.connection-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-@media (max-width: 480px) {
-  .settings-content .agent-page .page-head {
-    flex-direction: row;
-    align-items: center;
-  }
+.connection-info strong {
+  font-weight: 500;
 }
-.shell {
-  container-type: inline-size;
+.connection-info small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+.connection-status {
+  margin-inline-start: auto;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.connection-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.connection-chevron {
+  flex: none;
+  color: var(--muted);
+}
+.agent-row[open] .connection-chevron {
+  transform: rotate(180deg);
+}
+.connection-details {
+  padding: 0 20px 16px;
+}
+.connection-details button {
+  margin-top: 8px;
+}
+.agent-advanced {
+  margin: 20px 0;
+  color: var(--muted);
+}
+.agent-advanced summary {
+  padding-block: 8px;
+  cursor: pointer;
+}
+.agent-advanced summary span {
+  font-size: 12px;
+  margin-inline-start: 8px;
 }
 @container (max-width:850px) {
   .shell > header {
-    gap: 16px;
-    padding-block: 20px;
+    gap: 12px;
+    padding-block: 14px;
   }
   .shell > header > .brand {
     flex: 1;
@@ -3540,48 +3546,79 @@ th:last-child {
     justify-content: space-between;
     gap: 8px;
   }
-  .connect-agent-trigger span {
-    display: none;
+  .shell > header > .account {
+    margin-inline-start: 0;
   }
   .settings-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    gap: 26px;
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+}
+@container (max-width:640px) {
+  .settings-layout {
+    display: block;
+    margin-top: 18px;
   }
   .settings-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
+    display: none;
   }
-  .settings-nav a {
+  .settings-picker {
+    display: block;
+    background: var(--background, #0a0a0a);
+    color: var(--text);
+    font: inherit;
+    font-weight: 550;
+    font-size: 22px;
+    max-width: 100%;
+    padding: 4px 2px;
+    border: none;
+    margin-bottom: 16px;
+  }
+  .settings-content > .agent-page > h1,
+  .settings-content > h1,
+  .settings-content > .page-head > h1,
+  .settings-content > .sharing > .share-heading > h1 {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .setup-body {
+    padding: 17px;
+  }
+  .setup-footer {
+    padding: 12px 16px;
+  }
+  .connect-agent-trigger {
     font-size: 12px;
-    padding: 10px;
+    padding: 7px 10px;
+    gap: 7px;
+  }
+  .trigger-marks img {
+    width: 17px;
+    height: 17px;
+  }
+  .agent-page .provider-picker button {
+    width: 33px;
+  }
+  .copy-caption {
+    display: none;
+  }
+  .agent-row summary {
+    gap: 8px;
+    padding: 14px;
   }
 }
-.connection-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-inline-start: 10px;
-  border-radius: 50%;
-  background: var(--green);
-  vertical-align: middle;
+/* The dashboard canvas owns the full workspace while a share is being edited. */
+.settings-layout:has(.dashboard-editor) {
+  display: block;
 }
-.connection-details button {
-  margin-block-start: 12px;
-  width: 100%;
+.settings-layout:has(.dashboard-editor) :is(.settings-nav, .settings-picker) {
+  display: none;
 }
-.settings-nav {
-  order: 0;
-  flex: none;
-}
-.settings-content .agent-row {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-}
-.settings-content .agent-row > div {
-  flex: 1;
-}
-.settings-content .agent-row .connection-details {
-  flex: none;
+@container (max-width:240px) {
+  .connect-agent-trigger .trigger-label {
+    display: none;
+  }
 }
