@@ -13,7 +13,7 @@ This connection cannot edit your health records or manage your account.
 
 ## Connect
 
-1. Select **Connect your agent** at the top of your dashboard and choose your agent’s logo.
+1. Select **Connect your agent** at the top of your dashboard and choose your agent’s logo, or **Other** for Codex and other MCP clients.
 2. Copy the **Server URL** into your agent’s remote MCP settings.
 3. Sign in to your own Zoop server when prompted. Choose the data categories,
    history window and expiry, then select **Allow read access**.
@@ -25,6 +25,8 @@ connection is tied to the band selected when you approve it.
 Your agent may send readings to its model provider. Check that provider’s retention
 and privacy settings. Revoking access stops future requests; it cannot erase copies
 already received. Never connect a shared team credential to your private readings.
+
+For the Codex CLI, copy the Server URL from Zoop and run `codex mcp add zoop --url <SERVER_URL>`, replacing `<SERVER_URL>` with that address. If prompted to sign in separately, run `codex mcp login zoop`.
 
 ### Access keys
 

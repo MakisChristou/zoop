@@ -139,9 +139,9 @@ export default function Home(): ReactNode {
             <span>Your data.</span>
           </h1>
           <p className="hero-description">
-            Understand your sleep, activity and progress.
-            <br className="desktop-break" /> Keep the recordings behind every
-            number.
+            Track sleep, recovery and activity with WHOOP 5.0 or MG.
+            <br className="desktop-break" /> Keep the original recordings on
+            your own server.
           </p>
           <div className="hero-actions">
             <a
@@ -166,47 +166,105 @@ export default function Home(): ReactNode {
 
         <ProductPreview />
 
+        <section
+          className="section-wrap features"
+          aria-labelledby="features-title"
+        >
+          <div className="section-intro">
+            <h2 id="features-title">What you can track</h2>
+          </div>
+          <div className="feature-grid">
+            <article>
+              <h3>Sleep &amp; recovery</h3>
+              <p>
+                See last night’s sleep stages, resting heart rate and HRV
+                alongside your daily recovery score.
+              </p>
+            </article>
+            <article>
+              <h3>Steps &amp; workouts</h3>
+              <p>
+                Count daily steps, review automatically detected workouts and
+                follow your training load over time.
+              </p>
+            </article>
+            <article>
+              <h3>Weight &amp; goals</h3>
+              <p>
+                Track a cut, bulk or maintenance phase. Compare your weekly
+                weight trend with the pace you set.
+              </p>
+            </article>
+          </div>
+        </section>
+
         <section className="section-wrap" aria-labelledby="widgets-title">
           <div className="section-intro">
             <h2 id="widgets-title">Widgets for iPhone and Mac</h2>
             <p>
-              Preview the Home Screen and Mac desktop widgets with sample
-              readings.
+              Your readings on the Home Screen or desktop. Previews use sample
+              data.
             </p>
           </div>
           <WidgetGallery />
         </section>
 
         <section
-          className="ownership section-wrap"
-          aria-labelledby="ownership-title"
+          className="section-wrap data-features"
+          aria-labelledby="data-title"
         >
           <div className="section-intro">
-            <h2 id="ownership-title">Keep your history.</h2>
+            <h2 id="data-title">Your data beyond the app</h2>
           </div>
           <div className="feature-grid">
             <article>
-              <h3>See the pattern</h3>
+              <h3>Custom dashboards</h3>
               <p>
-                Explore sleep, recovery, workouts and weight across days, weeks
-                and months.
+                Arrange your charts and share a selection by link. Add a
+                password or set an expiry.
               </p>
             </article>
             <article>
-              <h3>Keep the original</h3>
+              <h3>Original recordings</h3>
               <p>
-                Store raw recordings on your server. Revisit them as Zoop’s
-                analysis improves.
+                Keep the raw band data in your own database. Recalculate past
+                measurements when the analysis improves.
               </p>
             </article>
             <article>
-              <h3>Choose what to share</h3>
+              <h3>Weight history</h3>
               <p>
-                Keep accounts private. Share selected charts through links you
-                can revoke.
+                Sync weigh-ins with Apple Health or export your history as a
+                CSV.
               </p>
             </article>
           </div>
+          <Link className="agent-feature" to="/docs/connect-agent">
+            <span className="agent-marks">
+              <img
+                src={useBaseUrl("/img/agents/claude.svg")}
+                alt="Claude"
+                width="28"
+                height="28"
+              />
+              <img
+                src={useBaseUrl("/img/agents/codex.svg")}
+                alt="Codex"
+                width="28"
+                height="28"
+              />
+            </span>
+            <span className="agent-feature-copy">
+              <strong>Connect your agent</strong>
+              <span>
+                Ask about your sleep or training through MCP. You choose which
+                readings your agent can see.
+              </span>
+            </span>
+            <span aria-hidden="true" className="agent-feature-arrow">
+              →
+            </span>
+          </Link>
         </section>
 
         <section
