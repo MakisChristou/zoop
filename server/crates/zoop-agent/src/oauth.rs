@@ -83,8 +83,9 @@ pub(crate) async fn resource_metadata(State(s): State<AgentState>) -> Json<Value
         json!({"resource":s.resource(),"authorization_servers":[s.origin],"scopes_supported":SCOPES,"bearer_methods_supported":["header"],"resource_name":"Zoop health data"}),
     )
 }
+// OAuth clients may send extension parameters (RFC 6749 §3.1). Deserialize
+// and forward only the fields Zoop uses for consent and authorization.
 #[derive(Debug, Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct Authorization {
     client_id: String,
     redirect_uri: String,

@@ -1360,6 +1360,33 @@ async fn authorization_error_issuer_and_native_callback_ports() {
         }
         q.finish()
     };
+    // ChatGPT adds a language preference to the authorization request. Only
+    // supported fields should make it as far as Zoop's consent screen.
+    let request = format!("{}&ui_locales=en-US%20el&display=popup", query(&a));
+    let r = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/oauth/authorize?{request}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(r.status().is_redirection());
+    let location = url::Url::parse(r.headers()["location"].to_str().unwrap()).unwrap();
+    assert_eq!(location.origin().ascii_serialization(), ORIGIN);
+    let consent_query = location
+        .fragment()
+        .unwrap()
+        .strip_prefix("agent-authorize?")
+        .unwrap();
+    let forwarded: std::collections::BTreeMap<_, _> =
+        url::form_urlencoded::parse(consent_query.as_bytes())
+            .into_owned()
+            .collect();
+    assert_eq!(serde_json::to_value(forwarded).unwrap(), a);
     let r = f
         .app
         .clone()
