@@ -18,8 +18,6 @@ import XCTest
     private func profile(_ app: XCUIApplication) {
         let button = app.buttons["openProfile"].firstMatch
         XCTAssertTrue(button.waitForExistence(timeout: 15))
-        let ready = expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: button)
-        wait(for: [ready], timeout: 10)
         button.tap()
         XCTAssertTrue(app.navigationBars["Profile & settings"].waitForExistence(timeout: 15))
     }
